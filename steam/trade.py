@@ -235,6 +235,12 @@ class Item(Asset[OwnerT]):
 
 
 class InventoryGenericAlias(types.GenericAlias):
+    if TYPE_CHECKING:
+
+        @property
+        def __origin__(self) -> type[Inventory]:
+            ...
+
     def __call__(self, *args: Any, **kwargs: Any) -> object:
         # this is done cause we need __orig_class__ in __init__
         result = self.__origin__.__new__(self.__origin__, *args, **kwargs)
@@ -380,10 +386,11 @@ class MovedItem(Item[OwnerT]):
         """The new_contextid field."""
 
 
-AssetT = TypeVar("AssetT", bound="Asset[PartialUser]", default="Item[BaseUser]", covariant=True)
+ReceivingAssetT = TypeVar("ReceivingAssetT", bound="Asset[PartialUser]", default="Item[BaseUser]", covariant=True)
+SendingAssetT = TypeVar("SendingAssetT", bound="Asset[ClientUser]", default="Item[ClientUser]", covariant=True)
 
 
-class TradeOffer(Generic[AssetT, OwnerT]):
+class TradeOffer(Generic[ReceivingAssetT, SendingAssetT, OwnerT]):
     """Represents a trade offer from/to send to a User.
     This can also be used in :meth:`steam.User.send`.
 
@@ -427,13 +434,15 @@ class TradeOffer(Generic[AssetT, OwnerT]):
         *,
         message: str | None = None,
         token: str | None = None,
-        sending: Sequence[ItemT] | ItemT | None = None,
+        sending: Sequence[SendingAssetT] | SendingAssetT | None = None,
         # TODO HKT for this would be really nice as could then "ensure" we own the item
-        receiving: Sequence[ItemT] | ItemT | None = None,
+        receiving: Sequence[ReceivingAssetT] | ReceivingAssetT | None = None,
     ):
-        self.sending: Sequence[ItemT] = sending if isinstance(sending, Sequence) else [sending] if sending else []
+        self.sending: Sequence[SendingAssetT] = (
+            sending if isinstance(sending, Sequence) else [sending] if sending else []
+        )
         """The items you are sending to the partner."""
-        self.receiving: Sequence[ItemT] = (
+        self.receiving: Sequence[ReceivingAssetT] = (
             receiving if isinstance(receiving, Sequence) else [receiving] if receiving else []
         )
         """The items you are receiving from the partner."""
@@ -459,23 +468,32 @@ class TradeOffer(Generic[AssetT, OwnerT]):
         self._has_been_sent = False
 
     @classmethod
-    def _from_api(cls, state: ConnectionState, data: trade.TradeOffer, partner: OwnerT) -> TradeOffer[Item[OwnerT], OwnerT]:  # type: ignore
+    def _from_api(cls, state: ConnectionState, data: trade.TradeOffer, partner: OwnerT) -> TradeOffer[Item[OwnerT], Item[ClientUser], OwnerT]:  # type: ignore
         trade = cls()
         trade._has_been_sent = True
         trade._state = state
         trade.partner = partner
-        return cast(TradeOffer[Item[OwnerT], OwnerT], trade._update(data))
+        return cast("TradeOffer[Item[OwnerT], Item[ClientUser], OwnerT]", trade._update(data))
 
     @classmethod
     def _from_history(
-        cls: type[TradeOffer[MovedItem[OwnerT], OwnerT]], state: ConnectionState, data: trade.TradeOfferHistoryTrade
-    ) -> TradeOffer[MovedItem[OwnerT], OwnerT]:
-        received: list[trade.TradeOfferReceiptItem] = data.get("assets_received", [])  # type: ignore  # these are updated in place so this is safe
-        sent: list[trade.TradeOfferReceiptItem] = data.get("assets_given", [])  # type: ignore
+        cls: type[TradeOffer[MovedItem[OwnerT], MovedItem[ClientUser], OwnerT]],
+        state: ConnectionState,
+        data: trade.TradeOfferHistoryTrade,
+        descriptions: Sequence[trade.Description],
+    ) -> TradeOffer[MovedItem[OwnerT], MovedItem[ClientUser], OwnerT]:
         partner = cast("OwnerT", PartialUser(state, data["steamid_other"]))
         trade = cls(
-            receiving=[MovedItem(state, item, partner) for item in received],
-            sending=[MovedItem(state, item, state.user) for item in sent],
+            receiving=[
+                MovedItem(state, description | asset, partner)
+                for asset, description in itertools.product(data.get("assets_given", ()), descriptions)
+                if description["instanceid"] == asset["instanceid"] and description["classid"] == asset["classid"]
+            ],
+            sending=[
+                MovedItem(state, description | asset, state.user)
+                for asset, description in itertools.product(data.get("assets_given", ()), descriptions)
+                if description["instanceid"] == asset["instanceid"] and description["classid"] == asset["classid"]
+            ],
         )
         trade._state = state
         trade._id = int(data["tradeid"])
@@ -500,7 +518,9 @@ class TradeOffer(Generic[AssetT, OwnerT]):
         resolved = [f"{attr}={getattr(self, attr, None)!r}" for attr in attrs]
         return f"<TradeOffer {' '.join(resolved)}>"
 
-    def _update(self: TradeOffer[Asset[OwnerT], OwnerT], data: trade.TradeOffer) -> TradeOffer[Item[OwnerT], OwnerT]:
+    def _update(
+        self: TradeOffer[Asset[OwnerT], Asset[ClientUser], OwnerT], data: trade.TradeOffer
+    ) -> TradeOffer[Item[OwnerT], Item[ClientUser], OwnerT]:
         self.message = data.get("message") or None
         self.id = TradeOfferID(int(data["tradeofferid"]))
         self._id = int(data["tradeid"]) if "tradeid" in data else None
@@ -525,7 +545,7 @@ class TradeOffer(Generic[AssetT, OwnerT]):
                     owner=self._state.user,
                 )
                 for item in data.get("items_to_give", ())
-            ]  # type: ignore
+            ]
             self.receiving = [
                 Item(
                     self._state,
@@ -534,9 +554,9 @@ class TradeOffer(Generic[AssetT, OwnerT]):
                     owner=self.partner,
                 )
                 for item in data.get("items_to_receive", ())
-            ]  # type: ignore
+            ]
         self._is_our_offer = data.get("is_our_offer", False)
-        return cast("TradeOffer[Item[OwnerT], OwnerT]", self)
+        return cast("TradeOffer[Item[OwnerT], Item[ClientUser], OwnerT]", self)
 
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, TradeOffer):
@@ -620,11 +640,11 @@ class TradeOffer(Generic[AssetT, OwnerT]):
     async def receipt(self) -> TradeOfferReceipt[OwnerT]:
         """Get the receipt for a trade offer and the updated asset ids for the trade.
 
+        .. source:: steam.TradeOfferReceipt
+
         Returns
         -------
         A trade receipt.
-
-        .. source:: steam.TradeOfferReceipt
         """
         if self._id is None:
             raise ValueError("Cannot fetch the receipt for a trade not accepted")
@@ -637,18 +657,20 @@ class TradeOffer(Generic[AssetT, OwnerT]):
 
         return TradeOfferReceipt(
             sent=[
-                MovedItem(self._state, data=item | asset, owner=self._state.user)
-                for asset, item in itertools.product(trade.get("assets_given", ()), descriptions)
-                if item["instanceid"] == asset["instanceid"] and item["classid"] == asset["classid"]
+                MovedItem(self._state, data=description | asset, owner=self._state.user)
+                for asset, description in itertools.product(trade.get("assets_given", ()), descriptions)
+                if description["instanceid"] == asset["instanceid"] and description["classid"] == asset["classid"]
             ],
             received=[
-                MovedItem(self._state, data=item | asset, owner=self.partner)
-                for asset, item in itertools.product(trade.get("assets_received", ()), descriptions)
-                if item["instanceid"] == asset["instanceid"] and item["classid"] == asset["classid"]
+                MovedItem(self._state, data=description | asset, owner=self.partner)
+                for asset, description in itertools.product(trade.get("assets_received", ()), descriptions)
+                if description["instanceid"] == asset["instanceid"] and description["classid"] == asset["classid"]
             ],
         )
 
-    async def counter(self: TradeOffer[Asset[OwnerT], OwnerT], trade: TradeOffer[Asset[OwnerT], Any]) -> None:
+    async def counter(
+        self: TradeOffer[Asset[OwnerT], Asset[ClientUser], OwnerT], trade: TradeOffer[Asset[OwnerT], Any, Any]
+    ) -> None:
         """Counter a trade offer from an :class:`User`.
 
         Parameters

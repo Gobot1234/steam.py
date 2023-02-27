@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from typing_extensions import Self
 
+from .enums import Type
 from .types.id import RoleID
 
 if TYPE_CHECKING:
-    from .chat import Member
+    from .chat import ChatGroup, Member
     from .clan import Clan
     from .group import Group
     from .protobufs import chat
@@ -30,7 +31,7 @@ class Role:
     clan: Clan | None
     """The clan the role belongs to, if any."""
 
-    def __init__(self, state: ConnectionState, group: Clan | Group, role: chat.Role, permissions: chat.RoleActions):
+    def __init__(self, state: ConnectionState, group: ChatGroup, role: chat.Role, permissions: chat.RoleActions):
         self._state = state
         self.id = RoleID(int(role.role_id))
         """The ID of the role."""
@@ -39,13 +40,11 @@ class Role:
         self.ordinal = role.ordinal
         """The ordinal of the role."""
 
-        from .clan import Clan
-
-        if isinstance(group, Clan):
-            self.clan = group
+        if group.type is Type.Clan:  # these are reasonably safe casts as ChatGroup is an abc
+            self.clan = cast("Clan", group)
             self.group = None
         else:
-            self.group = group
+            self.group = cast("Group", group)
             self.clan = None
         self.permissions = RolePermissions(permissions)
         """The permissions of the role."""

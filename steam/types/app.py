@@ -22,7 +22,7 @@ class WishlistApp(TypedDict):
     release_date: int
     release_string: str
     platform_icons: str
-    subs: list[dict[str, Any]]
+    subs: list[WishlistAppSub]
     type: str
     screenshots: list[str]
     review_css: str
@@ -35,6 +35,13 @@ class WishlistApp(TypedDict):
     win: bool
     mac: bool
     linux: bool
+
+
+class WishlistAppSub(TypedDict):
+    id: int  # PackageID
+    discount_block: str
+    discount_pct: int
+    price: int
 
 
 class PackageGroups(TypedDict):

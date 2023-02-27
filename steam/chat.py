@@ -160,7 +160,9 @@ class Member(_BaseMember):
 
     if not TYPE_CHECKING:
         roles = PartialMember.roles
-        __repr__ = PartialMember.__repr__  # type: ignore
+
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__} name={self.name!r} id={self.id!r} {f'clan={self.clan!r}' if self.clan else f'group={self.group!r}'} rank={self.rank!r}>"
 
     def copy(self) -> Self:
         return self.__class__(
@@ -406,7 +408,7 @@ class Chat(Channel[ChatMessageT]):
                 if limit is not None and yielded >= limit:
                     return
 
-                new_message.author = self._chat_group._maybe_member(ID64(message.sender))
+                new_message.author = self._chat_group._maybe_member(_ID64_TO_ID32(message.sender))
                 emoticon_reactions = [
                     PartialMessageReaction(
                         self._state,

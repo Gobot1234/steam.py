@@ -80,7 +80,9 @@ class _BaseUser(BaseUser):
         """The last time the user logged into steam."""
         self.last_seen_online = DateTime.from_timestamp(proto.last_seen_online)
         """The last time the user could be seen online."""
-        self.rich_presence = {message.key: message.value for message in proto.rich_presence}
+        self.rich_presence = (
+            {message.key: message.value for message in proto.rich_presence} if proto.is_set("rich_presence") else None
+        )
         """The rich presence of the user."""
         self.app = (
             PartialApp(self._state, name=proto.game_name, id=proto.game_played_app_id)
@@ -88,9 +90,9 @@ class _BaseUser(BaseUser):
             else None
         )
         """The app the user is playing. Is ``None`` if the user isn't in a app or one that is recognised by the API."""
-        self.state = PersonaState.try_value(proto.persona_state) or self.state
+        self.state = PersonaState.try_value(proto.persona_state)
         """The current persona state of the account (e.g. LookingToTrade)."""
-        self.flags = PersonaStateFlag.try_value(proto.persona_state_flags) or self.flags
+        self.flags = PersonaStateFlag.try_value(proto.persona_state_flags)
         """The persona state flags of the account."""
 
 

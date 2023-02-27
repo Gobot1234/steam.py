@@ -307,7 +307,7 @@ class SteamWebSocket(Registerable):
         return future
 
     @classmethod
-    async def from_client(cls, client: Client, refresh_token: str = MISSING) -> SteamWebSocket:
+    async def from_client(cls, client: Client, refresh_token: str | None = None) -> SteamWebSocket:
         PROTOCOL_VERSION: Final = 65580
         state = client._state
         cm_list = fetch_cm_list(state)
@@ -326,7 +326,7 @@ class SteamWebSocket(Registerable):
             task = asyncio.create_task(poll())
             await self.send_proto(login.CMsgClientHello(PROTOCOL_VERSION))
 
-            if refresh_token is MISSING:
+            if refresh_token is None:
                 self.refresh_token = await self.fetch_refresh_token()
                 # steam_id is set in fetch_refresh_token
             else:
@@ -761,7 +761,7 @@ class SteamWebSocket(Registerable):
     async def fetch_users(self, user_id64s: Iterable[ID64]) -> list[friends.CMsgClientPersonaStateFriend]:
         futs: list[asyncio.Future[friends.CMsgClientPersonaState]] = []
         users: list[friends.CMsgClientPersonaStateFriend] = []
-        user_id64s = tuple(dict.fromkeys(user_id64s))
+        user_id64s = dict.fromkeys(user_id64s)
 
         def callback(msg: friends.CMsgClientPersonaState, user_id64: ID64) -> bool:
             return any(friend.friendid == user_id64 for friend in msg.friends)

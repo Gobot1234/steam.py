@@ -10,20 +10,14 @@ from typing_extensions import TypeVar
 
 from . import utils
 from ._const import URL
-from .enums import (
-    LeaderboardDataRequest,
-    LeaderboardDisplayType,
-    LeaderboardSortMethod,
-    LeaderboardUploadScoreMethod,
-    Type,
-)
+from .enums import LeaderboardDataRequest, LeaderboardDisplayType, LeaderboardSortMethod, LeaderboardUploadScoreMethod
 from .user import User, WrapsUser
 
 if TYPE_CHECKING:
     from .app import App
-    from .id import ID
     from .state import ConnectionState
     from .types.id import ID64, LeaderboardID
+    from .types.user import IndividualID
 
 
 __all__ = (
@@ -108,7 +102,7 @@ class Leaderboard(Generic[AppT, DisplayNameT]):
         *,
         limit: int | None = None,
         type: Literal[LeaderboardDataRequest.Users],
-        users: Sequence[ID[Literal[Type.Individual]]],
+        users: Sequence[IndividualID],
     ) -> AsyncGenerator[LeaderboardUser, None]:
         ...
 
@@ -123,7 +117,7 @@ class Leaderboard(Generic[AppT, DisplayNameT]):
         *,
         limit: int | None = None,
         type: LeaderboardDataRequest = LeaderboardDataRequest.Global,
-        users: Sequence[ID[Literal[Type.Individual]]] = (),
+        users: Sequence[IndividualID] = (),
     ) -> AsyncGenerator[LeaderboardUser, None]:
         """Fetch the entries of the leaderboard.
 

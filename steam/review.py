@@ -155,7 +155,7 @@ class Review(Commentable, Awardable):
         }
 
     @classmethod
-    def _from_proto(cls, state: ConnectionState, review: ReviewProto, user: PartialUser) -> Self:
+    def _from_proto(cls, state: ConnectionState, review: ReviewProto, user: User) -> Self:
         return cls(
             state,
             id=review.recommendationid,
@@ -265,4 +265,4 @@ class Review(Commentable, Awardable):
 
     async def delete(self) -> None:
         """Delete this review."""
-        await self._state.http.delete_review(self.id)
+        await self._state.http.delete_review(self.app.id)

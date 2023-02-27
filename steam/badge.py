@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from .app import PartialApp
     from .state import ConnectionState
     from .trade import Item
+    from .types import user
 
 
 __all__ = (
@@ -150,7 +151,7 @@ class UserBadge(BaseOwnedBadge["PartialApp", UserT]):
 
     __slots__ = ("xp", "scarcity", "completion_time")
 
-    def __init__(self, state: ConnectionState, owner: UserT, data: dict[str, Any]):
+    def __init__(self, state: ConnectionState, owner: UserT, data: user.UserBadgeBadge):
         from .app import STEAM, PartialApp
 
         super().__init__(
@@ -200,15 +201,15 @@ class UserBadges(Sequence[UserBadge[UserT]]):
         "xp_needed_for_current_level",
     )
 
-    def __init__(self, state: ConnectionState, user: UserT, data: dict[str, Any]):
+    def __init__(self, state: ConnectionState, user: UserT, data: user.UserBadges):
         self.user = user
-        self.level: int = data["player_level"]
+        self.level = data["player_level"]
         """The user's level."""
-        self.xp: int = data["player_xp"]
+        self.xp = data["player_xp"]
         """The users's XP."""
-        self.xp_needed_to_level_up: int = data["player_xp_needed_to_level_up"]
+        self.xp_needed_to_level_up = data["player_xp_needed_to_level_up"]
         """The amount of XP the user needs to level up."""
-        self.xp_needed_for_current_level: int = data["player_xp_needed_current_level"]
+        self.xp_needed_for_current_level = data["player_xp_needed_current_level"]
         """The amount of XP the user's current level requires to achieve."""
         self.badges: Sequence[UserBadge[UserT]] = [UserBadge(state, user, data) for data in data["badges"]]
         """A list of the user's badges."""

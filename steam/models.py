@@ -29,6 +29,7 @@ if TYPE_CHECKING:
 
     from .gateway import Msgs
     from .state import ConnectionState
+    from .types import user
 
 
 __all__ = (
@@ -60,8 +61,6 @@ return_true = _ReturnTrue()
 
 
 class Registerable:
-    __slots__ = ("parsers_name",)
-
     def __new__(cls, *args: Any, **kwargs: Any) -> Self:
         self = super().__new__(cls)
         cls.parsers_name = tuple(cls.__annotations__)[0]

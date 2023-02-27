@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import abc
-import json
 import re
 from collections.abc import Callable, Mapping
 from contextlib import nullcontext
@@ -12,7 +11,7 @@ from typing import TYPE_CHECKING, Any, Final, Generic, Literal, cast, overload
 import aiohttp
 from typing_extensions import TypeVar
 
-from ._const import MISSING, URL, MissingSentinel
+from ._const import JSON_LOADS, MISSING, URL, MissingSentinel
 from .enums import Instance, Type, TypeChar, Universe
 from .errors import InvalidID
 from .types.id import ID32, ID64, Intable
@@ -21,6 +20,7 @@ if TYPE_CHECKING:
     from aiohttp import ClientSession
 
     from .types.http import StrOrURL
+    from .types.user import IndividualID
 
 
 __all__ = ("ID",)
@@ -210,7 +210,7 @@ async def id64_from_url(url: StrOrURL, session: aiohttp.ClientSession | None = N
             text = await r.text()
 
     if search["type"] in USER_URL_PATHS:
-        data = json.loads(match["json"]) if (match := USER_ID64_FROM_URL_REGEX.search(text)) else None
+        data = JSON_LOADS(match["json"]) if (match := USER_ID64_FROM_URL_REGEX.search(text)) else None
     else:
         data = CLAN_ID64_FROM_URL_REGEX.search(text)
     return ID64(int(data["steamid"])) if data else None
@@ -483,7 +483,7 @@ class ID(Generic[TypeT], metaclass=abc.ABCMeta):
         return True
 
     @staticmethod
-    def from_id2(value: str, /) -> ID[Literal[Type.Individual]] | None:
+    def from_id2(value: str, /) -> IndividualID | None:
         """Create an ID from a user's :attr:`id2`.
 
         Parameters
@@ -568,7 +568,10 @@ class ID(Generic[TypeT], metaclass=abc.ABCMeta):
         See :func:`id64_from_url` for the full parameter list.
         """
         id64 = await id64_from_url(url, session)
-        return ID(id64) if id64 else None
+        if id64:
+            id = ID(id64)
+            assert id.type in (Type.Individual, Type.Clan)
+            return id
 
 
 ID_ZERO: Final = ID(0, type=Type.Individual)

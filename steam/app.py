@@ -78,7 +78,7 @@ class App(Generic[NameT]):
     # ideally this would have overloads for __new__ but that's not possible without Self working with HKT
 
     @overload
-    def __init__(self, *, id: Intable, name: NameT = ..., context_id: int | None = ...):
+    def __init__(self, *, id: Intable, name: NameT = None, context_id: int | None = ...):
         ...
 
     @overload
@@ -159,8 +159,8 @@ class App(Generic[NameT]):
         if self.is_valid():
             return client_server.CMsgClientGamesPlayedGamePlayed(game_id=self.id)
 
-        if self.name is None or self.id is None:
-            raise TypeError("un-serializable app with no title and or id")
+        if self.name is None:
+            raise TypeError("un-serializable app with no title")
         return client_server.CMsgClientGamesPlayedGamePlayed(game_id=self.id, game_extra_info=self.name)
 
     def is_valid(self) -> bool:
@@ -725,8 +725,6 @@ class PartialApp(App[NameT]):
                 reviews,
                 await self._state.fetch_users(ID64(int(review["author"]["steamid"])) for review in reviews),
             ):
-                if user is None:
-                    continue
                 review = Review._from_data(self._state, review, app, user)
                 if not after < review.created_at < before:
                     return
@@ -747,7 +745,6 @@ class PartialApp(App[NameT]):
             [self._state.get_friend(id) for id in cast("list[ID32]", proto.accountids_not_recommended)],
         )
 
-    # async def fetch(self) -> Self & FetchedApp:  # TODO update signature to this when types.Intersection is done
     async def fetch(self, *, language: Language | None = None) -> FetchedApp:
         """Fetch this app.
 
@@ -757,10 +754,7 @@ class PartialApp(App[NameT]):
 
             app = await client.fetch_app(app)
         """
-        app = await self._state.client.fetch_app(self.id, language=language)
-        if app is None:
-            raise ValueError("Fetched app was not valid.")
-        return app
+        return await self._state.fetch_app(self.id, language=language)
 
     async def store_item(self) -> AppStoreItem:
         """Fetch the store item for this app.
@@ -1334,7 +1328,7 @@ class WishlistApp(PartialApp[str]):
         "_on_windows",
     )
 
-    def __init__(self, state: ConnectionState, id: int | str, data: app.WishlistApp):
+    def __init__(self, state: ConnectionState, id: int, data: app.WishlistApp):
         super().__init__(state, id=id, name=data["name"])
         self.priority = int(data["priority"])
         """The priority of the app in the wishlist."""

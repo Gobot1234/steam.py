@@ -24,7 +24,7 @@ from yarl import URL as URL_
 from . import utils
 from ._const import HTML_PARSER, JSON_LOADS, URL, VDF_BINARY_LOADS, VDF_LOADS
 from .abc import Awardable, BaseUser, Commentable, PartialUser, _CommentableThreadType
-from .app import App, AuthenticationTicket, FetchedApp
+from .app import App, AuthenticationTicket, FetchedApp, PartialApp
 from .channel import UserChannel
 from .clan import Clan, PartialClan
 from .comment import Comment
@@ -167,7 +167,7 @@ class ConnectionState(Registerable):
 
     def clear(self) -> None:
         self._users: weakref.WeakValueDictionary[ID32, User] = weakref.WeakValueDictionary()
-        self._trades: dict[TradeOfferID, TradeOffer] = {}
+        self._trades: dict[TradeOfferID, TradeOffer[Item[User], Item[ClientUser], User]] = {}
 
         self._groups: dict[ChatGroupID, Group] = {}
         self._clans: dict[ID32, Clan] = {}
@@ -183,7 +183,7 @@ class ConnectionState(Registerable):
         self.stickers: list[ClientSticker] = []
 
         self.polling_trades = False
-        self.trade_queue = Queue[TradeOffer[Item[User | PartialUser], User | PartialUser]]()
+        self.trade_queue = Queue[TradeOffer[Item[User], Item[ClientUser], User]]()
         self._trades_to_watch: set[TradeOfferID] = set()
         self._trades_received_cache: Sequence[dict[str, Any]] = ()
         self._trades_sent_cache: Sequence[dict[str, Any]] = ()
@@ -317,7 +317,7 @@ class ConnectionState(Registerable):
     def get_clan(self, id: ID32) -> Clan | None:
         return self._clans.get(id)
 
-    async def fetch_clan(self, id64: ID64, *, maybe_chunk: bool = True) -> Clan | None:
+    async def fetch_clan(self, id64: ID64, *, maybe_chunk: bool = True) -> Clan:
         msg: chat.GetClanChatRoomInfoResponse = await self.ws.send_um_and_wait(
             chat.GetClanChatRoomInfoRequest(steamid=id64)
         )
@@ -341,7 +341,7 @@ class ConnectionState(Registerable):
             (trade,) = await self._process_trades((data["offer"],), data.get("descriptions", ()))
             return trade
 
-    async def _store_trade(self, data: trade.TradeOffer) -> TradeOffer[Item[User | PartialUser], User | PartialUser]:
+    async def _store_trade(self, data: trade.TradeOffer) -> TradeOffer[Item[User], Item[ClientUser], User]:
         try:
             trade = self._trades[TradeOfferID(int(data["tradeofferid"]))]
         except KeyError:
@@ -368,8 +368,8 @@ class ConnectionState(Registerable):
 
     async def _process_trades(
         self, trades: Iterable[trade.TradeOffer], descriptions: Collection[trade.Description]
-    ) -> list[TradeOffer[Item[User | PartialUser], User | PartialUser]]:
-        ret: list[TradeOffer[Item[User | PartialUser], User | PartialUser]] = []
+    ) -> list[TradeOffer[Item[User], Item[ClientUser], User]]:
+        ret: list[TradeOffer[Item[User], Item[ClientUser], User]] = []
         for trade in trades:
             for description in descriptions:
                 for asset in trade.get("items_to_receive", ()):
@@ -434,7 +434,7 @@ class ConnectionState(Registerable):
             params={"p": self._device_id, "a": self.user.id64, "k": key, "t": timestamp, "m": "react", "tag": "list"},
         )
         if not data.get("success", False):
-            raise ConfirmationError(f"{data.get('message', 'Unknown error')}\n{data.get('detail') or ''}".strip())
+            raise ConfirmationError(f"{data.get('message', 'Unknown error')}\n{data.get('detail', '')}".strip())
 
         confirmations: list[Confirmation] = []
         for confirmation in data["conf"]:
@@ -506,9 +506,8 @@ class ConnectionState(Registerable):
     async def fetch_and_confirm_confirmation(self, trade_id: TradeOfferID) -> bool:
         if self.client.identity_secret:
             confirmation = await self.wait_for_confirmation(id=trade_id)
-            if confirmation is not None:
-                await confirmation.confirm()
-                return True
+            await confirmation.confirm()
+            return True
 
         return False
 
@@ -1021,9 +1020,7 @@ class ConnectionState(Registerable):
     async def handle_user_message(self, msg: friend_messages.IncomingMessageNotification) -> None:
         await self.client.wait_until_ready()
         id64 = msg.steamid_friend
-        partner = self.user._friends.get(_ID64_TO_ID32(id64)) or await self._maybe_user(
-            id64
-        )  # FIXME shouldn't ever be out of cache
+        partner = self.user._friends.get(_ID64_TO_ID32(id64)) or await self._maybe_user(id64)
         author = self.user if msg.local_echo else partner  # local_echo is always us
 
         if msg.chat_entry_type == ChatEntryType.Text:
@@ -1579,7 +1576,7 @@ class ConnectionState(Registerable):
     @register(EMsg.ClientCommentNotifications)
     async def handle_comments(self, msg: client_server_2.CMsgClientCommentNotifications) -> None:
         notifications = await self.fetch_notifications()
-        while not any(notification.notification_type == 3 for notification in notifications):
+        while all(notification.notification_type != 3 for notification in notifications):
             await asyncio.sleep(5)  # steam takes a bit to put comments in your notifications
             notifications = await self.fetch_notifications()
         return
@@ -1782,7 +1779,7 @@ class ConnectionState(Registerable):
     @register(EMsg.ClientLicenseList)
     async def handle_licenses(self, msg: client_server.CMsgClientLicenseList) -> None:
         await self.login_complete.wait()
-        users: dict[int, User | PartialUser] = {
+        users: dict[int, User] = {
             user.id: user
             for user in await self._maybe_users(
                 parse_id64(license.owner_id, type=Type.Individual) for license in msg.licenses
@@ -2022,6 +2019,10 @@ class ConnectionState(Registerable):
             store.RegisterCDKeyRequest(activation_code=key)
         )
         if msg.result != Result.OK:
+            msg.header.error_message += (
+                f"\nPurchase result {PurchaseResult.try_value(msg.purchase_receipt_info.result_detail)!r}"
+            )
+            msg.header.error_message = msg.header.error_message.strip()
             raise WSException(msg)
         return msg.purchase_receipt_info
 

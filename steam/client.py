@@ -52,7 +52,7 @@ from .published_file import PublishedFile
 from .reaction import ClientEmoticon, ClientSticker
 from .state import ConnectionState
 from .store import AppStoreItem, BundleStoreItem, PackageStoreItem, TransactionReceipt
-from .types.id import AppID, BundleID, Intable, PackageID, TradeOfferID
+from .types.id import AppID, BundleID, Intable, PackageID, PostID, PublishedFileID, TradeOfferID
 from .utils import DateTime, TradeURLInfo
 
 if TYPE_CHECKING:
@@ -505,12 +505,12 @@ class Client:
 
     async def login(
         self,
-        username: str = MISSING,
-        password: str = MISSING,
+        username: str | None = None,
+        password: str | None = None,
         *,
-        shared_secret: str = MISSING,
-        identity_secret: str = MISSING,
-        refresh_token: str = MISSING,
+        shared_secret: str | None = None,
+        identity_secret: str | None = None,
+        refresh_token: str | None = None,
     ) -> None:
         """Initialize a connection to a Steam CM and login.
 
@@ -612,7 +612,7 @@ class Client:
 
     async def fetch_trade(
         self, id: int, *, language: Language | None = None
-    ) -> TradeOffer[Item[User | PartialUser], User | PartialUser] | None:
+    ) -> TradeOffer[Item[User], Item[ClientUser], User] | None:
         """Fetches a trade with a matching ID or ``None`` if the trade was not found.
 
         Parameters
@@ -779,9 +779,9 @@ class Client:
     async def fetch_server(
         self,
         *,
-        id: Intable = MISSING,
-        ip: IPAdress | str = MISSING,
-        port: int | str = MISSING,
+        id: Intable | None = None,
+        ip: IPAdress | str | None = None,
+        port: int | str | None = None,
     ) -> GameServer | None:
         """Fetch a :class:`.GameServer` from its ip and port or its Steam ID or ``None`` if fetching the server failed.
 
@@ -1026,7 +1026,7 @@ class Client:
         language
             The language to fetch the published file in. If ``None``, the current language is used.
         """
-        (file,) = await self._state.fetch_published_files((id,), revision, language)
+        (file,) = await self._state.fetch_published_files((PublishedFileID(id),), revision, language)
         return file
 
     async def fetch_published_files(
@@ -1046,7 +1046,7 @@ class Client:
         language
             The language to fetch the published files in. If ``None``, the current language is used.
         """
-        return await self._state.fetch_published_files(ids, revision, language)
+        return await self._state.fetch_published_files(cast(tuple[PublishedFileID, ...], ids), revision, language)
 
     async def create_post(self, content: str, app: App | None = None) -> Post:
         """Create a post.
@@ -1069,7 +1069,11 @@ class Client:
             ) is not None and content_element.text.strip() == content:
                 id, _, _ = post["id"].removeprefix("userstatus_").partition("_")
                 return Post(
-                    self._state, int(id), content, self.user, PartialApp(self._state, id=app.id) if app else None
+                    self._state,
+                    PostID(int(id)),
+                    content,
+                    self.user,
+                    PartialApp(self._state, id=app.id) if app else None,
                 )
 
         raise RuntimeError("Post created has no ID, this should be unreachable")
@@ -1081,7 +1085,7 @@ class Client:
         before: datetime.datetime | None = None,
         after: datetime.datetime | None = None,
         language: Language | None = None,
-    ) -> AsyncGenerator[TradeOffer[MovedItem[PartialUser | User], PartialUser | User], None]:
+    ) -> AsyncGenerator[TradeOffer[MovedItem[User], MovedItem[ClientUser], User], None]:
         """An :term:`asynchronous iterator` for accessing a :class:`steam.ClientUser`'s
         :class:`steam.TradeOffer` objects.
 
@@ -1118,7 +1122,7 @@ class Client:
         """
         from .trade import TradeOffer
 
-        total = 100
+        total: int | None = None
         previous_time = 0
         after = after or UNIX_EPOCH
         before = before or DateTime.now()

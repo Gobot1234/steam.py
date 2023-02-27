@@ -20,7 +20,6 @@ from .types.id import DepotID, Intable, PackageID
 from .utils import DateTime
 
 if TYPE_CHECKING:
-    from .abc import PartialUser
     from .manifest import AppInfo, Depot, HeadlessDepot, Manifest, PackageInfo
     from .protobufs.client_server import CMsgClientLicenseListLicense
     from .state import ConnectionState
@@ -98,10 +97,7 @@ class PartialPackage(Package[NameT]):
 
             package = await client.fetch_package(package)
         """
-        package = await self._state.client.fetch_package(self.id, language=language)
-        if package is None:
-            raise ValueError("Fetched package was not valid.")
-        return package
+        return await self._state.client.fetch_package(self.id, language=language)
 
     async def info(self) -> PackageInfo:
         """Fetches this package's product info.
@@ -353,10 +349,7 @@ class License(PartialPackage[NameT]):
         "access_token",
     )
 
-    # TODO can owner actually be a PartialUser?
-    def __init__(
-        self, state: ConnectionState, proto: CMsgClientLicenseListLicense, owner: ClientUser | User | PartialUser
-    ):
+    def __init__(self, state: ConnectionState, proto: CMsgClientLicenseListLicense, owner: ClientUser | User):
         super().__init__(state, id=proto.package_id)
         self.owner = owner
         """The license's owner."""

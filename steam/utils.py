@@ -12,7 +12,6 @@ import abc
 import asyncio
 import base64
 import collections
-import functools
 import html
 import itertools
 import re
@@ -24,7 +23,6 @@ from collections.abc import (
     AsyncIterable,
     Awaitable,
     Callable,
-    Coroutine,
     Generator,
     Iterable,
     Iterator,
@@ -52,6 +50,7 @@ from .id import _URL_START, ID, id64_from_url as id64_from_url, parse_id64 as pa
 
 if TYPE_CHECKING:
     from .types.http import Coro, StrOrURL
+    from .types.user import IndividualID
 
 
 _T = TypeVar("_T")
@@ -96,7 +95,7 @@ def verify_signature(data: bytes, signature: bytes) -> bool:
 
 @dataclass(slots=True)
 class TradeURLInfo:
-    id: ID[Literal[Type.Individual]]
+    id: IndividualID
     token: str | None = None
 
     @property
@@ -256,25 +255,6 @@ def update_class(
                 pass
 
     return new_instance
-
-
-def call_once(func: Callable[_P, Awaitable[None]]) -> Callable[_P, Awaitable[None]]:
-    called = False
-
-    @functools.wraps(func)
-    async def inner(*args: _P.args, **kwargs: _P.kwargs) -> None:
-        nonlocal called
-
-        if called:  # call becomes a noop
-            return await asyncio.sleep(0)
-
-        called = True
-        try:
-            await func(*args, **kwargs)
-        finally:
-            called = False
-
-    return inner
 
 
 class DateTime:

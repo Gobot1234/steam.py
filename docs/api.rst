@@ -55,14 +55,14 @@ through subclassing :class:`Client` and overriding the specific events. For exam
 
     class MyClient(steam.Client):
         async def on_trade_receive(self, trade: steam.TradeOffer) -> None:
-            await trade.partner.send('Thank you for your trade')
-            print(f'Received trade: #{trade.id}')
-            print('Trade partner is:', trade.partner)
-            print('We would send:', len(trade.sending), 'items')
-            print('We would receive:', len(trade.receiving), 'items')
+            await trade.partner.send("Thank you for your trade")
+            print(f"Received trade: #{trade.id}")
+            print("Trade partner is:", trade.partner)
+            print("We would send:", len(trade.sending), "items")
+            print("We would receive:", len(trade.receiving), "items")
 
             if trade.is_gift():
-                print('Accepting the trade as it is a gift')
+                print("Accepting the trade as it is a gift")
                 await trade.accept()
 
 
@@ -789,6 +789,13 @@ App Tickets
     :inherited-members:
     :undoc-members:
 
+.. attributetable:: AuthenticationTicketVerificationResult
+
+.. autoclass:: AuthenticationTicketVerificationResult()
+    :members:
+    :inherited-members:
+    :undoc-members:
+
 Trading
 ~~~~~~~~~~~~~~~
 
@@ -1037,12 +1044,12 @@ TradeOffers
     :members:
 
 
-Images
+Media
 ~~~~~~~~~~~~~~~
 
-.. attributetable:: Image
+.. attributetable:: Media
 
-.. autoclass:: Image
+.. autoclass:: Media
     :members:
 
 Exceptions

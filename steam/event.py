@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from .clan import BoringEvents, Clan, CreateableEvents, PartialClan
     from .game_server import GameServer
     from .state import ConnectionState
+    from .types import clan
     from .types.http import IPAdress
     from .user import User
 
@@ -63,7 +64,7 @@ class BaseEvent(Commentable, utils.AsyncInit, Generic[EventTypeT, ClanT], metacl
 
     # data here is of type steammessages_base.CClanEventData.to_dict()
     # TODO keep checking if there is a way to get CClanEventData directly from ws
-    def __init__(self, state: ConnectionState, clan: ClanT, data: dict[str, Any]):
+    def __init__(self, state: ConnectionState, clan: ClanT, data: clan.Event):
         self._state = state
         self.id: int = int(data["gid"])
         """The event's ID."""
@@ -292,9 +293,9 @@ class Announcement(BaseEvent[EventType, ClanT]):
     server_ip: None
     server_password: None
 
-    def __init__(self, state: ConnectionState, clan: ClanT, data: dict[str, Any]):
+    def __init__(self, state: ConnectionState, clan: ClanT, data: clan.Event):
         super().__init__(state, clan, data)
-        body: dict[str, Any] = data["announcement_body"]
+        body = data["announcement_body"]
         self.id: int = int(body["gid"])
         self.topic_id = int(data["forum_topic_id"]) if data["forum_topic_id"] else None
         """The ID of the forum post comments are sent to."""

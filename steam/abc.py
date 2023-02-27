@@ -27,7 +27,7 @@ from .models import Avatar, Ban
 from .profile import *
 from .reaction import Award, AwardReaction, Emoticon, MessageReaction, PartialMessageReaction, Sticker
 from .trade import Inventory, Item
-from .types.id import AppID, AssetID, CommentID, ContextID, Intable, PostID
+from .types.id import ID64, AppID, AssetID, CommentID, ContextID, Intable, PostID
 from .types.user import UserT
 from .utils import DateTime, cached_slot_property, classproperty, parse_bb_code
 
@@ -725,9 +725,9 @@ class BaseUser(PartialUser):
     """The last time the user was seen online."""
     app: PartialApp | None
     """The app the user is currently in. Is ``None`` if the user isn't in an app."""
-    state: PersonaState | None
+    state: PersonaState
     """The current persona state of the account (e.g. LookingToTrade)."""
-    flags: PersonaStateFlag | None
+    flags: PersonaStateFlag
     """The persona state flags of the account."""
     rich_presence: dict[str, str] | None
     """The user's rich presence."""
@@ -778,6 +778,7 @@ class Messageable(Protocol[M_co]):
     """
 
     __slots__ = ()
+    _state: ConnectionState
 
     @abc.abstractmethod
     def _message_func(self, content: str) -> Coroutine[Any, Any, M_co]:

@@ -1,6 +1,10 @@
 """Licensed under The MIT License (MIT) - Copyright (c) 2020 James H-B. See LICENSE"""
 
+from typing import Literal, TypeAlias
+
 from typing_extensions import NotRequired, Required, TypedDict
+
+from .http import ResponseDict
 
 
 # str | int keys are cast to int in Asset.__init__
@@ -84,7 +88,7 @@ class TradeOffer(TypedDict):
     confirmation_method: int  # https://cs.github.com/SteamDatabase/SteamTracking/blob/e86f560898e9f8fbc93fa4f55d5872b03db5f72b/Structs/enums.steamd#L1607
 
 
-class GetTradeOffer(TypedDict):
+class GetTradeOffer(TypedDict, total=False):
     offer: TradeOffer
     descriptions: list[Description]
 
@@ -117,7 +121,7 @@ class TradeOfferHistoryTrade(TypedDict):
     assets_received: list[TradeOfferReceiptAsset]
 
 
-class GetTradeOfferHistory(TypedDict):
+class GetTradeOfferHistory(TypedDict, total=False):
     more: bool
     trades: list[TradeOfferHistoryTrade]
     descriptions: list[Description]
@@ -128,3 +132,16 @@ class TradeOfferCreateResponse(TypedDict):
     needs_mobile_confirmation: bool
     needs_email_confirmation: bool
     email_domain: str
+
+
+class TradeStatus(TypedDict):
+    trades: list[TradeOfferReceipt]
+    descriptions: list[Description]
+
+
+class AcceptTrade(TypedDict):
+    needs_mobile_confirmation: NotRequired[bool]
+
+
+class GetTradeOffers(TypedDict):
+    next_cursor: int

@@ -46,6 +46,8 @@ else:
 
 
 if TYPE_CHECKING:
+    from _typeshed import StrPath
+
     from .state import ConnectionState
     from .types import manifest
     from .types.vdf import VDFInt
@@ -933,9 +935,7 @@ class AppInfo(ProductInfo, PartialApp[str]):
                             manifest = PrivateManifestInfo(state, encrypted_id, branch)
                         else:  # fall back to the public version
                             manifest = ManifestInfo(
-                                state,
-                                ManifestID(int(manifests["public"])),
-                                branch=self.public_branch,
+                                state, ManifestID(int(manifests["public"])), branch=self.public_branch
                             )
 
                     depot_ = Depot(
