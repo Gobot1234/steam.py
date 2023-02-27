@@ -31,6 +31,8 @@ class EStoreItemType(betterproto.Enum):
     Package = 1
     Bundle = 2
     MicroTransaction = 3
+    Tag = 4
+    Creator = 5
 
 
 class EStoreAppType(betterproto.Enum):
@@ -118,6 +120,8 @@ class StoreItemId(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
     packageid: int = betterproto.uint32_field(2)
     bundleid: int = betterproto.uint32_field(3)
+    tagid: int = betterproto.uint32_field(4)
+    creatorid: int = betterproto.uint32_field(5)
 
 
 @dataclass(eq=False, repr=False)
@@ -195,6 +199,7 @@ class StoreItem(betterproto.Message):
     supported_languages: list["StoreItemSupportedLanguage"] = betterproto.message_field(52)
     store_url_path_override: str = betterproto.string_field(53)
     free_weekend: "StoreItemFreeWeekend" = betterproto.message_field(54)
+    unlisted: bool = betterproto.bool_field(55)
 
 
 @dataclass(eq=False, repr=False)
@@ -396,3 +401,68 @@ class GetStoreCategoriesResponseCategory(betterproto.Message):
     display_name: str = betterproto.string_field(4)
     image_url: str = betterproto.string_field(5)
     show_in_search: bool = betterproto.bool_field(6)
+
+
+@dataclass(eq=False, repr=False)
+class CStorePageFilter(betterproto.Message):
+    sale_filter: "CStorePageFilterSalePageFilter" = betterproto.message_field(1)
+    content_hub_filter: "CStorePageFilterContentHubFilter" = betterproto.message_field(2)
+    store_filters: list["CStorePageFilterStoreFilter"] = betterproto.message_field(3)
+
+
+@dataclass(eq=False, repr=False)
+class CStorePageFilterContentHubFilter(betterproto.Message):
+    hub_type: str = betterproto.string_field(1)
+    hub_category: str = betterproto.string_field(2)
+    hub_tagid: int = betterproto.uint32_field(3)
+    discount_filter: int = betterproto.int32_field(4)
+    optin: "CStorePageFilterContentHubFilterOptInInfo" = betterproto.message_field(5)
+
+
+@dataclass(eq=False, repr=False)
+class CStorePageFilterContentHubFilterOptInInfo(betterproto.Message):
+    name: str = betterproto.string_field(1)
+    optin_tagid: int = betterproto.uint32_field(2)
+    prune_tagid: int = betterproto.uint32_field(3)
+    optin_only: bool = betterproto.bool_field(4)
+
+
+@dataclass(eq=False, repr=False)
+class CStorePageFilterSalePageFilter(betterproto.Message):
+    sale_tagid: int = betterproto.uint32_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class CStorePageFilterStoreFilter(betterproto.Message):
+    filter_json: str = betterproto.string_field(1)
+    cache_key: str = betterproto.string_field(2)
+
+
+class GetDLCForAppsRequest(UnifiedMessage, um_name="StoreBrowse.GetDLCForApps"):
+    context: StoreBrowseContext = betterproto.message_field(1)
+    store_page_filter: CStorePageFilter = betterproto.message_field(2)
+    appids: list[StoreItemId] = betterproto.message_field(3)
+    steamid: int = betterproto.uint64_field(4)
+
+
+@dataclass(eq=False, repr=False)
+class GetDLCForAppsResponseDLCData(betterproto.Message):
+    appid: int = betterproto.uint32_field(1)
+    parentappid: int = betterproto.uint32_field(2)
+    release_date: int = betterproto.uint32_field(3)
+    coming_soon: bool = betterproto.bool_field(4)
+    price: int = betterproto.int64_field(5)
+    discount: int = betterproto.uint32_field(6)
+    free: bool = betterproto.bool_field(7)
+
+
+@dataclass(eq=False, repr=False)
+class GetDLCForAppsResponsePlaytimeForApp(betterproto.Message):
+    appid: int = betterproto.uint32_field(1)
+    playtime: int = betterproto.uint32_field(2)
+    last_played: int = betterproto.uint32_field(3)
+
+
+class GetDLCForAppsResponse(UnifiedMessage, um_name="StoreBrowse.GetDLCForApps"):
+    dlc_data: list["GetDLCForAppsResponseDLCData"] = betterproto.message_field(1)
+    playtime: list["GetDLCForAppsResponsePlaytimeForApp"] = betterproto.message_field(2)

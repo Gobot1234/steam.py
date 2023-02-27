@@ -210,6 +210,8 @@ class ProfileShowcaseSlot(Generic[UserT]):
     """The border colour of the slot."""
     clan: Clan | PartialClan | None
     """The Steam ID of the clan the slot is associated with."""
+    replay_year: int | None
+    """If the :attr:`ProfileShowcase.type` is :attr:`ProfileItemType.Replay` the year the replay is for"""
 
     def __repr__(self) -> str:
         return f"<ProfileShowcaseSlot name={self.name!r} index={self.index!r} app={self.app!r}>"
@@ -395,6 +397,7 @@ class ProfileCustomisation(Generic[UserT]):
                         clan=(state.get_clan(ID32(slot.accountid)) or PartialClan(state, slot.accountid))
                         if slot.accountid
                         else None,
+                        replay_year=slot.replay_year if slot.replay_year else None,
                     )
                     for slot in customisation.slots
                 ],

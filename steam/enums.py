@@ -1381,6 +1381,8 @@ class ProfileItemType(IntEnum):
     """A single artwork showcase."""
     AchievementsCompletionist = 23
     """An achievements completeionist showcase."""
+    Replay = 24
+    """A Steam Replay showcase."""
 
 
 class ProfileCustomisationStyle(IntEnum):

@@ -465,6 +465,7 @@ class ProfileCustomizationSlot(betterproto.Message):
     item_classid: int = betterproto.uint64_field(11)
     item_instanceid: int = betterproto.uint64_field(12)
     ban_check_result: "EBanContentCheckResult" = betterproto.enum_field(13)
+    replay_year: int = betterproto.uint32_field(14)
 
 
 @dataclass(eq=False, repr=False)
