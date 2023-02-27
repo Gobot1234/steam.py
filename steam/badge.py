@@ -102,7 +102,10 @@ class BaseOwnedBadge(BaseBadge[AppT], Protocol[AppT, UserT]):  # type: ignore
     owner: UserT
     """The user who owns this badge."""
     community_item_id: AssetID | None
-    """The badge's community item ID."""
+    r"""The badge's community item ID. By itself this doesn't correspond to anything in the :attr:`owner`\s inventory.
+     - ``-1`` is the associated emoticon created by crafting the badge.
+     - ``-2`` is the associated background created by crafting the badge.
+    """
 
     def __init__(
         self, state: ConnectionState, id: int, level: int, app: AppT, owner: UserT, community_item_id: int | str | None
@@ -111,16 +114,37 @@ class BaseOwnedBadge(BaseBadge[AppT], Protocol[AppT, UserT]):  # type: ignore
         self.owner = owner
         self.community_item_id = AssetID(int(community_item_id)) if community_item_id else None
 
-    async def item(self) -> Item[UserT]:
+    async def _from_inventory(self, offset: int) -> Item[UserT]:
         from .app import STEAM
 
         if self.community_item_id is None:
             raise ValueError("This badge doesn't have an associated item.")
 
         inventory = await self.owner.inventory(STEAM)
-        item = get(inventory, id=self.community_item_id)
-        assert item is not None
+        item = get(inventory, id=self.community_item_id - offset)
+        if item is None:
+            raise ValueError("This badge doesn't have an associated item.")
         return item
+
+    async def emoticon(self) -> Item[UserT]:
+        """The emoticon for this badge as an :class:`Item`.
+
+        Raises
+        ------
+        ValueError
+            The emoticon for this badge doesn't exist.
+        """
+        return await self._from_inventory(1)
+
+    async def background(self) -> Item[UserT]:
+        """The background for this badge as an :class:`Item`.
+
+        Raises
+        ------
+        ValueError
+            The background for this badge doesn't exist.
+        """
+        return await self._from_inventory(2)
 
 
 class FavouriteBadge(BaseOwnedBadge["PartialApp", UserT]):
@@ -149,7 +173,7 @@ class FavouriteBadge(BaseOwnedBadge["PartialApp", UserT]):
 class UserBadge(BaseOwnedBadge["PartialApp", UserT]):
     """Represents a Steam badge on a user's profile."""
 
-    __slots__ = ("xp", "scarcity", "completion_time")
+    __slots__ = ("xp", "scarcity", "completed_at")
 
     def __init__(self, state: ConnectionState, owner: UserT, data: user.UserBadgeBadge):
         from .app import STEAM, PartialApp
@@ -164,7 +188,7 @@ class UserBadge(BaseOwnedBadge["PartialApp", UserT]):
         )
         self.xp: int = data["xp"]
         """The badge's XP."""
-        self.completion_time = DateTime.from_timestamp(data["completion_time"])
+        self.completed_at = DateTime.from_timestamp(data["completion_time"])
         """The time the badge was completed at."""
         self.scarcity: int = data["scarcity"]
         """The scarcity of the badge."""
