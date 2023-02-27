@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, Any, Literal, TypeAlias, TypeVar, overload
 
 from ... import _const, utils
 from ...client import Client, E, EventType, log
+from ...id import parse_id64
 from .cog import Cog
 from .commands import CHR, CheckReturnType, CheckType, Command, GroupMixin, InvokeT, check
 from .context import Context
@@ -148,8 +149,8 @@ class Bot(GroupMixin, Client):
         self.__extensions__: dict[str, ModuleType] = {}
 
         self.command_prefix = command_prefix
-        self.owner_id = utils.parse_id64(options.get("owner_id", 0))
-        self.owner_ids = {utils.parse_id64(owner_id) for owner_id in options.get("owner_ids", ())}
+        self.owner_id = parse_id64(options.get("owner_id", 0))
+        self.owner_ids = {parse_id64(owner_id) for owner_id in options.get("owner_ids", ())}
         if self.owner_id and self.owner_ids:
             raise ValueError("You cannot have both owner_id and owner_ids")
 

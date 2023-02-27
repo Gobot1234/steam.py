@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator, Coroutine
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Generic
+
+from typing_extensions import TypeVar
 
 from ...abc import Message, Messageable, PartialUser
 
@@ -19,8 +21,10 @@ if TYPE_CHECKING:
 
 __all__ = ("Context",)
 
+BotT = TypeVar("BotT", bound="Bot", default="Bot", covariant=True)
 
-class Context(Messageable["Message"]):
+
+class Context(Generic[BotT], Messageable["Message"]):
     """Represents the context of a command.
 
     Attributes
@@ -45,15 +49,23 @@ class Context(Messageable["Message"]):
         The cog the command is in.
     """
 
-    def __init__(self, **attrs: Any):
-        self.bot: Bot = attrs["bot"]
-        self.message: Message = attrs["message"]
-        self.lex: Shlex = attrs["lex"]
-        self.prefix: str | None = attrs["prefix"]
+    def __init__(
+        self,
+        bot: BotT,
+        message: Message,
+        lex: Shlex,
+        prefix: str | None,
+        command: Command | None = None,
+        invoked_with: str | None = None,
+    ):
+        self.bot = bot
+        self.message = message
+        self.lex = lex
+        self.prefix = prefix
 
-        self.command: Command | None = attrs.get("command")
-        self.cog: Cog | None = self.command.cog if self.command is not None else None
-        self.invoked_with: str | None = attrs.get("invoked_with")
+        self.command = command
+        self.cog = self.command.cog if self.command is not None else None
+        self.invoked_with = invoked_with
 
         self.author = self.message.author
         self.channel = self.message.channel

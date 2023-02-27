@@ -407,13 +407,19 @@ class Command(Generic[P]):
 
     async def _call_before_invoke(self, ctx: Context) -> None:
         if self._before_hook is not None:
-            await self._before_hook(ctx)
+            if self.cog is not None:
+                await self._before_hook(self.cog, ctx)
+            else:
+                await self._before_hook(ctx)
         if ctx.bot._before_hook is not None:
             await ctx.bot._before_hook(ctx)
 
     async def _call_after_invoke(self, ctx: Context) -> None:
         if self._after_hook is not None:
-            await self._after_hook(ctx)
+            if self.cog is not None:
+                await self._after_hook(self.cog, ctx)
+            else:
+                await self._after_hook(ctx)
         if ctx.bot._after_hook is not None:
             await ctx.bot._after_hook(ctx)
 

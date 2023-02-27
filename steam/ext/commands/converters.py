@@ -24,17 +24,20 @@ from typing import (
 from typing_extensions import Never
 
 from ... import _const, utils
+from ...abc import PartialUser
 from ...app import App, PartialApp
 from ...channel import Channel
+from ...chat import ChatMessage, Member, PartialMember
 from ...clan import Clan
-from ...errors import HTTPException, InvalidID
+from ...errors import HTTPException, InvalidID, WSException
 from ...group import Group
-from ...user import User
+from ...user import ClientUser, User
 from .errors import BadArgument
 
 if TYPE_CHECKING:
     from steam.ext import commands
 
+    from .bot import Bot
     from .commands import MC
     from .context import Context
 
@@ -57,6 +60,7 @@ __all__ = (
 
 T = TypeVar("T")
 T_co = TypeVar("T_co", covariant=True)
+BotT = TypeVar("BotT", bound="Bot", covariant=True)
 Converters: TypeAlias = "ConverterBase | BasicConverter[Any]"
 
 
@@ -124,7 +128,7 @@ def converter_for(converter_for: type[T]) -> Callable[[Callable[[str], T]], Basi
 class ConverterBase(Protocol[T_co]):
     # this is the base class we use for isinstance checks, don't actually this
     @abstractmethod
-    async def convert(self, ctx: "commands.Context", argument: str) -> "T_co":
+    async def convert(self, ctx: "commands.Context[Any]", argument: str, /) -> "T_co":
         """An abstract method all converters must derive.
 
         Parameters
@@ -248,14 +252,9 @@ class Converter(ConverterBase[T_co], ABC):
     def __init_subclass__(cls) -> None:
         super().__init_subclass__()
         try:
-            converter_for = get_args(cls.__orig_bases__[0])[0]  # type: ignore
+            converter_for = get_args(cls.__orig_bases__[-1])[0]  # type: ignore
         except IndexError:
-            # raise TypeError("Converters should subclass commands.Converter using __class_getitem__")
-            warnings.warn(
-                "Subclassing commands.Converter without arguments is depreciated and is scheduled for removal in V.1",
-                DeprecationWarning,
-            )
-            CONVERTERS[cls] = cls
+            raise TypeError("Converters should subclass commands.Converter using __class_getitem__")
         else:
             if isinstance(converter_for, ForwardRef):
                 raise NameError(f"name {converter_for.__forward_arg__!r} is not defined") from None
@@ -271,7 +270,36 @@ class Converter(ConverterBase[T_co], ABC):
             ...
 
 
-class UserConverter(Converter[User]):
+class PartialUserConverter(Converter[PartialUser]):
+    async def convert(self, ctx: Context, argument: str) -> PartialUser:
+        try:
+            return PartialUser(ctx._state, argument)
+        except InvalidID:
+            if (
+                argument.startswith("@")
+                and isinstance(ctx.message, ChatMessage)
+                and (
+                    mention := next(
+                        (
+                            tag
+                            for tag in ctx.message.content.tags
+                            if tag.name == "mention" and tag.inner == argument and tag.position[0] >= ctx.lex.position
+                        ),
+                        None,
+                    )
+                )
+                is not None
+            ):
+                return PartialUser(ctx._state, mention.attributes[""])
+            if (user := utils.get(ctx.bot.users, name=argument)) is not None:
+                return PartialUser(ctx._state, user.id64)
+            if (id64 := await utils.id64_from_url(argument, session=ctx._state.http._session)) is not None:
+                return PartialUser(ctx._state, id64)
+
+        raise BadArgument(f'Failed to convert "{argument}" to a Steam user')
+
+
+class UserConverter(PartialUserConverter, Converter[User]):
     """The converter that is used when the type-hint passed is :class:`~steam.User`.
 
     Lookup is in the order of:
@@ -281,29 +309,37 @@ class UserConverter(Converter[User]):
         - URLs
     """
 
-    async def convert(self, ctx: Context, argument: str) -> User:
+    async def convert(self, ctx: Context, argument: str) -> User | ClientUser:
+        partial_user = await super().convert(ctx, argument)
         try:
-            user = await ctx.bot.fetch_user(argument)
-        except (InvalidID, HTTPException):
-            if argument.startswith("@"):  # probably a mention
-                try:
-                    account_id = ctx.message.mentions.ids[0]
-                except (IndexError, AttributeError):
-                    pass
-                else:
-                    user = await ctx.bot.fetch_user(account_id)
-                    if user is not None and user.id == account_id:
-                        del ctx.message.mentions.ids[0]
-                        return user
-            user = utils.find(lambda u: u.name == argument, ctx.bot.users)
+            user = await ctx._state._maybe_user(partial_user.id64)
+            if not isinstance(user, (User, ClientUser)):
+                raise BadArgument(f'Failed to convert "{argument}" to a Steam user') from None
+            return user
+        except WSException:
+            raise BadArgument(f'Failed to convert "{argument}" to a Steam user') from None
 
-            if user is None:
-                id64 = await utils.id64_from_url(argument, session=ctx._state.http._session)
-                if id64 is not None:
-                    user = await ctx.bot.fetch_user(id64)
-        if user is None:
-            raise BadArgument(f'Failed to convert "{argument}" to a Steam user')
-        return user
+
+class PartialMemberConverter(PartialUserConverter, Converter[PartialMember]):
+    async def convert(self, ctx: Context, argument: str) -> PartialMember:
+        partial_user = await super().convert(ctx, argument)
+        chat_group = ctx.clan or ctx.group
+        assert chat_group is not None
+        return chat_group._get_partial_member(partial_user.id)
+
+
+class MemberConverter(PartialMemberConverter, Converter[Member]):
+    async def convert(self, ctx: Context, argument: str) -> Member:
+        partial_member = await super().convert(ctx, argument)
+        chat_group = ctx.clan or ctx.group
+        assert chat_group is not None
+        try:
+            user = chat_group._maybe_member(partial_member.id32)
+            if not isinstance(user, Member):
+                raise TypeError
+            return user
+        except (WSException, TypeError):
+            raise BadArgument(f'Failed to convert "{argument}" to a Steam user') from None
 
 
 class ChannelConverter(Converter[Channel[Any]]):
