@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import builtins
 import struct
+import sys
 from collections.abc import Callable
 from contextvars import ContextVar
 from dataclasses import dataclass
@@ -99,6 +100,11 @@ except ModuleNotFoundError:
     HTML_PARSER: Final = "html.parser"
 else:
     HTML_PARSER: Final = "lxml-xml"
+
+if sys.version_info >= (3, 11):
+    from asyncio import TaskGroup as TaskGroup, timeout as timeout
+else:
+    from taskgroup import TaskGroup as TaskGroup, timeout as timeout
 
 
 UNIX_EPOCH: Final = datetime(1970, 1, 1, tzinfo=timezone.utc)

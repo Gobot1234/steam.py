@@ -19,7 +19,7 @@ from typing_extensions import Self
 from yarl import URL as _URL
 
 from . import utils
-from ._const import URL
+from ._const import URL, TaskGroup
 from .enums import CurrencyCode, IntEnum, PurchaseResult, Realm, Result
 from .media import Media
 from .protobufs import EMsg
@@ -86,6 +86,10 @@ class Registerable:
     def _logger(self) -> logging.Logger:
         return logging.getLogger(self.__class__.__module__)
 
+    @utils.cached_property
+    def _tg(self) -> TaskGroup:
+        raise NotImplementedError()
+
     @staticmethod
     def _run_parser_callback(task: asyncio.Task[object]) -> None:
         try:
@@ -112,7 +116,7 @@ class Registerable:
                 return traceback.print_exc()
 
             if isinstance(result, CoroutineType):
-                asyncio.create_task(result, name=f"steam.py: {event_parser.__name__}").add_done_callback(
+                self._tg.create_task(result, name=f"steam.py: {event_parser.__name__}").add_done_callback(
                     self._run_parser_callback
                 )
 

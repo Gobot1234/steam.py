@@ -22,7 +22,7 @@ from typing_extensions import Self
 from yarl import URL as URL_
 
 from . import utils
-from ._const import HTML_PARSER, JSON_LOADS, URL, VDF_BINARY_LOADS, VDF_LOADS
+from ._const import JSON_LOADS, URL, VDF_BINARY_LOADS, VDF_LOADS, TaskGroup, timeout
 from .abc import Awardable, BaseUser, Commentable, PartialUser, _CommentableThreadType
 from .app import App, AuthenticationTicket, FetchedApp, PartialApp
 from .channel import UserChannel
@@ -231,6 +231,10 @@ class ConnectionState(Registerable):
     def _device_id(self) -> str:
         return generate_device_id(self.user)
 
+    @utils.cached_property
+    def _tg(self) -> TaskGroup:
+        return self.client._tg
+
     @property
     def language(self) -> Language:
         return self.http.language
@@ -414,8 +418,8 @@ class ConnectionState(Registerable):
             await asyncio.sleep(30)
             log.info("Error while polling trades", exc_info=exc)
 
-    async def wait_for_trade(self, id: TradeOfferID) -> TradeOffer[Item[User | PartialUser], User | PartialUser]:
-        asyncio.create_task(self.poll_trades())  # start re-polling trades
+    async def wait_for_trade(self, id: TradeOfferID) -> TradeOffer[Item[User], Item[ClientUser], User]:
+        self._tg.create_task(self.poll_trades())  # start re-polling trades
         return await self.trade_queue.wait_for(id=id)
 
     # confirmations
@@ -500,7 +504,7 @@ class ConnectionState(Registerable):
             self.polling_confirmations = False
 
     async def wait_for_confirmation(self, id: TradeOfferID) -> Confirmation:
-        asyncio.create_task(self.poll_confirmations())
+        self._tg.create_task(self.poll_confirmations())
         return await self.confirmation_queue.wait_for(id=id)
 
     async def fetch_and_confirm_confirmation(self, trade_id: TradeOfferID) -> bool:
@@ -2499,8 +2503,8 @@ class ConnectionState(Registerable):
         id64s: list[ID64],
     ) -> list[leaderboards.CMsgClientLbsGetLbEntriesResponseEntry]:
         try:
-            msg: leaderboards.CMsgClientLbsGetLbEntriesResponse = await asyncio.wait_for(
-                self.ws.send_proto_and_wait(
+            async with timeout(15):
+                msg: leaderboards.CMsgClientLbsGetLbEntriesResponse = await self.ws.send_proto_and_wait(
                     leaderboards.CMsgClientLbsGetLbEntries(
                         leaderboard_id=leaderboard_id,
                         app_id=app_id,
@@ -2509,9 +2513,7 @@ class ConnectionState(Registerable):
                         leaderboard_data_request=leaderboard_data_request,
                         steamids=cast("list[int]", id64s),
                     ),
-                ),  # type: ignore  # bug from function TypeVar defaults
-                timeout=15,
-            )
+                )
         except asyncio.TimeoutError:
             raise WSNotFound(leaderboards.CMsgClientLbsGetLbEntriesResponse(eresult=Result.NoMatch)) from None
         if msg.result != Result.OK:

@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from ._const import MISSING, UNIX_EPOCH
+from ._const import UNIX_EPOCH, TaskGroup
 from .abc import Channel
 from .chat import Chat, GroupChannelProtos
 from .message import ClanMessage, GroupMessage, Message, UserMessage
@@ -74,13 +74,12 @@ class UserChannel(Channel[UserMessage]):  # TODO cache these to add last_message
 
         async def inner() -> None:
             while True:
-                await asyncio.sleep(10)
                 await self.trigger_typing()
+                await asyncio.sleep(10)
 
-        await self.trigger_typing()
-        task = asyncio.create_task(inner())
-        yield
-        task.cancel()
+        async with TaskGroup() as tg:
+            tg.create_task(inner())
+            yield
 
     async def trigger_typing(self) -> None:
         """Send a typing indicator to the channel once.

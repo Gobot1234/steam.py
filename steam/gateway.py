@@ -33,7 +33,7 @@ from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from typing_extensions import TypeVar
 
 from . import utils
-from ._const import CLEAR_PROTO_BIT, DEFAULT_CMS, IS_PROTO, MISSING, READ_U32, SET_PROTO_BIT
+from ._const import CLEAR_PROTO_BIT, DEFAULT_CMS, IS_PROTO, READ_U32, SET_PROTO_BIT, TaskGroup
 from .enums import *
 from .errors import NoCMsFound, WSException
 from .id import parse_id64
@@ -277,6 +277,10 @@ class SteamWebSocket(Registerable):
     def latency(self) -> float:
         """Measures latency between a heartbeat send and the heartbeat interval in seconds."""
         return self._keep_alive.latency
+
+    @utils.cached_property
+    def _tg(self) -> TaskGroup:
+        return self._state._tg
 
     @overload
     def wait_for(

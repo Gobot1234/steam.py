@@ -113,6 +113,6 @@ class Cooldown(Generic[T_Bucket]):
         """
         bucket = self.bucket.get_bucket(ctx)
         now = time.time()
-        asyncio.create_task(self.expire_cache(bucket, now))
+        ctx._state._tg.create_task(self.expire_cache(bucket, now))
         if retry_after := self.get_retry_after(bucket, now):
             raise CommandOnCooldown(retry_after)

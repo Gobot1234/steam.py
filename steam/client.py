@@ -18,14 +18,14 @@ import sys
 import time
 import traceback
 from collections.abc import AsyncGenerator, Callable, Collection, Coroutine, Iterable, Sequence
-from typing import TYPE_CHECKING, Any, Concatenate, Literal, ParamSpec, TypeAlias, TypeVar, final, overload
+from typing import TYPE_CHECKING, Any, Concatenate, Literal, ParamSpec, TypeAlias, TypeVar, cast, final, overload
 
 import aiohttp
 from bs4 import BeautifulSoup
 from typing_extensions import Self
 
 from . import errors, utils
-from ._const import DOCS_BUILDING, MISSING, STATE, UNIX_EPOCH, URL
+from ._const import DOCS_BUILDING, MISSING, STATE, UNIX_EPOCH, URL, TaskGroup, timeout
 from .app import App, AppListApp, AuthenticationTicket, FetchedApp, PartialApp
 from .bundle import Bundle, FetchedBundle, PartialBundle
 from .enums import (
@@ -58,7 +58,7 @@ from .utils import DateTime, TradeURLInfo
 if TYPE_CHECKING:
     import steam
 
-    from .abc import Message, PartialUser
+    from .abc import Message
     from .clan import Clan
     from .comment import Comment
     from .event import Announcement, Event
@@ -70,6 +70,7 @@ if TYPE_CHECKING:
     from .trade import Item, MovedItem, TradeOffer
     from .types.http import IPAdress
     from .user import ClientUser, User
+
 
 __all__ = ("Client",)
 
@@ -295,7 +296,7 @@ class Client:
                 pass
 
     def _schedule_event(self, coro: EventType, event_name: str, *args: Any, **kwargs: Any) -> asyncio.Task[None]:
-        return asyncio.create_task(
+        return self._tg.create_task(
             self._run_event(coro, event_name, *args, **kwargs), name=f"steam.py task: {event_name}"
         )
 
@@ -443,44 +444,46 @@ class Client:
         *args: P.args,
         **kwargs: P.kwargs,
     ) -> None:
-        STATE.set(self._state)
-        self._closed = False
+        async with self._tg:
+            STATE.set(self._state)
+            self._closed = False
 
-        exceptions = (
-            OSError,
-            ConnectionClosed,
-            aiohttp.ClientError,
-            asyncio.TimeoutError,
-            errors.HTTPException,
-        )
+            exceptions = (
+                OSError,
+                ConnectionClosed,
+                aiohttp.ClientError,
+                asyncio.TimeoutError,
+                errors.HTTPException,
+            )
 
-        async def throttle() -> None:
-            now = time.monotonic()
-            between = now - last_connect
-            sleep = random.random() * 4 if between > 600 else 100 / between**0.5
-            log.info(f"Attempting to connect to another CM in {sleep}")
-            await asyncio.sleep(sleep)
+            async def throttle() -> None:
+                now = time.monotonic()
+                between = now - last_connect
+                sleep = random.random() * 4 if between > 600 else 100 / between**0.5
+                log.info(f"Attempting to connect to another CM in {sleep}")
+                await asyncio.sleep(sleep)
 
-        self.http.clear()
-        while not self.is_closed():
-            last_connect = time.monotonic()
+            self.http.clear()
+            while not self.is_closed():
+                last_connect = time.monotonic()
 
-            try:
-                self.ws = await asyncio.wait_for(login_func(self, *args, **kwargs), timeout=60)
-            except exceptions:
-                await throttle()
-                continue
-
-            try:
-                while True:
-                    await self.ws.poll_event()
-            except exceptions as exc:
-                if isinstance(exc, ConnectionClosed):
-                    self._state._connected_cm = exc.cm
-                self.dispatch("disconnect")
-            finally:
-                if not self.is_closed():
+                try:
+                    async with timeout(60):
+                        self.ws = await login_func(self, *args, **kwargs)
+                except exceptions:
                     await throttle()
+                    continue
+
+                try:
+                    while True:
+                        await self.ws.poll_event()
+                except exceptions as exc:
+                    if isinstance(exc, ConnectionClosed):
+                        self._state._connected_cm = exc.cm
+                    self.dispatch("disconnect")
+                finally:
+                    if not self.is_closed():
+                        await throttle()
 
     @overload
     async def login(
@@ -538,6 +541,7 @@ class Client:
         self.identity_secret = identity_secret
 
         self._closed = False
+        self._tg = TaskGroup()
 
         if identity_secret is None:
             log.info("Trades will not be automatically accepted when sent as no identity_secret was passed.")
