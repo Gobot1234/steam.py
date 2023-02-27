@@ -964,6 +964,15 @@ class ConnectionState(Registerable):
 
         return msg
 
+    async def fetch_user_levels(self, *user_ids: ID32) -> dict[ID32, int]:
+        msg: client_server_2.CMsgClientFsGetFriendsSteamLevelsResponse = await self.ws.send_proto_and_wait(
+            client_server_2.CMsgClientFsGetFriendsSteamLevels(list(user_ids))
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+
+        return cast(dict[ID32, int], {friend.accountid: friend.level for friend in msg.friends})
+
     async def fetch_user_favourite_badge(self, user_id64: ID64) -> player.GetFavoriteBadgeResponse:
         msg: player.GetFavoriteBadgeResponse = await self.ws.send_um_and_wait(
             player.GetFavoriteBadgeRequest(
