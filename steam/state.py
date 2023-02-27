@@ -1304,7 +1304,6 @@ class ConnectionState(Registerable):
                             invitee = await self._maybe_user(clan_invitees[id.id64])
                             clan = await self.fetch_clan(id.id64)
                             assert clan is not None
-                            )
 
                             invitee = await self._maybe_user(invitee_id64)
                             try:
