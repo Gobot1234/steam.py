@@ -16,7 +16,7 @@ from . import utils
 from ._const import URL
 from .app import App, PartialApp
 from .enums import Language, TradeOfferState
-from .errors import ClientException
+from .errors import ClientException, ConfirmationError
 from .models import CDNAsset
 from .protobufs import econ
 from .types.id import AppID, AssetID, ClassID, ContextID, InstanceID, TradeOfferID
@@ -649,9 +649,8 @@ class TradeOffer(Generic[ReceivingAssetT, SendingAssetT, OwnerT]):
         if self._id is None:
             raise ValueError("Cannot fetch the receipt for a trade not accepted")
 
-        resp = await self._state.http.get_trade_receipt(self._id)
-        data = resp["response"]
-        trade = data["trades"][0]
+        data = await self._state.http.get_trade_receipt(self._id)
+        (trade,) = data["trades"]
         descriptions = data["descriptions"]
         assert self.partner is not None
 

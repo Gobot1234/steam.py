@@ -370,19 +370,13 @@ class AuthenticationTicket(OwnershipTicket):
         ----------
         publisher_api_key
             The publisher API key to use for verification. If not provided, will use the standard (rate limited) API.
-
-        .. source:: AuthenticationTicketVerificationResult
         """
-        from .abc import PartialUser
-
         data = await self._state.http.verify_app_ticket(self.app.id, self._ticket.buffer.hex(), publisher_api_key)
-        response = data["response"]["params"]
         return AuthenticationTicketVerificationResult(
-            Result[response["result"]],
-            PartialUser(self._state, id=response["steamid"]),
-            PartialUser(self._state, id=response["ownersteamid"]),
-            response["vacbanned"],
-            response["publisherbanned"],
+            Result[data["result"]],
+            *await self._state._maybe_users((ID64(int(data["steamid"])), ID64(int(data["ownersteamid"])))),
+            vac_banned=data["vacbanned"],
+            publisher_banned=data["publisherbanned"],
         )
 
     async def activate(self) -> None:

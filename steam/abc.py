@@ -308,15 +308,7 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
 
         .. source:: UserInventoryInfo
         """
-        resp = await self._state.http.get(f"{self.community_url}/inventory")
-        soup = BeautifulSoup(resp, "html.parser")
-        for script in soup.find_all("script", type="text/javascript"):
-            if match := re.search(r"var\s+g_rgAppContextData\s*=\s*(?P<json>{.*?});\s*", script.text):
-                break
-        else:
-            raise ValueError("Could not find inventory info")
-
-        app_context_data = JSON_LOADS(match["json"])
+        data = await self._state.http.get_user_inventory_info(self.id64)
 
         return [
             UserInventoryInfo(
@@ -338,7 +330,7 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
                     for ctx in info["rgContexts"].values()
                 ],
             )
-            for info in app_context_data.values()
+            for info in data
         ]
 
     async def inventory(self, app: App, *, language: Language | None = None) -> Inventory[Item[Self], Self]:
@@ -404,26 +396,21 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
             Whether to automatically chunk the clans that are fetched. Defaults to ``False``.
         """
 
-        async def getter(gid: int) -> Clan:
+        async def getter(id64: ID64) -> Clan:
             try:
-                clan = await self._state.fetch_clan(parse_id64(gid, type=Type.Clan), maybe_chunk=auto_chunk)
-                assert clan is not None
-                return clan
+                return await self._state.fetch_clan(id64, maybe_chunk=auto_chunk)
             except WSException as exc:
                 if exc.code == Result.RateLimitExceeded:
                     await asyncio.sleep(20)
-                    return await getter(gid)
+                    return await getter(id64)
                 raise
 
-        resp = await self._state.http.get_user_clans(self.id64)
-        return await asyncio.gather(*(getter(clan["gid"]) for clan in resp["response"]["groups"]))  # type: ignore
+        return await asyncio.gather(*map(getter, await self._state.http.get_user_clans(self.id64)))
 
     async def bans(self) -> Ban:
         r"""Fetches the user's :class:`.Ban`\s."""
-        resp = await self._state.http.get_user_bans(self.id64)
-        resp = resp["players"][0]
-        resp["EconomyBan"] = resp["EconomyBan"] != "none"
-        return Ban(data=resp)
+        (ban,) = await self._state.http.get_user_bans(self.id64)
+        return Ban(ban)
 
     async def is_banned(self) -> bool:
         """Specifies if the user is banned from any part of Steam.
@@ -435,18 +422,18 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
             bans = await user.bans()
             bans.is_banned()
         """
-        bans = await self.bans()
-        return bans.is_banned()
+        (ban,) = await self._state.http.get_user_bans(self.id64)
+        return any((ban["community_banned"], ban["economy_ban"] != "none", ban["vac_banned"]))
 
     async def level(self) -> int:
         """Fetches the user's level."""
-        badges = await self.badges()
-        return badges.level
+        levels = await self._state.fetch_user_levels(self.id)
+        return levels[self.id]
 
     async def badges(self) -> UserBadges[Self]:
         r"""Fetches the user's :class:`.UserBadges`\s."""
-        resp = await self._state.http.get_user_badges(self.id64)
-        return UserBadges(self._state, self, data=resp["response"])
+        data = await self._state.http.get_user_badges(self.id64)
+        return UserBadges(self._state, self, data=data)
 
     async def favourite_badge(self) -> FavouriteBadge | None:
         """The user's favourite badge."""

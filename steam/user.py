@@ -142,9 +142,8 @@ class User(_BaseUser, Messageable["UserMessage"]):
         token
             The user's trade offer token, not required if you are friends with the user.
         """
-        resp = await self._state.http.get_user_escrow(self.id64, token)
-        their_escrow = resp["response"].get("their_escrow")
-        if their_escrow is None:  # private
+        data = await self._state.http.get_user_escrow(self.id64, token)
+        if (their_escrow := data.get("their_escrow")) is None:  # private
             return None
         seconds = their_escrow["escrow_end_duration_seconds"]
         return timedelta(seconds=seconds) if seconds else None

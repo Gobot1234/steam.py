@@ -183,13 +183,13 @@ class Ban:
         "_market_banned",
     )
 
-    def __init__(self, data: dict[str, Any]):
-        self._vac_banned: bool = data["VACBanned"]
-        self._community_banned: bool = data["CommunityBanned"]
-        self._market_banned: bool = data["EconomyBan"]
-        self.since_last_ban = timedelta(days=data["DaysSinceLastBan"])
+    def __init__(self, data: user.UserBan):
+        self._vac_banned = data["vac_banned"]
+        self._community_banned = data["community_banned"]
+        self._market_banned = data["economy_ban"] != "none"
+        self.since_last_ban = timedelta(days=data["days_since_last_ban"])
         """The amount of time that has passed since user was last banned"""
-        self.number_of_game_bans: int = data["NumberOfGameBans"]
+        self.number_of_game_bans: int = data["number_of_game_bans"]
         """The number of game bans the user has."""
 
     def __repr__(self) -> str:

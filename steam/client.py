@@ -35,6 +35,7 @@ from .enums import (
     PersonaState,
     PersonaStateFlag,
     PublishedFileRevision,
+    Result,
     Type,
     UIMode,
 )
@@ -1134,56 +1135,39 @@ class Client:
         before_timestamp = before.timestamp()
         yielded = 0
 
-        async def get_trades(page: int = 100) -> list[TradeOffer[MovedItem[PartialUser | User], PartialUser | User]]:
+        async def get_trades(
+            page: int = 100,
+        ) -> list[TradeOffer[MovedItem[User], MovedItem[ClientUser], User]]:  # FIXME page param seems wrong
             nonlocal total, previous_time
-            resp = await self._state.http.get_trade_history(page, previous_time, language)
-            data = resp["response"]
+            data = await self._state.http.get_trade_history(page, previous_time, language)
             if total is None:
                 total = data.get("total_trades", 0)
             if not total:
                 return []
 
-            trades: list[TradeOffer[MovedItem[PartialUser | User], PartialUser | User]] = []
             descriptions = data.get("descriptions", ())
-            trade = None
-            for trade in data.get("trades", []):
-                if not after_timestamp < trade["time_init"] < before_timestamp:
-                    break
-                for description in descriptions:
-                    for asset in trade.get("assets_received", []):
-                        if (
-                            description["classid"] == asset["classid"]
-                            and description["instanceid"] == asset["instanceid"]
-                        ):
-                            asset |= description
-                    for asset in trade.get("assets_given", []):
-                        if (
-                            description["classid"] == asset["classid"]
-                            and description["instanceid"] == asset["instanceid"]
-                        ):
-                            asset |= description
-
-                trades.append(TradeOffer._from_history(state=self._state, data=trade))
-
-            assert trade is not None
-            previous_time = trade["time_init"]
-            for trade, partner in zip(trades, await self._state._maybe_users(trade.partner for trade in trades)):
+            trades = [
+                TradeOffer[MovedItem[User], MovedItem[ClientUser], User]._from_history(self._state, trade, descriptions)
+                for trade in data.get("trades", ())
+                if after_timestamp < trade["time_init"] < before_timestamp
+            ]
+            previous_time = trades[-1].created_at.timestamp()  # type: ignore  # its never gonna be None
+            for trade, partner in zip(trades, await self._state._maybe_users(trade.partner.id64 for trade in trades)):
                 trade.partner = partner
+                for item in trade.receiving:
+                    item.owner = partner
             return trades
 
         for trade in await get_trades():
-            for item in trade.receiving:
-                item.owner = trade.partner
             if limit is not None and yielded >= limit:
                 return
             yield trade
             yielded += 1
 
+        assert total is not None
         if total < 100:
             for page in range(200, math.ceil((total + 100) / 100) * 100, 100):
                 for trade in await get_trades(page):
-                    for item in trade.receiving:
-                        item.owner = trade.partner
                     if limit is not None and yielded >= limit:
                         return
                     yield trade
@@ -1224,28 +1208,16 @@ class Client:
         ------
         :class:`~steam.AppListApp`
         """
-        have_more_results = True
-        last_app_id = None
-        while have_more_results:
-            data = await self.http.get_all_apps(
-                include_games,
-                include_dlc,
-                include_software,
-                include_videos,
-                include_hardware,
-                min(limit if limit is not None else 10_000, 50_000),
-                last_app_id,
-                modified_after,
-            )
-            resp = data["response"]
-            for app in resp["apps"]:
-                yield AppListApp(self._state, app)
-                if limit is not None:
-                    limit -= 1
-                    if limit == 0:
-                        return
-            last_app_id = AppID(resp.get("last_appid", 0))
-            have_more_results = resp.get("have_more_results", False)
+        async for app in self.http.get_all_apps(  # FIXME doesnt work
+            include_games,
+            include_dlc,
+            include_software,
+            include_videos,
+            include_hardware,
+            min(limit if limit is not None else 10_000, 50_000),
+            modified_after=modified_after,
+        ):
+            yield AppListApp(self._state, app)
 
     async def change_presence(
         self,

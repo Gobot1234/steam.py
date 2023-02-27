@@ -153,10 +153,16 @@ class ManifestPathIO(AsyncStreamReaderMixin):
         self._buffer = self._buffer[idx + len(separator) :]
         return found
 
-    readline = readuntil
+    async def readline(self) -> bytes:
+        return await self.readuntil()
 
     async def readany(self) -> bytes:
-        return bytes(self._buffer) or await self.read1()
+        if self._buffer:
+            data = bytes(self._buffer)
+            self._buffer.clear()
+            return data
+
+        return await self.read1()
 
     async def readchunk(self) -> tuple[bytes, Literal[True]]:
         return await self.read1(), True

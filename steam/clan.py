@@ -8,7 +8,6 @@ import re
 from collections.abc import AsyncGenerator, Sequence
 from datetime import date, datetime, timezone
 from ipaddress import IPv4Address
-from operator import itemgetter
 from typing import TYPE_CHECKING, Literal, TypeVar, overload
 
 from bs4 import BeautifulSoup
@@ -530,31 +529,24 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
             dates.extend(date(year, month, 1) for month in range(start_month, stop_month))
             start_month = 1
 
-        ids: list[int] = []
-        for date_chunk in utils.as_chunks(dates, 12):
-            for xml in await asyncio.gather(
+        ids = [
+            id
+            for date_chunk in utils.as_chunks(dates, 12)
+            for ids in await asyncio.gather(
                 *(self._state.http.get_clan_events_for(self.id64, date) for date in date_chunk)
-            ):
-                soup = BeautifulSoup(xml, HTML_PARSER)
-                ids.extend(
-                    int(url.rpartition("/")[2])
-                    for event_title in soup.find_all("div", class_="eventBlockTitle")
-                    for url in event_title.a.get("href")
-                    if url
-                )
+            )
+            for id in ids
+        ]
 
         yielded = 0
 
         for id_chunk in utils.as_chunks(ids, 15):
             events: list[Event[EventType, Self]] = []
-            for event in ids:
-                resp = await self._state.http.get_clan_events(self.id, id_chunk)
-                data = resp["events"]
-                for event_ in data:
-                    event = Event(self._state, self, event_)
-                    if not after < event.starts_at < before:
-                        break
-                    events.append(event)
+            for event_ in await self._state.http.get_clan_events(self.id, id_chunk):
+                event = Event(self._state, self, event_)
+                if not after < event.starts_at < before:
+                    break
+                events.append(event)
 
             authors = utils.as_chunks(
                 await self._state._maybe_users(
@@ -611,28 +603,18 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
         ---------
         :class:`~steam.Announcement`
         """
-        rss = await self._state.http.get_clan_rss(
-            self.id64
-        )  # TODO make this use the calendar? does that work for announcements
         after = after or UNIX_EPOCH
         before = before or DateTime.now()
-        soup = BeautifulSoup(rss, HTML_PARSER)
 
-        ids: list[int] = []
-        for url in soup.find_all("guid"):
-            if match := re.findall(r"announcements/detail/(\d+)", url.text):
-                ids.append(int(match[0]))
+        ids = await self._state.http.get_clan_announcement_ids(
+            self.id64
+        )  # TODO make this use the calendar? does that work for announcements
 
         if not ids:
             return
 
         announcements: list[Announcement[Self]] = []
-        for announcement_ in itertools.chain.from_iterable(
-            map(
-                itemgetter("event"),
-                await asyncio.gather(*(self._state.http.get_clan_announcement(self.id, id) for id in ids)),
-            )
-        ):
+        for announcement_ in await asyncio.gather(*(self._state.http.get_clan_announcement(self.id, id) for id in ids)):
             announcement = Announcement(self._state, self, announcement_)
             if not after < announcement.starts_at < before:
                 break

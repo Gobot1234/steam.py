@@ -133,8 +133,7 @@ async def fetch_cm_list(state: ConnectionState, cell_id: int = 0) -> AsyncGenera
             yield cm
         return
 
-    resp = data["response"]
-    if not resp["success"]:
+    if not data["success"]:
         servers = [CMServer(state, url=cm_url, weighted_load=0) for cm_url in DEFAULT_CMS]
         random.shuffle(servers)
         log.debug("Error occurred when fetching CM server list, falling back to internal list", exc_info=True)
@@ -142,7 +141,7 @@ async def fetch_cm_list(state: ConnectionState, cell_id: int = 0) -> AsyncGenera
             yield cm
         return
 
-    hosts: list[dict[str, Any]] = resp["serverlist"]
+    hosts = data["serverlist"]
     log.debug(f"Received {len(hosts)} servers from WebAPI")
     for cm in sorted(
         (CMServer(state, url=server["endpoint"], weighted_load=server["wtd_load"]) for server in hosts),

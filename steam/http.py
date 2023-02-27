@@ -6,33 +6,32 @@ import asyncio
 import logging
 import re
 import urllib.parse
-from collections.abc import Callable, Iterable
+from collections.abc import AsyncGenerator, Callable
 from datetime import date, datetime
 from http.cookies import SimpleCookie
 from random import randbytes
 from sys import version_info
 from time import time
-from typing import TYPE_CHECKING, Any, Literal, Sequence, TypeVar
+from typing import TYPE_CHECKING, Any, Literal, Sequence, TypeVar, ValuesView
 
 import aiohttp
+from bs4 import BeautifulSoup
 from yarl import URL as URL_
 
 from . import errors, utils
 from .__metadata__ import __version__
-from ._const import JSON_DUMPS, JSON_LOADS, URL
-from .enums import CurrencyCode, Language
-from .id import ID
+from ._const import HTML_PARSER, JSON_DUMPS, JSON_LOADS, URL
+from .enums import CurrencyCode, Language, Result, Type
+from .id import CLAN_ID64_FROM_URL_REGEX, ID, parse_id64
 from .models import PriceOverviewDict, api_route
-from .types.id import ID32, AppID, AssetID, PostID, TradeOfferID
+from .types.id import ID32, ID64, AppID, AssetID, BundleID, ChatGroupID, ChatID, PackageID, PostID, TradeOfferID
 from .user import ClientUser
 
 if TYPE_CHECKING:
     from .client import Client
     from .media import Media
-    from .types import achievement, app, bundle, trade
-    from .types.http import Coro, ResponseDict, StrOrURL
-    from .types.id import ID64, BundleID, ChatGroupID, ChatID, PackageID
-    from .types.user import User
+    from .types import achievement, app, bundle, clan, guard, trade, user
+    from .types.http import CMList, Coro, EResultSuccess, ResponseDict, StrOrURL
 
 
 T = TypeVar("T")
@@ -91,9 +90,7 @@ class HTTPClient:
         url = url if isinstance(url, URL_) else URL_(url)
 
         if url.host in (URL.COMMUNITY.host, URL.STORE.host, URL.HELP.host) and not self.logged_in:
-            if self._client.ws is None:
-                raise RuntimeError("Not logged in and not connected to CM")
-            await self.login(self._client.ws.refresh_token)
+            await self.ensure_logged_in()
 
         for tries in range(5):
             async with self._session.request(method, url, **kwargs, proxy=self.proxy, proxy_auth=self.proxy_auth) as r:
@@ -208,6 +205,11 @@ class HTTPClient:
 
         self.login_event.set()
 
+    async def ensure_logged_in(self) -> None:
+        if self._client.ws is None:
+            raise RuntimeError("Not logged in and not connected to CM")
+        await self.login(self._client.ws.refresh_token)
+
     async def get_api_key(self) -> str | None:
         if self.api_key is not None:
             return self.api_key
@@ -251,15 +253,11 @@ class HTTPClient:
         self.user = None  # type: ignore
         self._client.dispatch("logout")
 
-    async def get_user(self, user_id64: ID64) -> User | None:
-        params = {"key": await self.get_api_key(), "steamids": user_id64}
-        resp = await self.get(api_route("ISteamUser/GetPlayerSummaries", version=2), params=params)
-        return resp["response"]["players"][0] if resp["response"]["players"] else None
+    async def get_user(self, user_id64: ID64) -> user.User | None:
+        return await anext(self.get_users(user_id64), None)
 
-    async def get_users(self, user_id64s: Iterable[int]) -> list[User]:
-        ret: list[User] = []
-
-        for resp in await asyncio.gather(  # gather all the requests concurrently
+    async def get_users(self, *user_id64s: ID64) -> AsyncGenerator[user.User, None]:
+        for data in await asyncio.gather(  # gather all the requests concurrently
             *(
                 self.get(
                     api_route("ISteamUser/GetPlayerSummaries", version=2),
@@ -268,16 +266,20 @@ class HTTPClient:
                 for sublist in utils.as_chunks(user_id64s, 100)
             )
         ):
-            ret.extend(resp["response"]["players"])
-        return ret
+            data: ResponseDict[dict[Literal["players"], list[user.User]]]
+            for user in data["response"]["players"]:
+                yield user
 
-    async def get_user_escrow(self, user_id64: ID64, token: str | None) -> ResponseDict[dict[str, Any]]:
+    async def get_user_escrow(self, user_id64: ID64, token: str | None) -> user.TradeHoldDurations:
         params = {
             "key": await self.get_api_key(),
             "steamid_target": user_id64,
             "trade_offer_access_token": token if token is not None else "",
         }
-        return await self.get(api_route("IEconService/GetTradeHoldDurations"), params=params)
+        data: ResponseDict[user.TradeHoldDurations] = await self.get(
+            api_route("IEconService/GetTradeHoldDurations"), params=params
+        )
+        return data["response"]
 
     async def get_friends_ids(self, user_id64: ID64) -> list[ID64]:
         params = {
@@ -285,7 +287,7 @@ class HTTPClient:
             "steamid": user_id64,
             "relationship": "friend",
         }
-        friends = await self.get(api_route("ISteamUser/GetFriendList"), params=params)
+        friends: user.FriendsList = await self.get(api_route("ISteamUser/GetFriendList"), params=params)
         return [friend["steamid"] for friend in friends["friendslist"]["friends"]]
 
     async def get_trade_offers(
@@ -295,7 +297,7 @@ class HTTPClient:
         received: bool = True,
         updated_only: bool = True,
         language: Language | None = None,
-    ) -> dict[str, Any]:  # TODO consider making async iter?
+    ) -> dict[str, Any]:
         params = {
             "key": await self.get_api_key(),
             "active_only": str(active_only).lower(),
@@ -310,7 +312,9 @@ class HTTPClient:
                 params["time_historical_cutoff"] = self.trades_last_fetched
             except AttributeError:
                 pass
-        resp = await self.get(api_route("IEconService/GetTradeOffers"), params=params)
+        resp: ResponseDict[trade.GetTradeOffers] = await self.get(
+            api_route("IEconService/GetTradeOffers"), params=params
+        )
         first_page = resp["response"]
         next_cursor = first_page.get("next_cursor", 0)
         current_cursor = 0
@@ -336,7 +340,7 @@ class HTTPClient:
 
     async def get_trade_history(
         self, limit: int, previous_time: int = 0, language: Language | None = None
-    ) -> ResponseDict[trade.GetTradeOfferHistory]:
+    ) -> trade.GetTradeOfferHistory:
         params = {
             "key": await self.get_api_key(),
             "max_trades": limit,
@@ -345,20 +349,22 @@ class HTTPClient:
             "start_after_time": previous_time,
             "language": (language or self.language).api_name,
         }
-        return await self.get(api_route("IEconService/GetTradeHistory"), params=params)
+        data: ResponseDict[trade.GetTradeOfferHistory] = await self.get(
+            api_route("IEconService/GetTradeHistory"), params=params
+        )
+        return data["response"]
 
-    async def get_trade(
-        self, trade_id: TradeOfferID, language: Language | None = None
-    ) -> ResponseDict[trade.GetTradeOffer]:
+    async def get_trade(self, trade_id: TradeOfferID, language: Language | None = None) -> trade.GetTradeOffer:
         params = {
             "key": await self.get_api_key(),
             "tradeofferid": trade_id,
             "get_descriptions": "true",
             "language": (language or self.language).api_name,
         }
-        return await self.get(api_route("IEconService/GetTradeOffer"), params=params)
+        data: ResponseDict[trade.GetTradeOffer] = await self.get(api_route("IEconService/GetTradeOffer"), params=params)
+        return data["response"]
 
-    def accept_user_trade(self, user_id64: ID64, trade_id: TradeOfferID) -> Coro[dict[str, Any]]:
+    def accept_user_trade(self, user_id64: ID64, trade_id: TradeOfferID) -> Coro[trade.AcceptTrade]:
         payload = {
             "sessionid": self.session_id,
             "tradeofferid": trade_id,
@@ -405,27 +411,29 @@ class HTTPClient:
             "trade_offer_create_params": JSON_DUMPS({"trade_offer_access_token": token}) if token is not None else "{}",
             **kwargs,
         }
-        referer = URL.COMMUNITY / f"tradeoffer/new/" % {"partner": str(user.id)}
+        referer = URL.COMMUNITY / "tradeoffer/new/" % {"partner": str(user.id)}
         if token is not None:
             referer %= {"token": token}
         headers = {"Referer": str(referer)}
         return self.post(URL.COMMUNITY / "tradeoffer/new/send", data=payload, headers=headers)
 
-    async def get_trade_receipt(self, trade_id: int, language: Language | None = None) -> dict[str, Any]:
+    async def get_trade_receipt(self, trade_id: int, language: Language | None = None) -> trade.TradeStatus:
         params = {
             "key": await self.get_api_key(),
             "tradeid": trade_id,
             "get_descriptions": "true",
             "language": (language or self.language).api_name,
         }
-        return await self.get(api_route("IEconService/GetTradeStatus"), params=params)
+        data: ResponseDict[trade.TradeStatus] = await self.get(api_route("IEconService/GetTradeStatus"), params=params)
+        return data["response"]
 
-    def get_cm_list(self, cell_id: int) -> Coro[dict[str, Any]]:
+    async def get_cm_list(self, cell_id: int) -> CMList:
         params = {
             "cellid": cell_id,
             "cmtype": "websockets",
         }
-        return self.get(api_route("ISteamDirectory/GetCMListForConnect"), params=params)
+        data: ResponseDict[CMList] = await self.get(api_route("ISteamDirectory/GetCMListForConnect"), params=params)
+        return data["response"]
 
     def join_clan(self, clan_id64: ID64) -> Coro[None]:
         payload = {
@@ -451,25 +459,51 @@ class HTTPClient:
         }
         return self.post(URL.COMMUNITY / "actions/GroupInvite", data=payload)
 
-    async def get_user_clans(self, user_id64: ID64) -> dict[str, Any]:
+    async def get_user_clans(self, user_id64: ID64) -> list[ID64]:
         params = {"key": await self.get_api_key(), "steamid": user_id64}
-        return await self.get(api_route("ISteamUser/GetUserGroupList"), params=params)
+        data: user.GetUserGroupList = await self.get(api_route("ISteamUser/GetUserGroupList"), params=params)
+        return [parse_id64(group["gid"], type=Type.Clan) for group in data["response"]["groups"]]
 
-    async def get_user_bans(self, user_id64: ID64) -> dict[str, Any]:
-        params = {"key": await self.get_api_key(), "steamids": user_id64}
-        return await self.get(api_route("ISteamUser/GetPlayerBans"), params=params)
+    async def get_user_bans(self, *user_id64s: ID64) -> list[user.UserBan]:
+        params = {"key": await self.get_api_key(), "steamids": ",".join(str(id64) for id64 in user_id64s)}
+        data: user.GetPlayerBans = await self.get(api_route("ISteamUser/GetPlayerBans"), params=params)
+        return [
+            {
+                "steamid": ID64(int(ban["SteamId"])),
+                "community_banned": ban["CommunityBanned"],
+                "vac_banned": ban["VACBanned"],
+                "number_of_vac_bans": ban["NumberOfVACBans"],
+                "days_since_last_ban": ban["DaysSinceLastBan"],
+                "number_of_game_bans": ban["NumberOfGameBans"],
+                "economy_ban": ban["EconomyBan"],
+            }
+            for ban in data["players"]
+        ]
 
-    async def get_user_level(self, user_id64: ID64) -> dict[str, Any]:
+    async def get_user_level(self, user_id64: ID64) -> int:
         params = {"key": await self.get_api_key(), "steamid": user_id64}
-        return await self.get(api_route("IPlayerService/GetSteamLevel"), params=params)
+        resp: user.GetSteamLevel = await self.get(api_route("IPlayerService/GetSteamLevel"), params=params)
+        return resp["response"]["player_level"]
 
-    async def get_user_badges(self, user_id64: ID64) -> dict[str, Any]:
+    async def get_user_badges(self, user_id64: ID64) -> user.UserBadges:
         params = {"key": await self.get_api_key(), "steamid": user_id64}
-        return await self.get(api_route("IPlayerService/GetBadges"), params=params)
+        data: ResponseDict[user.UserBadges] = await self.get(api_route("IPlayerService/GetBadges"), params=params)
+        return data["response"]
 
-    def send_user_gift(
+    async def get_user_inventory_info(self, user_id64: ID64) -> ValuesView[user.InventoryInfo]:
+        resp = await self.get(URL.COMMUNITY / f"profiles/{user_id64}/inventory")
+        soup = BeautifulSoup(resp, "html.parser")
+        for script in soup.find_all("script", type="text/javascript"):
+            if match := re.search(r"var\s+g_rgAppContextData\s*=\s*(?P<json>{.*?});\s*", script.text):
+                break
+        else:
+            raise ValueError("Could not find inventory info")
+
+        return JSON_LOADS(match["json"]).values()
+
+    async def send_user_gift(
         self, user_id: ID32, asset_id: AssetID, name: str, message: str, closing_note: str, signature: str
-    ) -> Coro[None]:
+    ) -> None:
         payload = {
             "GifteeAccountID": user_id,
             "GifteeEmail": "",
@@ -481,7 +515,9 @@ class HTTPClient:
             "SessionID": self.session_id,
         }
         headers = {"Referer": f"{URL.STORE}/checkout/sendgift/{asset_id}"}
-        return self.post(URL.STORE / "checkout/sendgiftsubmit", data=payload, headers=headers)
+        data: EResultSuccess = await self.post(URL.STORE / "checkout/sendgiftsubmit", data=payload, headers=headers)
+        if data["sucess"] != Result.OK:
+            return HTTPError("Failed to send gift")
 
     def clear_nickname_history(self) -> Coro[None]:
         payload = {"sessionid": self.session_id}
@@ -497,7 +533,7 @@ class HTTPClient:
 
         return self.post(URL.COMMUNITY / "market/priceoverview", data=payload)
 
-    def get_wishlist(self, user_id64: ID64) -> Coro[dict[str, Any]]:
+    def get_wishlist(self, user_id64: ID64) -> Coro[dict[AppID, app.WishlistApp]]:
         return self.get(URL.STORE / f"wishlist/profiles/{user_id64}/wishlistdata")
 
     def get_app(self, app_id: AppID, language: Language | None) -> Coro[dict[str, Any]]:
@@ -514,14 +550,27 @@ class HTTPClient:
         }
         return self.get(URL.STORE / "api/dlcforapp", params=params)
 
-    def get_clan_rss(self, clan_id64: ID64) -> Coro[str]:
-        return self.get(URL.COMMUNITY / f"gid/{clan_id64}/rss")
+    async def get_clan_announcement_ids(self, clan_id64: ID64) -> list[int]:
+        rss = await self.get(URL.COMMUNITY / f"gid/{clan_id64}/rss")
+        soup = BeautifulSoup(rss, HTML_PARSER)
+        return [
+            int(match[0])
+            for url in soup.find_all("guid")
+            if (match := re.findall(r"announcements/detail/(\d+)", url.text))
+        ]
 
-    def get_clan_events_for(self, clan_id64: ID64, date: date) -> Coro[str]:
-        return self.post(
+    async def get_clan_events_for(self, clan_id64: ID64, date: date) -> list[int]:
+        xml = await self.post(
             URL.COMMUNITY / f"gid/{clan_id64}/events",
             data={"xml": 1, "action": "eventFeed", "month": date.month, "year": date.year},
         )
+        soup = BeautifulSoup(xml, HTML_PARSER)
+        return [
+            int(url.rpartition("/")[2])
+            for event_title in soup.find_all("div", class_="eventBlockTitle")
+            for url in event_title.a.get("href")
+            if url
+        ]
 
     def _edit_clan_event(
         self,
@@ -593,12 +642,13 @@ class HTTPClient:
         }
         return self.post(URL.COMMUNITY / f"gid/{clan_id64}/events", data=data)
 
-    def get_clan_events(self, clan_id: int, event_ids: Sequence[int]) -> Coro[dict[str, Any]]:
+    async def get_clan_events(self, clan_id: int, event_ids: Sequence[int]) -> list[clan.Event]:
         params = {
             "clanid_list": ",".join([str(clan_id)] * len(event_ids)),
             "uniqueid_list": ",".join(str(id) for id in event_ids),
         }
-        return self.get(URL.STORE / "events/ajaxgeteventdetails", params=params)
+        data: clan.GetEvents = await self.get(URL.STORE / "events/ajaxgeteventdetails", params=params)
+        return data["events"]
 
     def create_clan_announcement(
         self, clan_id64: ID64, name: str, description: str, hidden: bool = False
@@ -634,16 +684,17 @@ class HTTPClient:
         }
         return self.post(URL.COMMUNITY / f"gid/{clan_id64}/announcements/delete/{announcement_id}", params=params)
 
-    def get_clan_announcement(
+    async def get_clan_announcement(
         self,
         clan_id: int,
         announcement_id: int,
-    ) -> Coro[dict[str, Any]]:
+    ) -> clan.Event:
         params = {
             "clan_accountid": clan_id,
             "announcement_gid": announcement_id,
         }
-        return self.get(URL.STORE / "events/ajaxgetpartnerevent", params=params)
+        data: clan.GetClanAnnouncement = await self.get(URL.STORE / "events/ajaxgetpartnerevent", params=params)
+        return data["event"]
 
     def vote_on_user_post(self, user_id64: ID64, post_id: PostID, vote: int) -> Coro[None]:
         data = {
@@ -743,15 +794,16 @@ class HTTPClient:
         }
         return self.get(URL.STORE / "actions/ajaxresolvebundles", params=params)
 
-    async def get_app_stats(
-        self, app_id: AppID, language: Language | None
-    ) -> dict[Literal["game"], achievement.AppAppStats]:
+    async def get_app_stats(self, app_id: AppID, language: Language | None) -> achievement.AppAppStats:
         params = {
             "key": await self.get_api_key(),
             "appid": app_id,
             "l": (language or self.language).api_name,
         }
-        return await self.get(api_route("ISteamUserStats/GetSchemaForGame", 2), params=params)
+        data: dict[Literal["game"], achievement.AppAppStats] = await self.get(
+            api_route("ISteamUserStats/GetSchemaForGame", 2), params=params
+        )
+        return data["game"]
 
     def get_app_leaderboards(self, app_id: AppID, language: Language | None) -> Coro[str]:
         params = {
@@ -760,15 +812,18 @@ class HTTPClient:
         }
         return self.get(URL.COMMUNITY / f"stats/{app_id}/leaderboards", params=params)
 
-    async def verify_app_ticket(self, app_id: AppID, ticket: str, publisher_key: str | None) -> dict[str, Any]:
+    async def verify_app_ticket(
+        self, app_id: AppID, ticket: str, publisher_key: str | None
+    ) -> user.AuthenticateUserTicketParams:
         params = {
             "key": publisher_key or await self.get_api_key(),
             "appid": app_id,
             "ticket": ticket,
         }
-        return await self.get(
+        resp: ResponseDict[user.AuthenticateUserTicket] = await self.get(
             api_route("ISteamUserAuth/AuthenticateUserTicket", publisher=publisher_key is not None), params=params
         )
+        return resp["response"]["params"]
 
     async def get_all_apps(
         self,
@@ -780,25 +835,67 @@ class HTTPClient:
         limit: int | None,
         last_app_id: AppID | None = None,
         modified_after: datetime | None = None,
-    ) -> ResponseDict[app.GetAppList]:
-        params = {
-            "key": await self.get_api_key(),
-            "include_games": str(include_games).lower(),
-            "include_dlc": str(include_dlc).lower(),
-            "include_software": str(include_software).lower(),
-            "include_videos": str(include_videos).lower(),
-            "include_hardware": str(include_hardware).lower(),
-            "max_results": 10_000 if limit is None else limit,
+    ) -> AsyncGenerator[app.GetAppList, None]:
+        have_more_results = True
+        last_app_id = None
+        limit_ = min(limit if limit is not None else 10_000, 50_000)
+        while have_more_results:
+            params = {
+                "key": await self.get_api_key(),
+                "include_games": str(include_games).lower(),
+                "include_dlc": str(include_dlc).lower(),
+                "include_software": str(include_software).lower(),
+                "include_videos": str(include_videos).lower(),
+                "include_hardware": str(include_hardware).lower(),
+                "max_results": limit_,
+            }
+            if last_app_id is not None:
+                params["last_appid"] = last_app_id
+            if modified_after is not None:
+                params["if_modified_since"] = int(modified_after.timestamp())
+            data = await self.get(api_route("IStoreService/GetAppList"), params=params)
+            resp = data["response"]
+            for app in resp["apps"]:
+                yield app
+                if limit is not None:
+                    limit_ -= 1
+                    if limit_ == 0:
+                        return
+            last_app_id = AppID(resp.get("last_appid", 0))
+            have_more_results = resp.get("have_more_results", False)
+
+    async def get_clan_invitees(
+        self,
+    ) -> dict[ID64, ID64]:  # TODO what about the case where you've been invited by multiple peopl
+        resp = await self.get(URL.COMMUNITY / "my/groups/pending", params={"ajax": "1"})
+        soup = BeautifulSoup(resp, HTML_PARSER)
+        elements = soup.find_all("a", class_="linkStandard")
+
+        return {
+            ID64(int(CLAN_ID64_FROM_URL_REGEX.search(clan_element)["steamid"])): parse_id64(
+                invitee_element["data-miniprofile"]
+            )
+            for (clan_element, invitee_element) in zip(
+                (element for element in elements if "steamLink" in element["class"]),
+                (element for element in elements if "data-miniprofile" in element.attrs),
+            )
         }
-        if last_app_id is not None:
-            params["last_appid"] = last_app_id
-        if modified_after is not None:
-            params["if_modified_since"] = int(modified_after.timestamp())
-        return await self.get(api_route("IStoreService/GetAppList"), params=params)
 
     def add_wallet_code(self, code: str) -> Coro[dict[str, Any]]:
         data = {"wallet_code": code, "sessionid": self.session_id}
         return self.post(URL.STORE / "account/ajaxredeemwalletcode", data=data)
+
+    def add_phone_number(self, phone_number: str) -> Coro[guard.AddPhoneNumber]:
+        data = {
+            "op": "add_phone_number",
+            "arg": phone_number,
+            "checkfortos": 0,
+            "skipvoip": 0,
+            "sessionid": self.session_id,
+        }
+        return self.post(URL.COMMUNITY / "steamguard/phoneajax", data=data)
+
+    # async def
 
     async def edit_profile_info(
         self,
@@ -813,9 +910,7 @@ class HTTPClient:
         info = await self.user.profile_info()
 
         if not self.logged_in:
-            if self._client.ws is None:
-                raise RuntimeError("Not logged in and not connected to CM")
-            await self.login(self._client.ws.refresh_token)
+            await self.ensure_logged_in()
 
         async with self._session.get(URL.COMMUNITY / "my") as r:
             current_url = r.url

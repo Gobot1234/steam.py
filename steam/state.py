@@ -17,7 +17,6 @@ from operator import attrgetter
 from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast
 from zlib import crc32
 
-from bs4 import BeautifulSoup
 from typing_extensions import Self
 from yarl import URL as URL_
 
@@ -339,9 +338,12 @@ class ConnectionState(Registerable):
 
     async def fetch_trade(
         self, id: TradeOfferID, language: Language | None
-    ) -> TradeOffer[Item[User | PartialUser], User | PartialUser] | None:
-        resp = await self.http.get_trade(id, language)
-        if data := resp.get("response"):
+    ) -> TradeOffer[Item[User], Item[ClientUser], User] | None:
+        try:
+            data = await self.http.get_trade(id, language)
+        except KeyError:
+            pass
+        else:
             (trade,) = await self._process_trades((data["offer"],), data.get("descriptions", ()))
             return trade
 
@@ -1250,7 +1252,7 @@ class ConnectionState(Registerable):
     @register(EMsg.ClientFriendsList)
     async def process_friends(self, msg: friends.CMsgClientFriendsList) -> None:
         await self.login_complete.wait()
-        elements = None
+        clan_invitees = None
         client_user_friends: list[ID64] = []
         is_load = not msg.bincremental
         for friend in msg.friends:
@@ -1287,17 +1289,12 @@ class ConnectionState(Registerable):
                             self.dispatch("user_invite", invite)
 
                         case Type.Clan:
-                            if elements is None:
-                                resp = await self.http.get(URL.COMMUNITY / "my/groups/pending", params={"ajax": "1"})
-                                soup = BeautifulSoup(resp, HTML_PARSER)
-                                elements = soup.find_all("a", class_="linkStandard")
-                            invitee_id64 = next(
-                                (
-                                    utils.parse_id64(elements[idx + 1]["data-miniprofile"])
-                                    for idx, element in enumerate(elements)
-                                    if str(id.id64) in str(element)
-                                ),
-                                0,
+                            if clan_invitees is None:
+                                clan_invitees = await self.http.get_clan_invitees()
+
+                            invitee = await self._maybe_user(clan_invitees[id.id64])
+                            clan = await self.fetch_clan(id.id64)
+                            assert clan is not None
                             )
 
                             invitee = await self._maybe_user(invitee_id64)
