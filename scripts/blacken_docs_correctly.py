@@ -40,7 +40,7 @@ def main() -> None:
 
     for file in project_root.rglob("**/*"):
         if INCLUDES_RE.search(str(file)) and not EXCLUDES_RE.search(str(file)):
-            blacken_docs.format_file(str(file), file_mode, skip_errors=False)
+            blacken_docs.format_file(str(file), file_mode, skip_errors=False, rst_literal_blocks=True)
 
 
 if __name__ == "__main__":
