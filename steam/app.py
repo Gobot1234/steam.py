@@ -1316,6 +1316,7 @@ class WishlistApp(PartialApp[str]):
         "tags",
         "total_reviews",
         "type",
+        "partial_packages",
         "_free",
         "_on_linux",
         "_on_mac_os",
@@ -1351,6 +1352,8 @@ class WishlistApp(PartialApp[str]):
         """The tags of the app."""
         self.rank = data["rank"]
         """The global rank of the app by popularity."""
+        self.partial_packages = [PartialPackage[None](state, id=package["id"]) for package in data["subs"]]
+        """The packages this app is included in."""
 
         self._free = data["is_free_game"]
         self._on_windows = bool(data.get("win", False))
