@@ -68,7 +68,7 @@ htmlmin = "^0.1.12"
 rjsmin = "^1.2.0"
 
 [tool.poetry.group.dev.dependencies]
-black = "^22.3"
+black = ">=22.3,<24.0"
 isort = "^5.10"
 #flake8 = "^4.0"
 pytest = "^7.1"
