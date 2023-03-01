@@ -2426,22 +2426,22 @@ test = ["cython", "html5lib", "pytest (>=4.6)", "typed_ast"]
 
 [[package]]
 name = "sphinx-codeautolink"
-version = "0.10.0"
+version = "0.14.1"
 description = "Automatic links from code examples to reference documentation."
 category = "dev"
 optional = false
-python-versions = ">=3.6"
+python-versions = ">=3.7"
 files = [
-    {file = "sphinx-codeautolink-0.10.0.tar.gz", hash = "sha256:68a75f9955b2fac0f5fc0c7ff1d3058df074edd8061b857958223be425b01183"},
-    {file = "sphinx_codeautolink-0.10.0-py3-none-any.whl", hash = "sha256:c8c9e95cb83c7d6547d904db4432f2fac88e6c68421c0cf97c84cccdbe57dcdd"},
+    {file = "sphinx-codeautolink-0.14.1.tar.gz", hash = "sha256:6c06ea6bf407230ab33947f32e3755940a395d7753f65880baf003908b3c597f"},
+    {file = "sphinx_codeautolink-0.14.1-py3-none-any.whl", hash = "sha256:cd2b1348b1f0815353b90981090dfe73d6fac3b9d4e3b185d92a3653df1b6d8f"},
 ]
 
 [package.dependencies]
-beautifulsoup4 = "*"
+beautifulsoup4 = ">=4.8.1"
 sphinx = ">=3.2.0"
 
 [package.extras]
-ipython = ["ipython"]
+ipython = ["ipython (!=8.7.0)"]
 
 [[package]]
 name = "sphinx-copybutton"
@@ -2893,4 +2893,4 @@ testing = ["flake8 (<5)", "func-timeout", "jaraco.functools", "jaraco.itertools"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "550055b4ea525eff0f94e6200c067061444387ffe2d7f50264cd24e6cf6ff7f4"
+content-hash = "9053be691560028562b647ea821bbcc84a573dfc7b9686e7e5769f7e2fe2f63a"
