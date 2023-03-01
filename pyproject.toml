@@ -59,7 +59,7 @@ optional = true
 [tool.poetry.group.docs.dependencies]
 sphinx = "^5.0"
 myst-parser = "^0.18"
-mypy = "^0.961"
+mypy = ">=0.961,<1.1"
 sphinxcontrib_trio = "^1.1.2"
 sphinx-copybutton = "^0.5.0"
 sphinx-codeautolink = "^0.10.0"
@@ -73,7 +73,7 @@ isort = "^5.10"
 #flake8 = "^4.0"
 pytest = "^7.1"
 pytest-asyncio = "^0.18"
-mypy = "^0.961"
+mypy = ">=0.961,<1.1"
 pre-commit = "^2.18"
 poethepoet = {version=">=0.13,<0.19", extras=["poetry_plugin"]}
 blacken-docs = "^1.12"
