@@ -75,7 +75,7 @@ pytest = "^7.1"
 pytest-asyncio = "^0.18"
 mypy = "^0.961"
 pre-commit = "^2.18"
-poethepoet = {version="^0.13", extras=["poetry_plugin"]}
+poethepoet = {version=">=0.13,<0.19", extras=["poetry_plugin"]}
 blacken-docs = "^1.12"
 
 [tool.poe.tasks]
