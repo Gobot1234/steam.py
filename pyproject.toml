@@ -57,7 +57,7 @@ orjson = "^3.6.8"
 [tool.poetry.group.docs]
 optional = true
 [tool.poetry.group.docs.dependencies]
-sphinx = "^5.0"
+sphinx = ">=5,<7"
 myst-parser = "^0.19"
 mypy = "^1.0"
 sphinxcontrib_trio = "^1.1.2"
