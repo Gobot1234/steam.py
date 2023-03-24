@@ -12,6 +12,7 @@ from aiohttp import StreamReader
 from bs4 import BeautifulSoup
 from yarl import URL as URL_
 
+from ._const import DEFAULT_AVATAR
 from .abc import Awardable, Commentable, PartialUser, _CommentableKwargs
 from .app import PartialApp
 from .enums import Language, PublishedFileRevision, PublishedFileType, PublishedFileVisibility
@@ -495,7 +496,7 @@ class PublishedFile(Commentable, Awardable, Generic[UserT]):
 
         Note
         ----
-        Due to a Steam limitation, this will only your friends with avatars.
+        Due to a Steam limitation, this will only return your friends with non-default avatars.
         """
         resp = await self._state.http.get(
             URL.COMMUNITY / "sharedfiles/friendswhofavoritedfile", params={"id": self.id, "appid": self.app.id}
@@ -504,8 +505,7 @@ class PublishedFile(Commentable, Awardable, Generic[UserT]):
         return [
             get(self._state.user._friends.values(), avatar__sha=sha)
             for friend_url in soup.find_all("div", class_="iconHolder_default")
-            if (sha := bytes.fromhex(URL_(friend_url.img["src"]).name.removesuffix(".jpg")))
-            != b"\xfe\xf4\x9e\x7f\xa7\xe1\x99s\x10\xd7\x05\xb2\xa6\x15\x8f\xf8\xdc\x1c\xdf\xeb"
+            if (sha := bytes.fromhex(URL_(friend_url.img["src"]).name.removesuffix(".jpg"))) != DEFAULT_AVATAR
         ]  # type: ignore
 
     async def edit(

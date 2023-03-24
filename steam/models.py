@@ -19,7 +19,7 @@ from typing_extensions import Self
 from yarl import URL as _URL
 
 from . import utils
-from ._const import URL, TaskGroup
+from ._const import DEFAULT_AVATAR, URL
 from .enums import CurrencyCode, IntEnum, PurchaseResult, Realm, Result
 from .media import Media
 from .protobufs import EMsg
@@ -309,11 +309,7 @@ class Avatar(_IOMixin):
 
     def __init__(self, state: ConnectionState, sha: bytes):
         sha = bytes(sha)
-        self.sha = (
-            sha
-            if sha != b"\x00" * 20
-            else b"\xfe\xf4\x9e\x7f\xa7\xe1\x99s\x10\xd7\x05\xb2\xa6\x15\x8f\xf8\xdc\x1c\xdf\xeb"
-        )
+        self.sha = sha if sha != b"\x00" * 20 else DEFAULT_AVATAR
         self._state = state
 
     @property
