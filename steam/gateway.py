@@ -395,6 +395,7 @@ class SteamWebSocket(Registerable):
 
             task.add_done_callback(shallow_cancelled_error)
             task.cancel()  # we let Client.connect handle poll_event from here on out
+            await asyncio.sleep(0)  # needed to ensure the task is cancelled and socket._waiting is removed
 
             return self
         raise NoCMsFound("No CMs found could be connected to. Steam is likely down")
@@ -530,6 +531,8 @@ class SteamWebSocket(Registerable):
 
             task.add_done_callback(shallow_cancelled_error)
             task.cancel()  # we let Client.connect handle poll_event from here on out
+            await asyncio.sleep(0)
+
             await client._handle_ready()
 
             return self
