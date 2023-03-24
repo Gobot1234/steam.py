@@ -580,7 +580,7 @@ class Client:
         return await self._state.fetch_user(id64)
 
     async def fetch_users(self, *ids: Intable) -> list[User]:
-        """Fetches a list of :class:`~steam.User.
+        """Fetches a list of :class:`~steam.User`.
 
         Note
         ----

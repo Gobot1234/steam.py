@@ -9,9 +9,9 @@ from contextlib import nullcontext
 from typing import TYPE_CHECKING, Any, Final, Generic, Literal, cast, overload
 
 import aiohttp
-from typing_extensions import TypeVar
+from typing_extensions import Self, TypeVar
 
-from ._const import JSON_LOADS, MISSING, URL, MissingSentinel
+from ._const import JSON_LOADS, URL
 from .enums import Instance, Type, TypeChar, Universe
 from .errors import InvalidID
 from .types.id import ID32, ID64, Intable
@@ -29,9 +29,9 @@ __all__ = ("ID",)
 def parse_id64(
     id: Intable,
     *,
-    type: Type = MISSING,
-    universe: Universe = MISSING,
-    instance: Instance = MISSING,
+    type: Type | None = None,
+    universe: Universe | None = None,
+    instance: Instance | None = None,
 ) -> ID64:
     """Convert various representations of Steam IDs to its Steam 64-bit ID.
 
@@ -68,25 +68,25 @@ def parse_id64(
     The 64-bit Steam ID.
     """
 
-    if not id and type is MISSING and universe is MISSING and instance is MISSING:
+    if not id and type is None and universe is None and instance is None:
         return ID64(0)
 
-    if not isinstance(type, (Type, MissingSentinel)):
-        raise InvalidID(id, "type is not a valid Type") from None
-    if not isinstance(universe, (Universe, MissingSentinel)):
-        raise InvalidID(id, "universe is not a valid Universe") from None
-    if not isinstance(instance, (Instance, MissingSentinel)):
-        raise InvalidID(id, "instance is not a valid Instance") from None
+    if type is not None and not isinstance(type, Type):
+        raise InvalidID(id, type, universe, instance, "type is not a valid Type") from None
+    if universe is not None and not isinstance(universe, Universe):
+        raise InvalidID(id, type, universe, instance, "universe is not a valid Universe") from None
+    if instance is not None and not isinstance(instance, Instance):
+        raise InvalidID(id, type, universe, instance, "instance is not a valid Instance") from None
 
     try:
         id = int(id)
     except ValueError:
         # textual input e.g. [g:1:4]
         if not isinstance(id, str):
-            raise InvalidID(id, "it cannot be parsed as an int or str") from None
+            raise InvalidID(id, type, universe, instance, "it cannot be parsed as an int or str") from None
         result = ID.from_id2(id) or ID.from_id3(id) or ID.from_invite_code(id)
         if result is None:
-            raise InvalidID(id, "it cannot be parsed") from None
+            raise InvalidID(id, type, universe, instance, "it cannot be parsed") from None
         return result.id64
     else:
         # numeric input
@@ -94,22 +94,22 @@ def parse_id64(
             type = type or Type.Individual
             universe = universe or Universe.Public
 
-            if instance is MISSING:
+            if instance is None:
                 instance = Instance.Desktop if type in (Type.Individual, Type.GameServer) else Instance.All
 
             if not (0 <= universe < 1 << 8):
-                raise InvalidID(id, "universe is bigger than 8 bits")
+                raise InvalidID(id, type, universe, instance, "universe is bigger than 8 bits")
             if not (0 <= type < 1 << 4):
-                raise InvalidID(id, "type is bigger than 4 bits")
+                raise InvalidID(id, type, universe, instance, "type is bigger than 4 bits")
             if not (0 <= instance < 1 << 20):
-                raise InvalidID(id, "instance is bigger than 20 bits")
+                raise InvalidID(id, type, universe, instance, "instance is bigger than 20 bits")
         elif 0 <= id < 2**64:  # 64 bit
             universe = Universe.try_value((id >> 56) & 0xFF)
             type = Type.try_value((id >> 52) & 0xF)
             instance = Instance.try_value((id >> 32) & 0xFFFFF)
             id &= 0xFFFFFFFF
         else:
-            raise InvalidID(id, f"it is too {'large' if id >= 2**64 else 'small'}")
+            raise InvalidID(id, type, universe, instance, f"it is too {'large' if id >= 2**64 else 'small'}")
 
     return ID64(universe << 56 | type << 52 | instance << 32 | id)
 
@@ -287,9 +287,9 @@ class ID(Generic[TypeT], metaclass=abc.ABCMeta):
         self,
         id: Intable,
         *,
-        type: TypeT = MISSING,
-        universe: Universe = MISSING,
-        instance: Instance = MISSING,
+        type: TypeT | None = None,
+        universe: Universe | None = None,
+        instance: Instance | None = None,
     ):
         self.id64: Final = parse_id64(id, type=type, universe=universe, instance=instance)
         """The Steam ID's 64-bit ID."""

@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 from typing_extensions import TypeVar
 
-from .abc import Message, PartialUser
+from .abc import BaseUser, Message
 from .chat import ChatMessage, PartialMember
 from .reaction import Emoticon, MessageReaction, Sticker
 from .utils import DateTime
@@ -27,9 +27,7 @@ __all__ = (
 )
 
 
-UserMessageAuthorT = TypeVar(
-    "UserMessageAuthorT", bound=PartialUser, default="PartialUser | User | Friend | ClientUser", covariant=True
-)
+UserMessageAuthorT = TypeVar("UserMessageAuthorT", bound=BaseUser, default="User | Friend | ClientUser", covariant=True)
 
 
 class UserMessage(Message[UserMessageAuthorT]):

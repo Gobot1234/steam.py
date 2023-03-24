@@ -28,7 +28,7 @@ NameT = TypeVar("NameT", bound=str | None, default=str | None, covariant=True)
 
 
 class Bundle(Generic[NameT]):
-    """Represents a bundle of games and packages."""
+    """Represents a bundle of apps and packages."""
 
     __slots__ = ("id", "name")
 

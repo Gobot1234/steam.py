@@ -126,7 +126,7 @@ class App(Generic[NameT]):
 
             app = utils.get(Apps, id=id)
             if app is not None:
-                name = app.name
+                name = cast(NameT, app.name)
 
         if id < 0:
             raise ValueError("id cannot be negative")
@@ -470,8 +470,8 @@ class PartialApp(App[NameT]):
 
     else:
 
-        def __init__(self, state: ConnectionState, **kwargs: Any):
-            super().__init__(**kwargs)
+        def __init__(self, state: ConnectionState, *, id: int, name: NameT = None, context_id: int | None = None):
+            super().__init__(id=id, name=name, context_id=context_id)
             self._state = state
 
     def __repr__(self) -> str:
@@ -500,10 +500,7 @@ class PartialApp(App[NameT]):
         id64 = await id64_from_url(self.url, self._state.http._session)
         if id64 is None:
             raise ValueError("App has no associated clan")
-        clan = await self._state.fetch_clan(id64)
-        if clan is None:
-            raise ValueError("App has no associated clan")
-        return clan
+        return await self._state.fetch_clan(id64)
 
     async def player_count(self) -> int:
         """The apps current player count."""
@@ -1064,7 +1061,15 @@ class PartialApp(App[NameT]):
         return await self._state.fetch_legacy_cd_key(self.id)
 
     async def encrypted_ticket(self, key: bytes, *, user_data: bytes = b"") -> EncryptedTicket:
-        """Fetch an encrypted ticket for this app."""
+        """Fetch an encrypted ticket for this app.
+
+        Parameters
+        ----------
+        key
+            The key to encrypt the ticket with.
+        user_data
+            The user data to include in the ticket.
+        """
         encrypted_ticket = await self._state.fetch_encrypted_app_ticket(self.id, user_data)
         return EncryptedTicket(self._state, encrypted_ticket, key)
 

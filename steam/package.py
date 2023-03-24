@@ -13,7 +13,7 @@ from typing_extensions import TypeVar
 
 from ._const import URL
 from .app import App, PartialApp, PartialAppPriceOverview
-from .enums import Language, LicenseFlag, LicenseType, PaymentMethod
+from .enums import CurrencyCode, Language, LicenseFlag, LicenseType, PaymentMethod
 from .errors import HTTPException
 from .models import CDNAsset
 from .types.id import DepotID, Intable, PackageID

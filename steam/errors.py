@@ -189,7 +189,10 @@ class InvalidID(SteamException):
     Subclass of :exc:`SteamException`.
     """
 
-    def __init__(self, id: Any, msg: str | None = None):
+    def __init__(self, id: Any, type: Any, universe: Any, instance: Any, msg: str | None = None):
         self.id = id
         """The invalid id."""
+        self.type = type
+        self.universe = universe
+        self.instance = instance
         super().__init__(f"{id!r} cannot be converted to any valid Steam ID{f' as {msg}' if msg is not None else ''}")

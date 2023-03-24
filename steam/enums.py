@@ -1411,7 +1411,7 @@ class CommunityItemClass(IntEnum):
     Consumable            = 6
     """A consumable."""
     GameGoo               = 7
-    """Fame goo."""
+    """Game goo."""
     ProfileModifier       = 8
     """A profile modifier."""
     Scene                 = 9

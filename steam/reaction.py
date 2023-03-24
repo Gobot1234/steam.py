@@ -275,13 +275,8 @@ class Emoticon(BaseEmoticon):
         """The URL for this emoticon."""
         return str(BASE_ECONOMY_URL / "emoticonlarge" / self.name)
 
-    async def app(self) -> PartialApp:
-        """Fetches this emoticon's associated app.
-
-        Note
-        ----
-        This app has its :attr:`~App.name` set unlike :meth:`Sticker.app`.
-        """
+    async def app(self) -> PartialApp[str]:
+        """Fetches this emoticon's associated app."""
         data = await self._state.http.get(BASE_ECONOMY_URL / "emoticonhoverjson" / self.name)
         return PartialApp(self._state, id=data["appid"], name=data["app_name"])
 

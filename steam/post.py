@@ -5,8 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Generic
 
-from typing_extensions import TypeVar
-
 from .abc import Awardable, Commentable, _CommentableKwargs
 from .app import PartialApp
 from .types.id import PostID

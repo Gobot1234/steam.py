@@ -6,7 +6,6 @@ import asyncio
 import errno
 import logging
 import lzma
-import os
 import os.path
 import struct
 import sys
@@ -46,8 +45,6 @@ else:
 
 
 if TYPE_CHECKING:
-    from _typeshed import StrPath
-
     from .state import ConnectionState
     from .types import manifest
     from .types.vdf import VDFInt

@@ -17,6 +17,7 @@ from .utils import DateTime
 
 if TYPE_CHECKING:
     from .clan import Clan
+    from .friend import Friend
     from .group import Group
     from .media import Media
     from .protobufs import friend_messages
@@ -37,7 +38,7 @@ class UserChannel(Channel[UserMessage]):  # TODO cache these to add last_message
     clan: None
     group: None
 
-    def __init__(self, state: ConnectionState, participant: User):
+    def __init__(self, state: ConnectionState, participant: User | Friend):
         super().__init__(state)
         self.participant = participant
         """The recipient of any messages sent."""
