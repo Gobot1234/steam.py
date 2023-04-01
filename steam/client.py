@@ -18,6 +18,7 @@ import sys
 import time
 import traceback
 from collections.abc import AsyncGenerator, Callable, Collection, Coroutine, Iterable, Sequence
+from ipaddress import IPv4Address
 from typing import TYPE_CHECKING, Any, Concatenate, Literal, ParamSpec, TypeAlias, TypeVar, cast, final, overload
 
 import aiohttp
@@ -59,7 +60,6 @@ from .utils import DateTime, TradeURLInfo
 if TYPE_CHECKING:
     import steam
 
-    from .abc import Message
     from .clan import Clan
     from .comment import Comment
     from .event import Announcement, Event
@@ -280,7 +280,7 @@ class Client:
                 raise TypeError(f"Registered events must be a coroutines, {coro.__name__} is {type(coro).__name__}")
 
             setattr(self, coro.__name__, coro)
-            log.debug(f"{coro.__name__} has been registered as an event")
+            log.debug("%s has been registered as an event", coro.__name__)
             return coro
 
         return decorator(coro) if coro is not None else decorator
@@ -301,8 +301,8 @@ class Client:
             self._run_event(coro, event_name, *args, **kwargs), name=f"steam.py task: {event_name}"
         )
 
-    def dispatch(self, event: str, *args: Any, **kwargs: Any) -> None:
-        log.debug(f"Dispatching event {event}")
+    def dispatch(self, event: str, /, *args: Any, **kwargs: Any) -> None:
+        log.debug("Dispatching event %s", event)
         method = f"on_{event}"
 
         # remove the dispatched listener
@@ -460,8 +460,8 @@ class Client:
             async def throttle() -> None:
                 now = time.monotonic()
                 between = now - last_connect
-                sleep = random.random() * 4 if between > 600 else 100 / between**0.5
-                log.info(f"Attempting to connect to another CM in {sleep}")
+                sleep = random.random() * 4 if between > 600 else 5  # 100 / between**0.5
+                log.info("Attempting to connect to another CM in %d", sleep)
                 await asyncio.sleep(sleep)
 
             self.http.clear()
@@ -813,7 +813,7 @@ class Client:
             if not servers:
                 raise ValueError(f"The master server didn't find a matching server for {id}")
             ip_, _, port = servers[0].addr.rpartition(":")
-            ip = IPAdress(ip_)
+            ip = IPv4Address(ip_)
         elif not ip:
             raise TypeError("fetch_server missing argument ip")
 

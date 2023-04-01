@@ -208,7 +208,7 @@ class Bot(GroupMixin, Client):
         super().dispatch(event, *args, **kwargs)
         method = f"on_{event}"
         for ev in self.__listeners__.get(method, []):
-            log.debug(f"Dispatching event {event}")
+            log.debug("Dispatching event %s", event)
             self._schedule_event(ev, method, *args, **kwargs)
 
     async def close(self) -> None:

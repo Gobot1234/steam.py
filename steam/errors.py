@@ -64,11 +64,12 @@ class HTTPException(SteamException):
         if data:
             if isinstance(data, dict):
                 message = data.get("message")
-                if message is None:
-                    if truthy_str_values := [  # ignore {'success': False} as the message
+                if message is None and (
+                    truthy_str_values := [  # ignore {'success': False} as the message
                         value for value in data.values() if value and isinstance(value, str)
-                    ]:
-                        message = str(truthy_str_values[0])
+                    ]
+                ):
+                    message = str(truthy_str_values[0])
                 message = message or ""
                 code = data.get("eresult")
             else:

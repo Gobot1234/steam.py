@@ -4,9 +4,11 @@
 *.egg-info
 
 venv
+.venv
 .idea
 .mypy_cache
 .pytest_cache
+.ruff_cache
 
 .DS_Store
 Thumbs.db

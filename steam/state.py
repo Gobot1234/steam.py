@@ -351,7 +351,7 @@ class ConnectionState(Registerable):
         try:
             trade = self._trades[TradeOfferID(int(data["tradeofferid"]))]
         except KeyError:
-            log.info(f'Received trade #{data["tradeofferid"]}')
+            log.info("Received trade #%d", data["tradeofferid"])
             trade = TradeOffer._from_api(
                 state=self, data=data, partner=await self._maybe_user(utils.parse_id64(data["accountid_other"]))
             )
@@ -365,7 +365,7 @@ class ConnectionState(Registerable):
             before_state = trade.state
             trade._update(data)
             if trade.state != before_state:
-                log.info(f"Trade #{trade.id} has updated its trade state to {trade.state}")
+                log.info("Trade #%d has updated its trade state to %r", trade.id, trade.state)
                 event_name = trade.state.event_name
                 if event_name and (trade.sending or trade.receiving):
                     self.dispatch(f"trade_{event_name}", trade)

@@ -1329,6 +1329,8 @@ class WishlistApp(PartialApp[str]):
     )
 
     def __init__(self, state: ConnectionState, id: int, data: app.WishlistApp):
+        from .package import PartialPackage
+
         super().__init__(state, id=id, name=data["name"])
         self.priority = int(data["priority"])
         """The priority of the app in the wishlist."""
@@ -1431,6 +1433,8 @@ class FetchedApp(PartialApp[str]):
     )
 
     def __init__(self, state: ConnectionState, data: app.FetchedApp, language: Language):
+        from .package import PartialPackage
+
         super().__init__(state, id=data["steam_appid"], name=data["name"])
         self.logo = CDNAsset(state, data["header_image"])
         """The logo of the app."""
