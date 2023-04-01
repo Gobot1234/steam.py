@@ -22,7 +22,7 @@ DEFAULT_CMS_URL: Final = api_route("ISteamDirectory/GetCMListForConnect") % {
 CONST_FILE: Final = ROOT.parent / "steam" / "_const.py"
 
 
-async def amain() -> None:
+async def main() -> None:
     async with aiohttp.ClientSession() as client:
         async with client.get(DEFAULT_CMS_URL) as r:
             default_cms = await r.json(encoding="UTF-8")
@@ -46,9 +46,5 @@ async def amain() -> None:
         fp.write("".join(new_lines))
 
 
-def main() -> None:
-    asyncio.run(amain())
-
-
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
