@@ -43,15 +43,14 @@ class UserConverter(commands.Converter[steam.User]):
 
     async def convert(self, ctx: commands.Context[DiscordBot], argument: str) -> steam.User:
         try:
-            user = await ctx.bot.client.fetch_user(argument)
+            return await ctx.bot.client.fetch_user(argument)
         except steam.InvalidID:
             id64 = await steam.utils.id64_from_url(argument)
             if id64 is None:
                 raise UserNotFound(argument)
-            user = await ctx.bot.client.fetch_user(id64)
-        if user is None:
+            return await ctx.bot.client.fetch_user(id64)
+        except asyncio.TimeoutError:
             raise UserNotFound(argument)
-        return user
 
 
 bot = DiscordBot()

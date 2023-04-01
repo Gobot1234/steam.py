@@ -300,7 +300,7 @@ class ManifestPath(PurePathBase, _IOMixin):
             This path isn't a symlink.
         """
         if not self.is_symlink():
-            raise OSError(errno.EINVAL, f"Invalid argument: {str(self)!r}")
+            raise OSError(errno.EINVAL, os.strerror(errno.EINVAL), str(self))
 
         link_parts = tuple(self._mapping.linktarget.rstrip("\x00 \n\t").split("\\"))
         return self._manifest._paths[link_parts]
@@ -332,24 +332,26 @@ class ManifestPath(PurePathBase, _IOMixin):
         The path currently being traversed, directories and files (``(dirpath, dirnames, filenames)``).
         """
 
-        stack: list[Self | tuple[Self, list[str], list[str]]] = [self]
-        while stack:
-            top = stack.pop()
-            if isinstance(top, tuple):
-                yield top
+        paths: list[Self | tuple[Self, list[str], list[str]]] = [self]
+
+        while paths:
+            path = paths.pop()
+            if isinstance(path, tuple):
+                yield path
                 continue
+
             dirnames: list[str] = []
             filenames: list[str] = []
-            for entry in self.iterdir():
+            for entry in path.iterdir():
                 is_dir = entry.is_dir() if follow_symlinks else entry.is_dir() and not entry.is_symlink()
                 (dirnames if is_dir else filenames).append(entry.name)
 
             if top_down:
-                yield self, dirnames, filenames
+                yield path, dirnames, filenames
             else:
-                stack.append((self, dirnames, filenames))
+                paths.append((path, dirnames, filenames))
 
-            stack += [path._make_child_relpath(d) for d in reversed(dirnames)]  # type: ignore
+            paths += [path._make_child_relpath(d) for d in reversed(dirnames)]  # type: ignore
 
     def glob(self, pattern: str) -> Generator[Self, None, None]:
         """Perform a glob operation on this path. Similar to :meth:`pathlib.Path.glob`."""
@@ -376,7 +378,7 @@ class ManifestPath(PurePathBase, _IOMixin):
             The depot cannot be decrypted as no key for its manifest was found.
         """
         if self.is_dir():
-            raise IsADirectoryError(errno.EISDIR, f"Is a directory: {str(self)!r}")
+            raise IsADirectoryError(errno.EISDIR, os.strerror(errno.EISDIR), str(self))
 
         key = self._manifest._key
         if key is None:
@@ -1024,7 +1026,6 @@ class PackageInfo(ProductInfo, PartialPackage):
         state: ConnectionState,
         data: manifest.PackageInfo,
         proto: app_info.CMsgClientPicsProductInfoResponsePackageInfo,
-        language: Language,
     ):
         super().__init__(state, proto, id=proto.packageid)
         self._apps = [PartialApp(state, id=id) for id in data["appids"].values()]
@@ -1038,15 +1039,13 @@ class PackageInfo(ProductInfo, PartialPackage):
         """The depot IDs in of the depots in the package."""
         self.app_items = list(data["appitems"].values())
         """The app items in the package."""
-        self._language = language
 
     def __repr__(self) -> str:
         attrs = ("id", "sha", "change_number")
         resolved = [f"{name}={getattr(self, name)!r}" for name in attrs]
         return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
-    async def apps(self, *, language: Language | None = None) -> list[PartialApp]:
-        language = language or self._state.language
-        if language is not self._language:
+    async def apps(self, *, language: Language | None = None) -> list[PartialApp[None]]:
+        if language is not None:
             return await super().apps(language=language)
         return self._apps

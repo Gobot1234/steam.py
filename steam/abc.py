@@ -351,7 +351,7 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
         resp = await self._state.fetch_user_inventory(self.id64, app.id, app.context_id, language)
         return Inventory(state=self._state, data=resp, owner=self, app=app, language=language)
 
-    async def friends(self) -> Sequence[User | PartialUser]:
+    async def friends(self) -> Sequence[User]:
         """Fetch the list of the users friends."""
         friends = await self._state.http.get_friends_ids(self.id64)
         return await self._state._maybe_users(friends)

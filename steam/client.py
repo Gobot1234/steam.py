@@ -134,12 +134,12 @@ class Client:
     def __init__(  # type: ignore
         self,
         *,
-        proxy: str | None = ...,
-        proxy_auth: aiohttp.BasicAuth | None = ...,
-        connector: aiohttp.BaseConnector | None = ...,
+        proxy: str | None = None,
+        proxy_auth: aiohttp.BasicAuth | None = None,
+        connector: aiohttp.BaseConnector | None = None,
         max_messages: int | None = 1000,
-        app: App | None = ...,
-        apps: list[App] = ...,
+        app: App | None = None,
+        apps: list[App] = [],
         state: PersonaState | None = PersonaState.Online,
         ui_mode: UIMode | None = UIMode.Desktop,
         flags: PersonaStateFlag | None = PersonaStateFlag.NONE,
@@ -805,7 +805,7 @@ class Client:
         Passing an ``ip``, ``port`` and ``id`` to this function will raise an :exc:`TypeError`.
         """
 
-        if all(arg is MISSING for arg in (id, ip, port)):
+        if id is not None and ip is not None:
             raise TypeError("Too many arguments passed to fetch_server")
         if id:
             # we need to fetch the ip and port
@@ -1147,7 +1147,9 @@ class Client:
 
             descriptions = data.get("descriptions", ())
             trades = [
-                TradeOffer[MovedItem[User], MovedItem[ClientUser], User]._from_history(self._state, trade, descriptions)
+                TradeOffer["MovedItem[User]", "MovedItem[ClientUser]", User]._from_history(
+                    self._state, trade, descriptions
+                )
                 for trade in data.get("trades", ())
                 if after_timestamp < trade["time_init"] < before_timestamp
             ]

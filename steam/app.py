@@ -478,7 +478,7 @@ class PartialApp(App[NameT]):
         :meth:`achievements` if you want a faster way to fetch just achievements.
         """
         data = await self._state.http.get_app_stats(self.id, language)
-        return AppStats(self._state, self, data["game"])
+        return AppStats(self._state, self, data)
 
     async def achievements(self, *, language: Language | None = None) -> list[AppAchievement]:
         """The achievements for this app.
@@ -1008,7 +1008,7 @@ class PartialApp(App[NameT]):
                 self,
                 CDNAsset(
                     self._state,
-                    f"{URL.CDN}/steamcommunity/public/images/items/{self.id}/{image})",
+                    f"{URL.CDN}/steamcommunity/public/images/items/{self.id}/{image}",
                 ),
             )
             previous_name = name
@@ -1318,7 +1318,7 @@ class WishlistApp(PartialApp[str]):
         """The tags of the app."""
         self.rank = data["rank"]
         """The global rank of the app by popularity."""
-        self.partial_packages = [PartialPackage[None](state, id=package["id"]) for package in data["subs"]]
+        self.partial_packages = [PartialPackage(state, id=package["id"]) for package in data["subs"]]
         """The packages this app is included in."""
 
         self._free = data["is_free_game"]

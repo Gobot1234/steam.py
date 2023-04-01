@@ -186,17 +186,17 @@ class StoreItem(betterproto.Message):
     categories: "StoreItemCategories" = betterproto.message_field(22)
     reviews: "StoreItemReviews" = betterproto.message_field(23)
     basic_info: "StoreItemBasicInfo" = betterproto.message_field(24)
-    tags: list["StoreItemTag"] = betterproto.message_field(25)
+    tags: "list[StoreItemTag]" = betterproto.message_field(25)
     assets: "StoreItemAssets" = betterproto.message_field(30)
     release: "StoreItemReleaseInfo" = betterproto.message_field(31)
     platforms: "StoreItemPlatforms" = betterproto.message_field(32)
     game_rating: StoreGameRating = betterproto.message_field(33)
     best_purchase_option: "StoreItemPurchaseOption" = betterproto.message_field(40)
-    purchase_options: list["StoreItemPurchaseOption"] = betterproto.message_field(41)
-    accessories: list["StoreItemPurchaseOption"] = betterproto.message_field(42)
+    purchase_options: "list[StoreItemPurchaseOption]" = betterproto.message_field(41)
+    accessories: "list[StoreItemPurchaseOption]" = betterproto.message_field(42)
     screenshots: "StoreItemScreenshots" = betterproto.message_field(50)
     trailers: "StoreItemTrailers" = betterproto.message_field(51)
-    supported_languages: list["StoreItemSupportedLanguage"] = betterproto.message_field(52)
+    supported_languages: "list[StoreItemSupportedLanguage]" = betterproto.message_field(52)
     store_url_path_override: str = betterproto.string_field(53)
     free_weekend: "StoreItemFreeWeekend" = betterproto.message_field(54)
     unlisted: bool = betterproto.bool_field(55)
@@ -231,9 +231,9 @@ class StoreItemReviewsStoreReviewSummary(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class StoreItemBasicInfo(betterproto.Message):
     short_description: str = betterproto.string_field(1)
-    publishers: list["StoreItemBasicInfoCreatorHomeLink"] = betterproto.message_field(2)
-    developers: list["StoreItemBasicInfoCreatorHomeLink"] = betterproto.message_field(3)
-    franchises: list["StoreItemBasicInfoCreatorHomeLink"] = betterproto.message_field(4)
+    publishers: "list[StoreItemBasicInfoCreatorHomeLink]" = betterproto.message_field(2)
+    developers: "list[StoreItemBasicInfoCreatorHomeLink]" = betterproto.message_field(3)
+    franchises: "list[StoreItemBasicInfoCreatorHomeLink]" = betterproto.message_field(4)
     capsule_headline: str = betterproto.string_field(5)
 
 
@@ -313,9 +313,9 @@ class StoreItemPurchaseOption(betterproto.Message):
     discount_pct: int = betterproto.int32_field(10)
     user_discount_pct: int = betterproto.int32_field(11)
     bundle_discount_pct: int = betterproto.int32_field(12)
-    active_discounts: list["StoreItemPurchaseOptionDiscount"] = betterproto.message_field(20)
-    user_active_discounts: list["StoreItemPurchaseOptionDiscount"] = betterproto.message_field(21)
-    inactive_discounts: list["StoreItemPurchaseOptionDiscount"] = betterproto.message_field(22)
+    active_discounts: "list[StoreItemPurchaseOptionDiscount]" = betterproto.message_field(20)
+    user_active_discounts: "list[StoreItemPurchaseOptionDiscount]" = betterproto.message_field(21)
+    inactive_discounts: "list[StoreItemPurchaseOptionDiscount]" = betterproto.message_field(22)
     user_can_purchase: bool = betterproto.bool_field(30)
     user_can_purchase_as_gift: bool = betterproto.bool_field(31)
     is_commercial_license: bool = betterproto.bool_field(40)
@@ -331,8 +331,8 @@ class StoreItemPurchaseOptionDiscount(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class StoreItemScreenshots(betterproto.Message):
-    all_ages_screenshots: list["StoreItemScreenshotsScreenshot"] = betterproto.message_field(2)
-    mature_content_screenshots: list["StoreItemScreenshotsScreenshot"] = betterproto.message_field(3)
+    all_ages_screenshots: "list[StoreItemScreenshotsScreenshot]" = betterproto.message_field(2)
+    mature_content_screenshots: "list[StoreItemScreenshotsScreenshot]" = betterproto.message_field(3)
 
 
 @dataclass(eq=False, repr=False)
@@ -343,8 +343,8 @@ class StoreItemScreenshotsScreenshot(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class StoreItemTrailers(betterproto.Message):
-    highlights: list["StoreItemTrailersTrailer"] = betterproto.message_field(1)
-    other_trailers: list["StoreItemTrailersTrailer"] = betterproto.message_field(2)
+    highlights: "list[StoreItemTrailersTrailer]" = betterproto.message_field(1)
+    other_trailers: "list[StoreItemTrailersTrailer]" = betterproto.message_field(2)
 
 
 @dataclass(eq=False, repr=False)
@@ -390,7 +390,7 @@ class GetStoreCategoriesRequest(UnifiedMessage, um_name="StoreBrowse.GetStoreCat
 
 
 class GetStoreCategoriesResponse(UnifiedMessage, um_name="StoreBrowse.GetStoreCategories"):
-    categories: list["GetStoreCategoriesResponseCategory"] = betterproto.message_field(1)
+    categories: "list[GetStoreCategoriesResponseCategory]" = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -407,7 +407,7 @@ class GetStoreCategoriesResponseCategory(betterproto.Message):
 class CStorePageFilter(betterproto.Message):
     sale_filter: "CStorePageFilterSalePageFilter" = betterproto.message_field(1)
     content_hub_filter: "CStorePageFilterContentHubFilter" = betterproto.message_field(2)
-    store_filters: list["CStorePageFilterStoreFilter"] = betterproto.message_field(3)
+    store_filters: "list[CStorePageFilterStoreFilter]" = betterproto.message_field(3)
 
 
 @dataclass(eq=False, repr=False)
@@ -464,5 +464,5 @@ class GetDLCForAppsResponsePlaytimeForApp(betterproto.Message):
 
 
 class GetDLCForAppsResponse(UnifiedMessage, um_name="StoreBrowse.GetDLCForApps"):
-    dlc_data: list["GetDLCForAppsResponseDLCData"] = betterproto.message_field(1)
-    playtime: list["GetDLCForAppsResponsePlaytimeForApp"] = betterproto.message_field(2)
+    dlc_data: "list[GetDLCForAppsResponseDLCData]" = betterproto.message_field(1)
+    playtime: "list[GetDLCForAppsResponsePlaytimeForApp]" = betterproto.message_field(2)

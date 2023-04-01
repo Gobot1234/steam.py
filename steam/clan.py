@@ -123,11 +123,11 @@ class PartialClan(ID[Literal[Type.Clan]], Commentable):
         id
             The ID of the event.
         """
-        data = await self._state.http.get_clan_events(self.id, [id])
-        if events := data["events"]:
-            return await Event(self._state, self, events[0])
-
-        raise ValueError(f"Event {id} not found")
+        try:
+            (data,) = await self._state.http.get_clan_events(self.id, [id])
+            return await Event(self._state, self, data)
+        except ValueError:
+            raise ValueError(f"Event {id} not found")
 
     async def fetch_announcement(self, id: int) -> Announcement[Self]:
         """Fetch an announcement from its ID.
@@ -138,7 +138,7 @@ class PartialClan(ID[Literal[Type.Clan]], Commentable):
             The ID of the announcement.
         """
         data = await self._state.http.get_clan_announcement(self.id, id)
-        return await Announcement(self._state, self, data["event"])
+        return await Announcement(self._state, self, data)
 
     @overload
     async def create_event(
