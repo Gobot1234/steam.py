@@ -287,7 +287,6 @@ class Query(Generic[T_co], metaclass=QueryMeta):
 
 
 class ServerPlayer(NamedTuple):
-    index: int
     name: str
     score: int
     play_time: timedelta
@@ -375,12 +374,11 @@ class GameServer(ID[Literal[Type.GameServer]]):
         proto = await self._query(EQueryType.Players)
         return [
             ServerPlayer(
-                index=index,
                 name=player.name,
                 score=player.score,
                 play_time=timedelta(seconds=player.time_played),
             )
-            for index, player in enumerate(proto.players_data.players)
+            for player in proto.players_data.players
         ]
 
     async def rules(self) -> dict[str, str]:
