@@ -50,7 +50,7 @@ class Package(Generic[NameT]):
         "name",
     )
 
-    def __init__(self, id: Intable, name: NameT = None):
+    def __init__(self, *, id: Intable, name: NameT = None):
         self.id = PackageID(int(id))
         """The package's ID."""
         self.name = name
@@ -76,8 +76,8 @@ class PartialPackage(Package[NameT]):
 
     __slots__ = ("_state",)
 
-    def __init__(self, state: ConnectionState, **kwargs: Any):
-        super().__init__(**kwargs)
+    def __init__(self, state: ConnectionState, id: Intable, name: NameT = None):
+        super().__init__(id=id, name=name)
         self._state = state
 
     def __repr__(self) -> str:

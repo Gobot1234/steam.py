@@ -72,10 +72,8 @@ class StoreItemPurchaseOption:
     )
 
     def __init__(self, state: ConnectionState, proto: store.StoreItemPurchaseOption) -> None:
-        self.package: PartialPackage[str] | None = (
-            PartialPackage(state, id=proto.packageid) if proto.packageid else None
-        )
-        self.bundle: PartialBundle[str] | None = PartialBundle(state, id=proto.bundleid) if proto.bundleid else None
+        self.package = PartialPackage(state, id=proto.packageid) if proto.packageid else None
+        self.bundle = PartialBundle(state, id=proto.bundleid) if proto.bundleid else None
         self.final_price_in_cents: int = proto.final_price_in_cents
         self.original_price_in_cents: int = proto.original_price_in_cents
         self.user_final_price_in_cents: int = proto.user_final_price_in_cents

@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from ipaddress import IPv4Address
-from typing import TYPE_CHECKING, Any, Final, Generic, Literal, NamedTuple, cast, overload
+from typing import TYPE_CHECKING, Any, Final, Generic, NamedTuple, cast
 from zlib import crc32
 
 from bs4 import BeautifulSoup
@@ -75,58 +75,17 @@ class App(Generic[NameT]):
         "context_id",
     )
 
-    # ideally this would have overloads for __new__ but that's not possible without Self working with HKT
-
-    @overload
-    def __init__(self, *, id: Intable, name: NameT = None, context_id: int | None = ...):
-        ...
-
-    @overload
-    def __init__(self, *, name: Literal["Team Fortress 2"], id: Intable = ..., context_id: int | None = ...):
-        ...
-
-    @overload
-    def __init__(self, *, name: Literal["Left 4 Dead 2"], id: Intable = ..., context_id: int | None = ...):
-        ...
-
-    @overload
-    def __init__(self, *, name: Literal["DOTA 2"], id: Intable = ..., context_id: int | None = ...):
-        ...
-
-    @overload
-    def __init__(
-        self, *, name: Literal["Counter Strike Global-Offensive"], id: Intable = ..., context_id: int | None = ...
-    ):
-        ...
-
-    @overload
-    def __init__(self, *, name: Literal["Steam"], id: Intable = ..., context_id: int | None = ...):
-        ...
-
     def __init__(
         self,
         *,
-        id: Intable | None = None,
+        id: Intable,
         name: NameT = None,
         context_id: int | None = None,
     ):
-        if name is None and id is None:
-            raise TypeError("__init__() missing a required keyword argument: 'id' or 'name'")
-
-        if id is None:
-            app = utils.get(Apps, name=name)
-            if app is None:
-                raise ValueError(f"Cannot find a matching app for {name!r}")
-            id = app.id
-        else:
-            try:
-                id = int(id)
-            except (ValueError, TypeError):
-                raise ValueError("id expected to support int()") from None
-
-            app = utils.get(Apps, id=id)
-            if app is not None:
-                name = cast(NameT, app.name)
+        try:
+            id = int(id)
+        except (ValueError, TypeError):
+            raise ValueError("id expected to support int()") from None
 
         if id < 0:
             raise ValueError("id cannot be negative")
@@ -177,7 +136,7 @@ def CUSTOM_APP(
     name: str,
 ) -> App[str]:  # TODO if actually optimising make this return a different class cause it's a u64 cause haha steam
     """Create a custom app instance for :meth:`~steam.Client.change_presence`.
-    The :attr:`App.id` will be set to ``15190414816125648896`` and the :attr:`App.context_id` to ``None``.
+    The :attr:`App.id` will be set to ``15190414816125648896`` and the :attr:`App.context_id` to ``-1``.
 
     Example:
 
@@ -190,7 +149,7 @@ def CUSTOM_APP(
     name
         The name of the app to set your playing status to.
     """
-    return App(name=name, id=15190414816125648896, context_id=None)
+    return App(name=name, id=15190414816125648896, context_id=ContextID(-1))
 
 
 class BaseOwnershipTicket:
