@@ -7,7 +7,7 @@ import asyncio
 import re
 from collections.abc import AsyncGenerator, Coroutine, Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from ipaddress import IPv4Address, IPv6Address
 from typing import TYPE_CHECKING, Any, Generic, Literal, Protocol, TypedDict, cast, runtime_checkable
 
@@ -15,6 +15,7 @@ from bs4 import BeautifulSoup
 from typing_extensions import Required, Self, TypeVar
 from yarl import URL as URL_
 
+from . import utils
 from ._const import HTML_PARSER, JSON_LOADS, MISSING, STEAM_EPOCH, UNIX_EPOCH, VDF_BINARY_LOADS
 from .achievement import UserAppStats
 from .app import STEAM, App, PartialApp, UserApp, UserInventoryInfoApp, UserInventoryInfoContext, WishlistApp
@@ -806,15 +807,6 @@ class Messageable(Protocol[M_co]):
 
         return message
 
-
-@dataclass(slots=True)
-class Channel(Messageable[M_co]):
-    _state: ConnectionState
-    clan: Clan | None = None
-    """The clan this channel belongs to."""
-    group: Group | None = None
-    """The group this channel belongs to."""
-
     @abc.abstractmethod
     async def history(
         self,
@@ -853,6 +845,28 @@ class Channel(Messageable[M_co]):
         """
         raise NotImplementedError
         yield
+
+    async def fetch_message(self, id: int, /) -> M_co | None:
+        """Fetch a message by its :attr:`Message.id`."""
+        created_at = STEAM_EPOCH + timedelta(seconds=id >> 32)
+        ordinal = id & 0xFFFF
+        return await utils.get(
+            self.history(
+                before=created_at + timedelta(seconds=1),
+                after=created_at - timedelta(seconds=2),
+            ),
+            ordinal=ordinal,
+            created_at=created_at,
+        )
+
+
+@dataclass(slots=True)
+class Channel(Messageable[M_co]):
+    _state: ConnectionState
+    clan: Clan | None = None
+    """The clan this channel belongs to."""
+    group: Group | None = None
+    """The group this channel belongs to."""
 
 
 def _clean_up_content(content: str) -> str:  # steam does weird stuff with content

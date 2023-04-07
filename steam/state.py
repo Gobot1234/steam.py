@@ -561,8 +561,8 @@ class ConnectionState(Registerable):
         )
         id = _ID64_TO_ID32(user_id64)
         participant = self.user._friends.get(id) or self._users[id]
-        channel = UserChannel(state=self, participant=participant)
-        message = UserMessage(proto, channel, self.user)
+        message = UserMessage(proto, participant._channel, self.user)
+        participant._channel.last_message = message
         self._messages.append(message)
         self.dispatch("message", message)
 
@@ -1039,8 +1039,8 @@ class ConnectionState(Registerable):
         author = self.user if msg.local_echo else partner  # local_echo is always us
 
         if msg.chat_entry_type == ChatEntryType.Text:
-            channel = UserChannel(state=self, participant=partner)  # type: ignore  # remove when above fixme removed
-            message = UserMessage(msg, channel, author)
+            message = UserMessage(msg, partner._channel, author)
+            partner._channel.last_message = message
             self._messages.append(message)
             self.dispatch("message", message)
 

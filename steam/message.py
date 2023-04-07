@@ -33,6 +33,8 @@ UserMessageAuthorT = TypeVar("UserMessageAuthorT", bound=BaseUser, default="User
 class UserMessage(Message[UserMessageAuthorT]):
     """Represents a message from a user."""
 
+    __slots__ = ()
+
     channel: UserChannel
     mentions: None
 
@@ -108,6 +110,8 @@ GroupMessageAuthorT = TypeVar(
 class GroupMessage(ChatMessage[GroupMessageAuthorT, "GroupMember"]):
     """Represents a message in a group."""
 
+    __slots__ = ()
+
     channel: GroupChannel
     group: Group
     clan: None
@@ -123,6 +127,8 @@ ClanMessageAuthorT = TypeVar(
 
 class ClanMessage(ChatMessage[ClanMessageAuthorT, "ClanMember"]):
     """Represents a message in a clan."""
+
+    __slots__ = ()
 
     channel: ClanChannel
     clan: Clan

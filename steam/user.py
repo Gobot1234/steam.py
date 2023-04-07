@@ -5,8 +5,8 @@ from __future__ import annotations
 import asyncio
 import sys
 import weakref
-from collections.abc import Coroutine, Sequence
-from datetime import timedelta
+from collections.abc import AsyncGenerator, Coroutine, Sequence
+from datetime import datetime, timedelta
 from ipaddress import IPv4Address
 from operator import attrgetter
 from typing import TYPE_CHECKING, Any, Literal
@@ -14,8 +14,8 @@ from typing import TYPE_CHECKING, Any, Literal
 from typing_extensions import Self
 
 from . import utils
-from ._const import DOCS_BUILDING, URL
-from .abc import BaseUser, Messageable
+from ._const import DOCS_BUILDING, UNIX_EPOCH, URL
+from .abc import BaseUser, Message, Messageable
 from .app import PartialApp
 from .enums import Language, PersonaState, PersonaStateFlag, Result, TradeOfferState, Type
 from .errors import ClientException, ConfirmationError, HTTPException
@@ -23,10 +23,11 @@ from .id import _ID64_TO_ID32, ID
 from .profile import ClientUserProfile, OwnedProfileItems, ProfileInfo, ProfileItem
 from .protobufs import player
 from .types.id import ID32, ID64, AppID, Intable
-from .utils import DateTime, parse_bb_code
+from .utils import DateTime, cached_slot_property, parse_bb_code
 
 if TYPE_CHECKING:
     from .app import App
+    from .channel import UserChannel
     from .friend import Friend
     from .media import Media
     from .message import UserMessage
@@ -110,7 +111,7 @@ class User(_BaseUser, Messageable["UserMessage"]):
             Returns the user's name.
     """
 
-    __slots__ = ()
+    __slots__ = ("_cs_channel",)
 
     async def add(self) -> None:
         """Sends a friend invite to the user to your friends list."""
@@ -231,6 +232,81 @@ class User(_BaseUser, Messageable["UserMessage"]):
             self._state.dispatch("trade_send", trade)
 
         return message
+
+    @cached_slot_property("_cs_channel")
+    def _channel(self) -> UserChannel:
+        from .channel import UserChannel
+
+        return UserChannel(self._state, self)
+
+    async def history(
+        self, *, limit: int | None = 100, before: datetime | None = None, after: datetime | None = None
+    ) -> AsyncGenerator[UserMessage, None]:
+        from .message import UserMessage
+
+        after = after or UNIX_EPOCH
+        before = before or DateTime.now()
+        after_timestamp = int(after.timestamp())
+        before_timestamp = int(before.timestamp())
+        yielded = 0
+
+        last_message_timestamp = before_timestamp
+        ordinal = 0
+
+        while True:
+            resp = await self._state.fetch_user_history(
+                self.id64, start=after_timestamp, last=last_message_timestamp, start_ordinal=ordinal
+            )
+
+            message: friend_messages.GetRecentMessagesResponseFriendMessage | None = None
+
+            for message in resp.messages:
+                new_message = UserMessage.__new__(UserMessage)
+                new_message.created_at = DateTime.from_timestamp(message.timestamp)
+                if not after < new_message.created_at < before:
+                    return
+                if limit is not None and yielded >= limit:
+                    return
+
+                Message.__init__(new_message, channel=self._channel, proto=message)
+                new_message.author = self if message.accountid == self.id else self._state.user
+                emoticon_reactions = [
+                    MessageReaction(
+                        self._state,
+                        new_message,
+                        Emoticon(self._state, r.reaction),
+                        None,
+                        self if reactor == self.id else self._state.user,
+                    )
+                    for r in message.reactions
+                    if r.reaction_type == Emoticon._TYPE
+                    for reactor in r.reactors
+                ]
+                sticker_reactions = [
+                    MessageReaction(
+                        self._state,
+                        new_message,
+                        None,
+                        Sticker(self._state, r.reaction),
+                        self if reactor == self.id else self._state.user,
+                    )
+                    for r in message.reactions
+                    if r.reaction_type == Sticker._TYPE
+                    for reactor in r.reactors
+                ]
+                new_message.reactions = emoticon_reactions + sticker_reactions
+
+                yield new_message
+                yielded += 1
+
+            if message is None:
+                return
+
+            last_message_timestamp = message.timestamp
+            ordinal = message.ordinal
+
+            if not resp.more_available:
+                return
 
 
 class ClientUser(_BaseUser):
@@ -401,7 +477,7 @@ class WrapsUser(User if TYPE_CHECKING or DOCS_BUILDING else BaseUser, Messageabl
     doc-strings reliably and memory usage isn't a concern.
     """
 
-    __slots__ = ("_user",)
+    __slots__ = ("_user", "_cs_channel")
 
     def __init__(self, state: ConnectionState, user: User):
         ID.__init__(self, user.id64, type=Type.Individual)  # type: ignore
@@ -411,7 +487,7 @@ class WrapsUser(User if TYPE_CHECKING or DOCS_BUILDING else BaseUser, Messageabl
         super().__init_subclass__()
 
         for name, function in set(User.__dict__.items()) - set(object.__dict__.items()):
-            if not name.startswith("__"):
+            if not name.startswith("__") and name not in User.__slots__:
                 setattr(cls, name, function)
 
         if not DOCS_BUILDING:
