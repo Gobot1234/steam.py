@@ -2,25 +2,20 @@
 
 from __future__ import annotations
 
-import asyncio
 from collections.abc import AsyncGenerator, Coroutine
-from contextlib import asynccontextmanager
+from contextlib import AbstractAsyncContextManager
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from ._const import UNIX_EPOCH, TaskGroup
 from .abc import Channel
 from .chat import Chat, GroupChannelProtos
-from .message import ClanMessage, GroupMessage, Message, UserMessage
-from .reaction import Emoticon, MessageReaction, Sticker
-from .utils import DateTime
+from .message import ClanMessage, GroupMessage, UserMessage
 
 if TYPE_CHECKING:
     from .clan import Clan
     from .friend import Friend
     from .group import Group
     from .media import Media
-    from .protobufs import friend_messages
     from .state import ConnectionState
     from .user import User
 
@@ -58,8 +53,7 @@ class UserChannel(Channel[UserMessage]):
     def _media_func(self, media: Media) -> Coroutine[Any, Any, None]:
         return self.participant._media_func(media)
 
-    @asynccontextmanager
-    async def typing(self) -> AsyncGenerator[None, None]:
+    def typing(self) -> AbstractAsyncContextManager[None]:
         """Send a typing indicator continuously to the channel while in the context manager.
 
         Note
@@ -74,15 +68,7 @@ class UserChannel(Channel[UserMessage]):
                 ...  # do your expensive operations
         """
 
-        async def inner() -> None:
-            while True:
-                await self.trigger_typing()
-                await asyncio.sleep(10)
-
-        async with TaskGroup() as tg:
-            t = tg.create_task(inner())
-            yield
-            t.cancel()
+        return self.participant.typing()
 
     async def trigger_typing(self) -> None:
         """Send a typing indicator to the channel once.
@@ -91,7 +77,7 @@ class UserChannel(Channel[UserMessage]):
         ----
         This only works in DMs.
         """
-        await self._state.send_user_typing(self.participant.id64)
+        await self.participant.trigger_typing()
 
     def history(
         self,
@@ -106,6 +92,8 @@ class UserChannel(Channel[UserMessage]):
 class GroupChannel(Chat[GroupMessage]):
     """Represents a group channel."""
 
+    __slots__ = ()
+
     clan: None
 
     def __init__(self, state: ConnectionState, group: Group, proto: GroupChannelProtos):
@@ -115,6 +103,8 @@ class GroupChannel(Chat[GroupMessage]):
 
 class ClanChannel(Chat[ClanMessage]):
     """Represents a clan channel."""
+
+    __slots__ = ()
 
     group: None
 

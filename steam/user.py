@@ -6,6 +6,7 @@ import asyncio
 import sys
 import weakref
 from collections.abc import AsyncGenerator, Coroutine, Sequence
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from ipaddress import IPv4Address
 from operator import attrgetter
@@ -14,7 +15,7 @@ from typing import TYPE_CHECKING, Any, Literal
 from typing_extensions import Self
 
 from . import utils
-from ._const import DOCS_BUILDING, UNIX_EPOCH, URL
+from ._const import DOCS_BUILDING, UNIX_EPOCH, URL, TaskGroup
 from .abc import BaseUser, Message, Messageable
 from .app import PartialApp
 from .enums import Language, PersonaState, PersonaStateFlag, Result, TradeOfferState, Type
@@ -307,6 +308,41 @@ class User(_BaseUser, Messageable["UserMessage"]):
 
             if not resp.more_available:
                 return
+
+    @asynccontextmanager
+    async def typing(self) -> AsyncGenerator[None, None]:
+        """Send a typing indicator continuously to the channel while in the context manager.
+
+        Note
+        ----
+        This only works in DMs.
+
+        Usage:
+
+        .. code:: python
+
+            async with channel.typing():
+                ...  # do your expensive operations
+        """
+
+        async def inner() -> None:
+            while True:
+                await self.trigger_typing()
+                await asyncio.sleep(10)
+
+        async with TaskGroup() as tg:
+            t = tg.create_task(inner())
+            yield
+            t.cancel()
+
+    async def trigger_typing(self) -> None:
+        """Send a typing indicator to the channel once.
+
+        Note
+        ----
+        This only works in DMs.
+        """
+        await self._state.send_user_typing(self.id64)
 
 
 class ClientUser(_BaseUser):
