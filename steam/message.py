@@ -50,7 +50,7 @@ class UserMessage(Message[UserMessageAuthorT]):
             self.author.id64,
             int(self.created_at.timestamp()),
             self.ordinal,
-            emoticon.name,
+            str(emoticon),
             reaction_type=emoticon._TYPE,
             is_add=True,
         )
@@ -64,7 +64,7 @@ class UserMessage(Message[UserMessageAuthorT]):
             self.author.id64,
             int(self.created_at.timestamp()),
             self.ordinal,
-            emoticon.name,
+            str(emoticon),
             reaction_type=emoticon._TYPE,
             is_add=False,
         )
