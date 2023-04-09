@@ -1247,12 +1247,8 @@ class ConnectionState(Registerable):
                 continue
 
             before = copy(after)
-
             after._update(friend)
-            old = [getattr(before, attr, None) for attr in BaseUser.__slots__]
-            new = [getattr(after, attr, None) for attr in BaseUser.__slots__]
-            if old != new and self.handled_friends.is_set():
-                self.dispatch("user_update", before, after)
+            self.dispatch("user_update", before, after)
 
     def _add_friend(self, user: User) -> Friend:
         self.user._friends[user.id] = friend = Friend(self, user)
