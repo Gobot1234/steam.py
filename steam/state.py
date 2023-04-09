@@ -2310,10 +2310,7 @@ class ConnectionState(Registerable):
             raise WSException(msg)
 
     async def request_free_licenses(self, *app_ids: AppID) -> dict[AppID, list[License]]:
-        fetched_apps: Sequence[FetchedApp] = await asyncio.gather(*(self.fetch_app(app_id, None) for app_id in app_ids))
-
         async with self._license_lock:
-            old_licenses = self.licenses.copy()
             self.handled_licenses.clear()
             msg: client_server_2.CMsgClientRequestFreeLicenseResponse = await self.ws.send_proto_and_wait(
                 client_server_2.CMsgClientRequestFreeLicense(appids=list(app_ids)),
@@ -2326,14 +2323,14 @@ class ConnectionState(Registerable):
                 raise ValueError("No licenses granted")
             await self.handled_licenses.wait()
 
-        ret: dict[AppID, list[License]] = dict.fromkeys(msg.granted_appids)  # type: ignore
-        for app_id in ret:
-            fetched_app = utils.get(fetched_apps, id=app_id)
-            assert fetched_app is not None
-            possible_package_ids = {package.id for package in fetched_app._packages if package.is_free()}
-            ret[app_id] = [
-                l for l in self.licenses.values() if l.id not in old_licenses and l.id in possible_package_ids
-            ]
+        ret: dict[AppID, list[License]] = {app_id: [] for app_id in cast(list[AppID], msg.granted_appids)}
+        _, packages = await self.fetch_product_info((), cast(list[PackageID], msg.granted_packageids))
+        for package in packages:
+            for app in await package.apps():
+                try:
+                    ret[app.id].append(self.licenses[package.id])
+                except KeyError:
+                    pass
         return ret
 
     async def fetch_legacy_cd_key(self, app_id: AppID) -> str:
