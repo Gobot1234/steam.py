@@ -44,7 +44,7 @@ betterproto = "2.0.0b5"
 typing-extensions = "4.5.0"
 vdf = "^3.4"
 tomli = {version = "~2", optional = true, python = "<3.11"}
-taskgroup = {git = "https://github.com/Gobot1234/taskgroup", rev = "default", optional = true, python = "<3.11"}
+taskgroup = {git = "https://github.com/Gobot1234/taskgroup", rev = "default", python = "<3.11"}
 
 [tool.poetry.group.speedups]
 optional = true
