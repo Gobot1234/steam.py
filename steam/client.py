@@ -18,6 +18,7 @@ import sys
 import time
 import traceback
 from collections.abc import AsyncGenerator, Callable, Collection, Coroutine, Iterable, Sequence
+from contextlib import nullcontext
 from ipaddress import IPv4Address
 from typing import TYPE_CHECKING, Any, Concatenate, Literal, ParamSpec, TypeAlias, TypeVar, cast, final, overload
 
@@ -26,7 +27,7 @@ from bs4 import BeautifulSoup
 from typing_extensions import Self
 
 from . import errors, utils
-from ._const import DOCS_BUILDING, MISSING, STATE, UNIX_EPOCH, URL, TaskGroup, timeout
+from ._const import DOCS_BUILDING, STATE, UNIX_EPOCH, URL, TaskGroup, timeout
 from .app import App, AppListApp, AuthenticationTicket, FetchedApp, PartialApp
 from .bundle import Bundle, FetchedBundle, PartialBundle
 from .enums import (
@@ -36,7 +37,6 @@ from .enums import (
     PersonaState,
     PersonaStateFlag,
     PublishedFileRevision,
-    Result,
     Type,
     UIMode,
 )
@@ -162,6 +162,7 @@ class Client:
         self._closed = True
         self._listeners: dict[str, list[tuple[asyncio.Future[Any], Callable[..., bool]]]] = {}
         self._ready = asyncio.Event()
+        self._aentered = False
 
     def _get_state(self, **options: Any) -> ConnectionState:
         return ConnectionState(client=self, **options)
@@ -347,11 +348,16 @@ class Client:
         self.dispatch("ready")
 
     async def __aenter__(self) -> Self:
+        self._tg = TaskGroup()
+        self._aentered = True
+        await self._tg.__aenter__()
         return self
 
-    async def __aexit__(self, *args: object) -> None:
+    async def __aexit__(self, *args: Any) -> None:
         if not self.is_closed():
             await self.close()
+        if self._aentered:
+            await self._tg.__aexit__(*args)
 
     @overload
     @final
@@ -445,7 +451,7 @@ class Client:
         *args: P.args,
         **kwargs: P.kwargs,
     ) -> None:
-        async with self._tg:
+        async with nullcontext() if self._aentered else self._tg:
             STATE.set(self._state)
             self._closed = False
 
@@ -460,8 +466,8 @@ class Client:
             async def throttle() -> None:
                 now = time.monotonic()
                 between = now - last_connect
-                sleep = random.random() * 4 if between > 600 else 5  # 100 / between**0.5
-                log.info("Attempting to connect to another CM in %d", sleep)
+                sleep = random.random() * 4 if between > 600 else 100 / between**0.5
+                log.info("Attempting to connect to another CM in %ds", sleep)
                 await asyncio.sleep(sleep)
 
             self.http.clear()
@@ -542,7 +548,8 @@ class Client:
         self.identity_secret = identity_secret
 
         self._closed = False
-        self._tg = TaskGroup()
+        if not self._aentered:
+            self._tg = TaskGroup()
 
         if identity_secret is None:
             log.info("Trades will not be automatically accepted when sent as no identity_secret was passed.")
@@ -551,6 +558,8 @@ class Client:
 
     async def anonymous_login(self) -> None:
         """Initialize a connection to a Steam CM and login anonymously."""
+        if not self._aentered:
+            self._tg = TaskGroup()
         await self._login(SteamWebSocket.anonymous_login_from_client)
 
     # state stuff
@@ -1147,7 +1156,7 @@ class Client:
 
             descriptions = data.get("descriptions", ())
             trades = [
-                TradeOffer["MovedItem[User]", "MovedItem[ClientUser]", User]._from_history(
+                TradeOffer["MovedItem[User]", "MovedItem[ClientUser]", "User"]._from_history(
                     self._state, trade, descriptions
                 )
                 for trade in data.get("trades", ())

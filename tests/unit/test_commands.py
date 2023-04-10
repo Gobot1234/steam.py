@@ -1,21 +1,22 @@
 import contextlib
 import traceback
+from collections.abc import AsyncGenerator, Generator
 from copy import copy
 from io import StringIO
-from typing import Any, AsyncGenerator, Generator, Optional, TypeVar, Union
+from typing import Any, TypeAlias, TypeVar
 
 import pytest
-from typing_extensions import TypeAlias
 
 import steam
+from steam._const import TaskGroup
 from steam.ext import commands
 from tests.unit.mocks import GROUP_MESSAGE
 
 T = TypeVar("T")
-IsInstanceable: TypeAlias = "Union[type[T], tuple[type[T], ...]]"
+IsInstanceable: TypeAlias = type[T] | tuple[type[T], ...]
 SomeCoolType = int
-UserTypes = Union[steam.User, int, str]
-FAILS: "list[Exception]" = []
+UserTypes = steam.User | int | str
+FAILS: list[Exception] = []
 
 
 @pytest.mark.asyncio
@@ -51,12 +52,12 @@ async def test_commands():
             async def not_even_close() -> None:  # noqa
                 ...
 
-    bot = TheTestBot()
+    async with TheTestBot() as bot:
 
-    class MyCog(commands.Cog):
-        @commands.command
-        async def not_valid(self) -> None:
-            ...
+        class MyCog(commands.Cog):
+            @commands.command
+            async def not_valid(self) -> None:
+                ...
 
     with pytest.raises(steam.ClientException):
         bot.add_cog(MyCog())
@@ -93,7 +94,7 @@ class CustomConverter(commands.Converter[tuple]):
         ("int", int),
     ],
 )
-def test_greedy(param_type: Union[type, str], expected: type) -> None:
+def test_greedy(param_type: type | str, expected: type) -> None:
     global param_type_  # hack to make typing.get_type_hints work with locals
     param_type_ = param_type
     if issubclass(expected, Exception):
@@ -116,11 +117,13 @@ class TheTestBot(commands.Bot):
     def __init__(self) -> None:
         super().__init__(command_prefix="")
         self.MESSAGE = GROUP_MESSAGE
-        self.to_finish: "list[str]" = []
+        self.to_finish: list[str] = []
+        self._tg = TaskGroup()
+        self.entered_tg = False
 
     @contextlib.asynccontextmanager
     async def raises_command_error(
-        self, expected_errors: "IsInstanceable[type[commands.CommandError]]", content: str
+        self, expected_errors: IsInstanceable[type[commands.CommandError]], content: str
     ) -> AsyncGenerator[None, None]:
         expected_errors = expected_errors if isinstance(expected_errors, tuple) else (expected_errors,)
 
@@ -160,9 +163,9 @@ class TheTestBot(commands.Bot):
 
     async def process_commands(
         self,
-        arguments: Optional[str] = None,
-        exception: Optional["type[CE]"] = None,
-        command: Optional[commands.Command] = None,
+        arguments: str | None = None,
+        exception: type[commands.CommandError] | None = None,
+        command: commands.Command | None = None,
     ) -> None:
         command = command or list(self.__commands__.values())[-1]
         message = copy(self.MESSAGE)
@@ -198,16 +201,16 @@ class TheTestBot(commands.Bot):
     ],
 )
 async def test_positional_or_keyword_commands(
-    input: str, excepted_exception: Optional["type[commands.CommandError]"]
+    input: str, excepted_exception: type[commands.CommandError] | None
 ) -> None:
-    bot = TheTestBot()
+    async with TheTestBot() as bot:
 
-    @bot.command
-    async def test_positional(_, number: int) -> None:
-        assert isinstance(number, int)
-        assert len(str(number)) == 4
+        @bot.command
+        async def test_positional(_, number: int) -> None:
+            assert isinstance(number, int)
+            assert len(str(number)) == 4
 
-    await bot.process_commands(input, excepted_exception)
+        await bot.process_commands(input, excepted_exception)
 
 
 @pytest.mark.asyncio
@@ -222,126 +225,126 @@ async def test_positional_or_keyword_commands(
     ],
 )
 async def test_variadic_commands(input: str, expected_exception: commands.CommandError | None) -> None:
-    bot = TheTestBot()
+    async with TheTestBot() as bot:
 
-    @bot.command
-    async def test_var(_, *numbers: int) -> None:
-        assert isinstance(numbers, tuple)
-        for number in numbers:
-            assert isinstance(number, int)
-            assert len(str(number)) == 4
+        @bot.command
+        async def test_var(_, *numbers: int) -> None:
+            assert isinstance(numbers, tuple)
+            for number in numbers:
+                assert isinstance(number, int)
+                assert len(str(number)) == 4
 
-    await bot.process_commands(input, expected_exception)
+        await bot.process_commands(input, expected_exception)
 
 
 @pytest.mark.asyncio
 async def test_positional_only_commands():
-    bot = TheTestBot()
+    async with TheTestBot() as bot:
 
-    @bot.command
-    async def test_consume_rest_int(_, *, number: int) -> None:
-        assert isinstance(number, int)
+        @bot.command
+        async def test_consume_rest_int(_, *, number: int) -> None:
+            assert isinstance(number, int)
 
-    inputs = [
-        ("", commands.MissingRequiredArgument),
-        ("1234", None),
-        ("123412341234", None),
-        ("string", commands.BadArgument),
-    ]
+        inputs = [
+            ("", commands.MissingRequiredArgument),
+            ("1234", None),
+            ("123412341234", None),
+            ("string", commands.BadArgument),
+        ]
 
-    for args, excepted_exception in inputs:
-        await bot.process_commands(args, excepted_exception)
+        for args, excepted_exception in inputs:
+            await bot.process_commands(args, excepted_exception)
 
-    @bot.command
-    async def test_consume_rest_str(_, *, string: str) -> None:
-        assert isinstance(string, str)
-        assert len(string.split()) == 3
+        @bot.command
+        async def test_consume_rest_str(_, *, string: str) -> None:
+            assert isinstance(string, str)
+            assert len(string.split()) == 3
 
-    inputs = [
-        ("", commands.MissingRequiredArgument),
-        ("string string string", None),
-        ("1234 1234 1234", None),
-    ]
+        inputs = [
+            ("", commands.MissingRequiredArgument),
+            ("string string string", None),
+            ("1234 1234 1234", None),
+        ]
 
-    for args, excepted_exception in inputs:
-        await bot.process_commands(args, excepted_exception)
+        for args, excepted_exception in inputs:
+            await bot.process_commands(args, excepted_exception)
 
-    @bot.group
-    async def test_sub(_) -> None:
-        pass
+        @bot.group
+        async def test_sub(_) -> None:
+            pass
 
-    inputs = [
-        ("", None),
-        ("string string string", None),
-        ("1234123412134", None),
-        ("string", None),
-    ]
+        inputs = [
+            ("", None),
+            ("string string string", None),
+            ("1234123412134", None),
+            ("string", None),
+        ]
 
-    for args, excepted_exception in inputs:
-        await bot.process_commands(args, excepted_exception)
+        for args, excepted_exception in inputs:
+            await bot.process_commands(args, excepted_exception)
 
-    @test_sub.command
-    async def sub(_, *, string: str) -> None:
-        assert string == "cool string string string"
+        @test_sub.command
+        async def sub(_, *, string: str) -> None:
+            assert string == "cool string string string"
 
-    inputs = [
-        ("", commands.MissingRequiredArgument),
-        ("cool string string string", None),
-    ]
+        inputs = [
+            ("", commands.MissingRequiredArgument),
+            ("cool string string string", None),
+        ]
 
-    for args, excepted_exception in inputs:
-        await bot.process_commands(args, excepted_exception, command=sub)
+        for args, excepted_exception in inputs:
+            await bot.process_commands(args, excepted_exception, command=sub)
 
 
 @pytest.mark.asyncio
 async def test_group_commands() -> None:
-    bot = TheTestBot()
+    async with TheTestBot() as bot:
 
-    @contextlib.contextmanager
-    def writes_to_console(msg: str) -> Generator[None, None, None]:
-        with StringIO() as stdout, contextlib.redirect_stdout(stdout):
-            yield
-            assert msg == stdout.getvalue().strip()
+        @contextlib.contextmanager
+        def writes_to_console(msg: str) -> Generator[None, None, None]:
+            with StringIO() as stdout, contextlib.redirect_stdout(stdout):
+                yield
+                assert msg == stdout.getvalue().strip()
 
-    @bot.group
-    async def parent(_) -> None:
-        print("In parent")
+        @bot.group
+        async def parent(_) -> None:
+            print("In parent")
 
-    @parent.group
-    async def child(_) -> None:
-        print("In child")
+        @parent.group
+        async def child(_) -> None:
+            print("In child")
 
-    @child.command
-    async def grand_child(_) -> None:
-        print("In grand child")
+        @child.command
+        async def grand_child(_) -> None:
+            print("In grand child")
 
-    @parent.group
-    async def other_child(_) -> None:
-        print("In other child")
+        @parent.group
+        async def other_child(_) -> None:
+            print("In other child")
 
-    assert bot.get_command("parent") is parent
+        assert bot.get_command("parent") is parent
 
-    with writes_to_console("In parent"):
-        await bot.process_commands(command=parent)
+        with writes_to_console("In parent"):
+            await bot.process_commands(command=parent)
 
-    assert bot.get_command("child") is None
-    assert bot.get_command("parent child") is child
+        assert bot.get_command("child") is None
+        assert bot.get_command("parent child") is child
 
-    with writes_to_console("In child"):
-        await bot.process_commands(command=child)
+        with writes_to_console("In child"):
+            await bot.process_commands(command=child)
 
-    assert bot.get_command("grand_child") is None
-    assert bot.get_command("child grand_child") is None
-    assert bot.get_command("parent child grand_child") is grand_child
+        assert bot.get_command("grand_child") is None
+        assert bot.get_command("child grand_child") is None
+        assert bot.get_command("parent child grand_child") is grand_child
 
-    with writes_to_console("In grand child"):
-        await bot.process_commands(command=grand_child)
+        with writes_to_console("In grand child"):
+            await bot.process_commands(command=grand_child)
 
-    assert bot.get_command("other_child") is None
-    assert bot.get_command("parent other_child") is other_child
+        assert bot.get_command("other_child") is None
+        assert bot.get_command("parent other_child") is other_child
 
-    with writes_to_console("In other child"):
-        await bot.process_commands(command=other_child)
+        with writes_to_console("In other child"):
+            await bot.process_commands(command=other_child)
 
 
 called_image_converter = False
@@ -362,25 +365,25 @@ class MediaConverter(commands.Converter[steam.Media]):
 
 @pytest.mark.asyncio
 async def test_converters() -> None:
-    bot = TheTestBot()
+    async with TheTestBot() as bot:
 
-    @bot.command
-    async def source(_, command: commands.Command):
-        ...
+        @bot.command
+        async def source(_, command: commands.Command):
+            ...
 
-    assert command_converter.converter_for == commands.Command
-    assert commands.Command in bot.converters
-    await bot.process_commands("not a command", None)
-    assert called_command_converter
+        assert command_converter.converter_for == commands.Command
+        assert commands.Command in bot.converters
+        await bot.process_commands("not a command", None)
+        assert called_command_converter
 
-    @bot.command
-    async def set_avatar(_, image: steam.Media):
-        ...
+        @bot.command
+        async def set_avatar(_, image: steam.Media):
+            ...
 
-    assert MediaConverter.converter_for is steam.Media
-    assert steam.Media in bot.converters
-    await bot.process_commands("https://not_an_image.com", None)
-    assert called_image_converter
+        assert MediaConverter.converter_for is steam.Media
+        assert steam.Media in bot.converters
+        await bot.process_commands("https://not_an_image.com", None)
+        assert called_image_converter
 
 
 def teardown_module(_) -> None:
