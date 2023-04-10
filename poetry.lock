@@ -2028,7 +2028,7 @@ exceptiongroup = "*"
 type = "git"
 url = "https://github.com/Gobot1234/taskgroup"
 reference = "default"
-resolved_reference = "9b1ab19e249d3abd916511fed119d84f27df390e"
+resolved_reference = "f65e67a5e8ec96adad759adc75ce9975f7ac48c2"
 
 [[package]]
 name = "tomli"
