@@ -719,9 +719,9 @@ class HeadlessDepot:
     """The depot's maximum size."""
     config: MultiDict[str]
     """The depot's configuration settings."""
-    shared_install: bool
+    shared_install: bool | None
     """Whether this depot supports shared installs"""
-    system_defined: bool
+    system_defined: bool | None
     """Whether this depot is system defined."""
 
     def __repr__(self) -> str:
@@ -913,8 +913,8 @@ class AppInfo(ProductInfo, PartialApp[str]):
             name = depot.get("name")
             config = depot.get("config", MultiDict())
             max_size = int(depot["maxsize"]) if "maxsize" in depot else None
-            shared_install = bool(int(depot.get("sharedinstall", False)))
-            system_defined = bool(int(depot.get("system_defined", False)))
+            shared_install = bool(int(shared_install)) if (shared_install := depot.get("sharedinstall")) else None
+            system_defined = bool(int(system_defined)) if (system_defined := depot.get("system_defined")) else None
             try:
                 manifests = depot["manifests"]
             except KeyError:
