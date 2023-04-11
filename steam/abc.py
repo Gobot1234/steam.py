@@ -1011,3 +1011,13 @@ class Message(Generic[UserT], metaclass=abc.ABCMeta):
             The sticker to remove from this message.
         """
         raise NotImplementedError()
+
+    @abc.abstractmethod
+    async def ack(self) -> None:
+        """Acknowledge this message.
+
+        Note
+        ----
+        This will acknowledge any messages sent before this message
+        """
+        raise NotImplementedError()

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import abc
 import asyncio
+import logging
 from collections.abc import AsyncGenerator, Callable, Coroutine, Iterable, Sequence
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Generic, Literal, Protocol, TypeAlias, cast, overload, runtime_checkable
@@ -42,6 +43,7 @@ ChatT = TypeVar(
     "ChatT", bound="Chat[ClanMessage | GroupMessage]", default="Chat[ClanMessage | GroupMessage]", covariant=True
 )
 MemberT = TypeVar("MemberT", bound="Member", default="Member", covariant=True)
+log = logging.getLogger(__name__)
 
 
 @runtime_checkable
@@ -291,6 +293,9 @@ class ChatMessage(Message[AuthorT], Generic[AuthorT, MemberT]):
 
     async def remove_sticker(self, sticker: Sticker) -> None:
         await self._react(sticker, False)
+
+    async def ack(self) -> None:
+        await self._state.ack_chat_message(*self.channel._location, int(self.created_at.timestamp()))
 
 
 ChatMessageT = TypeVar("ChatMessageT", bound="GroupMessage | ClanMessage", covariant=True)

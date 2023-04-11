@@ -601,6 +601,9 @@ class ConnectionState(Registerable):
         if msg.result != Result.OK:
             raise WSException(msg)
 
+    async def ack_user_message(self, user_id64: ID64, timestamp: int) -> None:
+        await self.ws.send_proto(friend_messages.AckMessageNotification(steamid_partner=user_id64, timestamp=timestamp))
+
     async def send_chat_message(
         self, chat_group_id: ChatGroupID, chat_id: ChatID, content: str
     ) -> ClanMessage | GroupMessage:
@@ -679,6 +682,11 @@ class ConnectionState(Registerable):
 
         if msg.result != Result.OK:
             raise WSException(msg)
+
+    async def ack_chat_message(self, chat_group_id: ChatGroupID, chat_id: ChatID, timestamp: int) -> None:
+        await self.ws.send_proto(
+            chat.AckChatMessageNotification(chat_group_id=chat_group_id, chat_id=chat_id, timestamp=timestamp)
+        )
 
     async def join_chat_group(self, chat_group_id: ChatGroupID, invite_code: str | None = None) -> None:
         msg = await self.ws.send_um_and_wait(
