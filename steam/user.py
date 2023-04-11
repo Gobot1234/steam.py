@@ -22,7 +22,8 @@ from .enums import Language, PersonaState, PersonaStateFlag, Result, TradeOfferS
 from .errors import ClientException, ConfirmationError, HTTPException
 from .id import _ID64_TO_ID32, ID
 from .profile import ClientUserProfile, OwnedProfileItems, ProfileInfo, ProfileItem
-from .protobufs import player
+from .protobufs import friend_messages, player
+from .reaction import Emoticon, MessageReaction, Sticker
 from .types.id import ID32, ID64, AppID, Intable
 from .utils import DateTime, cached_slot_property, parse_bb_code
 
