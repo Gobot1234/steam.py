@@ -1177,7 +1177,7 @@ class ConnectionState(Registerable):
         before = copy(chat_group)
         before._roles = {r_id: copy(r) for r_id, r in before._roles.items()}
         chat_group._update_header_state(msg.header_state)
-        self.dispatch(f"{'group' if isinstance(chat_group, Group) else 'clan'}_update", before, chat_group)
+        self.dispatch(f"{chat_group.__class__.__name__.lower()}_update", before, chat_group)
 
     async def handle_chat_group_user_action(self, msg: chat.NotifyChatGroupUserStateChangedNotification) -> None:
         if msg.user_action == chat.EChatRoomMemberStateChange.Joined:  # join group
@@ -1197,10 +1197,7 @@ class ConnectionState(Registerable):
             if left is None:
                 return
 
-            if isinstance(left, Clan):
-                self.dispatch("clan_leave", left)
-            else:
-                self.dispatch("group_leave", left)
+            self.dispatch(f"{left.__class__.__name__.lower()}_leave", left)
         # elif msg.user_action == chat.EChatRoomMemberStateChange.Invited:
         #     if msg.group_summary.clanid:
         #         return
@@ -1234,7 +1231,7 @@ class ConnectionState(Registerable):
         before = copy(chat_group)
         before._channels = {c_id: copy(c) for c_id, c in before._channels.items()}  # type: ignore  # needs conditional types
         chat_group._update_channels(msg.chat_rooms)
-        self.dispatch(f"{chat_group.__class__.__name__}_update", before, chat_group)
+        self.dispatch(f"{chat_group.__class__.__name__.lower()}_update", before, chat_group)
 
     async def handle_get_my_chat_groups(self, msg: chat.GetMyChatRoomGroupsResponse) -> None:
         for chat_group in msg.chat_room_groups:
