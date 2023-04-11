@@ -28,7 +28,7 @@ from .reaction import Emoticon, MessageReaction, PartialMessageReaction, Sticker
 from .role import Role
 from .types.id import ID32, ID64, ChatGroupID, ChatID, Intable, RoleID
 from .user import User, WrapsUser
-from .utils import DateTime
+from .utils import DateTime, cached_slot_property
 
 if TYPE_CHECKING:
     from .channel import ClanChannel, GroupChannel
@@ -207,8 +207,8 @@ class ChatMessage(Message[AuthorT], Generic[AuthorT, MemberT]):
 
     async def delete(self) -> None:
         """Deletes the message."""
-        await self._state.delete_chat_message(
-            self._chat_group._id, self.channel.id, int(self.created_at.timestamp()), self.ordinal
+        await self._state.delete_chat_messages(
+            *self.channel._location, (int(self.created_at.timestamp()), self.ordinal)
         )
 
     async def fetch_reaction(self, emoticon: Emoticon | Sticker) -> list[MessageReaction]:
@@ -231,7 +231,7 @@ class ChatMessage(Message[AuthorT], Generic[AuthorT, MemberT]):
                 self,
                 reaction.emoticon,  # type: ignore
                 reaction.sticker,  # type: ignore  # needs conditional types
-                user=self._chat_group._members.get(reactor) or PartialUser(self._state, reactor),
+                user=self._chat_group._maybe_member(reactor),
             )
             for reactor in reactors
         ]
@@ -303,7 +303,7 @@ GroupChannelProtos: TypeAlias = chat.IncomingChatMessageNotification | chat.Stat
 
 
 class Chat(Channel[ChatMessageT]):
-    __slots__ = ("id", "name", "joined_at", "position", "last_message")
+    __slots__ = ("id", "name", "joined_at", "position", "last_message", "_cs_location")
 
     def __init__(
         self, state: ConnectionState, group: ChatGroup[Any, Self], proto: GroupChannelProtos
@@ -342,7 +342,7 @@ class Chat(Channel[ChatMessageT]):
     def __eq__(self, other: object) -> bool:
         return self._location == other._location if isinstance(other, Chat) else NotImplemented
 
-    @property
+    @cached_slot_property("_cs_location")
     def _location(self) -> tuple[ChatGroupID, ChatID]:
         chat_id = self._chat_group._id
         assert chat_id is not None
@@ -438,6 +438,18 @@ class Chat(Channel[ChatMessageT]):
     # async def edit(self, *, name: str) -> None:
     #     await self._state.edit_channel(*self._location, name)
 
+    async def bulk_delete(self, messages: Iterable[ChatMessage]) -> None:
+        """Bulk delete messages.
+
+        Parameters
+        ----------
+        messages
+            The messages to delete.
+        """
+        await self._state.delete_chat_messages(
+            *self._location, *((int(m.created_at.timestamp()), m.ordinal) for m in messages)
+        )
+
 
 ChatGroupTypeT = TypeVar(
     "ChatGroupTypeT", bound=Literal[Type.Clan, Type.Chat], default=Literal[Type.Clan, Type.Chat], covariant=True
@@ -485,7 +497,7 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
     _default_channel_id: ChatID
     _default_role_id: RoleID
 
-    def __init__(self, state: ConnectionState, id: Intable, type: ChatGroupTypeT = MISSING):
+    def __init__(self, state: ConnectionState, id: Intable, type: ChatGroupTypeT | None = None):
         super().__init__(id, type=type)
         self._state = state
         self._init()

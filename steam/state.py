@@ -645,14 +645,17 @@ class ConnectionState(Registerable):
 
         return message
 
-    async def delete_chat_message(
-        self, chat_group_id: ChatGroupID, chat_id: ChatID, timestamp: int, ordinal: int
+    async def delete_chat_messages(
+        self, chat_group_id: ChatGroupID, chat_id: ChatID, *messages: tuple[int, int]
     ) -> None:
         msg = await self.ws.send_um_and_wait(
             chat.DeleteChatMessagesRequest(
                 chat_id=chat_id,
                 chat_group_id=chat_group_id,
-                messages=[chat.DeleteChatMessagesRequestMessage(server_timestamp=timestamp, ordinal=ordinal)],
+                messages=[
+                    chat.DeleteChatMessagesRequestMessage(server_timestamp=timestamp, ordinal=ordinal)
+                    for timestamp, ordinal in messages
+                ],
             )
         )
         if msg.result != Result.OK:
