@@ -1073,6 +1073,10 @@ class ConnectionState(Registerable):
                 return log.debug(
                     "Got an unknown reaction_type %s on message %s %s", msg.reaction_type, created_at, ordinal
                 )
+        if msg.is_add:
+            message.reactions.append(reaction)
+        else:
+            message.reactions.remove(reaction)
 
         self.dispatch(f"reaction_{'add' if msg.is_add else 'remove'}", reaction)
 
@@ -1142,6 +1146,14 @@ class ConnectionState(Registerable):
                 )
             case _:
                 return log.debug("Got an unknown reaction_type %s", msg.reaction_type)
+
+        if msg.is_add:
+            message.reactions.append(reaction)
+        else:
+            try:
+                message.reactions.remove(reaction)
+            except ValueError:
+                log.debug("Got a reaction remove for a reaction that wasn't added")
 
         self.dispatch(f"reaction_{'add' if msg.is_add else 'remove'}", reaction)
 

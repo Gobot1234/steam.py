@@ -252,61 +252,45 @@ class ChatMessage(Message[AuthorT], Generic[AuthorT, MemberT]):
             for r in rs
         ]
 
-    async def add_emoticon(self, emoticon: Emoticon) -> None:
+    async def _react(self, emoticon: Sticker | Emoticon, add: bool) -> None:
         await self._state.react_to_chat_message(
             *self.channel._location,
             int(self.created_at.timestamp()),
             self.ordinal,
-            str(emoticon),
+            str(emoticon) if isinstance(emoticon, Emoticon) else emoticon.name,
             reaction_type=emoticon._TYPE,
-            is_add=True,
+            is_add=add,
         )
-        self._state.dispatch(
-            "reaction_add",
-            MessageReaction(self._state, self, emoticon, None, self._state.user, DateTime.now(), self.ordinal),
+        reaction = MessageReaction(
+            self._state,
+            self,
+            emoticon if isinstance(emoticon, Emoticon) else None,  # type: ignore
+            emoticon if isinstance(emoticon, Sticker) else None,  # type: ignore
+            self._state.user,
+            DateTime.now(),
+            self.ordinal,
         )
+
+        if add:
+            self.reactions.append(reaction)
+        else:
+            try:
+                self.reactions.remove(reaction)
+            except ValueError:
+                log.debug("Reaction removed for a reaction that wasn't added")
+        self._state.dispatch(f"reaction_{'add' if add else 'remove'}", reaction)
+
+    async def add_emoticon(self, emoticon: Emoticon) -> None:
+        await self._react(emoticon, True)
 
     async def remove_emoticon(self, emoticon: Emoticon) -> None:
-        await self._state.react_to_chat_message(
-            *self.channel._location,
-            int(self.created_at.timestamp()),
-            self.ordinal,
-            str(emoticon),
-            reaction_type=emoticon._TYPE,
-            is_add=False,
-        )
-        self._state.dispatch(
-            "reaction_remove",
-            MessageReaction(self._state, self, emoticon, None, self._state.user, DateTime.now(), self.ordinal),
-        )
+        await self._react(emoticon, False)
 
     async def add_sticker(self, sticker: Sticker) -> None:
-        await self._state.react_to_chat_message(
-            *self.channel._location,
-            int(self.created_at.timestamp()),
-            self.ordinal,
-            sticker.name,
-            reaction_type=sticker._TYPE,
-            is_add=True,
-        )
-        self._state.dispatch(
-            "reaction_add",
-            MessageReaction(self._state, self, None, sticker, self._state.user, DateTime.now(), self.ordinal),
-        )
+        await self._react(sticker, True)
 
     async def remove_sticker(self, sticker: Sticker) -> None:
-        await self._state.react_to_chat_message(
-            *self.channel._location,
-            int(self.created_at.timestamp()),
-            self.ordinal,
-            sticker.name,
-            reaction_type=sticker._TYPE,
-            is_add=False,
-        )
-        self._state.dispatch(
-            "reaction_remove",
-            MessageReaction(self._state, self, None, sticker, self._state.client.user, DateTime.now(), self.ordinal),
-        )
+        await self._react(sticker, False)
 
 
 ChatMessageT = TypeVar("ChatMessageT", bound="GroupMessage | ClanMessage", covariant=True)

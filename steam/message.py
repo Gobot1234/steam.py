@@ -45,61 +45,44 @@ class UserMessage(Message[UserMessageAuthorT]):
         self.created_at = DateTime.from_timestamp(proto.rtime32_server_timestamp)
         self.author = author
 
-    async def add_emoticon(self, emoticon: Emoticon) -> None:
+    async def _react(self, emoticon: Emoticon | Sticker, add: bool) -> None:
         await self._state.react_to_user_message(
             self.author.id64,
             int(self.created_at.timestamp()),
             self.ordinal,
-            str(emoticon),
+            str(emoticon) if isinstance(emoticon, Emoticon) else emoticon.name,
             reaction_type=emoticon._TYPE,
             is_add=True,
         )
-        self._state.dispatch(
-            "reaction_add",
-            MessageReaction(self._state, self, emoticon, None, self._state.user, DateTime.now(), self.ordinal),
+        reaction = MessageReaction(
+            self._state,
+            self,
+            emoticon if isinstance(emoticon, Emoticon) else None,
+            emoticon if isinstance(emoticon, Sticker) else None,
+            self._state.user,
+            DateTime.now(),
+            self.ordinal,
         )
+        if add:
+            self.reactions.append(reaction)
+        else:
+            self.reactions.remove(reaction)
+        self._state.dispatch(f"reaction_{'add' if add else 'remove'}", reaction)
+
+    async def add_emoticon(self, emoticon: Emoticon) -> None:
+        await self._react(emoticon, True)
 
     async def remove_emoticon(self, emoticon: Emoticon):
-        await self._state.react_to_user_message(
-            self.author.id64,
-            int(self.created_at.timestamp()),
-            self.ordinal,
-            str(emoticon),
-            reaction_type=emoticon._TYPE,
-            is_add=False,
-        )
-        self._state.dispatch(
-            "reaction_remove",
-            MessageReaction(self._state, self, emoticon, None, self._state.user, DateTime.now(), self.ordinal),
-        )
+        await self._react(emoticon, False)
 
     async def add_sticker(self, sticker: Sticker):
-        await self._state.react_to_user_message(
-            self.author.id64,
-            int(self.created_at.timestamp()),
-            self.ordinal,
-            sticker.name,
-            reaction_type=sticker._TYPE,
-            is_add=True,
-        )
-        self._state.dispatch(
-            "reaction_add",
-            MessageReaction(self._state, self, None, sticker, self._state.user, DateTime.now(), self.ordinal),
-        )
+        await self._react(sticker, True)
 
     async def remove_sticker(self, sticker: Sticker):
-        await self._state.react_to_user_message(
-            self.author.id64,
-            int(self.created_at.timestamp()),
-            self.ordinal,
-            sticker.name,
-            reaction_type=sticker._TYPE,
-            is_add=False,
-        )
-        self._state.dispatch(
-            "reaction_remove",
-            MessageReaction(self._state, self, None, sticker, self._state.user, DateTime.now(), self.ordinal),
-        )
+        await self._react(sticker, False)
+
+    async def ack(self) -> None:
+        await self._state.ack_user_message(self.channel.participant.id64, int(self.created_at.timestamp()))
 
 
 GroupMessageAuthorT = TypeVar(
