@@ -302,7 +302,7 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
 
     @classproperty
     def _COMMENTABLE_TYPE(cls: type[Self]) -> _CommentableThreadType:  # type: ignore
-        return _CommentableThreadType[cls.__name__]
+        return _CommentableThreadType.User
 
     async def inventory_info(self) -> list[UserInventoryInfo[Self]]:
         """Fetch the inventory info of the user.
