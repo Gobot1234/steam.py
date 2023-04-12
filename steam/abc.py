@@ -51,8 +51,7 @@ __all__ = (
     "UserInventoryInfo",
 )
 
-C = TypeVar("C", bound="Commentable")
-M_co = TypeVar("M_co", bound="Message", default="Message", covariant=True)
+MessageT = TypeVar("MessageT", bound="Message", default="Message", covariant=True)
 
 
 class _CommentableKwargs(TypedDict, total=False):
@@ -755,7 +754,7 @@ class BaseUser(PartialUser):
 
 
 @runtime_checkable
-class Messageable(Protocol[M_co]):
+class Messageable(Protocol[MessageT]):
     """An ABC that details the common operations on a Steam message.
     The following classes implement this ABC:
 
@@ -769,14 +768,14 @@ class Messageable(Protocol[M_co]):
     _state: ConnectionState
 
     @abc.abstractmethod
-    def _message_func(self, content: str) -> Coroutine[Any, Any, M_co]:
+    def _message_func(self, content: str) -> Coroutine[Any, Any, MessageT]:
         raise NotImplementedError
 
     @abc.abstractmethod
     def _media_func(self, media: Media) -> Coroutine[Any, Any, None]:
         raise NotImplementedError
 
-    async def send(self, content: Any = None, *, media: Media | None = None) -> M_co | None:
+    async def send(self, content: Any = None, *, media: Media | None = None) -> MessageT | None:
         """Send a message to a certain destination.
 
         Parameters
@@ -814,7 +813,7 @@ class Messageable(Protocol[M_co]):
         limit: int | None = 100,
         before: datetime | None = None,
         after: datetime | None = None,
-    ) -> AsyncGenerator[M_co, None]:
+    ) -> AsyncGenerator[MessageT, None]:
         """An :term:`asynchronous iterator` for accessing a channel's :class:`steam.Message`\\s.
 
         Examples
@@ -846,14 +845,14 @@ class Messageable(Protocol[M_co]):
         raise NotImplementedError
         yield
 
-    async def fetch_message(self, id: int, /) -> M_co | None:
+    async def fetch_message(self, id: int, /) -> MessageT | None:
         """Fetch a message by its :attr:`Message.id`."""
         created_at = STEAM_EPOCH + timedelta(seconds=id >> 32)
         ordinal = id & 0xFFFF
         return await utils.get(
             self.history(
                 before=created_at + timedelta(seconds=1),
-                after=created_at - timedelta(seconds=2),
+                after=created_at - timedelta(seconds=1),
             ),
             ordinal=ordinal,
             created_at=created_at,
@@ -861,7 +860,7 @@ class Messageable(Protocol[M_co]):
 
 
 @dataclass(slots=True)
-class Channel(Messageable[M_co]):
+class Channel(Messageable[MessageT]):
     _state: ConnectionState
     clan: Clan | None = None
     """The clan this channel belongs to."""

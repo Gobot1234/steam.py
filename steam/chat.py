@@ -450,6 +450,12 @@ class Chat(Channel[ChatMessageT]):
             *self._location, *((int(m.created_at.timestamp()), m.ordinal) for m in messages)
         )
 
+    async def fetch_message(self, id: int, /) -> ChatMessageT | None:
+        message = await super().fetch_message(id)
+        if message is not None:
+            message.reactions = await message.fetch_reactions()
+            return message
+
 
 ChatGroupTypeT = TypeVar(
     "ChatGroupTypeT", bound=Literal[Type.Clan, Type.Chat], default=Literal[Type.Clan, Type.Chat], covariant=True
