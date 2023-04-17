@@ -1060,12 +1060,14 @@ class ConnectionState(Registerable):
             self.dispatch("typing", author, when)
 
     async def handle_user_message_reaction(self, msg: friend_messages.MessageReactionNotification) -> None:
-        user = await self._maybe_user(msg.steamid_friend)
+        participant = await self._maybe_user(msg.steamid_friend)
+        reactor = self.user if msg.reactor == self.user.id else participant
         ordinal = msg.ordinal
         created_at = DateTime.from_timestamp(msg.server_timestamp)
+        authors = {participant, self.user}
         message = utils.find(
             lambda message: (
-                message.author in (user, self.user)
+                message.author in authors
                 and message.created_at == created_at
                 and message.ordinal == ordinal
                 and message.group is None
@@ -1077,9 +1079,13 @@ class ConnectionState(Registerable):
             return log.debug("Got a reaction to an unknown message %s %s", created_at, ordinal)
         match msg.reaction_type:
             case Emoticon._TYPE:
-                reaction = MessageReaction(self, message, Emoticon(self, msg.reaction), None, user, created_at, ordinal)
+                reaction = MessageReaction(
+                    self, message, Emoticon(self, msg.reaction), None, reactor, created_at, ordinal
+                )
             case Sticker._TYPE:
-                reaction = MessageReaction(self, message, None, Sticker(self, msg.reaction), user, created_at, ordinal)
+                reaction = MessageReaction(
+                    self, message, None, Sticker(self, msg.reaction), reactor, created_at, ordinal
+                )
             case _:
                 return log.debug(
                     "Got an unknown reaction_type %s on message %s %s", msg.reaction_type, created_at, ordinal
