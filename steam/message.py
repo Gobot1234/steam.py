@@ -47,7 +47,7 @@ class UserMessage(Message[UserMessageAuthorT]):
 
     async def _react(self, emoticon: Emoticon | Sticker, add: bool) -> None:
         await self._state.react_to_user_message(
-            self.author.id64,
+            self.channel.participant.id64,
             int(self.created_at.timestamp()),
             self.ordinal,
             str(emoticon) if isinstance(emoticon, Emoticon) else emoticon.name,
