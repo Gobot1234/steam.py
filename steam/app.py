@@ -1303,7 +1303,7 @@ class WishlistApp(PartialApp[str]):
         """The total number reviews for the app."""
         self.review_status = ReviewType[data["review_desc"].replace(" ", "")]
         """The review status of the app."""
-        self.created_at = DateTime.from_timestamp(int(data["release_date"]))
+        self.created_at = DateTime.from_timestamp(float(data["release_date"]))
         """The time the app was uploaded at."""
         self.screenshots = [
             CDNAsset(state, f"{URL.CDN}/steam/apps/{self.id}/{screenshot_url}")
