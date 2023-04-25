@@ -1301,7 +1301,7 @@ class WishlistApp(PartialApp[str]):
         """The score of the app out of ten."""
         self.total_reviews = int(data["reviews_total"].replace(",", ""))
         """The total number reviews for the app."""
-        self.review_status = ReviewType[data["review_desc"].replace(" ", "")]
+        self.review_status = ReviewType.try_value(data["review_score"])
         """The review status of the app."""
         self.created_at = DateTime.from_timestamp(float(data["release_date"]))
         """The time the app was uploaded at."""
