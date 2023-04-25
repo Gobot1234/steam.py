@@ -1892,14 +1892,14 @@ test = ["cython", "filelock", "html5lib", "pytest (>=4.6)"]
 
 [[package]]
 name = "sphinx-codeautolink"
-version = "0.14.1"
+version = "0.15.0"
 description = "Automatic links from code examples to reference documentation."
 category = "dev"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "sphinx-codeautolink-0.14.1.tar.gz", hash = "sha256:6c06ea6bf407230ab33947f32e3755940a395d7753f65880baf003908b3c597f"},
-    {file = "sphinx_codeautolink-0.14.1-py3-none-any.whl", hash = "sha256:cd2b1348b1f0815353b90981090dfe73d6fac3b9d4e3b185d92a3653df1b6d8f"},
+    {file = "sphinx-codeautolink-0.15.0.tar.gz", hash = "sha256:2db64a2012dbf1772f95638196ae4885a6849ddd3d44f594e4f8875bf7b73779"},
+    {file = "sphinx_codeautolink-0.15.0-py3-none-any.whl", hash = "sha256:02a5c768bc1de5f8f8248c02fadc7be0e23370b4c265a2495c0a7c3f337e5d71"},
 ]
 
 [package.dependencies]
@@ -2222,4 +2222,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "2608c757eaf099ef8e0bfa6fe81fa959e90b0c0291b321d6b7c1df045a7038ab"
+content-hash = "4f0ba818f414abc49736c6c9e92d3b84cf21b18c95011714257a910072c4e63b"
