@@ -533,8 +533,17 @@ class HTTPClient:
 
         return self.post(URL.COMMUNITY / "market/priceoverview", data=payload)
 
-    def get_wishlist(self, user_id64: ID64) -> Coro[dict[AppID, app.WishlistApp]]:
-        return self.get(URL.STORE / f"wishlist/profiles/{user_id64}/wishlistdata")
+    async def get_user_wishlist(self, user_id64: ID64) -> AsyncGenerator[tuple[AppID, app.WishlistApp], None]:
+        params = {"p": 0}
+        while True:
+            resp: dict[AppID, app.WishlistApp] = await self.get(
+                URL.STORE / f"wishlist/profiles/{user_id64}/wishlistdata", params=params
+            )
+            if not resp:  # it's an empty list sometimes lol
+                return
+            for app_id, data in resp.items():
+                yield app_id, data
+            params["p"] += 1
 
     def get_app(self, app_id: AppID, language: Language | None) -> Coro[dict[str, Any]]:
         params = {

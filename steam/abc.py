@@ -384,8 +384,10 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
 
     async def wishlist(self) -> list[WishlistApp]:
         r"""Get the :class:`.WishlistApp`\s the user has on their wishlist."""
-        data = await self._state.http.get_wishlist(self.id64)
-        return [WishlistApp(self._state, id=id, data=app_info) for id, app_info in data.items()]
+        return [
+            WishlistApp(self._state, id=app_id, data=data)
+            async for app_id, data in self._state.http.get_user_wishlist(self.id64)
+        ]
 
     async def clans(self, *, auto_chunk: bool = False) -> list[Clan]:
         r"""Fetches a list of :class:`~steam.Clan`\s the user is in.
