@@ -1220,13 +1220,14 @@ class Client:
         ------
         :class:`~steam.AppListApp`
         """
-        async for app in self.http.get_all_apps(  # FIXME doesnt work
+        async for app in self.http.get_all_apps(
             include_games,
             include_dlc,
             include_software,
             include_videos,
             include_hardware,
-            min(limit if limit is not None else 10_000, 50_000),
+            limit=limit,
+            chunk_size=min(limit if limit is not None else 10_000, 50_000),
             modified_after=modified_after,
         ):
             yield AppListApp(self._state, app)

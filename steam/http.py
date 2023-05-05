@@ -841,22 +841,21 @@ class HTTPClient:
         include_software: bool,
         include_videos: bool,
         include_hardware: bool,
+        chunk_size: int | None,
         limit: int | None,
         last_app_id: AppID | None = None,
         modified_after: datetime | None = None,
     ) -> AsyncGenerator[app.GetAppList, None]:
         have_more_results = True
         last_app_id = None
-        limit_ = min(limit if limit is not None else 10_000, 50_000)
         while have_more_results:
             params = {
-                "key": await self.get_api_key(),
                 "include_games": str(include_games).lower(),
                 "include_dlc": str(include_dlc).lower(),
                 "include_software": str(include_software).lower(),
                 "include_videos": str(include_videos).lower(),
                 "include_hardware": str(include_hardware).lower(),
-                "max_results": limit_,
+                "max_results": min(chunk_size if chunk_size is not None else 10_000, 50_000),
             }
             if last_app_id is not None:
                 params["last_appid"] = last_app_id
@@ -867,8 +866,8 @@ class HTTPClient:
             for app in resp["apps"]:
                 yield app
                 if limit is not None:
-                    limit_ -= 1
-                    if limit_ == 0:
+                    limit -= 1
+                    if limit == 0:
                         return
             last_app_id = AppID(resp.get("last_appid", 0))
             have_more_results = resp.get("have_more_results", False)
