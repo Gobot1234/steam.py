@@ -83,13 +83,24 @@ class HTTPClient:
             json_serialize=JSON_DUMPS,
         )
 
-    async def request(self, method: str, url: StrOrURL, **kwargs: Any) -> Any:  # adapted from d.py
+    async def request(
+        self, method: str, url: StrOrURL, api_needs_auth: bool = True, **kwargs: Any
+    ) -> Any:  # adapted from d.py
         kwargs["headers"] = {"User-Agent": self.user_agent, **kwargs.get("headers", {})}
         payload = kwargs.get("data")
 
         url = url if isinstance(url, URL_) else URL_(url)
 
-        if url.host in (URL.COMMUNITY.host, URL.STORE.host, URL.HELP.host) and not self.logged_in:
+        if url.host == URL.API.host:
+            if api_needs_auth:
+                kwargs["params"] |= (  # if valve ever decide to make this work, this'd be nice
+                    # {"access_token": await self._client._state.ws.access_token()}
+                    # if self._client._state.login_complete.is_set()
+                    # else
+                    {"key": await self.get_api_key()}
+                )
+
+        elif url.host in (URL.COMMUNITY.host, URL.STORE.host, URL.HELP.host) and not self.logged_in:
             await self.ensure_logged_in()
 
         for tries in range(5):
@@ -203,6 +214,7 @@ class HTTPClient:
         for url in (URL.COMMUNITY, URL.STORE, URL.HELP):
             jar.update_cookies(SimpleCookie[str](f"sessionid={self.session_id}"), url)
 
+        self.logged_in = True
         self.login_event.set()
 
     async def ensure_logged_in(self) -> None:
@@ -261,7 +273,7 @@ class HTTPClient:
             *(
                 self.get(
                     api_route("ISteamUser/GetPlayerSummaries", version=2),
-                    params={"key": await self.get_api_key(), "steamids": ",".join(map(str, sublist))},
+                    params={"steamids": ",".join(map(str, sublist))},
                 )
                 for sublist in utils.as_chunks(user_id64s, 100)
             )
@@ -272,7 +284,6 @@ class HTTPClient:
 
     async def get_user_escrow(self, user_id64: ID64, token: str | None) -> user.TradeHoldDurations:
         params = {
-            "key": await self.get_api_key(),
             "steamid_target": user_id64,
             "trade_offer_access_token": token if token is not None else "",
         }
@@ -283,7 +294,6 @@ class HTTPClient:
 
     async def get_friends_ids(self, user_id64: ID64) -> list[ID64]:
         params = {
-            "key": await self.get_api_key(),
             "steamid": user_id64,
             "relationship": "friend",
         }
@@ -299,7 +309,6 @@ class HTTPClient:
         language: Language | None = None,
     ) -> dict[str, Any]:
         params = {
-            "key": await self.get_api_key(),
             "active_only": str(active_only).lower(),
             "get_sent_offers": str(sent).lower(),
             "get_received_offers": str(received).lower(),
@@ -342,7 +351,6 @@ class HTTPClient:
         self, limit: int, previous_time: int = 0, language: Language | None = None
     ) -> trade.GetTradeOfferHistory:
         params = {
-            "key": await self.get_api_key(),
             "max_trades": limit,
             "get_descriptions": "true",
             "include_total": "true",
@@ -356,7 +364,6 @@ class HTTPClient:
 
     async def get_trade(self, trade_id: TradeOfferID, language: Language | None = None) -> trade.GetTradeOffer:
         params = {
-            "key": await self.get_api_key(),
             "tradeofferid": trade_id,
             "get_descriptions": "true",
             "language": (language or self.language).api_name,
@@ -419,7 +426,6 @@ class HTTPClient:
 
     async def get_trade_receipt(self, trade_id: int, language: Language | None = None) -> trade.TradeStatus:
         params = {
-            "key": await self.get_api_key(),
             "tradeid": trade_id,
             "get_descriptions": "true",
             "language": (language or self.language).api_name,
@@ -432,7 +438,9 @@ class HTTPClient:
             "cellid": cell_id,
             "cmtype": "websockets",
         }
-        data: ResponseDict[CMList] = await self.get(api_route("ISteamDirectory/GetCMListForConnect"), params=params)
+        data: ResponseDict[CMList] = await self.get(
+            api_route("ISteamDirectory/GetCMListForConnect"), api_needs_auth=False, params=params
+        )
         return data["response"]
 
     def join_clan(self, clan_id64: ID64) -> Coro[None]:
@@ -460,12 +468,12 @@ class HTTPClient:
         return self.post(URL.COMMUNITY / "actions/GroupInvite", data=payload)
 
     async def get_user_clans(self, user_id64: ID64) -> list[ID64]:
-        params = {"key": await self.get_api_key(), "steamid": user_id64}
+        params = {"steamid": user_id64}
         data: user.GetUserGroupList = await self.get(api_route("ISteamUser/GetUserGroupList"), params=params)
         return [parse_id64(group["gid"], type=Type.Clan) for group in data["response"]["groups"]]
 
     async def get_user_bans(self, *user_id64s: ID64) -> list[user.UserBan]:
-        params = {"key": await self.get_api_key(), "steamids": ",".join(str(id64) for id64 in user_id64s)}
+        params = {"steamids": ",".join(str(id64) for id64 in user_id64s)}
         data: user.GetPlayerBans = await self.get(api_route("ISteamUser/GetPlayerBans"), params=params)
         return [
             {
@@ -481,12 +489,12 @@ class HTTPClient:
         ]
 
     async def get_user_level(self, user_id64: ID64) -> int:
-        params = {"key": await self.get_api_key(), "steamid": user_id64}
+        params = {"steamid": user_id64}
         resp: user.GetSteamLevel = await self.get(api_route("IPlayerService/GetSteamLevel"), params=params)
         return resp["response"]["player_level"]
 
     async def get_user_badges(self, user_id64: ID64) -> user.UserBadges:
-        params = {"key": await self.get_api_key(), "steamid": user_id64}
+        params = {"steamid": user_id64}
         data: ResponseDict[user.UserBadges] = await self.get(api_route("IPlayerService/GetBadges"), params=params)
         return data["response"]
 
@@ -805,7 +813,6 @@ class HTTPClient:
 
     async def get_app_stats(self, app_id: AppID, language: Language | None) -> achievement.AppAppStats:
         params = {
-            "key": await self.get_api_key(),
             "appid": app_id,
             "l": (language or self.language).api_name,
         }
@@ -825,12 +832,18 @@ class HTTPClient:
         self, app_id: AppID, ticket: str, publisher_key: str | None
     ) -> user.AuthenticateUserTicketParams:
         params = {
-            "key": publisher_key or await self.get_api_key(),
             "appid": app_id,
             "ticket": ticket,
         }
+        if publisher_key is not None:
+            params["key"] = publisher_key
+            kwargs = {"api_needs_auth": False}
+        else:
+            kwargs = {"api_needs_auth": True}
         resp: ResponseDict[user.AuthenticateUserTicket] = await self.get(
-            api_route("ISteamUserAuth/AuthenticateUserTicket", publisher=publisher_key is not None), params=params
+            api_route("ISteamUserAuth/AuthenticateUserTicket", publisher=publisher_key is not None),
+            params=params,
+            **kwargs,
         )
         return resp["response"]["params"]
 
