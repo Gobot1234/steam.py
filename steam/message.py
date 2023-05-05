@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Self
 
 from typing_extensions import TypeVar
 
@@ -69,17 +69,12 @@ class UserMessage(Message[UserMessageAuthorT]):
             self.reactions.remove(reaction)
         self._state.dispatch(f"reaction_{'add' if add else 'remove'}", reaction)
 
-    async def add_emoticon(self, emoticon: Emoticon) -> None:
-        await self._react(emoticon, True)
-
-    async def remove_emoticon(self, emoticon: Emoticon):
-        await self._react(emoticon, False)
-
-    async def add_sticker(self, sticker: Sticker):
-        await self._react(sticker, True)
-
-    async def remove_sticker(self, sticker: Sticker):
-        await self._react(sticker, False)
+    @classmethod
+    def _from_history(cls, channel: UserChannel, proto: friend_messages.GetRecentMessagesResponseFriendMessage) -> Self:
+        self = cls.__new__(cls)  # skip __init__
+        super().__init__(self, channel, proto)
+        self.created_at = DateTime.from_timestamp(proto.timestamp)
+        return self
 
     async def ack(self) -> None:
         await self._state.ack_user_message(self.channel.participant.id64, int(self.created_at.timestamp()))

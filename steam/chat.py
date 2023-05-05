@@ -11,12 +11,24 @@ import asyncio
 import logging
 from collections.abc import AsyncGenerator, Callable, Coroutine, Iterable, Sequence
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Generic, Literal, Protocol, TypeAlias, cast, overload, runtime_checkable
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Generic,
+    Literal,
+    Protocol,
+    TypeAlias,
+    assert_never,
+    cast,
+    overload,
+    runtime_checkable,
+)
 
+import betterproto
 from typing_extensions import Self, TypeVar
 
 from . import utils
-from ._const import MISSING, UNIX_EPOCH
+from ._const import UNIX_EPOCH
 from .abc import Channel, Message, PartialUser
 from .app import PartialApp
 from .enums import ChatMemberRank, Type
@@ -196,6 +208,15 @@ class ChatMessage(Message[AuthorT], Generic[AuthorT, MemberT]):
         self.mentions_all = proto.mentions.mention_all
         self.mentions_here = proto.mentions.mention_here
 
+    @classmethod
+    def _from_history(
+        cls, channel: GroupChannel | ClanChannel, proto: chat.GetMessageHistoryResponseChatMessage
+    ) -> Self:
+        self = cls.__new__(cls)  # skip __init__
+        super().__init__(self, channel, proto)
+        self.created_at = DateTime.from_timestamp(proto.server_timestamp)
+        return self
+
     @property
     def _chat_group(self) -> Clan | Group:
         return self.channel._chat_group
@@ -281,18 +302,6 @@ class ChatMessage(Message[AuthorT], Generic[AuthorT, MemberT]):
             except ValueError:
                 log.debug("Reaction removed for a reaction that wasn't added")
         self._state.dispatch(f"reaction_{'add' if add else 'remove'}", reaction)
-
-    async def add_emoticon(self, emoticon: Emoticon) -> None:
-        await self._react(emoticon, True)
-
-    async def remove_emoticon(self, emoticon: Emoticon) -> None:
-        await self._react(emoticon, False)
-
-    async def add_sticker(self, sticker: Sticker) -> None:
-        await self._react(sticker, True)
-
-    async def remove_sticker(self, sticker: Sticker) -> None:
-        await self._react(sticker, False)
 
     async def ack(self) -> None:
         await self._state.ack_chat_message(*self.channel._location, int(self.created_at.timestamp()))
@@ -389,9 +398,7 @@ class Chat(Channel[ChatMessageT]):
             messages: list[ChatMessageT] = []
 
             for message in resp.messages:
-                new_message = message_cls.__new__(message_cls)
-                Message.__init__(new_message, channel=self, proto=message)
-                new_message.created_at = DateTime.from_timestamp(message.server_timestamp)
+                new_message = message_cls._from_history(self, message)
                 if not after < new_message.created_at < before:
                     return
                 if limit is not None and yielded >= limit:

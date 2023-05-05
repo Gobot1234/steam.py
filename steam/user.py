@@ -265,14 +265,13 @@ class User(_BaseUser, Messageable["UserMessage"]):
             message: friend_messages.GetRecentMessagesResponseFriendMessage | None = None
 
             for message in resp.messages:
-                new_message = UserMessage.__new__(UserMessage)
+                new_message = UserMessage._from_history(message, self._channel)
                 new_message.created_at = DateTime.from_timestamp(message.timestamp)
                 if not after < new_message.created_at < before:
                     return
                 if limit is not None and yielded >= limit:
                     return
 
-                Message.__init__(new_message, channel=self._channel, proto=message)
                 new_message.author = self if message.accountid == self.id else self._state.user
                 emoticon_reactions = [
                     MessageReaction(

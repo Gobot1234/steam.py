@@ -32,6 +32,8 @@ from .types.user import UserT
 from .utils import DateTime, cached_slot_property, classproperty, parse_bb_code
 
 if TYPE_CHECKING:
+    import betterproto
+
     from .clan import Clan
     from .comment import Comment
     from .group import Group
@@ -954,6 +956,11 @@ class Message(Generic[UserT], metaclass=abc.ABCMeta):
     def __hash__(self) -> int:
         return hash((self.channel, self.id))
 
+    @classmethod
+    @abc.abstractmethod
+    def _from_history(cls, channel: Channel[Self], proto: betterproto.Message) -> Self:
+        raise NotImplementedError
+
     @cached_slot_property
     def id(self) -> int:
         """A unique identifier for every message sent in a channel.
@@ -970,6 +977,9 @@ class Message(Generic[UserT], metaclass=abc.ABCMeta):
         )
 
     @abc.abstractmethod
+    async def _react(self, emoticon: Emoticon | Sticker, add: bool) -> None:
+        raise NotImplementedError
+
     async def add_emoticon(self, emoticon: Emoticon) -> None:
         """Adds an emoticon to this message.
 
@@ -978,9 +988,8 @@ class Message(Generic[UserT], metaclass=abc.ABCMeta):
         emoticon
             The emoticon to add to this message.
         """
-        raise NotImplementedError()
+        await self._react(emoticon, True)
 
-    @abc.abstractmethod
     async def remove_emoticon(self, emoticon: Emoticon) -> None:
         """Removes an emoticon from this message.
 
@@ -989,9 +998,8 @@ class Message(Generic[UserT], metaclass=abc.ABCMeta):
         emoticon
             The emoticon to remove from this message.
         """
-        raise NotImplementedError()
+        await self._react(emoticon, False)
 
-    @abc.abstractmethod
     async def add_sticker(self, sticker: Sticker) -> None:
         """Adds a sticker to this message.
 
@@ -1000,9 +1008,8 @@ class Message(Generic[UserT], metaclass=abc.ABCMeta):
         sticker
             The sticker to add to this message.
         """
-        raise NotImplementedError()
+        await self._react(sticker, True)
 
-    @abc.abstractmethod
     async def remove_sticker(self, sticker: Sticker) -> None:
         """Adds a sticker to this message.
 
@@ -1011,7 +1018,7 @@ class Message(Generic[UserT], metaclass=abc.ABCMeta):
         sticker
             The sticker to remove from this message.
         """
-        raise NotImplementedError()
+        await self._react(sticker, False)
 
     @abc.abstractmethod
     async def ack(self) -> None:
