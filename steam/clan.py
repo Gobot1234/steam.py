@@ -284,8 +284,6 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
         "member_count",
         "in_game_count",
         "online_count",
-        "admins",
-        "mods",
         "is_app_clan",
     )
 
@@ -311,10 +309,6 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
     """The language set for the clan."""
     location: str
     """The location set for the clan."""
-    mods: list[ClanMember]
-    """A list of the clan's moderators."""
-    admins: list[ClanMember]
-    """A list of the clan's administrators."""
     is_app_clan: bool
     """Whether the clan is an app clan."""
     flags: ClanAccountFlags | None
@@ -371,35 +365,34 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
             if "ONLINE" in count.text:
                 self.online_count = int(count.text.split("ONLINE")[0].strip().replace(",", ""))
 
-        admins: list[ID64] = []
-        mods: list[ID64] = []
-        is_admins = None
-        for fields in soup.find_all("div", class_="membergrid"):
-            for field in fields.find_all("div"):
-                if "Administrators" in field.text:
-                    is_admins = True
-                    continue
-                if "Moderators" in field.text:
-                    is_admins = False
-                    continue
-                if "Members" in field.text:
-                    break
-
-                try:
-                    id64 = parse_id64(int(field["data-miniprofile"]), type=Type.Individual)
-                except KeyError:
-                    continue
-                else:
-                    if is_admins is None:
+        if not from_proto:
+            self._officers: list[ID32] = []
+            self._mods: list[ID32] = []
+            is_admins = None
+            for fields in soup.find_all("div", class_="membergrid"):
+                for field in fields.find_all("div"):
+                    if "Administrators" in field.text:
+                        is_admins = True
                         continue
-                    if is_admins:
-                        admins.append(id64)
-                    else:
-                        mods.append(id64)
+                    if "Moderators" in field.text:
+                        is_admins = False
+                        continue
+                    if "Members" in field.text:
+                        break
 
-        users = await self._state._maybe_users(itertools.chain(admins, mods))
-        self.admins = [user for user in users if user and user.id in admins]
-        self.mods = [user for user in users if user and user.id in mods]
+                    try:
+                        id = ID32(int(field["data-miniprofile"]))
+                    except KeyError:
+                        continue
+                    else:
+                        if is_admins is None:
+                            continue
+                        if is_admins:
+                            self._officers.append(id)
+                        else:
+                            self._mods.append(id)
+
+            self._officers_and_mods = await self._state._maybe_users(map(parse_id64, self._officers + self._mods))
 
         return self
 
@@ -413,8 +406,6 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
     ) -> Self:
         self = await super()._from_proto(state, proto, id=ID32(proto.clanid), maybe_chunk=maybe_chunk)
         return await self._load(from_proto=True)
-
-    # TODO properties for admins and mods when chunked?
 
     async def chunk(self) -> Sequence[ClanMember]:
         if self.chunked:

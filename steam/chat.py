@@ -39,13 +39,14 @@ from .protobufs import chat
 from .reaction import Emoticon, MessageReaction, PartialMessageReaction, Sticker
 from .role import Role
 from .types.id import ID32, ID64, ChatGroupID, ChatID, Intable, RoleID
+from .types.user import IndividualID
 from .user import User, WrapsUser
 from .utils import DateTime, cached_slot_property
 
 if TYPE_CHECKING:
     from .channel import ClanChannel, GroupChannel
-    from .clan import Clan
-    from .group import Group
+    from .clan import Clan, ClanMember
+    from .group import Group, GroupMember
     from .media import Media
     from .message import ClanMessage, GroupMessage
     from .state import ConnectionState
@@ -64,14 +65,14 @@ class _PartialMemberProto(Protocol):
     _state: ConnectionState
     rank: ChatMemberRank
     _role_ids: tuple[RoleID, ...]
-    kick_expires: datetime
+    kick_expires_at: datetime
     clan: Clan | None
     group: Group | None
 
     def _update(self, member: chat.Member) -> None:
         self.rank = ChatMemberRank.try_value(member.rank)
         self._role_ids = cast("tuple[RoleID, ...]", tuple(member.role_ids))
-        self.kick_expires = DateTime.from_timestamp(member.time_kick_expire)
+        self.kick_expires_at = DateTime.from_timestamp(member.time_kick_expire)
 
     @property
     def _chat_group(self) -> Clan | ChatGroup:
@@ -137,7 +138,7 @@ class PartialMember(PartialUser, _PartialMemberProto):
                 self.id,
                 chat.EChatRoomJoinState.Joined,
                 self.rank,  # type: ignore
-                int(self.kick_expires.timestamp()),
+                int(self.kick_expires_at.timestamp()),
                 list(self._role_ids),
             ),
         )
@@ -158,7 +159,7 @@ class Member(_BaseMember):
 
     __slots__ = tuple(set(PartialMember.__slots__) - {"_state"})
     rank: ChatMemberRank
-    kick_expires: datetime
+    kick_expires_at: datetime
     _role_ids: tuple[int, ...]
 
     def __init__(
@@ -187,7 +188,7 @@ class Member(_BaseMember):
                 self.id,
                 chat.EChatRoomJoinState.Joined,
                 self.rank,  # type: ignore
-                int(self.kick_expires.timestamp()),
+                int(self.kick_expires_at.timestamp()),
                 list(self._role_ids),
             ),
         )
@@ -483,6 +484,8 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
         "_members",
         "_partial_members",
         "_owner_id",
+        "_mods",
+        "_officers",
         "_top_members",
         "_channels",
         "_default_channel_id",
@@ -522,6 +525,8 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
         self._partial_members: dict[ID32, chat.Member] = {}  # deleted after _members is populated (if chunked)
         self._channels: dict[ChatID, ChatT] = {}
         self._roles: dict[RoleID, Role] = {}
+        self._officers: list[ID32] = []
+        self._mods: list[ID32] = []
 
     @classmethod
     async def _from_proto(
@@ -576,6 +581,11 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
             if self._state.auto_chunk_chat_groups:
                 await self.chunk()
 
+            self._officers = [
+                id for id, member in self._partial_members.items() if member.rank is ChatMemberRank.Officer
+            ]
+            self._mods = [id for id, member in self._partial_members.items() if member.rank is ChatMemberRank.Moderator]
+
         return self
 
     @utils.classproperty
@@ -594,10 +604,10 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
         id32 = ID32(member.accountid)
         if self.chunked:
             return self._members.pop(id32, None)
-        else:
-            member_ = self._get_partial_member(id32)
-            del self._partial_members[id32]
-            return member_
+
+        member_ = self._get_partial_member(id32)
+        del self._partial_members[id32]
+        return member_
 
     def _update_channels(
         self, channels: list[chat.State] | list[chat.ChatRoomState], *, default_channel_id: int | None = None
@@ -689,6 +699,16 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
     def owner(self) -> MemberT | PartialMember:
         """The chat group's owner."""
         return self._maybe_member(self._owner_id)
+
+    @property
+    def officers(self) -> list[MemberT | PartialMember]:
+        """A list of the chat groups's administrators."""
+        return self._maybe_members(self._officers)
+
+    @property
+    def mods(self) -> list[MemberT | PartialMember]:
+        """A list of the chat group's moderators."""
+        return self._maybe_members(self._mods)
 
     @property
     def top_members(self) -> Sequence[MemberT | PartialMember]:
