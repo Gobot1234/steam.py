@@ -53,10 +53,16 @@ class Extended(TypedVDFDict, total=False):
     homepage: str
 
 
+class Manifest(TypedVDFDict, total=False):
+    gid: Required[VDFInt]
+    size: VDFInt
+    download: VDFInt
+
+
 class Depot(TypedVDFDict, total=False):
     name: str
     config: Required[MultiDict[str]]
-    manifests: MultiDict[VDFInt]  # {branch name: id}
+    manifests: MultiDict[VDFInt | Manifest]  # {branch name: id}
     encryptedmanifests: MultiDict[MultiDict[VDFInt]]  # {branch name: {encrypted_gid2: VDFInt}}
     branches: MultiDict[Branch]
     maxsize: VDFInt

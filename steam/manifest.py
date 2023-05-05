@@ -10,7 +10,7 @@ import os.path
 import struct
 import sys
 from base64 import b64decode
-from collections.abc import AsyncGenerator, Generator, Sequence
+from collections.abc import AsyncGenerator, Generator, Mapping, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -777,6 +777,14 @@ def is_depot(item: tuple[str, Any]) -> TypeGuard[tuple[str, manifest.Depot]]:
         return True
 
 
+def maybe_get(map: Mapping[str, str | None] | str, key: str) -> int | None:
+    if isinstance(map, str):
+        return int(map)
+    value = map.get(key)
+    if value is not None:
+        return int(value)
+
+
 class AppInfo(ProductInfo, PartialApp[str]):
     """Represents a collection of information on an app."""
 
@@ -930,17 +938,32 @@ class AppInfo(ProductInfo, PartialApp[str]):
                     )
                 )
             else:
-                for branch_name, manifest_id in manifests.items():
+                public_manifest_info = manifests["public"]
+                public_id = ManifestID(
+                    int(public_manifest_info if isinstance(public_manifest_info, str) else public_manifest_info["gid"])
+                )
+                for branch_name, manifest_info in manifests.items():
                     branch = self._branches[branch_name]
+                    manifest_id = manifest_info if isinstance(manifest_info, str) else manifest_info["gid"]
                     if not branch.password_required:
-                        manifest = ManifestInfo(state, ManifestID(int(manifest_id)), branch=branch)
+                        manifest = ManifestInfo(
+                            state,
+                            ManifestID(int(manifest_id)),
+                            branch=branch,
+                            size=maybe_get(manifest_info, "size"),
+                            download_size=maybe_get(manifest_info, "download"),
+                        )
                     else:
                         encrypted_id = PrivateManifestInfo._get_id(depot, branch)
                         if encrypted_id is not None:
                             manifest = PrivateManifestInfo(state, encrypted_id, branch)
                         else:  # fall back to the public version
                             manifest = ManifestInfo(
-                                state, ManifestID(int(manifests["public"])), branch=self.public_branch
+                                state,
+                                public_id,
+                                branch=self.public_branch,
+                                size=maybe_get(public_manifest_info, "size"),
+                                download_size=maybe_get(public_manifest_info, "download"),
                             )
 
                     depot_ = Depot(
