@@ -34,6 +34,9 @@ __all__ = (
     "PROTOBUFS",
     "UMS",
     "GC_PROTOBUFS",
+    "REQUEST_EMSGS",
+    "RESPONSE_EMSGS",
+    "SERVICE_EMSGS",
 )
 
 from . import (

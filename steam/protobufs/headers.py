@@ -119,7 +119,7 @@ class ProtobufMessageHeader(CMsgProtoBufHeader):
 
     def parse(self, data: bytes) -> Self:
         self.length = READ_U32(data) + 4
-        return betterproto.Message.parse(self, data[4 : self.length])
+        return betterproto.Message.parse(self, data[4 : self.length])  # type: ignore
 
     def __bytes__(self) -> bytes:
         proto_data = betterproto.Message.__bytes__(self)

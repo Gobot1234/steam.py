@@ -53,7 +53,7 @@ from .protobufs import (
     login,
 )
 from .types.http import IPAdress
-from .types.id import ID64
+from .types.id import ID64, AppID
 from .user import AnonymousClientUser, ClientUser
 
 if TYPE_CHECKING:
@@ -96,6 +96,11 @@ class EventListener(Generic[MsgsT]):
 
     if not TYPE_CHECKING:
         __class_getitem__ = classmethod(lambda cls, params: cls)
+
+
+@dataclass(slots=True)
+class GCEventListener(EventListener[GCMsgsT]):
+    app_id: AppID
 
 
 @dataclass(slots=True)
@@ -307,6 +312,40 @@ class SteamWebSocket(Registerable):
         future: asyncio.Future[ProtoMsgsT] = asyncio.get_running_loop().create_future()
         entry = EventListener(msg=msg.MSG if msg else emsg, check=check, future=future)
         self.listeners.append(entry)
+        return future
+
+    @overload
+    def gc_wait_for(
+        self, *, emsg: IntEnum | None, check: Callable[[GCMsgsT], bool] = return_true
+    ) -> asyncio.Future[GCMsgsT]:
+        ...
+
+    @overload
+    def gc_wait_for(
+        self, msg: type[GCMsgT], *, check: Callable[[GCMsgT], bool] = return_true
+    ) -> asyncio.Future[GCMsgT]:
+        ...
+
+    @overload
+    def gc_wait_for(
+        self, msg: type[GCMsgProtoT], *, check: Callable[[GCMsgProtoT], bool] = return_true
+    ) -> asyncio.Future[GCMsgProtoT]:
+        ...
+
+    def gc_wait_for(
+        self,
+        msg: type[GCMsgsT] | None = None,
+        *,
+        emsg: IntEnum | None = None,
+        check: Callable[[GCMsgsT], bool] = return_true,
+    ) -> asyncio.Future[GCMsgsT]:
+        from ._gc import APP
+
+        future: asyncio.Future[GCMsgsT] = asyncio.get_running_loop().create_future()
+        entry = GCEventListener(
+            msg=msg.MSG if msg else emsg, check=check, future=future, app_id=msg.APP_ID if msg else APP.get().id
+        )
+        self.gc_listeners.append(entry)
         return future
 
     @classmethod
@@ -613,20 +652,16 @@ class SteamWebSocket(Registerable):
         await self.send(bytes(message))
 
     async def send_gc_message(self, msg: GCMsgs) -> int:  # for ext's to send GC messages
-        client = self._state.client
-        if __debug__ or TYPE_CHECKING:
-            from .ext._gc import Client as GCClient
+        from ._gc import APP
 
-            assert isinstance(client, GCClient), "Attempting to send a GC message without a GC client"
-
-        app_id = client._APP.id
+        app_id = APP.get().id
         message = client_server_2.CMsgGcClientToGC(
             appid=app_id,
             msgtype=SET_PROTO_BIT(msg.MSG) if isinstance(msg, GCProtobufMessage) else msg.MSG,
             payload=bytes(msg),
         )
         message.header.routing_app_id = app_id
-        message.header.job_id_source = self._gc_current_job_id = (self._gc_current_job_id + 1) % 10000 or 1
+        message.header.job_id_source = self.next_gc_job_id
 
         log.debug("Sending GC message %r", msg)
         self._dispatch("gc_message_send", msg)
@@ -708,6 +743,11 @@ class SteamWebSocket(Registerable):
         self._current_job_id = (self._current_job_id + 1) % 10000 or 1
         return self._current_job_id
 
+    @property
+    def next_gc_job_id(self) -> int:
+        self._gc_current_job_id = (self._gc_current_job_id + 1) % 10000 or 1
+        return self._gc_current_job_id
+
     async def send_um(self, um: UnifiedMessage) -> int:
         um.header.job_id_source = job_id = self.next_job_id
         await self.send_proto(um)
@@ -729,6 +769,14 @@ class SteamWebSocket(Registerable):
             emsg=None, check=check if check is not ... else (lambda msg: msg.header.job_id_target == job_id)
         )
         await self.send_proto(msg)
+        return await future
+
+    async def send_gc_message_and_wait(self, msg: GCMsgs, check: Callable[[GCMsgProtoT], bool] = ...) -> GCMsgProtoT:  # type: ignore
+        msg.header.job_id_source = job_id = self.next_gc_job_id
+        future = self.gc_wait_for(
+            emsg=None, check=check if check is not ... else (lambda msg: msg.header.job_id_target == job_id)
+        )
+        await self.send_gc_message(msg)
         return await future
 
     async def change_presence(

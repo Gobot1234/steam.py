@@ -25,9 +25,6 @@ from .headers import *
 from .headers import MessageHeader
 from .struct_messages import StructMessage
 
-if TYPE_CHECKING:
-    from ..types.id import AppID
-
 log = logging.getLogger(__name__)
 
 __all__ = (
@@ -36,6 +33,9 @@ __all__ = (
     "UnifiedMessage",
     "GCMessage",
     "GCProtobufMessage",
+    "REQUEST_EMSGS",
+    "RESPONSE_EMSGS",
+    "SERVICE_EMSGS",
 )
 
 TT = TypeVar("TT", bound=type[object])
@@ -139,7 +139,7 @@ class Message(MessageMessageBase, NotProtobufWrapped):
     def __init_subclass__(cls, msg: EMsg = MISSING, **kwargs: bool) -> object:
         return super().__init_subclass__(msg, repr=True, eq=True, **kwargs)
 
-    def parse(self, data: bytes, msg: int) -> Self:  # type: ignore
+    def parse(self, data: bytes, msg: int, /) -> Self:  # type: ignore
         try:
             new_class: type[Self] = PROTOBUFS[msg]  # type: ignore
         except KeyError:
@@ -174,7 +174,7 @@ SERVICE_EMSGS: Final = frozenset({*REQUEST_EMSGS, *RESPONSE_EMSGS})
 
 @dataclass_transform()
 class ProtobufMessage(MessageMessageBase, ProtobufWrappedMessage):
-    def parse(self, data: bytes, msg: int = MISSING) -> Self:
+    def parse(self, data: bytes, msg: int = MISSING, /) -> Self:
         if msg is MISSING:  # case CMsgMulti().parse(data)
             return betterproto.Message.parse(self, data)  # type: ignore  # pyright's dumb
 
@@ -267,15 +267,14 @@ class GCMessage(GCMessageBase, NotProtobufWrapped):
     def __bytes__(self) -> bytes:
         return bytes(self.header) + super().__bytes__()
 
-    def parse(self, data: bytes, msg: int) -> Self:  # type: ignore
-        cls = self.__class__
+    def parse(self, data: bytes, msg: int, app_id: AppID, /) -> Self:  # type: ignore
         try:
-            new_class: type[Self] = GC_PROTOBUFS[self.__class__.APP_ID][msg]  # type: ignore  # save the extra lookup when casting to IntEnum
+            new_class: type[Self] = GC_PROTOBUFS[app_id][msg]  # type: ignore  # save the extra lookup when casting to IntEnum
         except KeyError:
-            log.debug("Received an unknown Language %r %s (%s)", msg, cls.APP_ID, data)
+            log.debug("Received an unknown EMsg %d for %d (%s)", msg, app_id, data)
             return self
 
-        self.header = GCMessageHeader().parse(data)
+        self.header.parse(data)
         self.__class__ = new_class
         return self.parse(data[self.header.length :])  # type: ignore
 
@@ -284,21 +283,16 @@ class GCMessage(GCMessageBase, NotProtobufWrapped):
 class GCProtobufMessage(GCMessageBase, ProtobufWrappedMessage):
     """A wrapper around received GC protobuf messages, mainly for extensions."""
 
-    def __post_init__(self) -> None:
-        self.header = ProtobufMessageHeader()
-
-    def parse(self, data: bytes, msg: int = MISSING) -> Self:
+    def parse(self, data: bytes, msg: int = MISSING, app_id: AppID = MISSING, /) -> Self:
         if msg is MISSING:  # case CMsgMulti().parse(data)
             return betterproto.Message.parse(self, data)  # type: ignore  # pyright's dumb
 
-        cls = self.__class__
         try:
-            new_class: type[Self] = GC_PROTOBUFS[cls.APP_ID][msg]  # type: ignore  # save the extra lookup when casting to IntEnum
+            new_class: type[Self] = GC_PROTOBUFS[app_id][msg]  # type: ignore  # save the extra lookup when casting to IntEnum
         except KeyError:
-            log.debug("Received an unknown Language %r %s (%s)", msg, cls.APP_ID, data)
+            log.debug("Received an unknown EMsg %d for %d (%s)", msg, app_id, data)
             return self
 
-        self.header = ProtobufMessageHeader().parse(data)
-        # ideally this'd be a __class__ assignment but that doesn't work here
+        self.header.parse(data)
         self.__class__ = new_class
         return betterproto.Message.parse(self, data[self.header.length :])  # type: ignore  # pyright's dumb
