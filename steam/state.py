@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import collections
+import inspect
 import logging
 import random
 import weakref
@@ -14,37 +15,39 @@ from copy import copy
 from datetime import datetime, timedelta
 from itertools import count
 from operator import attrgetter
-from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast
+from types import CoroutineType
+from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeVar, cast, get_args
 from zlib import crc32
 
 from typing_extensions import Self
 from yarl import URL as URL_
 
 from . import utils
-from ._const import JSON_LOADS, URL, VDF_BINARY_LOADS, VDF_LOADS, TaskGroup, timeout
-from .abc import Awardable, BaseUser, Commentable, PartialUser, _CommentableThreadType
-from .app import App, AuthenticationTicket, FetchedApp, PartialApp
-from .channel import UserChannel
-from .clan import Clan, PartialClan
+from ._const import JSON_LOADS, READ_U32, URL, VDF_BINARY_LOADS, VDF_LOADS, TaskGroup, timeout
+from .abc import Awardable, Commentable, PartialUser, _CommentableThreadType
+from .app import App, AuthenticationTicket, FetchedApp
+from .clan import Clan, ClanMember, PartialClan
 from .comment import Comment
 from .enums import *
 from .enums import PurchaseResult
 from .errors import *
 from .friend import Friend
-from .group import Group
+from .gateway import CMServer, ConnectionClosed, Msgs, SteamWebSocket, unpack_multi
+from .group import Group, GroupMember
 from .guard import *
 from .id import _ID64_TO_ID32, ID, parse_id64
 from .invite import ClanInvite, UserInvite
 from .manifest import AppInfo, ContentServer, Manifest, PackageInfo
 from .message import *
 from .message import ClanMessage
-from .models import Registerable, Wallet, register
+from .models import Wallet
 from .package import FetchedPackage, License
 from .protobufs import (
+    SERVICE_EMSGS,
     EMsg,
-    ProtobufMessage,
     UnifiedMessage,
     app_info,
+    base,
     chat,
     clan,
     client_server,
@@ -67,6 +70,7 @@ from .protobufs import (
     store,
     user_stats,
 )
+from .protobufs.msg import NoMsg
 from .published_file import PublishedFile
 from .reaction import (
     Award,
@@ -87,10 +91,11 @@ from .utils import DateTime, cached_property
 
 if TYPE_CHECKING:
     from .abc import Message
+    from .chat import PartialMember
     from .client import Client
-    from .gateway import CMServer, SteamWebSocket
     from .types import trade
     from .types.http import Coro
+
 
 log = logging.getLogger(__name__)
 
@@ -133,8 +138,27 @@ class Queue(Generic[T]):
         return self
 
 
-class ConnectionState(Registerable):
-    parsers: dict[EMsg, Callable[..., Any]]
+StateT = TypeVar("StateT", bound="ConnectionState", contravariant=True)
+MsgsT = TypeVar("MsgsT", bound="Msgs", contravariant=True)
+
+
+class ParserCallback(Protocol[StateT, MsgsT]):
+    __name__: str
+
+    def __call__(self_, self: StateT, msg: MsgsT, /, *args: Any) -> CoroutineType[Any, Any, Any] | Any:
+        ...
+
+
+F = TypeVar("F", bound=Callable[..., Any])
+
+
+def parser(func: F) -> F:
+    func.__parser__ = True  # type: ignore
+    return func
+
+
+class ConnectionState:
+    parsers: dict[EMsg, ParserCallback[Self, Msgs]]
 
     def __init__(self, client: Client, **kwargs: Any):
         self.client = client
@@ -213,6 +237,7 @@ class ConnectionState(Registerable):
         self.handled_friends.clear()
         self.handled_emoticons.clear()
         self.handled_chat_groups.clear()
+        self.login_complete.clear()
         self.handled_licenses.clear()
         self.handled_wallet.clear()
 
@@ -735,7 +760,7 @@ class ConnectionState(Registerable):
                 and msg.view.client_changenumber == client_change_number
             ),
         )
-        await self.ws.send_um(  # send_um_and_wait doesn't work here cause job_id is not meant to be set
+        await self.ws.send_proto(  # send_um isn't used as job_id doesn't do anything
             chat.UpdateMemberListViewNotification(
                 chat_group_id=chat_group_id,
                 view_id=view_id,
@@ -1005,21 +1030,55 @@ class ConnectionState(Registerable):
 
     # parsers
 
-    @register(EMsg.ServiceMethod)
+    @parser
+    async def handle_close(self, _: login.CMsgClientLoggedOff | Any = None) -> None:
+        if self.ws.closed:  # don't want ConnectionClosed to be raised multiple times
+            return
+        if not self.ws.socket.closed:
+            await self.ws.close()
+        if hasattr(self.ws, "_keep_alive"):
+            self.ws._keep_alive.stop()
+            del self.ws._keep_alive
+        log.info("Websocket closed, cannot reconnect.")
+        self.ws.closed = True
+        raise ConnectionClosed(self.ws.cm)
+
+    @parser
+    def ack_heartbeat(self, msg: login.CMsgClientHeartBeat) -> None:
+        self.ws._keep_alive.ack()
+
+    @parser
+    def set_steam_time(self, msg: login.CMsgClientServerTimestampResponse) -> None:
+        self.server_offset = timedelta(milliseconds=msg.server_timestamp_ms - msg.client_request_timestamp)
+
+    @parser
+    def handle_multi(self, msg: base.CMsgMulti) -> None:
+        data: bytearray = unpack_multi(msg) if msg.size_unzipped else msg.message_body  # type: ignore
+
+        while data:
+            size = READ_U32(data)
+            self.ws.receive(data[4 : 4 + size])
+            data = data[4 + size :]
+
+    @parser
+    async def handle_logoff(self, msg: login.CMsgClientLoggedOff):
+        await self.handle_close()
+
+    @parser
     async def parse_um(self, msg: UnifiedMessage) -> None:
         match msg:
             case chat.IncomingChatMessageNotification():
-                await self.handle_chat_message(msg)
+                self.handle_chat_message(msg)
             case chat.MessageReactionNotification():
-                await self.handle_chat_message_reaction(msg)
+                self.handle_chat_message_reaction(msg)
             case chat.ChatRoomHeaderStateNotification():
-                await self.handle_chat_group_update(msg)
+                self.handle_chat_group_update(msg)
             case chat.NotifyChatGroupUserStateChangedNotification():
                 await self.handle_chat_group_user_action(msg)
             case chat.MemberStateChangeNotification():
                 await self.handle_chat_member_update(msg)
             case chat.ChatRoomGroupRoomsChangeNotification():
-                await self.handle_chat_update(msg)
+                self.handle_chat_update(msg)
             case friend_messages.IncomingMessageNotification():
                 await self.handle_user_message(msg)
             case friend_messages.MessageReactionNotification():
@@ -1030,18 +1089,6 @@ class ConnectionState(Registerable):
                 await self.handle_notifications(msg)
             case _:
                 log.debug("Got a UM %r that we don't handle %r", msg.UM_NAME, msg)
-
-    @register(EMsg.ServiceMethodResponse)
-    async def parse_service_method_response(self, msg: UnifiedMessage) -> None:
-        await self.parse_um(msg)
-
-    @register(EMsg.ServiceMethodSendToClient)
-    async def parse_service_method_send_to_client(self, msg: UnifiedMessage) -> None:
-        await self.parse_um(msg)
-
-    @register(EMsg.ServiceMethodCallFromClient)
-    async def parse_service_method_call_from_client(self, msg: UnifiedMessage) -> None:
-        await self.parse_um(msg)
 
     async def handle_user_message(self, msg: friend_messages.IncomingMessageNotification) -> None:
         await self.client.wait_until_ready()
@@ -1097,26 +1144,39 @@ class ConnectionState(Registerable):
 
         self.dispatch(f"reaction_{'add' if msg.is_add else 'remove'}", reaction)
 
-    async def handle_chat_message(self, msg: chat.IncomingChatMessageNotification) -> None:
+    def handle_chat_server_message(
+        self, chat_group: Clan | Group, author: ClanMember | GroupMember | PartialMember, msg: chat.ServerMessage
+    ):
+        match msg.message:
+            case chat.EChatRoomServerMessage.Invited:
+                invitee = msg.accountid_param
+                invite = ...
+                chat_group._invites[...] = ...
+                self.dispatch(f"{chat_group.__class__.__name__.lower()}_invite", invite)
+
+    def handle_chat_message(self, msg: chat.IncomingChatMessageNotification) -> None:
         try:
-            destination = self._chat_groups[ChatGroupID(msg.chat_group_id)]
+            chat_group = self._chat_groups[ChatGroupID(msg.chat_group_id)]
         except KeyError:
             return log.debug("Got a message for a chat we aren't in %s", msg.chat_group_id)
 
-        channel = destination._channels[ChatID(msg.chat_id)]
+        channel = chat_group._channels[ChatID(msg.chat_id)]
         channel._update(msg)
+        author = chat_group._maybe_member(_ID64_TO_ID32(msg.steamid_sender))
+        if msg.server_message:
+            return  # self.handle_chat_server_message(chat_group, author, msg.server_message)
 
         (message_cls,) = channel._type_args
         message = message_cls(
             proto=msg,
             channel=channel,  # type: ignore  # type checkers aren't able to figure out this is ok
-            author=destination._maybe_member(_ID64_TO_ID32(msg.steamid_sender)),
+            author=author,
         )
         channel.last_message = message  # type: ignore  # same as above
         self._messages.append(message)
         self.dispatch("message", message)
 
-    async def handle_chat_message_reaction(self, msg: chat.MessageReactionNotification) -> None:
+    def handle_chat_message_reaction(self, msg: chat.MessageReactionNotification) -> None:
         try:
             destination = self._chat_groups[ChatGroupID(msg.chat_group_id)]
         except KeyError:
@@ -1174,7 +1234,7 @@ class ConnectionState(Registerable):
 
         self.dispatch(f"reaction_{'add' if msg.is_add else 'remove'}", reaction)
 
-    async def handle_chat_group_update(self, msg: chat.ChatRoomHeaderStateNotification) -> None:
+    def handle_chat_group_update(self, msg: chat.ChatRoomHeaderStateNotification) -> None:
         try:
             chat_group = self._chat_groups[ChatGroupID(msg.header_state.chat_group_id)]
         except KeyError:
@@ -1220,15 +1280,52 @@ class ConnectionState(Registerable):
         match msg.change:
             case chat.EChatRoomMemberStateChange.Joined:
                 member = await chat_group._add_member(msg.member)
-                self.dispatch("member_join", member)
-            case chat.EChatRoomMemberStateChange.Parted:
+                return self.dispatch("member_join", member)
+            case (
+                chat.EChatRoomMemberStateChange.Parted
+                | chat.EChatRoomMemberStateChange.Kicked
+                | chat.EChatRoomMemberStateChange.Banned
+            ):
                 member = chat_group._remove_member(msg.member)
                 if member is None:
                     return
-                self.dispatch("member_leave", chat_group, member)
-            # TODO: handle other user_actions
+                member.kick_expires_at = DateTime.from_timestamp(msg.member.time_kick_expire)
+                name = {
+                    chat.EChatRoomMemberStateChange.Parted: "member_leave",
+                    chat.EChatRoomMemberStateChange.Kicked: "member_kick",
+                    chat.EChatRoomMemberStateChange.Banned: "member_ban",
+                }[msg.change]
+                return self.dispatch(name, member)
+            case chat.EChatRoomMemberStateChange.Invited | chat.EChatRoomMemberStateChange.InviteDismissed:
+                return  # handled in handle_chat_server_message
 
-    async def handle_chat_update(self, msg: chat.ChatRoomGroupRoomsChangeNotification) -> None:
+        id = ID32(msg.member.accountid)
+        member = chat_group._maybe_member(id)
+        if msg.change == chat.EChatRoomMemberStateChange.Muted:
+            return self.dispatch("member_mute", member)
+
+        before = copy(member)
+        match msg.change:
+            case chat.EChatRoomMemberStateChange.RankChanged:
+                member.rank = ChatMemberRank.try_value(int(msg.member.rank))
+                if member.rank is ChatMemberRank.Moderator:
+                    chat_group._mods.append(id)
+                    try:
+                        chat_group._officers.remove(id)
+                    except ValueError:
+                        pass
+                elif member.rank is ChatMemberRank.Officer:
+                    chat_group._officers.append(id)
+                    try:
+                        chat_group._mods.remove(id)
+                    except ValueError:
+                        pass
+            case chat.EChatRoomMemberStateChange.RolesChanged:
+                member._role_ids = cast(tuple[RoleID, ...], tuple(msg.member.role_ids))
+
+        self.dispatch("member_update", before, member)
+
+    def handle_chat_update(self, msg: chat.ChatRoomGroupRoomsChangeNotification) -> None:
         try:
             chat_group = self._chat_groups[ChatGroupID(msg.chat_group_id)]
         except KeyError:
@@ -1265,7 +1362,7 @@ class ConnectionState(Registerable):
         await self.handled_wallet.wait()  # ensure wallet is ready
         await self.client._handle_ready()
 
-    @register(EMsg.ClientPersonaState)
+    @parser
     def parse_persona_state_update(self, msg: friends.CMsgClientPersonaState) -> None:
         for friend in msg.friends:
             after = self.get_user(_ID64_TO_ID32(friend.friendid))
@@ -1280,7 +1377,7 @@ class ConnectionState(Registerable):
         self.user._friends[user.id] = friend = Friend(self, user)
         return friend
 
-    @register(EMsg.ClientFriendsList)
+    @parser
     async def process_friends(self, msg: friends.CMsgClientFriendsList) -> None:
         await self.login_complete.wait()
         clan_invitees = None
@@ -1361,7 +1458,6 @@ class ConnectionState(Registerable):
                                 self.dispatch("clan_invite_decline", invite)
 
         if is_load:
-            await self.login_complete.wait()
             self.user._friends = {user.id: Friend(self, user) for user in await self.fetch_users(client_user_friends)}
             self.handled_friends.set()
 
@@ -1560,7 +1656,7 @@ class ConnectionState(Registerable):
                     forum_id = int(body["forum_id"])
                     partial_user = PartialUser(self, body["owner_steam_id"])
                     partial_clan = PartialClan(self, body["owner_steam_id"])
-                    match type := _CommentableThreadType(int(body["type"])):
+                    match type := _CommentableThreadType.try_value(int(body["type"])):
                         case _CommentableThreadType.User:
                             commentable = partial_user
                         case _CommentableThreadType.Clan:
@@ -1582,7 +1678,7 @@ class ConnectionState(Registerable):
                             log.debug("Ignoring topic comment notification %s", notification)
                             continue
                         case _:
-                            log.info(f"Unknown commentable type {type}")
+                            log.info("Unknown commentable type %d", type)
                             continue
                     comments = [
                         comment async for comment in commentable.comments(limit=comment_index)
@@ -1604,7 +1700,7 @@ class ConnectionState(Registerable):
             )
         )
 
-    @register(EMsg.ClientCommentNotifications)
+    @parser
     async def handle_comments(self, msg: client_server_2.CMsgClientCommentNotifications) -> None:
         notifications = await self.fetch_notifications()
         while all(notification.notification_type != 3 for notification in notifications):
@@ -1612,7 +1708,7 @@ class ConnectionState(Registerable):
             notifications = await self.fetch_notifications()
         return
 
-    @register(EMsg.ClientEmoticonList)
+    @parser
     def handle_emoticon_list(self, msg: friends.CMsgClientEmoticonList) -> None:
         self.emoticons = [ClientEmoticon(self, emoticon) for emoticon in msg.emoticons]
         self.stickers = [ClientSticker(self, sticker) for sticker in msg.stickers]
@@ -1645,13 +1741,13 @@ class ConnectionState(Registerable):
         # but also if this doesn't work there's no point including this method
         return [_Reaction(reactionid=id, count=count) for id, count in collections.Counter(msg.reactionids).items()]
 
-    @register(EMsg.ClientUserNotifications)
+    @parser
     async def parse_notification(self, msg: client_server_2.CMsgClientUserNotifications) -> None:
         if any(b.user_notification_type == 1 for b in msg.notifications):
             # 1 is a trade offer
             await self.poll_trades()
 
-    @register(EMsg.ClientItemAnnouncements)
+    @parser
     async def parse_new_items(self, msg: client_server_2.CMsgClientItemAnnouncements) -> None:
         if msg.count_new_items:
             await self.poll_trades()
@@ -1735,7 +1831,7 @@ class ConnectionState(Registerable):
             raise WSException(msg)
         return msg
 
-    @register(EMsg.ClientAccountInfo)
+    @parser
     async def parse_account_info(self, msg: login.CMsgClientAccountInfo) -> None:
         await self.login_complete.wait()
         if msg.persona_name != self.user.name:
@@ -1769,7 +1865,7 @@ class ConnectionState(Registerable):
         if msg.result != Result.OK:
             raise WSException(msg)
 
-    @register(EMsg.ClientClanState)
+    @parser
     async def update_clan(self, msg: client_server.CMsgClientClanState) -> None:
         await self.handled_chat_groups.wait()
         steam_id = ID(msg.steamid_clan)
@@ -1807,7 +1903,7 @@ class ConnectionState(Registerable):
         if dispatch_update:
             self.dispatch("clan_update", before, clan)
 
-    @register(EMsg.ClientLicenseList)
+    @parser
     async def handle_licenses(self, msg: client_server.CMsgClientLicenseList) -> None:
         await self.login_complete.wait()
         users: dict[int, User] = {
@@ -1823,7 +1919,7 @@ class ConnectionState(Registerable):
 
         self.handled_licenses.set()
 
-    @register(EMsg.ClientWalletInfoUpdate)
+    @parser
     def handle_wallet(self, msg: client_server.CMsgClientWalletInfoUpdate) -> None:
         self.wallet = Wallet(
             self, msg.balance64, CurrencyCode.try_value(msg.currency), msg.balance64_delayed, Realm.try_value(msg.realm)
@@ -2385,7 +2481,7 @@ class ConnectionState(Registerable):
             raise WSException(msg)
         return msg.ticket
 
-    @register(EMsg.ClientGameConnectTokens)
+    @parser
     def handle_game_connect_tokens(self, msg: client_server.CMsgClientGameConnectTokens) -> None:
         self._game_connect_bytes.extend(msg.tokens)
 
@@ -2446,7 +2542,7 @@ class ConnectionState(Registerable):
         self._auth_seq_me += 1
         self._auth_seq_them = msg.message_sequence
 
-    @register(EMsg.ClientTicketAuthComplete)
+    @parser
     def handle_ticket_auth_complete(self, msg: client_server.CMsgClientTicketAuthComplete) -> None:
         ticket = utils.find(
             lambda ticket: crc32(ticket.auth_ticket) == msg.ticket_crc, self._active_auth_tickets.values()
@@ -2587,3 +2683,23 @@ class ConnectionState(Registerable):
         if msg.result != Result.OK:
             raise WSException(msg)
         return msg.item_definitions
+
+    def _run_parser_callback(self, task: asyncio.Task[object]) -> None:
+        try:
+            exception = task.exception()
+        except asyncio.CancelledError:
+            return
+        if exception:
+            log.error(exception)
+
+
+ConnectionState.parsers = {}
+for _, func in inspect.getmembers(ConnectionState, lambda x: inspect.isfunction and getattr(x, "__parser__", False)):
+    params = list(inspect.get_annotations(func, eval_str=True).values())
+    if args := get_args(params[0]):
+        ConnectionState.parsers[args[0].MSG] = func
+    elif params[0].MSG not in SERVICE_EMSGS | {NoMsg.NONE}:
+        ConnectionState.parsers[params[0].MSG] = func
+
+for msg in SERVICE_EMSGS:
+    ConnectionState.parsers[msg] = ConnectionState.parse_um  # type: ignore

@@ -5,29 +5,24 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
-import traceback
 from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import timedelta
 from io import BytesIO
-from types import CoroutineType
 from typing import TYPE_CHECKING, Any, Literal, ParamSpec, Protocol, TypedDict, TypeVar
 
 from aiohttp.streams import AsyncStreamIterator, ChunkTupleAsyncStreamIterator
-from typing_extensions import Self
 from yarl import URL as _URL
 
 from . import utils
 from ._const import DEFAULT_AVATAR, URL
-from .enums import CurrencyCode, IntEnum, PurchaseResult, Realm, Result
+from .enums import CurrencyCode, PurchaseResult, Realm, Result
 from .media import Media
-from .protobufs import EMsg
 
 if TYPE_CHECKING:
     from _typeshed import StrOrBytesPath
 
-    from .gateway import Msgs
     from .state import ConnectionState
     from .types import user
 
@@ -58,78 +53,6 @@ class _ReturnTrue:
 
 
 return_true = _ReturnTrue()
-
-
-class Registerable:
-    def __new__(cls, *args: Any, **kwargs: Any) -> Self:
-        self = super().__new__(cls)
-        cls.parsers_name = tuple(cls.__annotations__)[0]
-        bases = tuple(reversed(cls.__mro__[:-2]))  # skip Registerable and object
-        for idx, base in enumerate(bases):
-            parsers_name = tuple(base.__annotations__)[0]
-            for name, attr in base.__dict__.items():
-                if not hasattr(attr, "msg"):
-                    continue
-                try:
-                    parsers = getattr(self, parsers_name)
-                except AttributeError:
-                    parsers = {}
-                    setattr(self, parsers_name, parsers)
-                msg_parser = getattr(self, name)
-                if idx != 0 and isinstance(attr.msg, EMsg):
-                    parsers = getattr(self, tuple(bases[0].__annotations__)[0])
-                parsers[attr.msg] = msg_parser
-
-        return self
-
-    @utils.cached_property
-    def _logger(self) -> logging.Logger:
-        return logging.getLogger(self.__class__.__module__)
-
-    @utils.cached_property
-    def _tg(self) -> TaskGroup:
-        raise NotImplementedError()
-
-    @staticmethod
-    def _run_parser_callback(task: asyncio.Task[object]) -> None:
-        try:
-            exception = task.exception()
-        except asyncio.CancelledError:
-            return
-        if exception:
-            traceback.print_exception(exception)
-
-    def run_parser(self, msg: Msgs) -> None:
-        try:
-            event_parser: Callable[[Msgs], CoroutineType[Any, Any, object] | object] = getattr(self, self.parsers_name)[
-                msg.__class__.MSG
-            ]
-        except (KeyError, TypeError):
-            try:
-                self._logger.debug("Ignoring event %r", msg, exc_info=True)
-            except Exception:
-                self._logger.debug("Ignoring event with %r", msg.__class__)
-        else:
-            try:
-                result = event_parser(msg)
-            except Exception:
-                return traceback.print_exc()
-
-            if isinstance(result, CoroutineType):
-                self._tg.create_task(result, name=f"steam.py: {event_parser.__name__}").add_done_callback(
-                    self._run_parser_callback
-                )
-
-
-EventParser = None
-
-
-def register(msg: IntEnum) -> Callable[[F], F]:  # this afaict is not type able currently without HKT
-    def wrapper(callback: F) -> F:
-        callback.msg = msg
-        return callback
-
-    return wrapper
 
 
 PRICE_RE = re.compile(r"(^\D*(?P<price>[\d,.]*)\D*$)")

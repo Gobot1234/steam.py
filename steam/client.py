@@ -103,7 +103,8 @@ class Client:
     max_messages
         The maximum number of messages to store in the internal cache, default is 1000.
     app
-        An app to set your status as on connect.
+        An app to set your status as on connect. This will take precedence over any apps set using ``apps`` as your
+        current status.
     apps
         A list of apps to set your status to on connect.
     state
@@ -429,7 +430,7 @@ class Client:
                     self._state._active_auth_tickets.clear()
                     await self._state.deactivate_auth_session_tickets()
                 await self.change_presence(apps=[])  # disconnect from games
-                await self.ws.handle_close()
+                await self._state.handle_close()
             except ConnectionClosed:
                 pass
 
@@ -1667,24 +1668,6 @@ class Client:
                 The state of the ticket.
             """
 
-        async def on_socket_receive(self, msg: "Message | ProtobufMessage") -> None:
-            """Called when the connected CM parses a received a message.
-
-            Parameters
-            ----------
-            msg
-                The received message.
-            """
-
-        async def on_socket_send(self, msg: "Message | ProtobufMessage") -> None:
-            """Called when the client sends a message to the connected CM.
-
-            Parameters
-            ----------
-            msg
-                The sent message.
-            """
-
     @overload
     async def wait_for(
         self,
@@ -1884,19 +1867,6 @@ class Client:
         check: Callable[[AuthenticationTicket, AuthSessionResponse, int], bool] = ...,
         timeout: float | None = ...,
     ) -> tuple[AuthenticationTicket, AuthSessionResponse, int]:
-        ...
-
-    @overload
-    async def wait_for(
-        self,
-        event: Literal[
-            "socket_receive",
-            "socket_send",
-        ],
-        *,
-        check: Callable[[Msgs], bool] = ...,
-        timeout: float | None = ...,
-    ) -> Msgs:
         ...
 
     async def wait_for(

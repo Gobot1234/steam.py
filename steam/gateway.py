@@ -24,6 +24,7 @@ from functools import partial
 from gzip import FCOMMENT, FEXTRA, FHCRC, FNAME
 from ipaddress import IPv4Address
 from operator import attrgetter
+from types import CoroutineType
 from typing import TYPE_CHECKING, Any, Final, Generic, TypeAlias, overload
 from zlib import MAX_WBITS, decompress
 
@@ -37,7 +38,7 @@ from ._const import CLEAR_PROTO_BIT, DEFAULT_CMS, IS_PROTO, READ_U32, SET_PROTO_
 from .enums import *
 from .errors import NoCMsFound, WSException
 from .id import parse_id64
-from .models import Registerable, register, return_true
+from .models import return_true
 from .protobufs import (
     EMsg,
     GCMessage,
@@ -147,12 +148,40 @@ async def fetch_cm_list(state: ConnectionState, cell_id: int = 0) -> AsyncGenera
         return
 
     hosts = data["serverlist"]
-    log.debug(f"Received {len(hosts)} servers from WebAPI")
+    log.debug("Received %d servers from WebAPI", len(hosts))
     for cm in sorted(
         (CMServer(state, url=server["endpoint"], weighted_load=server["wtd_load"]) for server in hosts),
         key=attrgetter("weighted_load"),
     ):  # they should already be sorted but oh well
         yield cm
+
+
+def unpack_multi(msg: CMsgMulti) -> bytearray | None:
+    data = msg.message_body
+    if data[:2] != b"\037\213":
+        return log.info("Received a file that's not GZipped")
+
+    position = 10
+
+    if flag := data[3]:  # this isn't ever hit, might as well save a few nanos
+        if flag & FEXTRA:
+            extra_len = int.from_bytes(data[position : position + 2], byteorder="little")
+            position += 2 + extra_len
+        if flag & FNAME:
+            while data[position:]:
+                position += 1
+        if flag & FCOMMENT:
+            while data[position:]:
+                position += 1
+        if flag & FHCRC:
+            position += 2
+
+    decompressed = decompress(data[position:], wbits=-MAX_WBITS)
+
+    if len(decompressed) != msg.size_unzipped:
+        return log.info("Unzipped size mismatch for multi payload %r, discarding", msg)
+
+    return bytearray(decompressed)
 
 
 class ConnectionClosed(Exception):
@@ -239,9 +268,7 @@ class KeepAliveHandler(threading.Thread):
             log.warning(self.behind_msg.format(total=self.latency))
 
 
-class SteamWebSocket(Registerable):
-    parsers: dict[EMsg, Callable[..., Any]]
-
+class SteamWebSocket:
     def __init__(
         self,
         state: ConnectionState,
@@ -262,7 +289,7 @@ class SteamWebSocket(Registerable):
 
         # ws related stuff
         self.listeners: list[EventListener[Any]] = []
-        self.parsers.update(state.parsers)
+        self.gc_listeners: list[GCEventListener[Any]] = []
         self.closed = False
 
         self.session_id = 0
@@ -271,7 +298,7 @@ class SteamWebSocket(Registerable):
         self._gc_current_job_id = 0
         self.server_offset = timedelta()
         self.refresh_token: str
-        self.access_token: str
+        self._access_token: str
         self.client_id: int
 
         self.public_ip: IPAdress
@@ -316,7 +343,7 @@ class SteamWebSocket(Registerable):
 
     @overload
     def gc_wait_for(
-        self, *, emsg: IntEnum | None, check: Callable[[GCMsgsT], bool] = return_true
+        self, *, emsg: IntEnum | None, app_id: AppID | None = None, check: Callable[[GCMsgsT], bool] = return_true
     ) -> asyncio.Future[GCMsgsT]:
         ...
 
@@ -337,13 +364,17 @@ class SteamWebSocket(Registerable):
         msg: type[GCMsgsT] | None = None,
         *,
         emsg: IntEnum | None = None,
+        app_id: AppID | None = None,
         check: Callable[[GCMsgsT], bool] = return_true,
     ) -> asyncio.Future[GCMsgsT]:
         from ._gc import APP
 
         future: asyncio.Future[GCMsgsT] = asyncio.get_running_loop().create_future()
         entry = GCEventListener(
-            msg=msg.MSG if msg else emsg, check=check, future=future, app_id=msg.APP_ID if msg else APP.get().id
+            msg=msg.MSG if msg else emsg,
+            check=check,
+            future=future,
+            app_id=msg.APP_ID if msg else app_id or APP.get().id,
         )
         self.gc_listeners.append(entry)
         return future
@@ -354,11 +385,12 @@ class SteamWebSocket(Registerable):
         state = client._state
         cm_list = fetch_cm_list(state)
         async for cm in cm_list:
-            log.info(f"Attempting to create a websocket connection to: {cm}")
+            log.info("Attempting to create a websocket connection to %s (load: %f)", cm.url, cm.weighted_load)
             socket = await cm.connect()
-            log.debug(f"Connected to {cm}")
+            log.debug("Connected to %s", cm.url)
 
             self = cls(state, socket, cm_list, cm)
+            client.ws = self
             self._dispatch("connect")
 
             async def poll():
@@ -388,8 +420,8 @@ class SteamWebSocket(Registerable):
                 check=lambda msg: isinstance(msg, login.CMsgClientLogonResponse),
             )
             if msg.result != Result.OK:
-                log.debug(f"Failed to login with result: {msg.result}")
-                await self.handle_close()
+                log.debug("Failed to login with result: %r", msg.result)
+                await self._state.handle_close()
                 return await self.from_client(client)
 
             self.public_ip = IPv4Address(msg.public_ip.v4)
@@ -398,6 +430,8 @@ class SteamWebSocket(Registerable):
 
             (us,) = await self.fetch_users((self.id64,))
             client.http.user = ClientUser(state, us)
+            if hasattr(self._state, "_original_client_user_msg"):
+                self._state._original_client_user_msg = us  # type: ignore
             state._users[client.user.id] = client.user  # type: ignore
             self._state.cell_id = msg.cell_id
 
@@ -407,7 +441,6 @@ class SteamWebSocket(Registerable):
             self._keep_alive.start()
             log.debug("Heartbeat started.")
 
-            client.ws = self
             state.login_complete.set()
 
             await self.send_um(chat.GetMyChatRoomGroupsRequest())
@@ -426,15 +459,11 @@ class SteamWebSocket(Registerable):
             self._dispatch("login")
             log.debug("Logon completed")
 
-            def shallow_cancelled_error(_: object) -> None:
-                try:
-                    task.exception()
-                except (asyncio.CancelledError, asyncio.InvalidStateError):
-                    pass
-
-            task.add_done_callback(shallow_cancelled_error)
             task.cancel()  # we let Client.connect handle poll_event from here on out
-            await asyncio.sleep(0)  # needed to ensure the task is cancelled and socket._waiting is removed
+            try:
+                await task  # needed to ensure the task is cancelled and socket._waiting is removed
+            except asyncio.CancelledError:
+                pass
 
             return self
         raise NoCMsFound("No CMs found could be connected to. Steam is likely down")
@@ -482,7 +511,7 @@ class SteamWebSocket(Registerable):
                         for allowed_confirmation in begin_resp.allowed_confirmations
                     ):  # not actually sure how to deal with this properly currently, but this works
                         log.debug("Duplicate request, may have been confirmed by login request")
-                    elif code_msg.result != Result.OK:
+                    elif code_msg.result != Result.OK:  # TODO handle Result.InvalidLoginAuthCode
                         raise WSException(code_msg)
                     poll_resp: auth.PollAuthSessionStatusResponse = await self.send_um_and_wait(
                         auth.PollAuthSessionStatusRequest(
@@ -504,8 +533,20 @@ class SteamWebSocket(Registerable):
 
         self.id64 = ID64(begin_resp.steamid)
         self.client_id = poll_resp.new_client_id or begin_resp.client_id
-        self.access_token = poll_resp.access_token
+        self._access_token = poll_resp.access_token
         return poll_resp.refresh_token
+
+    async def access_token(self) -> str:
+        try:
+            return self._access_token
+        except AttributeError:
+            msg: auth.GenerateAccessTokenForAppResponse = await self.send_um_and_wait(
+                auth.GenerateAccessTokenForAppRequest(self.refresh_token, self.id64)
+            )
+            if msg.result != Result.OK:
+                raise WSException(msg) from None
+            self._access_token = msg.access_token
+            return msg.access_token
 
     @classmethod
     async def anonymous_login_from_client(cls, client: Client) -> SteamWebSocket:
@@ -513,11 +554,12 @@ class SteamWebSocket(Registerable):
         state = client._state
         cm_list = fetch_cm_list(state)
         async for cm in cm_list:
-            log.info(f"Attempting to create an anonymous websocket connection to: {cm}")
+            log.info("Attempting to create a websocket connection to %s (load: %f)", cm.url, cm.weighted_load)
             socket = await cm.connect()
-            log.debug(f"Connected to {cm}")
+            log.debug("Connected to %s", cm.url)
 
             self = cls(state, socket, cm_list, cm)
+            client.ws = self
             self._dispatch("connect")
 
             async def poll():
@@ -537,8 +579,8 @@ class SteamWebSocket(Registerable):
                 check=lambda msg: isinstance(msg, login.CMsgClientLogonResponse),
             )
             if msg.result != Result.OK:
-                log.debug(f"Failed to login with result: {msg.result}")
-                await self.handle_close()
+                log.debug("Failed to login with result: %r", msg.result)
+                await self._state.handle_close()
                 return await self.from_client(client)
 
             self.session_id = msg.header.session_id
@@ -551,7 +593,6 @@ class SteamWebSocket(Registerable):
             self._keep_alive.start()
             log.debug("Heartbeat started.")
 
-            client.ws = self
             state.login_complete.set()
             state.http.user = AnonymousClientUser(state, self.id64)  # type: ignore
 
@@ -562,18 +603,13 @@ class SteamWebSocket(Registerable):
             self._dispatch("login")
             log.debug("Logon completed")
 
-            def shallow_cancelled_error(_: object) -> None:
-                try:
-                    task.exception()
-                except (asyncio.CancelledError, asyncio.InvalidStateError):
-                    pass
-
-            task.add_done_callback(shallow_cancelled_error)
-            task.cancel()  # we let Client.connect handle poll_event from here on out
-            await asyncio.sleep(0)
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
 
             await client._handle_ready()
-
             return self
         raise NoCMsFound("No CMs found could be connected to. Steam is likely down")
 
@@ -583,16 +619,16 @@ class SteamWebSocket(Registerable):
             if message.type is aiohttp.WSMsgType.BINARY:
                 return self.receive(bytearray(message.data))
             if message.type is aiohttp.WSMsgType.ERROR:
-                log.debug(f"Received {message}")
+                log.debug("Received %r", message)
                 raise message.data
             if message.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.CLOSE, aiohttp.WSMsgType.CLOSING):
-                log.debug(f"Received {message}")
+                log.debug("Received %r", message)
                 raise WebSocketClosure
-            log.debug(f"Dropped unexpected message type: {message}")
+            log.debug("Dropped unexpected message type: %r", message)
         except WebSocketClosure:
-            await self.handle_close()
+            await self._state.handle_close()
 
-    def receive(self, message: bytearray) -> None:
+    def receive(self, message: bytearray, /) -> None:
         emsg_value = READ_U32(message)
         try:
             msg = (
@@ -602,7 +638,7 @@ class SteamWebSocket(Registerable):
             )
         except Exception as exc:
             return log.error(
-                f"Failed to deserialize message: {EMsg(CLEAR_PROTO_BIT(emsg_value))!r}, {message!r}", exc_info=exc
+                "Failed to deserialize message: %r, %r", EMsg(CLEAR_PROTO_BIT(emsg_value)), message, exc_info=exc
             )
 
         log.debug("Socket has received %r from the websocket.", msg)
@@ -610,9 +646,23 @@ class SteamWebSocket(Registerable):
         if hasattr(self, "_keep_alive"):
             self._keep_alive.tick()
 
-        self._dispatch("socket_receive", msg)
-        self.run_parser(msg)
+        try:
+            event_parser = self._state.parsers[msg.MSG]
+        except (KeyError, TypeError):
+            try:
+                log.debug("Ignoring event %r", msg, exc_info=True)
+            except Exception:
+                log.debug("Ignoring event with %r", msg.__class__)
+        else:
+            try:
+                result = event_parser(self._state, msg)
+            except Exception:
+                return traceback.print_exc()
 
+            if isinstance(result, CoroutineType):
+                self._state._tg.create_task(result, name=f"steam.py: {event_parser.__name__}").add_done_callback(
+                    self._state._run_parser_callback
+                )
         # remove the dispatched listener
         removed: list[int] = []
         for idx, entry in enumerate(self.listeners):
@@ -642,19 +692,16 @@ class SteamWebSocket(Registerable):
             await self.socket.send_bytes(data)
         except ConnectionResetError:
             log.info("Connection closed")
-            await self.handle_close()
+            await self._state.handle_close()
 
     async def send_proto(self, message: ProtoMsgs) -> None:
         message.header.steam_id = self.id64
         message.header.session_id = self.session_id
 
-        self._dispatch("socket_send", message)
         await self.send(bytes(message))
 
     async def send_gc_message(self, msg: GCMsgs) -> int:  # for ext's to send GC messages
-        from ._gc import APP
-
-        app_id = APP.get().id
+        app_id = msg.APP_ID
         message = client_server_2.CMsgGcClientToGC(
             appid=app_id,
             msgtype=SET_PROTO_BIT(msg.MSG) if isinstance(msg, GCProtobufMessage) else msg.MSG,
@@ -664,7 +711,6 @@ class SteamWebSocket(Registerable):
         message.header.job_id_source = self.next_gc_job_id
 
         log.debug("Sending GC message %r", msg)
-        self._dispatch("gc_message_send", msg)
         await self.send_proto(message)
         return message.header.job_id_source
 
@@ -673,70 +719,6 @@ class SteamWebSocket(Registerable):
         message.header.steam_id = self.id64
         message.header.session_id = self.session_id
         await self.socket.close(code=code, message=bytes(message))
-
-    @register(EMsg.ClientLoggedOff)
-    async def handle_close(self, _: Any = None) -> None:
-        if self.closed:  # don't want ConnectionClosed to be raised multiple times
-            return
-        if not self.socket.closed:
-            await self.close()
-        if hasattr(self, "_keep_alive"):
-            self._keep_alive.stop()
-            del self._keep_alive
-        log.info("Websocket closed, cannot reconnect.")
-        self.closed = True
-        raise ConnectionClosed(self.cm)
-
-    @register(EMsg.ClientHeartBeat)
-    def ack_heartbeat(self, msg: login.CMsgClientHeartBeat) -> None:
-        self._keep_alive.ack()
-
-    @register(EMsg.ClientServerTimestampResponse)
-    def set_steam_time(self, msg: login.CMsgClientServerTimestampResponse) -> None:
-        self.server_offset = timedelta(milliseconds=msg.server_timestamp_ms - msg.client_request_timestamp)
-
-    @staticmethod
-    def unpack_multi(msg: CMsgMulti) -> bytearray | None:
-        data = msg.message_body
-        log.debug(f"Decompressing payload ({len(data)} -> {msg.size_unzipped})")
-        if data[:2] != b"\037\213":
-            return log.info("Received a file that's not GZipped")
-
-        position = 10
-
-        if flag := data[3]:  # this isn't ever hit, might as well save a few nanos
-            if flag & FEXTRA:
-                extra_len = int.from_bytes(data[position : position + 2], byteorder="little")
-                position += 2 + extra_len
-            if flag & FNAME:
-                while data[position:]:
-                    position += 1
-            if flag & FCOMMENT:
-                while data[position:]:
-                    position += 1
-            if flag & FHCRC:
-                position += 2
-
-        decompressed = decompress(data[position:], wbits=-MAX_WBITS)
-
-        if len(decompressed) != msg.size_unzipped:
-            return log.info(f"Unzipped size mismatch for multi payload {msg}, discarding")
-
-        return bytearray(decompressed)
-
-    @register(EMsg.Multi)
-    def handle_multi(self, msg: CMsgMulti) -> None:
-        log.debug("Received a multi")
-        data: bytearray = self.unpack_multi(msg) if msg.size_unzipped else msg.message_body  # type: ignore
-
-        while data:
-            size = READ_U32(data)
-            self.receive(data[4 : 4 + size])
-            data = data[4 + size :]
-
-    @register(EMsg.ClientLoggedOff)
-    async def handle_logoff(self, msg: login.CMsgClientLoggedOff):
-        await self.handle_close()
 
     @property
     def next_job_id(self) -> int:
@@ -759,9 +741,11 @@ class SteamWebSocket(Registerable):
         check: Callable[[UnifiedMsgT], bool] = ...,  # type: ignore  # we rely on this not being solvable.
         # I won't tell Eric if you won't. (This isn't part of PEP 696)
     ) -> UnifiedMsgT:
-        job_id = await self.send_um(um)
+        um.header.job_id_source = job_id = self.next_job_id
         check = check if check is not ... else (lambda um: um.header.job_id_target == job_id)
-        return await self.wait_for(emsg=EMsg.ServiceMethodSendToClient, check=check)
+        future = self.wait_for(emsg=EMsg.ServiceMethodSendToClient, check=check)
+        await self.send_proto(um)
+        return await future
 
     async def send_proto_and_wait(self, msg: ProtoMsgs, check: Callable[[ProtoMsgsT], bool] = ...) -> ProtoMsgsT:  # type: ignore
         msg.header.job_id_source = job_id = self.next_job_id
@@ -774,7 +758,9 @@ class SteamWebSocket(Registerable):
     async def send_gc_message_and_wait(self, msg: GCMsgs, check: Callable[[GCMsgProtoT], bool] = ...) -> GCMsgProtoT:  # type: ignore
         msg.header.job_id_source = job_id = self.next_gc_job_id
         future = self.gc_wait_for(
-            emsg=None, check=check if check is not ... else (lambda msg: msg.header.job_id_target == job_id)
+            emsg=None,
+            app_id=msg.APP_ID,
+            check=check if check is not ... else (lambda msg: msg.header.job_id_target == job_id),
         )
         await self.send_gc_message(msg)
         return await future

@@ -51,10 +51,19 @@ class ESessionPersistence(betterproto.Enum):
     Persistent = 1
 
 
+class GenerateAccessTokenForAppRequest(UnifiedMessage, um_name="Authentication.GenerateAccessTokenForApp"):
+    refresh_token: str = betterproto.string_field(1)
+    steamid: int = betterproto.fixed64_field(2)
+
+
+class GenerateAccessTokenForAppResponse(UnifiedMessage, um_name="Authentication.GenerateAccessTokenForApp"):
+    access_token: str = betterproto.string_field(1)
+    refresh_token: str = betterproto.string_field(2)
+
+
 class GetPasswordRsaPublicKeyRequest(
     UnifiedMessage,
     msg=EMsg.ServiceMethodCallFromClientNonAuthed,
-    # msg=EMsg.ServiceMethodCallFromClient,
     um_name="Authentication.GetPasswordRSAPublicKey",
 ):
     account_name: str = betterproto.string_field(1)
