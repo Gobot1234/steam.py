@@ -446,6 +446,7 @@ class ConnectionState:
             log.info("Error while polling trades", exc_info=exc)
 
     async def wait_for_trade(self, id: TradeOfferID) -> TradeOffer[Item[User], Item[ClientUser], User]:
+        self._trades_to_watch.add(id)
         self._tg.create_task(self.poll_trades())  # start re-polling trades
         return await self.trade_queue.wait_for(id=id)
 
@@ -773,7 +774,7 @@ class ConnectionState:
         return [self._store_user(member.persona) for member in msg.members]
 
     async def edit_role_name(self, chat_group_id: ChatGroupID, role_id: RoleID, name: str) -> None:
-        msg: ProtobufMessage = await self.ws.send_um_and_wait(
+        msg = await self.ws.send_um_and_wait(
             chat.RenameRoleRequest(chat_group_id=chat_group_id, role_id=role_id, name=name)
         )
         if msg.result == Result.InvalidParameter:
@@ -1530,7 +1531,7 @@ class ConnectionState:
             )
 
             for item in msg.descriptions:
-                result[(item.classid, item.instanceid)] = item  # type: ignore
+                result[cast(CacheKey, (item.classid, item.instanceid))] = item
 
         return result
 
@@ -1870,8 +1871,6 @@ class ConnectionState:
         await self.handled_chat_groups.wait()
         steam_id = ID(msg.steamid_clan)
         clan = self.get_clan(steam_id.id) or await self.fetch_clan(steam_id.id64, maybe_chunk=False)
-        if clan is None:
-            return
 
         for event in msg.events:
             if event.just_posted:
@@ -2506,7 +2505,7 @@ class ConnectionState:
             except KeyError:
                 log.debug("Ticket %r is not active", ticket)
 
-        if ticket.user == self.user:  # type: ignore
+        if ticket.user == self.user:  # type: ignore  # ticket cannot be unbound
             return  # can't deactivate our own ticket?
         await self.send_auth_list()
 

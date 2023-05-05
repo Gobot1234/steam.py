@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import timedelta
 from io import BytesIO
-from typing import TYPE_CHECKING, Any, Literal, ParamSpec, Protocol, TypedDict, TypeVar
+from typing import TYPE_CHECKING, Any, Literal, ParamSpec, Protocol, TypedDict, TypeVar, cast
 
 from aiohttp.streams import AsyncStreamIterator, ChunkTupleAsyncStreamIterator
 from yarl import URL as _URL
@@ -189,8 +189,8 @@ class _IOMixin:
     @asynccontextmanager
     async def open(self, **kwargs: Any) -> AsyncGenerator[StreamReaderProto, None]:
         """Open this file as and returns its contents as an :class:`aiohttp.StreamReader`."""
-        url: str = self.url  # type: ignore
-        state: ConnectionState = self._state  # type: ignore
+        url = cast(str, self.url)  # type: ignore
+        state = cast("ConnectionState", self._state)  # type: ignore
 
         async with state.http._session.get(url) as r:
             yield r.content
@@ -237,7 +237,7 @@ class Avatar(_IOMixin):
 
     @property
     def url(self) -> str:
-        """The URL of the avatar. Uses the large (184x184 px) image url."""
+        """The URL of the avatar. Uses the large (184x184 px) image URL."""
         return f"https://avatars.cloudflare.steamstatic.com/{self.sha.hex()}_full.jpg"
 
     def __eq__(self, other: object) -> bool:

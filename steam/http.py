@@ -12,7 +12,7 @@ from http.cookies import SimpleCookie
 from random import randbytes
 from sys import version_info
 from time import time
-from typing import TYPE_CHECKING, Any, Literal, Sequence, TypeVar, ValuesView
+from typing import TYPE_CHECKING, Any, Literal, Sequence, TypeVar, ValuesView, cast
 
 import aiohttp
 from bs4 import BeautifulSoup
@@ -288,7 +288,7 @@ class HTTPClient:
             "relationship": "friend",
         }
         friends: user.FriendsList = await self.get(api_route("ISteamUser/GetFriendList"), params=params)
-        return [friend["steamid"] for friend in friends["friendslist"]["friends"]]
+        return cast("list[ID64]", [int(friend["steamid"]) for friend in friends["friendslist"]["friends"]])
 
     async def get_trade_offers(
         self,
@@ -517,7 +517,7 @@ class HTTPClient:
         headers = {"Referer": f"{URL.STORE}/checkout/sendgift/{asset_id}"}
         data: EResultSuccess = await self.post(URL.STORE / "checkout/sendgiftsubmit", data=payload, headers=headers)
         if data["sucess"] != Result.OK:
-            return HTTPError("Failed to send gift")
+            raise RuntimeError("Failed to send gift")
 
     def clear_nickname_history(self) -> Coro[None]:
         payload = {"sessionid": self.session_id}

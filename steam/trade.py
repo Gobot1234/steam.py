@@ -482,6 +482,8 @@ class TradeOffer(Generic[ReceivingAssetT, SendingAssetT, OwnerT]):
         data: trade.TradeOfferHistoryTrade,
         descriptions: Sequence[trade.Description],
     ) -> TradeOffer[MovedItem[OwnerT], MovedItem[ClientUser], OwnerT]:
+        from .abc import PartialUser
+
         partner = cast("OwnerT", PartialUser(state, data["steamid_other"]))
         trade = cls(
             receiving=[
@@ -668,7 +670,8 @@ class TradeOffer(Generic[ReceivingAssetT, SendingAssetT, OwnerT]):
         )
 
     async def counter(
-        self: TradeOffer[Asset[OwnerT], Asset[ClientUser], OwnerT], trade: TradeOffer[Asset[OwnerT], Any, Any]
+        self: TradeOffer[Asset[OwnerT], Asset[ClientUser], OwnerT],
+        trade: TradeOffer[Asset[OwnerT], Asset[ClientUser], Any],
     ) -> None:
         """Counter a trade offer from an :class:`User`.
 

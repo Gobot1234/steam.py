@@ -130,7 +130,7 @@ class AuthenticateUserTicketParams(TypedDict):
 
 GetUserGroupList: TypeAlias = ResponseDict[dict[Literal["groups"], list[dict[Literal["gid"], ID32]]]]
 GetPlayerBans: TypeAlias = dict[Literal["players"], list[RawUserBan]]
-FriendsList: TypeAlias = dict[Literal["friendslist"], dict[Literal["friends"], list[dict[Literal["steamid"], "ID64"]]]]
+FriendsList: TypeAlias = dict[Literal["friendslist"], dict[Literal["friends"], list[dict[Literal["steamid"], str]]]]
 AuthenticateUserTicket: TypeAlias = dict[Literal["params"], AuthenticateUserTicketParams]
 GetSteamLevel: TypeAlias = ResponseDict[dict[Literal["player_level"], int]]
 

@@ -437,7 +437,7 @@ class ID(Generic[TypeT], metaclass=abc.ABCMeta):
 
     @property
     def community_url(self) -> str | None:
-        """The Steam ID's community url if it is a :class:`.Type.Individual` or :class:`.Type.Clan`.
+        """The Steam ID's community url if it is a :attr:`.Type.Individual` or :attr:`.Type.Clan`.
 
         e.g ``https://steamcommunity.com/profiles/123456789`` or ``https://steamcommunity.com/gid/123456789``.
         """
@@ -454,16 +454,16 @@ class ID(Generic[TypeT], metaclass=abc.ABCMeta):
 
         A Steam ID is currently considered valid if:
 
-            - It is in ``(0, 2 ** 64)``
+            - It is in ``(0, 2**64)``
             - :attr:`universe` is in ``(Invalid, Dev]``
             - :attr:`type` is in ``(Invalid, AnonUser]``
-            - If :attr:`type` is :class:`.Type.Individual`:
+            - If :attr:`type` is :attr:`.Type.Individual`:
                 - :attr:`id` is non-zero
                 - :attr:`instance` is in ``[All, Web]``
-            - If :attr:`type` is :class:`.Type.Clan`:
+            - If :attr:`type` is :attr:`.Type.Clan`:
                 - :attr:`id` is non-zero
                 - :attr:`instance` is ``All``.
-            - If :attr:`type` is :class:`.Type.GameServer`:
+            - If :attr:`type` is :attr:`.Type.GameServer`:
                 - :attr:`id` is non-zero
         """
         if not (0 < self.id64 < 2**64):
@@ -574,4 +574,4 @@ class ID(Generic[TypeT], metaclass=abc.ABCMeta):
             return id
 
 
-ID_ZERO: Final = ID(0, type=Type.Individual)
+ID_ZERO: Final = ID[Literal[Type.Individual]](0, type=Type.Individual)

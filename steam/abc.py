@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import abc
 import asyncio
-import re
 from collections.abc import AsyncGenerator, Coroutine, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -16,14 +15,14 @@ from typing_extensions import Required, Self, TypeVar
 from yarl import URL as URL_
 
 from . import utils
-from ._const import HTML_PARSER, JSON_LOADS, MISSING, STEAM_EPOCH, UNIX_EPOCH, VDF_BINARY_LOADS
+from ._const import HTML_PARSER, MISSING, STEAM_EPOCH, UNIX_EPOCH, VDF_BINARY_LOADS
 from .achievement import UserAppStats
 from .app import STEAM, App, PartialApp, UserApp, UserInventoryInfoApp, UserInventoryInfoContext, WishlistApp
 from .badge import FavouriteBadge, UserBadges
 from .enums import *
 from .errors import WSException
 from .game_server import GameServer
-from .id import ID, parse_id64
+from .id import ID
 from .models import Avatar, Ban
 from .profile import *
 from .reaction import Award, AwardReaction, Emoticon, MessageReaction, PartialMessageReaction, Sticker
@@ -742,6 +741,7 @@ class BaseUser(PartialUser):
 
     @property
     def avatar(self) -> Avatar:
+        """The user's avatar."""
         return Avatar(self._state, self._avatar_sha)
 
     async def server(self) -> GameServer:

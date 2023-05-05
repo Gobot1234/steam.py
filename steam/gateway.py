@@ -241,7 +241,7 @@ class KeepAliveHandler(threading.Thread):
                     except concurrent.futures.TimeoutError:
                         total += 10
                         try:
-                            frame = sys._current_frames()[self._main_thread_id]  # noqa
+                            frame = sys._current_frames()[self._main_thread_id]
                         except KeyError:
                             msg = self.block_msg
                         else:

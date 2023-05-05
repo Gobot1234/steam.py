@@ -13,8 +13,8 @@ except ImportError:
 if TYPE_CHECKING:
     from typing_extensions import TypeAlias
 
-ROOT = pathlib.Path(".").resolve()
-PYPROJECT = tomllib.load(open(ROOT / "pyproject.toml", "rb"))
+ROOT = pathlib.Path()
+PYPROJECT = tomllib.loads((ROOT / "pyproject.toml").read_text())
 try:
     VERSION: str = PYPROJECT["tool"]["poetry"]["version"]
 except KeyError:
@@ -38,9 +38,10 @@ else:
     # try to find out the commit hash if checked out from git, and append it to __version__ (since we use this value
     # from setup.py, it gets automatically propagated to an installed copy as well)
     try:
-        if commit_count := subprocess.check_output(["git", "rev-list", "--count", "HEAD"]).decode("utf-8").strip():
-            if commit_hash := subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).decode("utf-8").strip():
-                VERSION = f"{VERSION}{commit_count}+g{commit_hash}"
+        if (
+            commit_count := subprocess.check_output(["git", "rev-list", "--count", "HEAD"]).decode("utf-8").strip()
+        ) and (commit_hash := subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).decode("utf-8").strip()):
+            VERSION = f"{VERSION}{commit_count}+g{commit_hash}"
     except Exception:
         pass
 

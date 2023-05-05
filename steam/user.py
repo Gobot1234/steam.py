@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from ipaddress import IPv4Address
 from operator import attrgetter
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from typing_extensions import Self
 
@@ -24,6 +24,7 @@ from .id import _ID64_TO_ID32, ID
 from .profile import ClientUserProfile, OwnedProfileItems, ProfileInfo, ProfileItem
 from .protobufs import friend_messages, player
 from .reaction import Emoticon, MessageReaction, Sticker
+from .trade import Asset
 from .types.id import ID32, ID64, AppID, Intable
 from .utils import DateTime, cached_slot_property, parse_bb_code
 
@@ -161,7 +162,7 @@ class User(_BaseUser, Messageable["UserMessage"]):
         self,
         content: Any = None,
         *,
-        trade: TradeOffer | None = None,
+        trade: TradeOffer[Asset[User], Asset[ClientUser], Any] | None = None,
         media: Media | None = None,
     ) -> UserMessage | None:
         """Send a message, trade or image to an :class:`User`.
@@ -228,8 +229,9 @@ class User(_BaseUser, Messageable["UserMessage"]):
                 trade.state = TradeOfferState.Active
 
             # make sure the trade is updated before this function returns
-            self._state._trades[trade.id] = trade
-            self._state._trades_to_watch.add(trade.id)
+            self._state._trades[trade.id] = cast(
+                "TradeOffer[Item[Self], Item[ClientUser], Self]", trade
+            )  # it gets upcast to this anyway after wait_for_trade
             await self._state.wait_for_trade(trade.id)
             self._state.dispatch("trade_send", trade)
 

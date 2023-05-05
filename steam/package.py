@@ -83,7 +83,7 @@ class PartialPackage(Package[NameT]):
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} name={self.name!r} id={self.id}>"
 
-    async def apps(self, *, language: Language | None = None) -> list[PartialApp]:
+    async def apps(self, *, language: Language | None = None) -> list[PartialApp[str]]:
         """Fetches this package's apps."""
         fetched = await self.fetch(language=language)
         return fetched._apps

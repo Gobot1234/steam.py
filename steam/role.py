@@ -7,13 +7,13 @@ from typing import TYPE_CHECKING, cast
 from typing_extensions import Self
 
 from .enums import Type
+from .protobufs import chat
 from .types.id import RoleID
 
 if TYPE_CHECKING:
     from .chat import ChatGroup, Member
     from .clan import Clan
     from .group import Group
-    from .protobufs import chat
     from .state import ConnectionState
 
 __all__ = (

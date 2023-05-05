@@ -96,6 +96,7 @@ class Context(Generic[BotT], Messageable["Message"]):
 
     def history(
         self,
+        *,
         limit: int | None = 100,
         before: datetime | None = None,
         after: datetime | None = None,

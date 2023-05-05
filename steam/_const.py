@@ -1,3 +1,4 @@
+# pyright: reportUnnecessaryTypeIgnoreComment=false
 """
 Various constants/types for use around the library.
 
@@ -8,7 +9,6 @@ from __future__ import annotations
 
 import builtins
 import struct
-import sys
 from collections.abc import Callable
 from contextvars import ContextVar
 from dataclasses import dataclass
@@ -28,11 +28,11 @@ DOCS_BUILDING: bool = getattr(builtins, "__sphinx__", False)
 
 
 try:
-    import orjson
+    import orjson  # type: ignore
 except ModuleNotFoundError:
     import json
 
-    JSON_LOADS: Final = json.loads
+    JSON_LOADS: Final = json.loads  # type: ignore
 
     def dumps(
         obj: Any,
@@ -41,13 +41,13 @@ except ModuleNotFoundError:
     ) -> str:
         return __func(obj, separators=(",", ":"), ensure_ascii=True)
 
-    JSON_DUMPS: Final = cast(Callable[[Any], str], dumps)
+    JSON_DUMPS: Final = cast(Callable[[Any], str], dumps)  # type: ignore
 else:
-    JSON_LOADS: Final[Callable[[str | bytes], Any]] = orjson.loads
+    JSON_LOADS: Final[Callable[[str | bytes], Any]] = orjson.loads  # type: ignore
 
     def dumps(
         obj: Any,
-        __func: Callable[[Any], bytes] = orjson.dumps,
+        __func: Callable[[Any], bytes] = orjson.dumps,  # type: ignore
         __decoder: Callable[[bytes], str] = bytes.decode,
         /,
     ) -> str:
@@ -57,7 +57,7 @@ else:
 
 
 try:
-    import orvdf
+    import orvdf  # type: ignore
 except ModuleNotFoundError:
     import vdf
 
@@ -86,25 +86,25 @@ except ModuleNotFoundError:
     ) -> BinaryVDFDict:
         return __multi_dict_ify(__func(__bytes_io(s), mapper=__mapper))
 
-    VDF_LOADS: Final = cast(Callable[[str], VDFDict], loads)
-    VDF_BINARY_LOADS: Final = cast(Callable[[bytes], BinaryVDFDict], binary_loads)
+    VDF_LOADS: Final = cast(Callable[[str], VDFDict], loads)  # type: ignore
+    VDF_BINARY_LOADS: Final = cast(Callable[[bytes], BinaryVDFDict], binary_loads)  # type: ignore
 
 else:
-    VDF_LOADS: Final[Callable[[str], VDFDict]] = orvdf.loads
-    VDF_BINARY_LOADS: Final[Callable[[bytes], BinaryVDFDict]] = orvdf.binary_loads
+    VDF_LOADS: Final[Callable[[str], VDFDict]] = orvdf.loads  # type: ignore
+    VDF_BINARY_LOADS: Final[Callable[[bytes], BinaryVDFDict]] = orvdf.binary_loads  # type: ignore
 
 
 try:
-    import lxml
+    import lxml  # type: ignore
 except ModuleNotFoundError:
-    HTML_PARSER: Final = "html.parser"
+    HTML_PARSER: Final = "html.parser"  # type: ignore
 else:
     HTML_PARSER: Final = "lxml-xml"
 
-if sys.version_info >= (3, 11):
-    from asyncio import TaskGroup as TaskGroup, timeout as timeout
-else:
-    from taskgroup import TaskGroup as TaskGroup, timeout as timeout
+try:
+    from asyncio import TaskGroup as TaskGroup, timeout as timeout  # type: ignore
+except ModuleNotFoundError:
+    from taskgroup import TaskGroup as TaskGroup, timeout as timeout  # type: ignore
 
 
 UNIX_EPOCH: Final = datetime(1970, 1, 1, tzinfo=timezone.utc)
@@ -120,7 +120,7 @@ WRITE_U32: Final[Callable[[int], bytes]] = struct.Struct("<I").pack
 
 _PROTOBUF_MASK: Final = 0x80000000
 # inlined as these are some of the most called functions in the library
-IS_PROTO: Final[Callable[[int], bool]] = _PROTOBUF_MASK.__and__  # type: ignore  # this is boolean like for a bit of extra speed
+IS_PROTO: Final = cast(Callable[[int], bool], _PROTOBUF_MASK.__and__)  # this is boolean like for a bit of extra speed
 SET_PROTO_BIT: Final = _PROTOBUF_MASK.__or__
 CLEAR_PROTO_BIT: Final = (~_PROTOBUF_MASK).__and__
 

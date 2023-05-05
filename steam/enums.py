@@ -102,8 +102,8 @@ class EnumType(_EnumMeta if TYPE_CHECKING else type):
     _value_map_: Mapping[Any, Enum]
     _member_map_: Mapping[str, Enum]
 
-    @staticmethod
-    def __prepare__(name: str, bases: tuple[type, ...]) -> EnumDict:
+    @classmethod
+    def __prepare__(mcs, name: str, bases: tuple[type, ...]) -> EnumDict:  # type: ignore
         return EnumDict()
 
     def __new__(mcs, name: str, bases: tuple[type, ...], namespace: EnumDict) -> type[Enum]:
@@ -141,7 +141,7 @@ class EnumType(_EnumMeta if TYPE_CHECKING else type):
             try:
                 return cls._value_map_[value]
             except (KeyError, TypeError):
-                raise ValueError(f"{value!r} is not a valid {cls.__name__}")
+                raise ValueError(f"{value!r} is not a valid {cls.__name__}") from None
 
         def __iter__(cls) -> Generator[Enum, None, None]:
             yield from cls._member_map_.values()
@@ -201,10 +201,10 @@ class Enum(_Enum if TYPE_CHECKING else object, metaclass=EnumType):
     if not DOCS_BUILDING:
 
         def __setattr__(self, key: str, value: Any) -> Never:
-            raise AttributeError(f"{self.__class__.__name__} Cannot reassign an Enum members attribute's.")
+            raise AttributeError(f"Cannot reassign {self.__class__.__name__} members attribute's.")
 
         def __delattr__(self, item: Any) -> Never:
-            raise AttributeError(f"{self.__class__.__name__} Cannot delete an Enum members attribute's.")
+            raise AttributeError(f"Cannot delete {self.__class__.__name__} attribute's.")
 
     def __bool__(self) -> Literal[True]:
         return True  # an enum member with a zero value would return False otherwise
@@ -2026,10 +2026,10 @@ class AuthSessionResponse(IntEnum):
 
 
 class ContentDescriptor(IntEnum):
-	FrequentNudityOrSexualContent = 1
-	FrequentViolenceOrGore = 2
-	StrongSexualContent = 3
-	AnyMatureContent = 5
+    FrequentNudityOrSexualContent = 1
+    FrequentViolenceOrGore = 2
+    StrongSexualContent = 3
+    AnyMatureContent = 5
 # fmt: on
 
 

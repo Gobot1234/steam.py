@@ -1157,9 +1157,7 @@ class Client:
 
             descriptions = data.get("descriptions", ())
             trades = [
-                TradeOffer["MovedItem[User]", "MovedItem[ClientUser]", "User"]._from_history(
-                    self._state, trade, descriptions
-                )
+                TradeOffer._from_history(self._state, trade, descriptions)
                 for trade in data.get("trades", ())
                 if after_timestamp < trade["time_init"] < before_timestamp
             ]
@@ -1168,7 +1166,9 @@ class Client:
                 trade.partner = partner
                 for item in trade.receiving:
                     item.owner = partner
-            return trades
+            return cast(
+                "list[TradeOffer[MovedItem[User], MovedItem[ClientUser], User]]", trades
+            )  # this should be safe at this point
 
         for trade in await get_trades():
             if limit is not None and yielded >= limit:
