@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Self
+from typing import TYPE_CHECKING
 
-from typing_extensions import TypeVar
+from typing_extensions import Self, TypeVar
 
 from .abc import BaseUser, Message
 from .chat import ChatMessage, PartialMember

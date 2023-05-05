@@ -11,20 +11,8 @@ import asyncio
 import logging
 from collections.abc import AsyncGenerator, Callable, Coroutine, Iterable, Sequence
 from datetime import datetime
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Generic,
-    Literal,
-    Protocol,
-    TypeAlias,
-    assert_never,
-    cast,
-    overload,
-    runtime_checkable,
-)
+from typing import TYPE_CHECKING, Any, Generic, Literal, Protocol, TypeAlias, cast, overload, runtime_checkable
 
-import betterproto
 from typing_extensions import Self, TypeVar
 
 from . import utils
@@ -45,8 +33,8 @@ from .utils import DateTime, cached_slot_property
 
 if TYPE_CHECKING:
     from .channel import ClanChannel, GroupChannel
-    from .clan import Clan, ClanMember
-    from .group import Group, GroupMember
+    from .clan import Clan
+    from .group import Group
     from .media import Media
     from .message import ClanMessage, GroupMessage
     from .state import ConnectionState

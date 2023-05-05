@@ -103,7 +103,7 @@ else:
 
 try:
     from asyncio import TaskGroup as TaskGroup, timeout as timeout  # type: ignore
-except ModuleNotFoundError:
+except ImportError:
     from taskgroup import TaskGroup as TaskGroup, timeout as timeout  # type: ignore
 
 
