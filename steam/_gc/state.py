@@ -8,17 +8,14 @@ import logging
 from collections.abc import Mapping
 from contextvars import ContextVar
 from types import CoroutineType
-from typing import TYPE_CHECKING, Any, Final, TypeVar, get_args
+from typing import TYPE_CHECKING, Any, Final, Generic, TypeVar, cast, get_args
 
 from typing_extensions import Self
-
-from steam.protobufs import friends
-from steam.user import User
 
 from .._const import CLEAR_PROTO_BIT, IS_PROTO
 from ..app import App
 from ..gateway import GCMsgs
-from ..protobufs import GCMessage, GCProtobufMessage
+from ..protobufs import GCMessage, GCProtobufMessage, friends
 from ..protobufs.emsg import EMsg
 from ..state import ConnectionState, ParserCallback
 from ..trade import Inventory, Item
@@ -56,7 +53,7 @@ class MultiEvent:
         self.ready.clear()
 
 
-class GCState(ConnectionState):
+class GCState(ConnectionState, Generic[Inv]):
     gc_parsers: dict[
         type[GCMsgs], ParserCallback[Self, GCMsgs]
     ]  # different to parsers to save on dict lookups 1 vs 2 (1 for app, 1 for msg)
@@ -76,7 +73,7 @@ class GCState(ConnectionState):
             except (TypeError, KeyError):
                 kwargs["apps"] = [app]
         kwargs["app"] = self._APP
-        self._original_apps: list[App] | None = kwargs.get("apps")
+        self._original_apps: list[App] = [app for app in kwargs.get("apps", ()) if app.id not in self.client._GC_APPS]
         super().__init__(client, **kwargs)
         self._original_client_user_msg: friends.CMsgClientPersonaStateFriend | None = None
 
@@ -88,6 +85,10 @@ class GCState(ConnectionState):
                 args[0] if (args := get_args(params[0])) else params[0]
             )  # if it's a union only use the first type (Message | None or Message | Any)
             cls.gc_parsers[msg] = func
+
+    @property
+    def backpack(self) -> Inv:
+        return cast(Inv, self.backpacks[APP.get().id])
 
     def _get_gc_message(self) -> GCProtobufMessage | GCMessage:
         raise NotImplementedError()
@@ -157,7 +158,9 @@ class GCState(ConnectionState):
 
         async with lock:  # requires a per-app lock to avoid Result.DuplicateRequest
             resp = await self.fetch_user_inventory(self.user.id64, app.id, app.context_id, self.language)
-        return backpack_cls(state=self, data=resp, owner=self.user, app=self.client._APP, language=self.language)
+        backpack = backpack_cls(state=self, data=resp, owner=self.user, app=app, language=self.language)
+        self.backpacks[app] = backpack  # type: ignore
+        return backpack
 
     def add_item_to_backpack(self, item: Item[ClientUser]) -> None:
         backpack = self.backpacks[item.app.id]

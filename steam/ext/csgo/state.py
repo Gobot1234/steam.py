@@ -8,7 +8,7 @@ import math
 import struct
 import sys
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from weakref import WeakValueDictionary
 
 from ... import utils
@@ -35,7 +35,7 @@ def READ_F32(bytes: bytes, *, _unpacker: Callable[[bytes], tuple[float]] = struc
     return f32
 
 
-class GCState(GCState_):
+class GCState(GCState_[Backpack]):
     client: Client
     _users: WeakValueDictionary[ID32, User]  # type: ignore
     _APP = CSGO  # type: ignore
@@ -174,7 +174,6 @@ class GCState(GCState_):
             elif isinstance(gc_item, CasketItem):
                 self.casket_items[gc_item.id].set_result(gc_item)
 
-        self.backpack = backpack
         return backpack
 
     @parser
