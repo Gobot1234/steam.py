@@ -4,11 +4,15 @@ from __future__ import annotations
 
 import itertools
 import math
+from collections import Counter
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import TYPE_CHECKING, Generic, TypeVar, overload
+from operator import itemgetter
+from typing import TYPE_CHECKING, Generic, TypeVar, cast, overload
 
 from typing_extensions import Literal, Self
+
+from steam import utils
 
 from ... import abc, user
 from ..._gc.client import ClientUser as ClientUser_
@@ -42,6 +46,7 @@ class MatchWatchInfo:
 @dataclass(slots=True)
 class Team:
     score: int
+    won: bool
     players: list[MatchPlayer]
 
 
@@ -53,7 +58,7 @@ class Round:
 
     @property
     def players(self) -> list[MatchPlayer]:
-        return list(itertools.chain.from_iterable([team.players for team in self.teams]))
+        return [player for team in self.teams for player in team.players]
 
 
 class MatchInfo:
@@ -67,14 +72,39 @@ class MatchInfo:
         # self.map = self.watch_info.map
         # self.server_id = self.watch_info.server_id
 
-        # self.rounds = [
-        #     Round(
-        #         timedelta(seconds=round.match_duration),
-        #     )
-        #     for round in match_info.roundstatsall
-        # ]
-        self.rounds = match_info.roundstatsall
-        self.players = [MatchPlayer(state, user) for user in players.values()]
+        self.rounds: list[Round] = []
+        for round in match_info.roundstatsall:
+            player_ids = cast(list[ID32], round.reservation.account_ids)
+            team_size = len(player_ids) // len(round.team_scores)
+            previous_scores = [0] * len(round.team_scores)
+            teams: list[Team] = []
+            for idx, score in enumerate(round.team_scores):
+                players_: list[MatchPlayer] = []
+                for id in player_ids[(idx * team_size) : (idx + 1) * team_size]:
+                    player = MatchPlayer(state, players[id])
+                    idx = player_ids.index(id)
+                    player.kills = round.kills[idx]
+                    player.assists = round.assists[idx]
+                    player.deaths = round.deaths[idx]
+                    player.score = round.scores[idx]
+                    player.enemy_kills = round.enemy_kills[idx]
+                    player.enemy_head_shots = round.enemy_headshots[idx]
+                    players_.append(player)
+
+                won = round.team_scores[idx] > previous_scores[idx]
+                if won:
+                    mvp_idx, _ = max(
+                        Counter(round.mvps[(idx * team_size) : (idx + 1) * team_size]).items(), key=itemgetter(1)
+                    )  # can't have an even number of players right?
+                    mvp = utils.get(players_, id=player_ids[mvp_idx])
+                    assert mvp
+                    mvp.mvp = True
+                teams.append(Team(score, won, players_))
+            self.rounds.append(Round(timedelta(seconds=round.match_duration), teams, round.map))
+
+    @property
+    def players(self) -> list[MatchPlayer]:
+        return list(dict.fromkeys(player for round in reversed(self.rounds) for player in round.players))
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} id={self.id}>"
@@ -138,10 +168,10 @@ class MatchPlayer(PartialUser, user.WrapsUser):
     kills: int
     assists: int
     deaths: int
-    scores: int
+    score: int
     enemy_kills: int
-    enemy_headshots: int
-    mvps: int
+    enemy_head_shots: int
+    mvp: bool
 
 
 class ProfileInfo(Generic[UserT]):
