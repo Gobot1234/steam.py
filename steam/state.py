@@ -2693,7 +2693,7 @@ class ConnectionState:
 
 
 ConnectionState.parsers = {}
-for _, func in inspect.getmembers(ConnectionState, lambda x: inspect.isfunction and getattr(x, "__parser__", False)):
+for _, func in inspect.getmembers(ConnectionState, lambda x: inspect.isfunction(x) and getattr(x, "__parser__", False)):
     params = list(inspect.get_annotations(func, eval_str=True).values())
     if args := get_args(params[0]):
         ConnectionState.parsers[args[0].MSG] = func

@@ -79,7 +79,7 @@ class GCState(ConnectionState, Generic[Inv]):
 
     def __init_subclass__(cls) -> None:
         cls.gc_parsers = {}
-        for _, func in inspect.getmembers(cls, lambda x: inspect.isfunction and hasattr(x, "__parser__")):
+        for _, func in inspect.getmembers(cls, lambda x: inspect.isfunction(x) and hasattr(x, "__parser__")):
             params = list(inspect.get_annotations(func, eval_str=True).values())
             msg = (
                 args[0] if (args := get_args(params[0])) else params[0]
