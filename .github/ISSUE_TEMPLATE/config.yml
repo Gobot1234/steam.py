@@ -1,3 +1,5 @@
+blank_issues_enabled: false
+
 contact_links:
   - name: For questions about the library
     about: Support questions are better answered in our Discord server. Issues asking how to implement a feature will be closed.
