@@ -27,12 +27,26 @@ from yarl import URL
 from . import utils
 from ._const import VDF_LOADS, VDFDict
 from .abc import SteamID
-from .enums import AppFlag, BillingType, DepotFileFlag, Language, LicenseType, PackageStatus, ReviewType
+from .enums import (
+    AppFlag,
+    BillingType,
+    DepotFileFlag,
+    Language,
+    LicenseType,
+    PackageStatus,
+    ReviewType,
+)
 from .game import StatefulGame
 from .models import _IOMixin
 from .package import StatefulPackage
 from .protobufs import app_info
-from .protobufs.content_manifest import Metadata, Payload, PayloadFileMapping, PayloadFileMappingChunkData, Signature
+from .protobufs.content_manifest import (
+    Metadata,
+    Payload,
+    PayloadFileMapping,
+    PayloadFileMappingChunkData,
+    Signature,
+)
 from .utils import DateTime
 
 if sys.platform == "win32":
@@ -601,9 +615,9 @@ class HeadlessDepot:
     """The depot's maximum size."""
     config: MultiDict[str]
     """The depot's configuration settings."""
-    shared_install: bool
+    shared_install: bool | None
     """Whether this depot supports shared installs"""
-    system_defined: bool
+    system_defined: bool | None
     """Whether this depot is system defined."""
 
     def __repr__(self):
@@ -826,8 +840,12 @@ class GameInfo(ProductInfo, StatefulGame):
                     "config": depot.get("config", MultiDict()),
                     "max_size": int(depot["maxsize"]) if "maxsize" in depot else None,
                     "game": self,
-                    "shared_install": bool(int(depot.get("sharedinstall", False))),
-                    "system_defined": bool(int(depot.get("system_defined", False))),
+                    "shared_install": bool(int(shared_install))
+                    if (shared_install := depot.get("sharedinstall"))
+                    else None,
+                    "system_defined": bool(int(system_defined))
+                    if (system_defined := depot.get("system_defined"))
+                    else None,
                 }
                 try:
                     manifests = depot["manifests"]
