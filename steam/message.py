@@ -41,7 +41,7 @@ class UserMessage(Message):
 
     async def add_emoticon(self, emoticon: Emoticon) -> None:
         await self._state.react_to_user_message(
-            self.author.id64,
+            self.channel.participant.id64,
             int(self.created_at.timestamp()),
             self.ordinal,
             str(emoticon),
@@ -55,7 +55,7 @@ class UserMessage(Message):
 
     async def remove_emoticon(self, emoticon: Emoticon):
         await self._state.react_to_user_message(
-            self.author.id64,
+            self.channel.participant.id64,
             int(self.created_at.timestamp()),
             self.ordinal,
             str(emoticon),
@@ -69,7 +69,7 @@ class UserMessage(Message):
 
     async def add_sticker(self, sticker: Sticker):
         await self._state.react_to_user_message(
-            self.author.id64,
+            self.channel.participant.id64,
             int(self.created_at.timestamp()),
             self.ordinal,
             sticker.name,
@@ -83,7 +83,7 @@ class UserMessage(Message):
 
     async def remove_sticker(self, sticker: Sticker):
         await self._state.react_to_user_message(
-            self.author.id64,
+            self.channel.participant.id64,
             int(self.created_at.timestamp()),
             self.ordinal,
             sticker.name,
