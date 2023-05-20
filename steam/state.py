@@ -1085,7 +1085,7 @@ class ConnectionState(Registerable):
         before = copy(chat_group)
         before._channels = {c_id: copy(c) for c_id, c in before._channels.items()}
         chat_group._update_channels(msg.body.chat_rooms)
-        self.dispatch(f"{chat_group.__class__.__name__}_update", before, chat_group)
+        self.dispatch(f"{chat_group.__class__.__name__.lower()}_update", before, chat_group)
 
     @register(EMsg.ServiceMethodResponse)
     async def parse_service_method_response(self, msg: MsgProto[Any]) -> None:
