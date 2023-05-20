@@ -759,7 +759,7 @@ class WishlistGame(StatefulGame):
         self.logo_url = data["capsule"]
         self.score = data["review_score"]
         self.total_reviews = int(data["reviews_total"].replace(",", ""))
-        self.review_status = ReviewType[data["review_desc"].replace(" ", "")]
+        self.review_status = ReviewType.try_value(data["review_score"])
         self.created_at = DateTime.from_timestamp(float(data["release_date"]))
         self.type: str = data["type"]
         self.screenshots = [
