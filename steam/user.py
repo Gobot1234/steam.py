@@ -62,7 +62,7 @@ class _BaseUser(BaseUser):
         self.real_name = data.get("realname") or self.real_name
         self.community_url = data.get("profileurl") or super().community_url
         self.avatar_url = data.get("avatarfull") or self.avatar_url
-        self.trade_url = URL.COMMUNITY / f"tradeoffer/new/?partner={self.id}"
+        self.trade_url = URL.COMMUNITY / "tradeoffer/new/" % {"partner": str(self.id)}
         from .clan import Clan  # circular import
 
         self.primary_clan = (

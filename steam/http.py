@@ -536,7 +536,7 @@ class HTTPClient:
             "trade_offer_create_params": JSON_DUMPS({"trade_offer_access_token": token}) if token is not None else "{}",
             **kwargs,
         }
-        referer = URL.COMMUNITY / f"tradeoffer/new/?partner={user.id}"
+        referer = URL.COMMUNITY / "tradeoffer/new/" % {"partner": str(user.id)}
         if token is not None:
             referer %= {"token": token}
         headers = {"Referer": str(referer)}
