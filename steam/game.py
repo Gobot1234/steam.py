@@ -760,7 +760,7 @@ class WishlistGame(StatefulGame):
         self.score = data["review_score"]
         self.total_reviews = int(data["reviews_total"].replace(",", ""))
         self.review_status = ReviewType[data["review_desc"].replace(" ", "")]
-        self.created_at = DateTime.from_timestamp(int(data["release_date"]))
+        self.created_at = DateTime.from_timestamp(float(data["release_date"]))
         self.type: str = data["type"]
         self.screenshots = [
             f"https://cdn.cloudflare.steamstatic.com/steam/apps/{self.id}/{screenshot_url}"
