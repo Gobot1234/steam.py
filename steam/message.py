@@ -44,7 +44,7 @@ class UserMessage(Message):
             self.author.id64,
             int(self.created_at.timestamp()),
             self.ordinal,
-            emoticon.name,
+            str(emoticon),
             reaction_type=1,
             is_add=True,
         )
@@ -58,7 +58,7 @@ class UserMessage(Message):
             self.author.id64,
             int(self.created_at.timestamp()),
             self.ordinal,
-            emoticon.name,
+            str(emoticon),
             reaction_type=1,
             is_add=False,
         )
