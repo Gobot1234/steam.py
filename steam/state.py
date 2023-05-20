@@ -1182,7 +1182,6 @@ class ConnectionState(Registerable):
                         self._add_friend(user)
                 else:
                     if isinstance(invite, UserInvite):
-                        assert not isinstance(invite.invitee, SteamID)
                         self.dispatch("user_invite_accept", invite)
                         if isinstance(invite.invitee, User):
                             friend = self._add_friend(invite.invitee)
