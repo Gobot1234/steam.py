@@ -79,17 +79,18 @@ ruff = ">=0.0.261,<0.0.270"
 
 [tool.poe.tasks]
 test = {cmd = "pytest tests", help = "Run the tests"}
-_blacken_docs = {script = "scripts.blacken_docs_correctly:main"}
-_black = "black ."
-_isort = "isort ."
-fmt = {sequence = ["_blacken_docs", "_black", "_isort"], help = "Format the code"}
+fmt = {sequence = [
+    {script = "scripts.blacken_docs_correctly:main"},
+    {cmd = "black ."},
+    {cmd = "isort ."}
+], help = "Format the code"}
 doc = {cmd = "sphinx-build -b html -T -W --keep-going docs/ docs/_build", help = "Build the documentation"}  # TODO -n
 add-cms = {script = "scripts.add_cms:main", help = "Add a default list of CMs for when the API is down"}
 
 [tool.poe.tasks.decode]
 script = "scripts.decode:main"
 help = "Decode a recieved message from the Steam WS"
-[tool.poe.tasks.decode.args.input]
+[tool.poe.tasks.decode.args.input_message]
 required = true
 positional = true
 help = "A base64 encoded protobufs message from Steam to decode"
@@ -114,7 +115,7 @@ line-length = 120
 select = [
     "F", "W", "SIM", "G", "TCH004", "PTH", "RUF"
 ]
-ignore = ["SIM105", "F405", "F402", "F403", "F401"]
+ignore = ["SIM105", "F405", "F402", "F403", "F401", "RUF001"]
 
 [tool.mypy]
 ignore_missing_imports = true

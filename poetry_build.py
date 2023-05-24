@@ -48,8 +48,7 @@ else:
 
 major, minor, micro = VERSION.split(".")
 micro = micro.split(end_char, maxsplit=1)[0]
-# TypeAlias to allow for syntax highlighting
-file: TypeAlias = f"""\
+file = f"""\
 from typing import NamedTuple
 
 from typing_extensions import Final, Literal
@@ -75,7 +74,7 @@ __author__: Final = "Gobot1234"
 __license__: Final = "MIT"
 __version__: Final = "{VERSION}"
 version_info: Final = VersionInfo(major={major}, minor={minor}, micro={micro}, releaselevel="{release_level}")
-"""  # type: ignore
+"""
 
 
 metadata = ROOT / "steam" / "__metadata__.py"
