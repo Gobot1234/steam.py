@@ -55,7 +55,6 @@ class CMsgIpAddress(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-@dataclass(eq=False, repr=False)
 class CMsgIpAddressBucket(betterproto.Message):
     original_ip_address: "CMsgIpAddress" = betterproto.message_field(1)
     bucket: int = betterproto.fixed64_field(2)
@@ -79,6 +78,8 @@ class CMsgAuthTicket(betterproto.Message):
     h_steam_pipe: int = betterproto.uint32_field(5)
     ticket_crc: int = betterproto.uint32_field(6)
     ticket: bytes = betterproto.bytes_field(7)
+    server_secret: bytes = betterproto.bytes_field(8)
+    ticket_type: int = betterproto.uint32_field(9)
 
 
 @dataclass(eq=False, repr=False)
