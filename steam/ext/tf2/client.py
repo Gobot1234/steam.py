@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any, Final, Literal, cast, overload
 
 from typing_extensions import Self
 
-from ..._const import VDF_LOADS, timeout
+from ..._const import DOCS_BUILDING, VDF_LOADS, timeout
 from ..._gc import Client as Client_
 from ..._gc.client import ClientUser as ClientUser_
 from ...app import TF2, App
@@ -29,7 +29,7 @@ __all__ = (
 )
 
 
-class TF2ClientUser(ClientUser_):
+class ClientUser(ClientUser_):
     if TYPE_CHECKING:
 
         @overload
@@ -43,8 +43,8 @@ class TF2ClientUser(ClientUser_):
 
 class Client(Client_):
     _APP: Final = TF2
-    _ClientUserCls = TF2ClientUser
-    user: cached_property[Self, TF2ClientUser]
+    _ClientUserCls = ClientUser
+    user: cached_property[Self, ClientUser]
     _state: GCState
 
     def _get_gc_message(self) -> Any:
@@ -75,8 +75,8 @@ class Client(Client_):
         self._state.localisation = VDF_LOADS(file.read_text())
 
     async def craft(
-        self, items: Collection[BackpackItem[TF2ClientUser]], recipe: int = -2
-    ) -> list[BackpackItem[TF2ClientUser]] | None:
+        self, items: Collection[BackpackItem[ClientUser]], recipe: int = -2
+    ) -> list[BackpackItem[ClientUser]] | None:
         """Craft a set of items together with an optional recipe.
 
         Parameters
@@ -115,11 +115,9 @@ class Client(Client_):
             if recipe_id == -1:  # error occurred
                 return
 
-        return cast(
-            "list[BackpackItem[TF2ClientUser]]", await asyncio.gather(*map(self._state.wait_for_item, resp.ids))
-        )
+        return cast("list[BackpackItem[ClientUser]]", await asyncio.gather(*map(self._state.wait_for_item, resp.ids)))
 
-    if TYPE_CHECKING:
+    if TYPE_CHECKING or DOCS_BUILDING:
 
         async def on_account_update(self) -> None:
             """Called when the client user's account is updated. This can happen from any one of the below changing:

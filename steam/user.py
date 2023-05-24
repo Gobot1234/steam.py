@@ -523,8 +523,9 @@ class WrapsUser(User if TYPE_CHECKING or DOCS_BUILDING else BaseUser, Messageabl
 
     def __init_subclass__(cls) -> None:
         super().__init_subclass__()
-
-        for name, function in set(User.__dict__.items()) - set(object.__dict__.items()):
+        user_dict = User.__dict__.copy()
+        user_dict.pop("__annotations__", None)
+        for name, function in set(user_dict.items()) - set(object.__dict__.items()):
             if not name.startswith("__") and name not in User.__slots__:
                 setattr(cls, name, function)
 

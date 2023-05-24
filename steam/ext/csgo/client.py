@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Final, overload
 
 from typing_extensions import Self
 
-from ..._const import MISSING, timeout
+from ..._const import DOCS_BUILDING, MISSING, timeout
 from ..._gc import Client as Client_
 from ...app import CSGO
 from ...enums import Type
@@ -20,7 +20,7 @@ from ...types.id import Intable
 from ...utils import cached_property
 from .backpack import BaseInspectedItem, Paint, Sticker
 from .enums import ItemOrigin, ItemQuality
-from .models import ClientUser, MatchInfo, User
+from .models import ClientUser, Match, User
 from .protobufs import cstrike
 from .state import GCState
 from .utils import decode_sharecode
@@ -150,16 +150,16 @@ class Client(Client_):
         )
 
     @overload
-    async def fetch_match(self, id: int, *, outcome_id: int, token: int) -> MatchInfo:
+    async def fetch_match(self, id: int, *, outcome_id: int, token: int) -> Match:
         ...
 
     @overload
-    async def fetch_match(self, *, code: str) -> MatchInfo:
+    async def fetch_match(self, *, code: str) -> Match:
         ...
 
     async def fetch_match(
         self, id: int = MISSING, *, outcome_id: int = MISSING, token: int = MISSING, code: str = MISSING
-    ) -> MatchInfo:
+    ) -> Match:
         """Fetch a match by its id or share code."""
         if code is not MISSING:
             id, outcome_id, token = decode_sharecode(code)
@@ -188,7 +188,7 @@ class Client(Client_):
                 )
             )
         }
-        return MatchInfo(self._state, match, players)
+        return Match(self._state, match, players)
 
     async def fetch_friend_watch_info(self, *friends: Friend) -> cstrike.WatchInfoUsers:
         future = self._state.ws.gc_wait_for(cstrike.WatchInfoUsers)
@@ -197,7 +197,7 @@ class Client(Client_):
         )
         return await future
 
-    if TYPE_CHECKING:
+    if TYPE_CHECKING or DOCS_BUILDING:
 
         def get_user(self, id: Intable) -> User | None:
             ...

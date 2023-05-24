@@ -9,14 +9,14 @@ from betterproto.casing import pascal_case
 from typing_extensions import TypeVar
 
 from ...trade import Inventory, Item
-from ...user import ClientUser, User
+from ...user import User
 from ...utils import cached_slot_property
 from .enums import *
 from .protobufs import base, econ, struct_messages
 
 if TYPE_CHECKING:
     from ...abc import BaseUser, PartialUser
-    from .client import TF2ClientUser
+    from .client import ClientUser
     from .state import GCState
     from .types.schema import Schema
 
@@ -335,7 +335,7 @@ class BackpackItem(Item[OwnerT]):
     # https://github.com/ZeusJunior/node-tf2-backpack/blob/7ce6fd0fc2ec648cee239c276742af2d3ab3fe5c/src/parser.ts#L19
 
 
-class Backpack(Inventory[BackpackItem["TF2ClientUser"], "TF2ClientUser"]):
+class Backpack(Inventory[BackpackItem["ClientUser"], "ClientUser"]):
     """A class to represent the client's backpack."""
 
     __slots__ = ()
@@ -368,12 +368,12 @@ class Backpack(Inventory[BackpackItem["TF2ClientUser"], "TF2ClientUser"]):
         await self._state.ws.send_gc_message(base.SortItems(sort_type=type))
 
     async def trade_up(
-        self, *items: BackpackItem[TF2ClientUser]
+        self, *items: BackpackItem[ClientUser]
     ) -> None:  # TODO would be nice to have a way to be able to return the new item
         """Trade up these items. Into a new item.
 
-        See Also
-        --------
-        `The TF2 wiki for more info`<https://wiki.teamfortress.com/wiki/Trade-Up#Item_Grade_Trade-Up>_
+        Note
+        ----
+        The `TF2 wiki <https://wiki.teamfortress.com/wiki/Trade-Up#Item_Grade_Trade-Up>`_ for more info.
         """
         await self._state.ws.send_gc_message(econ.CraftCollectionUpgrade([item.id for item in items]))

@@ -2,7 +2,11 @@
 
 from ...enums import Flags, IntEnum
 
-__all__ = ("ItemQuality", "ItemFlags", "ItemOrigin")
+__all__ = (
+    "ItemQuality",
+    "ItemFlags",
+    "ItemOrigin",
+)
 
 # fmt: off
 class ItemCustomizationNotification(IntEnum):

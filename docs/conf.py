@@ -101,6 +101,8 @@ html_context = {
     "discord_invite": "https://discord.gg/MQ68WUS",
     "module_extensions": [
         ("steam.ext.commands", "ext/commands"),
+        ("steam.ext.csgo", "ext/csgo"),
+        ("steam.ext.tf2", "ext/tf2"),
     ],
     "repository": "https://github.com/Gobot1234/steam.py",
 }

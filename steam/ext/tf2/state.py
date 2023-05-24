@@ -2,16 +2,16 @@ from __future__ import annotations
 
 import logging
 import re
-from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, cast
 
 from ... import utils
 from ..._const import VDF_LOADS
 from ..._gc.state import GCState as GCState_
+from ...app import TF2
 from ...errors import HTTPException
 from ...state import parser
 from .backpack import SCHEMA, Backpack
-from .enums import EMsg, ItemFlags, ItemOrigin
+from .enums import ItemFlags, ItemOrigin
 from .protobufs import base, sdk, struct_messages
 
 if TYPE_CHECKING:
@@ -25,9 +25,8 @@ log = logging.getLogger(__name__)
 
 
 class GCState(GCState_[Backpack]):
-    gc_parsers: dict[EMsg, Callable[..., Any]]  # type: ignore
-    Language = EMsg
     client: Client
+    _APP = TF2  # type: ignore
 
     def __init__(self, client: Client, **kwargs: Any):
         super().__init__(client, **kwargs)

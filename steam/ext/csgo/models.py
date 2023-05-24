@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import itertools
 import math
 from collections import Counter
 from dataclasses import dataclass
@@ -12,11 +11,11 @@ from typing import TYPE_CHECKING, Generic, TypeVar, cast, overload
 
 from typing_extensions import Literal, Self
 
-from steam import utils
-
-from ... import abc, user
+from ... import abc, user, utils
+from ..._const import timeout
 from ..._gc.client import ClientUser as ClientUser_
 from ...app import CSGO, App
+from ...id import parse_id64
 from ...types.id import ID32
 from ...utils import DateTime
 from ..commands.converters import Converter, UserConverter
@@ -32,9 +31,13 @@ if TYPE_CHECKING:
 UserT = TypeVar("UserT", bound=abc.PartialUser)
 
 __all__ = (
+    "Team",
+    "Round",
+    "Match",
     "PartialUser",
     "User",
     "ClientUser",
+    "MatchPlayer",
     "ProfileInfo",
 )
 
@@ -45,6 +48,8 @@ class MatchWatchInfo:
 
 @dataclass(slots=True)
 class Team:
+    """Represents a team in a match"""
+
     score: int
     won: bool
     players: list[MatchPlayer]
@@ -52,6 +57,8 @@ class Team:
 
 @dataclass(slots=True)
 class Round:
+    """Represents a round of a match"""
+
     duration: timedelta
     teams: list[Team]
     map: str
@@ -61,7 +68,9 @@ class Round:
         return [player for team in self.teams for player in team.players]
 
 
-class MatchInfo:
+class Match:
+    """Represents a match of CSGO"""
+
     def __init__(self, state: GCState, match_info: cstrike.MatchInfo, players: dict[ID32, User]) -> None:
         self._state = state
         self.id = match_info.matchid
@@ -112,7 +121,7 @@ class MatchInfo:
 
 @dataclass
 class Matches:
-    matches: list[MatchInfo]
+    matches: list[Match]
     streams: list["cstrike.TournamentTeam"]
     tournament_info: "cstrike.TournamentInfo"
 
@@ -122,16 +131,14 @@ class PartialUser(abc.PartialUser):
     _state: GCState
 
     async def csgo_profile(self) -> ProfileInfo[Self]:
+        """Fetches this users CSGO profile info."""
         msg = await self._state.fetch_user_csgo_profile(self.id)
         if not msg.account_profiles:
             raise ValueError
         return ProfileInfo(self, msg.account_profiles[0])
 
-
-class User(PartialUser, user.User):
-    __slots__ = ()
-
     async def recent_matches(self) -> Matches:
+        """Fetches this user's recent games."""
         future = self._state.ws.gc_wait_for(
             cstrike.MatchList,
             check=lambda msg: (
@@ -139,9 +146,29 @@ class User(PartialUser, user.User):
             ),
         )
         await self._state.ws.send_gc_message(cstrike.MatchListRequestRecentUserGames(accountid=self.id))
-        msg = await future
+        async with timeout(30):
+            msg = await future
 
-        return Matches([MatchInfo(self._state, match) for match in msg.matches], msg.streams, msg.tournamentinfo)
+        players = {
+            user.id: user
+            for user in await self._state._maybe_users(
+                map(
+                    parse_id64,
+                    (
+                        id
+                        for match in msg.matches
+                        for round in match.roundstatsall
+                        for id in round.reservation.account_ids
+                    ),
+                )
+            )
+        }
+
+        return Matches([Match(self._state, match, players) for match in msg.matches], msg.streams, msg.tournamentinfo)
+
+
+class User(PartialUser, user.User):
+    __slots__ = ()
 
 
 class ClientUser(PartialUser, ClientUser_):

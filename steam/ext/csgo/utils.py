@@ -25,7 +25,12 @@ class ShareCode(NamedTuple):
 
 
 def decode_sharecode(code: str) -> ShareCode:
-    """Decodes a match share code."""
+    """Decodes a match share code.
+
+    Returns
+    -------
+    .. source:: ShareCode
+    """
     if SHARE_CODE_RE.match(code) is None:
         raise ValueError("Invalid share code")
 
