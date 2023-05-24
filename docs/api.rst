@@ -37,7 +37,6 @@ Client
                       on_clan_leave,
                       on_group_join, on_group_update, on_group_leave,
                       on_event_create, on_announcement_create,
-                      on_socket_receive, on_socket_send
 
 
 .. _event-reference:
@@ -136,10 +135,6 @@ traceback and ignoring the exception.
 
 .. automethod:: Client.on_announcement_create
 
-.. automethod:: Client.on_socket_receive
-
-.. automethod:: Client.on_socket_send
-
 
 Utilities
 ----------
@@ -217,10 +212,6 @@ Enumerations
     :undoc-members:
 
 .. autoclass:: UIMode()
-    :members:
-    :undoc-members:
-
-.. autoclass:: UserBadge()
     :members:
     :undoc-members:
 
