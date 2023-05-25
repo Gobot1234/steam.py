@@ -1007,6 +1007,8 @@ class AppInfo(ProductInfo, PartialApp[str]):
                     )
                 )
             else:
+                if "public" not in manifests:
+                    return  # we don't own the app, no branch info available
                 public_manifest_info = manifests["public"]
                 public_id = ManifestID(
                     int(public_manifest_info if isinstance(public_manifest_info, str) else public_manifest_info["gid"])
