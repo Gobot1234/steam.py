@@ -16,4 +16,4 @@ repos:
     rev: 1.13.0
     hooks:
       - id: blacken-docs
-        args: [--line-length=120, --target-version=py37]
+        args: [--line-length=120, --target-version=py310]
