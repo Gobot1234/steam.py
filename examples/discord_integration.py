@@ -9,8 +9,8 @@ import steam
 class DiscordBot(commands.Bot):
     def __init__(self):
         super().__init__(
-            command_prefix="!",
-            intents=discord.Intents.default(),
+            command_prefix=commands.when_mentioned_or("!"),
+            intents=discord.Intents.all(),
             description="A simple bot that can get steam user info",
         )
         self.client = steam.Client()  # attach a steam.Client instance to the bot
