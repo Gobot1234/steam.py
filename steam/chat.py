@@ -340,6 +340,9 @@ class Chat(Channel[ChatMessageT]):
     def __eq__(self, other: object) -> bool:
         return self._location == other._location if isinstance(other, Chat) else NotImplemented
 
+    def __hash__(self) -> int:
+        return hash(self._location)
+
     @cached_slot_property("_cs_location")
     def _location(self) -> tuple[ChatGroupID, ChatID]:
         chat_id = self._chat_group._id

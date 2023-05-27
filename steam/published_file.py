@@ -12,7 +12,7 @@ from aiohttp import StreamReader
 from bs4 import BeautifulSoup
 from yarl import URL as URL_
 
-from ._const import DEFAULT_AVATAR
+from ._const import DEFAULT_AVATAR, impl_eq_via_id
 from .abc import Awardable, Commentable, PartialUser, _CommentableKwargs
 from .app import PartialApp
 from .enums import Language, PublishedFileRevision, PublishedFileType, PublishedFileVisibility
@@ -126,6 +126,7 @@ class PublishedFileImage(_IOMixin):
     """The file's image's url."""
 
 
+@impl_eq_via_id
 class PublishedFile(Commentable, Awardable, Generic[UserT]):
     """Represents a published file on SteamPipe."""
 

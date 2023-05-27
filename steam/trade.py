@@ -580,6 +580,9 @@ class TradeOffer(Generic[ReceivingAssetT, SendingAssetT, OwnerT]):
             else self.sending == other.sending and self.receiving == other.receiving
         )
 
+    def __hash__(self) -> int:
+        return hash(self.id) if self._has_been_sent else hash((tuple(self.sending), tuple(self.receiving)))
+
     async def confirm(self) -> None:
         """Confirms the trade offer.
         This rarely needs to be called as the client handles most of these.

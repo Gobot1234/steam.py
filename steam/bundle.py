@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, Generic
 
 from typing_extensions import TypeVar
 
-from ._const import URL
+from ._const import URL, impl_eq_via_id
 from .app import PartialApp
 from .clan import PartialClan
 from .enums import Language
@@ -27,6 +27,7 @@ __all__ = (
 NameT = TypeVar("NameT", bound=str | None, default=str | None, covariant=True)
 
 
+@impl_eq_via_id
 class Bundle(Generic[NameT]):
     """Represents a bundle of apps and packages."""
 
@@ -40,12 +41,6 @@ class Bundle(Generic[NameT]):
 
     def __repr__(self) -> str:
         return f"Bundle(id={self.id}, name={self.name!r})"
-
-    def __eq__(self, other: object) -> bool:
-        return other.id == self.id if isinstance(other, Bundle) else NotImplemented
-
-    def __hash__(self) -> int:
-        return hash(self.id)
 
     @property
     def url(self) -> str:

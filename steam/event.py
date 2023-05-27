@@ -6,7 +6,7 @@ import abc
 from collections.abc import Sequence
 from datetime import datetime
 from ipaddress import IPv4Address
-from typing import TYPE_CHECKING, Any, Generic, Literal, cast, overload
+from typing import TYPE_CHECKING, Generic, Literal, cast, overload
 
 from typing_extensions import TypeVar
 
@@ -138,6 +138,9 @@ class BaseEvent(Commentable, utils.AsyncInit, Generic[EventTypeT, ClanT], metacl
 
     def __eq__(self, other: object) -> bool:
         return self.id == other.id and self.clan == other.clan if isinstance(other, self.__class__) else NotImplemented
+
+    def __hash__(self) -> int:
+        return hash((self.id, self.clan))
 
 
 class Event(BaseEvent[EventTypeT, ClanT]):

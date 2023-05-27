@@ -14,7 +14,7 @@ from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from io import BytesIO, StringIO
-from typing import TYPE_CHECKING, Any, Final, Literal, cast, final
+from typing import TYPE_CHECKING, Any, Final, Literal, Protocol, TypeVar, cast, final
 
 from multidict import MultiDict
 from yarl import URL as _URL
@@ -159,6 +159,25 @@ class URL:
 
 
 DEFAULT_AVATAR: Final = b"\xfe\xf4\x9e\x7f\xa7\xe1\x99s\x10\xd7\x05\xb2\xa6\x15\x8f\xf8\xdc\x1c\xdf\xeb"
+
+
+class _IDComparable(Protocol):
+    id: Any
+
+
+TypeT = TypeVar("TypeT", bound=type[_IDComparable])
+
+
+def impl_eq_via_id(cls: TypeT) -> TypeT:
+    def __eq__(self: _IDComparable, other: object, /) -> bool:
+        return self.id == other.id if isinstance(other, cls) else NotImplemented  # type: ignore
+
+    def __hash__(self: _IDComparable) -> int:
+        return hash(self.id)
+
+    cls.__eq__ = __eq__
+    cls.__hash__ = __hash__
+    return cls
 
 
 @dataclass(frozen=True, slots=True)

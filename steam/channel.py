@@ -47,6 +47,9 @@ class UserChannel(Channel[UserMessage]):
     def __eq__(self, other: object) -> bool:
         return self.participant == other.participant if isinstance(other, UserChannel) else NotImplemented
 
+    def __hash__(self) -> int:
+        return hash(self.participant)
+
     def _message_func(self, content: str) -> Coroutine[Any, Any, UserMessage]:
         return self.participant._message_func(content)
 

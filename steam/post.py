@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Generic
 
+from ._const import impl_eq_via_id
 from .abc import Awardable, Commentable, _CommentableKwargs
 from .app import PartialApp
 from .types.id import PostID
@@ -15,6 +16,7 @@ if TYPE_CHECKING:
 
 
 @dataclass(repr=False, slots=True, eq=False)
+@impl_eq_via_id
 class Post(Awardable, Commentable, Generic[UserT]):
     """Represents a post on Steam Community."""
 
@@ -30,12 +32,6 @@ class Post(Awardable, Commentable, Generic[UserT]):
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} id={self.id} author={self.author!r} app={self.app!r}>"
-
-    def __eq__(self, other: object) -> bool:
-        return other.id == self.id if isinstance(other, Post) else NotImplemented
-
-    def __hash__(self) -> int:
-        return hash(self.id)
 
     async def delete(self) -> None:
         """Delete this post."""

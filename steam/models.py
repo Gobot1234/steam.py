@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
-import logging
 import re
 from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
@@ -15,7 +13,6 @@ from typing import TYPE_CHECKING, Any, Literal, ParamSpec, Protocol, TypedDict, 
 from aiohttp.streams import AsyncStreamIterator, ChunkTupleAsyncStreamIterator
 from yarl import URL as _URL
 
-from . import utils
 from ._const import DEFAULT_AVATAR, URL
 from .enums import CurrencyCode, PurchaseResult, Realm, Result
 from .media import Media
@@ -243,6 +240,9 @@ class Avatar(_IOMixin):
     def __eq__(self, other: object) -> bool:
         return self.sha == other.sha if isinstance(other, self.__class__) else NotImplemented
 
+    def __hash__(self) -> int:
+        return hash(self.sha)
+
 
 @dataclass(slots=True)
 class CDNAsset(_IOMixin):
@@ -252,6 +252,9 @@ class CDNAsset(_IOMixin):
 
     def __eq__(self, other: object) -> bool:
         return self.url == other.url if isinstance(other, self.__class__) else NotImplemented
+
+    def __hash__(self) -> int:
+        return hash(self.url)
 
 
 @dataclass(slots=True)

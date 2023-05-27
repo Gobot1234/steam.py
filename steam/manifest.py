@@ -27,7 +27,7 @@ from typing_extensions import Never, Self
 from yarl import URL as URL_
 
 from . import utils
-from ._const import MISSING, URL, VDF_LOADS, VDFDict
+from ._const import MISSING, URL, VDF_LOADS, VDFDict, impl_eq_via_id
 from .app import PartialApp
 from .enums import AppType, BillingType, DepotFileFlag, Language, LicenseType, PackageStatus, ReviewType
 from .id import ID
@@ -509,6 +509,7 @@ SIGNATURE_MAGIC: Final = 0x1B81B817
 END_OF_MANIFEST_MAGIC: Final = 0x32C415AB
 
 
+@impl_eq_via_id
 class Manifest:
     """Represents a manifest which is a collection of files included with a depot build on Steam's CDN.
 
@@ -595,9 +596,6 @@ class Manifest:
 
             io.write_u32(END_OF_MANIFEST_MAGIC)
             return io.buffer
-
-    def __eq__(self, other: object) -> bool:
-        return self.id == other.id if isinstance(other, self.__class__) else NotImplemented
 
     def __len__(self) -> int:
         return len(self._payload.mappings)
@@ -780,6 +778,7 @@ class PrivateManifestInfo(ManifestInfo):
 
 
 @dataclass(slots=True)
+@impl_eq_via_id
 class HeadlessDepot:
     """Represents a depot without a branch."""
 
@@ -800,9 +799,6 @@ class HeadlessDepot:
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} name={self.name!r} id={self.id} app={self.app!r}>"
-
-    def __eq__(self, other: object) -> bool:
-        return self.id == other.id if isinstance(other, self.__class__) else NotImplemented
 
 
 @dataclass(repr=False, slots=True)

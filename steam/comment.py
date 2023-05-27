@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Generic, overload
 
 from typing_extensions import Never, TypeVar
 
+from ._const import impl_eq_via_id
 from .abc import Awardable, Commentable
 from .types.user import AuthorT
 
@@ -24,6 +25,7 @@ OwnerT = TypeVar("OwnerT", bound="Commentable", default="Commentable", covariant
 
 
 @dataclass(repr=False, slots=True)
+@impl_eq_via_id
 class Comment(Awardable, Generic[OwnerT, AuthorT]):
     """Represents a comment on a Steam profile.
 
@@ -56,12 +58,6 @@ class Comment(Awardable, Generic[OwnerT, AuthorT]):
         attrs = ("id", "author")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<Comment {' '.join(resolved)}>"
-
-    def __eq__(self, other: object) -> bool:
-        return self.id == other.id if isinstance(other, Comment) else NotImplemented
-
-    def __hash__(self) -> int:
-        return hash(self.id)
 
     async def report(self) -> None:
         """Reports the comment."""

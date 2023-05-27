@@ -7,11 +7,11 @@ import sys
 from collections.abc import AsyncGenerator, Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Generic
+from typing import TYPE_CHECKING, Generic
 
 from typing_extensions import TypeVar
 
-from ._const import URL
+from ._const import URL, impl_eq_via_id
 from .app import App, PartialApp, PartialAppPriceOverview
 from .enums import CurrencyCode, Language, LicenseFlag, LicenseType, PaymentMethod
 from .errors import HTTPException
@@ -39,6 +39,7 @@ NameT = TypeVar("NameT", bound=str | None, default=str | None, covariant=True)
 AppT = TypeVar("AppT", bound=App, covariant=True)
 
 
+@impl_eq_via_id
 class Package(Generic[NameT]):
     """Represents a package, a collection of one or more apps and depots.
 
@@ -55,12 +56,6 @@ class Package(Generic[NameT]):
         """The package's ID."""
         self.name = name
         """The package's name."""
-
-    def __eq__(self, other: object) -> bool:
-        return self.id == other.id if isinstance(other, Package) else NotImplemented
-
-    def __hash__(self) -> int:
-        return hash(self.id)
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(id={self.id}, name={self.name!r})"

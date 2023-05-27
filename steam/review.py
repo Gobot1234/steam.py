@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 
 from typing_extensions import Self
 
+from ._const import impl_eq_via_id
 from .abc import Awardable, Commentable, PartialUser, _CommentableKwargs
 from .app import PartialApp
 from .chat import WrapsUser
@@ -75,6 +76,7 @@ class ReviewApp(PartialApp):
 
 
 @dataclass(repr=False, eq=False)
+@impl_eq_via_id
 class Review(Commentable, Awardable):
     """Represents a review for an app."""
 
@@ -143,9 +145,6 @@ class Review(Commentable, Awardable):
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} id={self.id} app={self.app!r} author={self.author!r}>"
-
-    def __eq__(self, other: object) -> bool:
-        return self.id == other.id if isinstance(other, self.__class__) else NotImplemented
 
     @property
     def _commentable_kwargs(self) -> _CommentableKwargs:

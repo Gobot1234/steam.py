@@ -17,7 +17,18 @@ from bs4 import BeautifulSoup
 from typing_extensions import Self, TypeVar
 
 from . import utils
-from ._const import DOCS_BUILDING, HTML_PARSER, JSON_LOADS, MISSING, STATE, STEAM_BADGES, UNIX_EPOCH, URL, WRITE_U32
+from ._const import (
+    DOCS_BUILDING,
+    HTML_PARSER,
+    JSON_LOADS,
+    MISSING,
+    STATE,
+    STEAM_BADGES,
+    UNIX_EPOCH,
+    URL,
+    WRITE_U32,
+    impl_eq_via_id,
+)
 from .achievement import AppAchievement, AppStats
 from .badge import AppBadge
 from .enums import *
@@ -66,6 +77,7 @@ APP_ID_MAX: Final = AppID((1 << 32) - 1)
 NameT = TypeVar("NameT", bound=str | None, default=str | None, covariant=True)
 
 
+@impl_eq_via_id
 class App(Generic[NameT]):
     """Represents a Steam app."""
 
@@ -107,12 +119,6 @@ class App(Generic[NameT]):
         attrs = ("name", "id", "context_id")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"{self.__class__.__name__}({', '.join(resolved)})"
-
-    def __eq__(self, other: Any) -> bool:
-        return self.id == other.id if isinstance(other, App) else NotImplemented
-
-    def __hash__(self) -> int:
-        return hash(self.id)
 
     def to_proto(self) -> client_server.CMsgClientGamesPlayedGamePlayed:
         if self.is_valid():
