@@ -16,7 +16,7 @@ from typing_extensions import Self
 
 from . import utils
 from ._const import DOCS_BUILDING, UNIX_EPOCH, URL, TaskGroup
-from .abc import BaseUser, Message, Messageable
+from .abc import BaseUser, Messageable
 from .app import PartialApp
 from .enums import Language, PersonaState, PersonaStateFlag, Result, TradeOfferState, Type
 from .errors import ClientException, ConfirmationError, HTTPException
@@ -25,7 +25,7 @@ from .profile import ClientUserProfile, OwnedProfileItems, ProfileInfo, ProfileI
 from .protobufs import friend_messages, player
 from .reaction import Emoticon, MessageReaction, Sticker
 from .trade import Asset
-from .types.id import ID32, ID64, AppID, Intable
+from .types.id import ID32, AppID, Intable
 from .utils import DateTime, cached_slot_property, parse_bb_code
 
 if TYPE_CHECKING:
@@ -51,7 +51,6 @@ class _BaseUser(BaseUser):
         "app",
         "state",
         "flags",
-        "trade_url",
         "last_seen_online",
         "last_logoff",
         "last_logon",
@@ -70,8 +69,6 @@ class _BaseUser(BaseUser):
         self.name = proto.player_name
         """The user's username."""
         self._avatar_sha = proto.avatar_hash
-        self.trade_url = URL.COMMUNITY / f"tradeoffer/new/" % {"partner": str(self.id)}
-        """The trade url of the user."""
 
         self.game_server_ip = IPv4Address(proto.game_server_ip) if proto.game_server_ip else None
         """The IP address of the game server the user is currently playing on."""

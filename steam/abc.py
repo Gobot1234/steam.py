@@ -15,7 +15,7 @@ from typing_extensions import Required, Self, TypeVar
 from yarl import URL as URL_
 
 from . import utils
-from ._const import HTML_PARSER, MISSING, STEAM_EPOCH, UNIX_EPOCH, VDF_BINARY_LOADS
+from ._const import HTML_PARSER, MISSING, STEAM_EPOCH, UNIX_EPOCH, URL, VDF_BINARY_LOADS
 from .achievement import UserAppStats
 from .app import STEAM, App, PartialApp, UserApp, UserInventoryInfoApp, UserInventoryInfoContext, WishlistApp
 from .badge import FavouriteBadge, UserBadges
@@ -303,6 +303,11 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
     @classproperty
     def _COMMENTABLE_TYPE(cls: type[Self]) -> _CommentableThreadType:  # type: ignore
         return _CommentableThreadType.User
+
+    @property
+    def trade_url(self) -> URL_:
+        """The trade url of the user."""
+        return URL.COMMUNITY / "tradeoffer/new/" % {"partner": str(self.id)}
 
     async def inventory_info(self) -> list[UserInventoryInfo[Self]]:
         """Fetch the inventory info of the user.
