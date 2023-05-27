@@ -124,7 +124,7 @@ class HTTPClient:
                         delay = float(r.headers["X-Retry-After"])
                     except KeyError:  # steam being un-helpful as usual
                         delay = 2**tries
-                    log.warning("We are being Rate limited sleeping for %s seconds", delay)
+                    log.warning("We are being rate limited sleeping for %s seconds", delay)
                     await asyncio.sleep(delay)
                     continue
 

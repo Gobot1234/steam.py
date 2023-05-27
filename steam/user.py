@@ -19,7 +19,7 @@ from ._const import DOCS_BUILDING, UNIX_EPOCH, URL, TaskGroup
 from .abc import BaseUser, Messageable
 from .app import PartialApp
 from .enums import Language, PersonaState, PersonaStateFlag, Result, TradeOfferState, Type
-from .errors import ClientException, ConfirmationError, HTTPException
+from .errors import ConfirmationError, HTTPException
 from .id import _ID64_TO_ID32, ID
 from .profile import ClientUserProfile, OwnedProfileItems, ProfileInfo, ProfileItem
 from .protobufs import friend_messages, player
@@ -219,10 +219,11 @@ class User(_BaseUser, Messageable["UserMessage"]):
                 for tries in range(5):
                     try:
                         await trade.confirm()
-                    except ConfirmationError:
                         break
-                    except ClientException:
+                    except ConfirmationError:
                         await asyncio.sleep(tries * 2)
+                else:
+                    raise ConfirmationError("Failed to confirm trade offer")
                 trade.state = TradeOfferState.Active
 
             # make sure the trade is updated before this function returns

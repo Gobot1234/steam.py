@@ -519,6 +519,8 @@ class SteamWebSocket:
                             request_id=begin_resp.request_id,
                         )
                     )
+                    if poll_resp.result != Result.OK:
+                        raise WSException(poll_resp)
                     break
                 case auth.EAuthSessionGuardType.EmailConfirmation | auth.EAuthSessionGuardType.DeviceConfirmation:
                     raise NotImplementedError("Email and Device confirmation support is not implemented yet")
@@ -691,7 +693,6 @@ class SteamWebSocket:
         try:
             await self.socket.send_bytes(data)
         except ConnectionResetError:
-            log.info("Connection closed")
             await self._state.handle_close()
 
     async def send_proto(self, message: ProtoMsgs) -> None:
