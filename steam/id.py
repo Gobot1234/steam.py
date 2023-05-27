@@ -6,6 +6,7 @@ import abc
 import re
 from collections.abc import Callable, Mapping
 from contextlib import nullcontext
+from types import GenericAlias
 from typing import TYPE_CHECKING, Any, Final, Generic, Literal, cast, overload
 
 import aiohttp
@@ -282,6 +283,9 @@ class ID(Generic[TypeT], metaclass=abc.ABCMeta):
     #   Public      Individual  All                      287788226
 
     __slots__ = ("id64", "__weakref__")
+    __class_getitem__ = classmethod(
+        GenericAlias
+    )  # want the different behaviour between typing._GenericAlias todo with attribute forwarding
 
     def __init__(
         self,
