@@ -7,11 +7,6 @@ from typing import Any
 from typing_extensions import Literal, TypedDict
 
 
-class AppToDict(TypedDict, total=False):
-    game_id: str
-    game_extra_info: str
-
-
 class WishlistApp(TypedDict):
     name: str
     capsule: str
@@ -19,7 +14,7 @@ class WishlistApp(TypedDict):
     review_desc: str
     reviews_total: str
     reviews_percent: int
-    release_date: int
+    release_date: str | None  # really an int/float (sometimes)
     release_string: str
     platform_icons: str
     subs: list[WishlistAppSub]
@@ -38,7 +33,8 @@ class WishlistApp(TypedDict):
 
 
 class WishlistAppSub(TypedDict):
-    id: int  # PackageID
+    packageid: int
+    bundleid: int
     discount_block: str
     discount_pct: int
     price: int

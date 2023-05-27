@@ -1170,7 +1170,9 @@ class DLC(PartialApp[str]):
 
     def __init__(self, state: ConnectionState, data: app.DLC):
         super().__init__(state, id=data["id"], name=data["name"])
-        self.created_at = DateTime.from_timestamp(int(data["release_date"]["steam"]))
+        self.created_at = (
+            DateTime.from_timestamp(int(data["release_date"]["steam"])) if data["release_date"]["steam"] else None
+        )
         """The time the DLC was released at."""
         self.logo = CDNAsset(state, data["header_image"])
         """The logo url of the DLC."""
@@ -1287,6 +1289,7 @@ class WishlistApp(PartialApp[str]):
         "total_reviews",
         "type",
         "partial_packages",
+        "partial_bundles",
         "_free",
         "_on_linux",
         "_on_mac_os",
@@ -1294,6 +1297,7 @@ class WishlistApp(PartialApp[str]):
     )
 
     def __init__(self, state: ConnectionState, id: int, data: app.WishlistApp):
+        from .bundle import PartialBundle
         from .package import PartialPackage
 
         super().__init__(state, id=id, name=data["name"])
@@ -1309,7 +1313,7 @@ class WishlistApp(PartialApp[str]):
         """The total number reviews for the app."""
         self.review_status = ReviewType.try_value(data["review_score"])
         """The review status of the app."""
-        self.created_at = DateTime.from_timestamp(float(data["release_date"]))
+        self.created_at = DateTime.from_timestamp(float(data["release_date"])) if data["release_date"] else None
         """The time the app was uploaded at."""
         self.screenshots = [
             CDNAsset(state, f"{URL.CDN}/steam/apps/{self.id}/{screenshot_url}")
@@ -1324,8 +1328,15 @@ class WishlistApp(PartialApp[str]):
         """The tags of the app."""
         self.rank = data["rank"]
         """The global rank of the app by popularity."""
-        self.partial_packages = [PartialPackage(state, id=package["id"]) for package in data["subs"]]
+        self.partial_packages: list[PartialPackage] = []
         """The packages this app is included in."""
+        self.partial_bundles: list[PartialBundle] = []
+        """The bundles this app is included in."""
+        for sub in data["subs"]:
+            if package_id := sub["packageid"]:
+                self.partial_packages.append(PartialPackage(state, id=package_id))
+            elif bundle_id := sub["bundleid"]:
+                self.partial_bundles.append(PartialBundle(state, id=bundle_id))
 
         self._free = data["is_free_game"]
         self._on_windows = bool(data.get("win", False))
