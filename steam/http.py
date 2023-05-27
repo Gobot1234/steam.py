@@ -840,13 +840,10 @@ class HTTPClient:
         }
         if publisher_key is not None:
             params["key"] = publisher_key
-            kwargs = {"api_needs_auth": False}
-        else:
-            kwargs = {"api_needs_auth": True}
         resp: ResponseDict[user.AuthenticateUserTicket] = await self.get(
             api_route("ISteamUserAuth/AuthenticateUserTicket", publisher=publisher_key is not None),
             params=params,
-            **kwargs,
+            api_needs_auth=publisher_key is None,
         )
         return resp["response"]["params"]
 
