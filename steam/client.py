@@ -60,13 +60,13 @@ from .utils import DateTime, TradeURLInfo
 if TYPE_CHECKING:
     import steam
 
+    from .abc import Message
     from .clan import Clan
     from .comment import Comment
     from .event import Announcement, Event
     from .friend import Friend
     from .group import Group
     from .invite import ClanInvite, UserInvite
-    from .protobufs import Message, ProtobufMessage
     from .reaction import MessageReaction
     from .trade import Item, MovedItem, TradeOffer
     from .types.http import IPAdress
@@ -445,6 +445,8 @@ class Client:
         self._ready.clear()
         self._state.clear()
         self.http.clear()
+        if not self._aentered:
+            self._tg = TaskGroup()
 
     async def _login(
         self,
@@ -452,9 +454,9 @@ class Client:
         *args: P.args,
         **kwargs: P.kwargs,
     ) -> None:
+        self.clear()
         async with nullcontext() if self._aentered else self._tg:
             STATE.set(self._state)
-            self._closed = False
 
             exceptions = (
                 OSError,
@@ -471,7 +473,6 @@ class Client:
                 log.info("Attempting to connect to another CM in %ds", sleep)
                 await asyncio.sleep(sleep)
 
-            self.http.clear()
             while not self.is_closed():
                 last_connect = time.monotonic()
 
@@ -548,10 +549,6 @@ class Client:
         self.shared_secret = shared_secret
         self.identity_secret = identity_secret
 
-        self._closed = False
-        if not self._aentered:
-            self._tg = TaskGroup()
-
         if identity_secret is None:
             log.info("Trades will not be automatically accepted when sent as no identity_secret was passed.")
 
@@ -559,8 +556,6 @@ class Client:
 
     async def anonymous_login(self) -> None:
         """Initialize a connection to a Steam CM and login anonymously."""
-        if not self._aentered:
-            self._tg = TaskGroup()
         await self._login(SteamWebSocket.anonymous_login_from_client)
 
     # state stuff
