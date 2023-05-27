@@ -112,7 +112,57 @@ class StoreItemPurchaseOption:
         self.should_suppress_discount_percentage: bool = proto.should_suppress_discount_pct
 
 
-class StoreItem:  # TODO slots
+class StoreItem:
+    __slots__ = ()
+    SLOTS = (  # done to avoid "multiple bases have instance lay-out conflict"
+        "_language",
+        "hidden",
+        "unavailable_for_country_restriction",
+        "_apps",
+        "created_at",
+        "type",
+        "included_types",
+        "related_parent_app",
+        "tags",
+        "categories",
+        "review_score",
+        "review_count",
+        "review_percent_positive",
+        "filtered_review_score",
+        "filtered_review_count",
+        "filtered_review_percent_positive",
+        "summary",
+        "capsule_headline",
+        "publishers",
+        "developers",
+        "franchises",
+        "small_capsule",
+        "header",
+        "package_header",
+        "page_background",
+        "hero_capsule",
+        "library_capsule",
+        "library_hero",
+        "community_icon",
+        "vr_support",
+        "game_rating",
+        "best_purchase_option",
+        "purchase_options",
+        "accessories",
+        # "all_ages_screenshots",
+        # "mature_screenshots",
+        "trailers",
+        "supported_languages",
+        # self.store_url_path_override
+        "free_weekend",
+        "content_descriptors",
+        "_free",
+        "_early_access",
+        "_on_windows",
+        "_on_mac_os",
+        "_on_linux",
+    )
+
     def __init__(self, state: ConnectionState, proto: store.StoreItem, language: Language) -> None:
         super().__init__(state, id=proto.id, name=proto.name)  # type: ignore  # this is a mixin
         self._language = language
@@ -236,13 +286,19 @@ class StoreItem:  # TODO slots
 class AppStoreItem(StoreItem, PartialApp[str]):
     """Represents an app fetched from the store."""
 
+    __slots__ = StoreItem.SLOTS
+
 
 class PackageStoreItem(StoreItem, PartialPackage[str]):
     """Represents a package fetched from the store."""
 
+    __slots__ = StoreItem.SLOTS
+
 
 class BundleStoreItem(StoreItem, PartialBundle[str]):
     """Represents a bundle fetched from the store."""
+
+    __slots__ = StoreItem.SLOTS
 
 
 @dataclass(slots=True)
