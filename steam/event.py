@@ -273,7 +273,7 @@ class Event(BaseEvent[EventTypeT, ClanT]):
         self.type = type_
         self.server_address = server_address or None
         self.server_password = server_password or self.server_password
-        self.app = PartialApp(self._state, id=app_id) if app_id is not None else None
+        self.app = new_app
         self.last_edited_at = DateTime.now()
         self.last_edited_by = self._state.user
 
@@ -314,7 +314,9 @@ class Announcement(BaseEvent[EventType, ClanT]):
 
     @property
     def _commentable_kwargs(self) -> _CommentableKwargs:
-        if hasattr(self.clan, "is_app_clan") and self.clan.is_app_clan:  # type: ignore
+        from .clan import Clan
+
+        if isinstance(self.clan, Clan) and self.clan.is_ogg():
             raise NotImplementedError("Fetching an app announcement's comments is not currently supported")
         return {
             "id64": self.clan.id64,

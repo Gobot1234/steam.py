@@ -309,10 +309,9 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
     """The language set for the clan."""
     location: str
     """The location set for the clan."""
-    is_app_clan: bool
-    """Whether the clan is an app clan."""
     flags: ClanAccountFlags | None
     """The flags"""
+    _is_app_clan: bool
 
     def __init__(self, state: ConnectionState, id: Intable) -> None:
         PartialClan.__init__(self, state, id)
@@ -324,7 +323,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
         assert community_url is not None
         async with self._state.http._session.get(community_url) as resp:
             soup = BeautifulSoup(await resp.text(), HTML_PARSER)  # technically we loose proper request handling here
-            self.is_app_clan = "games" in resp.url.parts
+            self._is_app_clan = "games" in resp.url.parts
 
         if not from_proto:
             _, _, self.name = soup.title.text.rpartition(" :: ")
@@ -336,7 +335,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
         content = soup.find("meta", property="og:description")
         self.summary = parse_bb_code(content["content"]) if content is not None else None
 
-        if self.is_app_clan:
+        if self._is_app_clan:
             for entry in soup.find_all("div", class_="actionItem"):
                 if (a := entry.a) is not None:
                     href = a.get("href", "")
@@ -452,6 +451,12 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
 
     def _get_partial_member(self, id: ID32) -> PartialMember:
         return PartialMember(self._state, clan=self, member=self._partial_members[id])
+
+    def is_ogg(self) -> bool:
+        """Whether this clan is an official game group."""
+        if self.flags is not None:
+            return self.flags & ClanAccountFlags.OGG > 0
+        return self._is_app_clan
 
     async def join(self, *, invite_code: str | None = None) -> None:
         """Joins the clan."""
