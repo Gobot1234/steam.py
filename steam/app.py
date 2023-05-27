@@ -119,7 +119,7 @@ class App(Generic[NameT]):
             return client_server.CMsgClientGamesPlayedGamePlayed(game_id=self.id)
 
         if self.name is None:
-            raise TypeError("un-serializable app with no title")
+            raise TypeError("un-serializable app with no name")
         return client_server.CMsgClientGamesPlayedGamePlayed(game_id=self.id, game_extra_info=self.name)
 
     def is_valid(self) -> bool:
@@ -429,7 +429,7 @@ class PartialApp(App[NameT]):
 
     else:
 
-        def __init__(self, state: ConnectionState, *, id: int, name: NameT = None, context_id: int | None = None):
+        def __init__(self, state: ConnectionState, *, id: Intable, name: NameT = None, context_id: int | None = None):
             super().__init__(id=id, name=name, context_id=context_id)
             self._state = state
 

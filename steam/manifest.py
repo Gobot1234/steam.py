@@ -267,7 +267,6 @@ class ManifestPath(PurePathBase, _IOMixin):
                 # try and return the actual path if exists
                 return self._manifest._paths[new_self.parts]
             except KeyError:
-                # else attach the manifest and return, this will not support most operations
                 return new_self
 
     def __repr__(self) -> str:
@@ -394,7 +393,13 @@ class ManifestPath(PurePathBase, _IOMixin):
 
     def exists(self, *, follow_symlinks: bool = True) -> bool:
         """Return whether this path exists. Similar to :meth:`pathlib.Path.exists`."""
-        return hasattr(self.resolve(strict=False, _follow_symlinks=follow_symlinks), "_mapping")
+        return hasattr(
+            self.resolve(
+                strict=False,
+                _follow_symlinks=follow_symlinks,  # type: ignore
+            ),
+            "_mapping",
+        )
 
     def iterdir(self) -> Generator[Self, None, None]:
         """Iterate over this path. Similar to :meth:`pathlib.Path.iterdir`."""

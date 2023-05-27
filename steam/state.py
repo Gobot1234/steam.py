@@ -208,8 +208,8 @@ class ConnectionState:
         self.polling_trades = False
         self.trade_queue = Queue[TradeOffer[Item[User], Item[ClientUser], User]]()
         self._trades_to_watch: set[TradeOfferID] = set()
-        self._trades_received_cache: Sequence[dict[str, Any]] = ()
-        self._trades_sent_cache: Sequence[dict[str, Any]] = ()
+        self._trades_received_cache: Sequence[trade.TradeOffer] = ()
+        self._trades_sent_cache: Sequence[trade.TradeOffer] = ()
         self.polling_confirmations = False
         self.confirmation_queue = Queue[Confirmation](attr=attrgetter("creator_id"))
 

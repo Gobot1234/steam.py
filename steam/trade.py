@@ -8,7 +8,7 @@ import itertools
 import types
 from collections.abc import Iterator, Sequence
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Generic, cast
+from typing import TYPE_CHECKING, Any, Generic, cast, overload
 
 from typing_extensions import NamedTuple, TypeVar
 
@@ -261,7 +261,7 @@ class InventoryGenericAlias(types.GenericAlias):
 ItemT = TypeVar("ItemT", bound=Item["PartialUser"], default=Item["BaseUser"], covariant=True)
 
 
-class Inventory(Generic[ItemT, OwnerT]):
+class Inventory(Generic[ItemT, OwnerT], Sequence[ItemT]):
     """Represents a User's inventory.
 
     .. container:: operations
@@ -317,6 +317,17 @@ class Inventory(Generic[ItemT, OwnerT]):
 
     def __len__(self) -> int:
         return len(self.items)
+
+    @overload
+    def __getitem__(self, idx: int) -> ItemT:
+        ...
+
+    @overload
+    def __getitem__(self, idx: slice) -> Sequence[ItemT]:
+        ...
+
+    def __getitem__(self, idx: int | slice) -> ItemT | Sequence[ItemT]:
+        return self.items[idx]
 
     def __iter__(self) -> Iterator[ItemT]:
         return iter(self.items)

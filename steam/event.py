@@ -156,7 +156,7 @@ class Event(BaseEvent[EventTypeT, ClanT]):
         }
 
     async def server(self) -> GameServer:
-        """The server that the app will be run on.
+        """The server that the event will be ran on.
 
         Note
         ----

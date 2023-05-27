@@ -116,7 +116,7 @@ def READ_U32(s: bytes, unpacker: Callable[[bytes], tuple[int]] = struct.Struct("
     return u32
 
 
-WRITE_U32: Final[Callable[[int], bytes]] = struct.Struct("<I").pack
+WRITE_U32: Final = cast(Callable[[int], bytes], struct.Struct("<I").pack)
 
 _PROTOBUF_MASK: Final = 0x80000000
 # inlined as these are some of the most called functions in the library

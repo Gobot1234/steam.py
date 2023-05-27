@@ -3,20 +3,20 @@ from __future__ import annotations
 from typing import Any, Literal
 
 from multidict import MultiDict
-from typing_extensions import Literal, NotRequired, TypedDict
+from typing_extensions import NotRequired
 
-from ....types.vdf import VDFBool
+from ....types.vdf import TypedVDFDict, VDFBool
 
 
-class ValueDict(TypedDict, MultiDict):  # type: ignore
+class ValueDict(TypedVDFDict):
     value: int
 
 
-class ColorDict(TypedDict, MultiDict):  # type: ignore  # I'm sorry my fellow tea drinkers
+class ColorDict(TypedVDFDict):  # I'm sorry my fellow tea drinkers
     color_name: str
 
 
-class RaritiesDict(TypedDict, MultiDict):  # type: ignore
+class RaritiesDict(TypedVDFDict):
     value: int
     loc_key: str
     loc_key_weapon: str
@@ -24,19 +24,19 @@ class RaritiesDict(TypedDict, MultiDict):  # type: ignore
     next_rarity: NotRequired[str]
 
 
-class EquipConflicts(TypedDict, MultiDict):  # type: ignore
+class EquipConflicts(TypedVDFDict):
     glasses: MultiDict[int]
     whole_head: MultiDict[int]
 
 
-class CollectionDict(TypedDict, MultiDict):  # type: ignore
+class CollectionDict(TypedVDFDict):
     name: str
     description: str
     is_reference_collection: VDFBool
     items: MultiDict[int]
 
 
-class OperationInfo(TypedDict, MultiDict):  # type: ignore
+class OperationInfo(TypedVDFDict):
     name: str
     gateway_item_name: str
     required_item_name: str
@@ -51,7 +51,7 @@ class OperationInfo(TypedDict, MultiDict):  # type: ignore
     max_drop_count: NotRequired[int]
 
 
-class ItemInfo(TypedDict, MultiDict):  # type: ignore
+class ItemInfo(TypedVDFDict):
     name: str
     prefab: str
     item_name: str
@@ -59,7 +59,7 @@ class ItemInfo(TypedDict, MultiDict):  # type: ignore
     image_inventory: str
 
 
-class AttributeInfo(TypedDict, MultiDict):  # type: ignore
+class AttributeInfo(TypedVDFDict):
     name: str
     attribute_class: str
     description_string: NotRequired[str]
@@ -70,14 +70,14 @@ class AttributeInfo(TypedDict, MultiDict):  # type: ignore
     armory_desc: NotRequired[str]
 
 
-class ItemSet(TypedDict, MultiDict):  # type: ignore
+class ItemSet(TypedVDFDict):
     name: str
     items: MultiDict[Literal["1"]]
     attributes: MultiDict[MultiDict[str]]
     store_bundle: NotRequired[str]
 
 
-class CraftInfo(TypedDict, MultiDict):  # type: ignore
+class CraftInfo(TypedVDFDict):
     name: str
     n_A: str
     desc_inputs: str
@@ -94,14 +94,14 @@ class CraftInfo(TypedDict, MultiDict):  # type: ignore
     output_items: MultiDict[MultiDict[CraftInfoIOItem]]
 
 
-class CraftInfoIOItem(TypedDict, MultiDict):  # type: ignore
+class CraftInfoIOItem(TypedVDFDict):
     field: str
     operator: str
     value: str
     required: VDFBool
 
 
-class Schema(TypedDict, MultiDict):  # type: ignore
+class Schema(TypedVDFDict):
     game_info: MultiDict[int]
     qualities: MultiDict[ValueDict]
     colors: MultiDict[ColorDict]

@@ -717,7 +717,7 @@ def get(iterable: Iterable[_T], /, **attrs: Any) -> _T | None:
     ...
 
 
-def get(iterable: _Iter[_T], /, **attrs: Any) -> _T | Coro[_T | None] | None:
+def get(iterable: _Iter[_T], /, **attrs: Any) -> _T | None | Coro[_T | None]:
     """A helper that returns the first element in the iterable that meets all the traits passed in ``attrs``. This
     is an alternative for :func:`find`.
 

@@ -7,7 +7,7 @@ import asyncio
 from collections.abc import AsyncGenerator, Coroutine, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from ipaddress import IPv4Address, IPv6Address
+from ipaddress import IPv4Address
 from typing import TYPE_CHECKING, Any, Generic, Literal, Protocol, TypedDict, cast, runtime_checkable
 
 from bs4 import BeautifulSoup
@@ -721,7 +721,7 @@ class BaseUser(PartialUser):
     """The persona state flags of the account."""
     rich_presence: dict[str, str] | None
     """The user's rich presence."""
-    game_server_ip: IPv4Address | IPv6Address | None
+    game_server_ip: IPv4Address | None
     """The IP address of the game server the user is currently playing on."""
     game_server_port: int | None
     """The port of the game server the user is currently playing on."""

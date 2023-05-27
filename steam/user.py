@@ -500,6 +500,9 @@ class ClientUser(_BaseUser):
         # TODO privacy stuff
 
 
+IndividualID = ID[Literal[Type.Individual]]
+
+
 class WrapsUser(User if TYPE_CHECKING or DOCS_BUILDING else BaseUser, Messageable["UserMessage"]):
     """Internal class used for creating a User subclass optimised for memory. Composes the original user and forwards
     all of its attributes.
@@ -518,7 +521,7 @@ class WrapsUser(User if TYPE_CHECKING or DOCS_BUILDING else BaseUser, Messageabl
     __slots__ = ("_user", "_cs_channel")
 
     def __init__(self, state: ConnectionState, user: User):
-        ID.__init__(self, user.id64, type=Type.Individual)  # type: ignore
+        IndividualID.__init__(self, user.id64, type=Type.Individual)
         self._user = user
 
     def __init_subclass__(cls) -> None:

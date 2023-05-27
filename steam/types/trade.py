@@ -139,5 +139,8 @@ class AcceptTrade(TypedDict):
     needs_mobile_confirmation: NotRequired[bool]
 
 
-class GetTradeOffers(TypedDict):
+class GetTradeOffers(TypedDict, total=False):
     next_cursor: int
+    descriptions: list[Description]
+    trade_offers_received: list[TradeOffer]
+    trade_offers_sent: list[TradeOffer]

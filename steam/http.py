@@ -22,9 +22,10 @@ from . import errors, utils
 from .__metadata__ import __version__
 from ._const import HTML_PARSER, JSON_DUMPS, JSON_LOADS, URL
 from .enums import CurrencyCode, Language, Result, Type
-from .id import CLAN_ID64_FROM_URL_REGEX, ID, parse_id64
+from .id import CLAN_ID64_FROM_URL_REGEX, parse_id64
 from .models import PriceOverviewDict, api_route
 from .types.id import ID32, ID64, AppID, AssetID, BundleID, ChatGroupID, ChatID, PackageID, PostID, TradeOfferID
+from .types.user import IndividualID
 from .user import ClientUser
 
 if TYPE_CHECKING:
@@ -307,7 +308,7 @@ class HTTPClient:
         received: bool = True,
         updated_only: bool = True,
         language: Language | None = None,
-    ) -> dict[str, Any]:
+    ) -> trade.GetTradeOffers:
         params = {
             "active_only": str(active_only).lower(),
             "get_sent_offers": str(sent).lower(),
@@ -394,7 +395,7 @@ class HTTPClient:
 
     def send_trade_offer(
         self,
-        user: ID,
+        user: IndividualID,
         to_send: list[trade.AssetToDict],
         to_receive: list[trade.AssetToDict],
         token: str | None,
@@ -664,7 +665,9 @@ class HTTPClient:
             "clanid_list": ",".join([str(clan_id)] * len(event_ids)),
             "uniqueid_list": ",".join(str(id) for id in event_ids),
         }
-        data: clan.GetEvents = await self.get(URL.STORE / "events/ajaxgeteventdetails", params=params)
+        data: dict[Literal["events"], list[clan.Event]] = await self.get(
+            URL.STORE / "events/ajaxgeteventdetails", params=params
+        )
         return data["events"]
 
     def create_clan_announcement(
@@ -858,7 +861,7 @@ class HTTPClient:
         limit: int | None,
         last_app_id: AppID | None = None,
         modified_after: datetime | None = None,
-    ) -> AsyncGenerator[app.GetAppList, None]:
+    ) -> AsyncGenerator[app.AppListApp, None]:
         have_more_results = True
         last_app_id = None
         while have_more_results:

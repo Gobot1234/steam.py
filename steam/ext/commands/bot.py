@@ -132,11 +132,11 @@ class Bot(GroupMixin, Client):
         This is especially important when passing an empty string,
         it should always be last as no prefix after it will be matched.
 
-    owner_id: :class:`int`
+    owner_id
         The Steam ID of the owner, this is converted to their 64 bit ID representation upon initialization.
-    owner_ids: set[:class:`int`]
+    owner_ids
         The Steam IDs of the owners, these are converted to their 64 bit ID representations upon initialization.
-    case_insensitive: :class:`bool`
+    case_insensitive
         Whether or not commands should be invoke-able case insensitively.
     """
 
@@ -746,19 +746,6 @@ class Bot(GroupMixin, Client):
             check: Callable[[ClanInvite], bool] | None = ...,
             timeout: float | None = ...,
         ) -> ClanInvite:
-            ...
-
-        @overload
-        async def wait_for(
-            self,
-            event: Literal[
-                "socket_receive",
-                "socket_send",
-            ],
-            *,
-            check: Callable[[Msgs], bool] | None = ...,
-            timeout: float | None = ...,
-        ) -> Msgs:
             ...
 
         @overload
