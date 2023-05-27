@@ -189,8 +189,7 @@ class ConnectionState:
         self.clear()
 
     def clear(self) -> None:
-        self._users: weakref.WeakValueDictionary[ID32, User] = weakref.WeakValueDictionary()
-        self._trades: dict[TradeOfferID, TradeOffer[Item[User], Item[ClientUser], User]] = {}
+        self._users = weakref.WeakValueDictionary[ID32, User]()
 
         self._groups: dict[ChatGroupID, Group] = {}
         self._clans: dict[ID32, Clan] = {}
@@ -198,13 +197,14 @@ class ConnectionState:
         self.chat_group_to_view_id: defaultdict[ChatGroupID, int] = defaultdict(count().__next__)
         self.active_chat_groups: set[ChatGroupID] = set()
 
-        self._confirmations: dict[TradeOfferID, Confirmation] = {}
-        self.confirmation_generation_locks: dict[str, tuple[asyncio.Lock, datetime]] = {}
         self._messages: deque[Message] = deque(maxlen=self.max_messages or 0)
         self.invites: dict[ID64, UserInvite | ClanInvite] = {}
         self.emoticons: list[ClientEmoticon] = []
         self.stickers: list[ClientSticker] = []
 
+        self._trades: dict[TradeOfferID, TradeOffer[Item[User], Item[ClientUser], User]] = {}
+        self._confirmations: dict[TradeOfferID, Confirmation] = {}
+        self.confirmation_generation_locks: dict[str, tuple[asyncio.Lock, datetime]] = {}
         self.polling_trades = False
         self.trade_queue = Queue[TradeOffer[Item[User], Item[ClientUser], User]]()
         self._trades_to_watch: set[TradeOfferID] = set()
@@ -377,9 +377,7 @@ class ConnectionState:
             trade = self._trades[TradeOfferID(int(data["tradeofferid"]))]
         except KeyError:
             log.info("Received trade #%d", data["tradeofferid"])
-            trade = TradeOffer._from_api(
-                state=self, data=data, partner=await self._maybe_user(utils.parse_id64(data["accountid_other"]))
-            )
+            trade = TradeOffer._from_api(state=self, data=data, partner=await self._maybe_user(data["accountid_other"]))
             self._trades[trade.id] = trade
             if trade.state in (TradeOfferState.Active, TradeOfferState.ConfirmationNeed) and (
                 trade.sending or trade.receiving  # trade could be glitched
@@ -421,7 +419,7 @@ class ConnectionState:
             await self.fill_trades()
 
             while self._trades_to_watch:  # watch trades for changes
-                await asyncio.sleep(5)
+                await asyncio.sleep(10)
                 await self.fill_trades()
         finally:
             self.polling_trades = False
@@ -429,21 +427,23 @@ class ConnectionState:
     async def fill_trades(self) -> None:
         try:
             trades = await self.http.get_trade_offers()
-            descriptions = trades.get("descriptions", ())
-            trades_received = trades.get("trade_offers_received", ())
-            trades_sent = trades.get("trade_offers_sent", ())
-            updated_received_trades = [trade for trade in trades_received if trade not in self._trades_received_cache]
-            updated_sent_trades = [trade for trade in trades_sent if trade not in self._trades_sent_cache]
-            received_trades = await self._process_trades(updated_received_trades, descriptions)
-            sent_trades = await self._process_trades(updated_sent_trades, descriptions)
-            self._trades_received_cache = trades_received
-            self._trades_sent_cache = trades_sent
+        except HTTPException as e:
+            if e.status == 429:
+                await asyncio.sleep(300)
+                return await self.fill_trades()
+            raise
+        descriptions = trades.get("descriptions", ())
+        trades_received = trades.get("trade_offers_received", ())
+        trades_sent = trades.get("trade_offers_sent", ())
+        updated_received_trades = [trade for trade in trades_received if trade not in self._trades_received_cache]
+        updated_sent_trades = [trade for trade in trades_sent if trade not in self._trades_sent_cache]
+        received_trades = await self._process_trades(updated_received_trades, descriptions)
+        sent_trades = await self._process_trades(updated_sent_trades, descriptions)
+        self._trades_received_cache = trades_received
+        self._trades_sent_cache = trades_sent
 
-            self.trade_queue += received_trades
-            self.trade_queue += sent_trades
-        except Exception as exc:
-            await asyncio.sleep(30)
-            log.info("Error while polling trades", exc_info=exc)
+        self.trade_queue += received_trades
+        self.trade_queue += sent_trades
 
     async def wait_for_trade(self, id: TradeOfferID) -> TradeOffer[Item[User], Item[ClientUser], User]:
         self._trades_to_watch.add(id)
@@ -455,16 +455,25 @@ class ConnectionState:
     def get_confirmation(self, id: TradeOfferID) -> Confirmation | None:
         return self._confirmations.get(id)
 
-    async def fetch_confirmation(self, id: TradeOfferID) -> Confirmation | None:
-        await self.fill_confirmations()
-        return self._confirmations.get(id)
-
     async def fill_confirmations(self) -> None:
         key, timestamp = await self._generate_confirmation_code("list")
-        data = await self.http.get(
-            URL.COMMUNITY / "mobileconf/getlist",
-            params={"p": self._device_id, "a": self.user.id64, "k": key, "t": timestamp, "m": "react", "tag": "list"},
-        )
+        try:
+            data = await self.http.get(
+                URL.COMMUNITY / "mobileconf/getlist",
+                params={
+                    "p": self._device_id,
+                    "a": self.user.id64,
+                    "k": key,
+                    "t": timestamp,
+                    "m": "react",
+                    "tag": "list",
+                },
+            )
+        except HTTPException as e:
+            if e.status == 429:
+                await asyncio.sleep(300)
+                return await self.fill_confirmations()
+            raise
         if not data.get("success", False):
             raise ConfirmationError(f"{data.get('message', 'Unknown error')}\n{data.get('detail', '')}".strip())
 
@@ -526,7 +535,7 @@ class ConnectionState:
             await self.fill_confirmations()
 
             while self.confirmation_queue.queue:
-                await asyncio.sleep(10)
+                await asyncio.sleep(20)
                 await self.fill_confirmations()
         finally:
             self.polling_confirmations = False

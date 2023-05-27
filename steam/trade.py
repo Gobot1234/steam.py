@@ -703,14 +703,32 @@ class TradeOffer(Generic[ReceivingAssetT, SendingAssetT, OwnerT]):
         if self.is_our_offer():
             raise ClientException("You cannot counter an offer the ClientUser has made")
 
-        to_send = [item.to_dict() for item in trade.sending]
-        to_receive = [item.to_dict() for item in trade.receiving]
         assert self.partner is not None
         resp = await self._state.http.send_trade_offer(
-            self.partner, to_send, to_receive, trade.token, trade.message or "", tradeofferid_countered=self.id
+            self.partner,
+            [item.to_dict() for item in trade.sending],
+            [item.to_dict() for item in trade.receiving],
+            trade.token,
+            trade.message or "",
+            tradeofferid_countered=self.id,
         )
-        if resp.get("needs_mobile_confirmation", False):
-            await self._state.fetch_and_confirm_confirmation(TradeOfferID(int(resp["tradeofferid"])))
+        trade._has_been_sent = True
+        needs_confirmation = resp.get("needs_mobile_confirmation", False)
+        trade._update_from_send(self._state, resp, self.partner, active=not needs_confirmation)
+        if needs_confirmation:
+            for tries in range(5):
+                try:
+                    await trade.confirm()
+                    break
+                except ConfirmationError:
+                    await asyncio.sleep(tries * 2)
+            else:
+                raise ConfirmationError("Failed to confirm trade offer")
+            trade.state = TradeOfferState.Active
+
+        # make sure the trade is updated before this function returns
+        self._state._trades[trade.id] = trade  # type: ignore  # we only use the value covariant-ly but but type checkers can't figure that out
+        await self._state.wait_for_trade(trade.id)
 
     @property
     def url(self) -> str:
