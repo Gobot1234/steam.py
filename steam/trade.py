@@ -499,7 +499,7 @@ class TradeOffer(Generic[ReceivingAssetT, SendingAssetT, OwnerT]):
         trade = cls(
             receiving=[
                 MovedItem(state, description | asset, partner)
-                for asset, description in itertools.product(data.get("assets_given", ()), descriptions)
+                for asset, description in itertools.product(data.get("assets_received", ()), descriptions)
                 if description["instanceid"] == asset["instanceid"] and description["classid"] == asset["classid"]
             ],
             sending=[
