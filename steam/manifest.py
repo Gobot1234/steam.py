@@ -9,7 +9,7 @@ import lzma
 import struct
 import sys
 from base64 import b64decode
-from collections.abc import AsyncGenerator, Generator
+from collections.abc import AsyncGenerator, Generator, Mapping
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime
@@ -21,7 +21,7 @@ from zlib import crc32
 
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from multidict import MultiDict
-from typing_extensions import Final, Never, Self
+from typing_extensions import Final, Never, Self, TypeGuard
 from yarl import URL
 
 from . import utils
@@ -607,11 +607,11 @@ class HeadlessDepot:
     __slots__ = ("id", "name", "game", "max_size", "config", "shared_install", "system_defined")
     id: int
     """The depot's ID."""
-    name: str
+    name: str | None
     """The depot's name."""
     game: GameInfo
     """The depot's game."""
-    max_size: int
+    max_size: int | None
     """The depot's maximum size."""
     config: MultiDict[str]
     """The depot's configuration settings."""
@@ -665,6 +665,23 @@ class ProductInfo:
     #     """A method to fetch the changes to this game since this change number"""
     #     changes = await self._state.fetch_changes_since(self.change_number, True, True)
     #     return changes.app_changes[0].change_number
+
+
+def is_depot(item: tuple[str, Any]) -> TypeGuard[tuple[str, manifest.Depot]]:
+    try:
+        int(item[0])  # only the integer keys are depots
+    except ValueError:
+        return False
+    else:
+        return True
+
+
+def maybe_get(map: Mapping[str, str | None] | str, key: str) -> int | None:
+    if isinstance(map, str):
+        return int(map)
+    value = map.get(key)
+    if value is not None:
+        return int(value)
 
 
 class GameInfo(ProductInfo, StatefulGame):
@@ -827,48 +844,67 @@ class GameInfo(ProductInfo, StatefulGame):
                 )
         self.headless_depots: Sequence[HeadlessDepot] = []
 
-        for key, depot in depots.items():  # type: ignore
+        for key, depot in filter(is_depot, depots.items()):
+            id = int(key)
+            name = depot.get("name")
+            config = depot.get("config", MultiDict())
+            max_size = int(depot["maxsize"]) if "maxsize" in depot else None
+            shared_install = bool(int(shared_install)) if (shared_install := depot.get("sharedinstall")) else None
+            system_defined = bool(int(system_defined)) if (system_defined := depot.get("system_defined")) else None
             try:
-                id = int(key)
-            except ValueError:
-                continue
-            else:  # only the int keys have VDFDicts
-                depot: manifest.Depot
-                kwargs = {
-                    "id": id,
-                    "name": depot.get("name"),
-                    "config": depot.get("config", MultiDict()),
-                    "max_size": int(depot["maxsize"]) if "maxsize" in depot else None,
-                    "game": self,
-                    "shared_install": bool(int(shared_install))
-                    if (shared_install := depot.get("sharedinstall"))
-                    else None,
-                    "system_defined": bool(int(system_defined))
-                    if (system_defined := depot.get("system_defined"))
-                    else None,
-                }
-                try:
-                    manifests = depot["manifests"]
-                except KeyError:
-                    self.headless_depots.append(HeadlessDepot(**kwargs))  # type: ignore
-                else:
-                    for branch_name, manifest_id in manifests.items():
-                        branch = self._branches[branch_name]
-                        if not branch.password_required:
-                            manifest = ManifestInfo(state, int(manifest_id), branch=branch)
-                        else:
-                            encrypted_id = PrivateManifestInfo._get_id(depot, branch)
-                            if encrypted_id is not None:
-                                manifest = PrivateManifestInfo(state, encrypted_id, branch)
-                            else:  # fall back to the public version
-                                manifest = ManifestInfo(
-                                    state,
-                                    int(manifests["public"]),
-                                    branch=self.public_branch,
-                                )
-                        depot_ = Depot(**kwargs, branch=branch, manifest=manifest)  # type: ignore
-                        manifest.depot = depot_
-                        branch.depots.append(depot_)
+                manifests = depot["manifests"]
+            except KeyError:
+                self.headless_depots.append(
+                    HeadlessDepot(
+                        id=id,
+                        name=name,
+                        config=config,
+                        game=self,
+                        max_size=max_size,
+                        shared_install=shared_install,
+                        system_defined=system_defined,
+                    )
+                )
+            else:
+                if "public" not in manifests:
+                    return  # we don't own the app, no branch info available
+                public_manifest_info = manifests["public"]
+                public_id = int(
+                    public_manifest_info if isinstance(public_manifest_info, str) else public_manifest_info["gid"]
+                )
+                for branch_name, manifest_info in manifests.items():
+                    branch = self._branches[branch_name]
+                    manifest_id = manifest_info if isinstance(manifest_info, str) else manifest_info["gid"]
+                    if not branch.password_required:
+                        manifest = ManifestInfo(
+                            state,
+                            int(manifest_id),
+                            branch=branch,
+                        )
+                    else:
+                        encrypted_id = PrivateManifestInfo._get_id(depot, branch)
+                        if encrypted_id is not None:
+                            manifest = PrivateManifestInfo(state, encrypted_id, branch)
+                        else:  # fall back to the public version
+                            manifest = ManifestInfo(
+                                state,
+                                public_id,
+                                branch=self.public_branch,
+                            )
+
+                    depot_ = Depot(
+                        id=id,
+                        name=name,
+                        config=config,
+                        game=self,
+                        max_size=max_size,
+                        shared_install=shared_install,
+                        system_defined=system_defined,
+                        branch=branch,
+                        manifest=manifest,
+                    )
+                    manifest.depot = depot_
+                    branch.depots.append(depot_)
 
     def get_branch(self, name: str) -> Branch | None:
         """Get a branch by its name."""
