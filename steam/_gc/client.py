@@ -104,7 +104,11 @@ class Client(Client_):
     async def _handle_ready(self) -> None:
         us = self._state._original_client_user_msg
         assert us is not None
-        self.http.user = self.__class__._ClientUserCls(self._state, us)
+        current_user = self._state.user
+        user = self.http.user = self.__class__._ClientUserCls(self._state, us)
+        user._friends = current_user._friends
+        user._inventory_locks = current_user._inventory_locks
+        self._state.user = user  # type: ignore  # it should be writeable at this point
         await super()._handle_ready()
 
     async def wait_for_gc_ready(self) -> None:
