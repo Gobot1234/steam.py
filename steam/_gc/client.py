@@ -109,7 +109,7 @@ class Client(Client_):
         self._state.user = user  # type: ignore  # it should be writeable at this point
         await super()._handle_ready()
 
-    async def wait_for_gc_ready(self) -> None:
+    async def wait_until_gc_ready(self) -> None:
         """Wait for the :meth:`on_gc_ready` method to be dispatched.
 
         See Also
