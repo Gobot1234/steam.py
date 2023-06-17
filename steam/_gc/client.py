@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import itertools
 from collections.abc import Mapping
 from inspect import get_annotations
 from typing import Any, ClassVar, Final, cast, overload
@@ -13,7 +12,6 @@ from typing_extensions import Self
 from ..app import App
 from ..client import Client as Client_
 from ..enums import Language
-from ..state import ConnectionState
 from ..trade import Inventory, Item
 from ..types.id import AppID
 from ..user import ClientUser as ClientUser_
@@ -24,7 +22,7 @@ __all__ = ("Client",)
 
 
 class ClientUser(ClientUser_):
-    _state: GCState
+    _state: GCState[Any]
 
     async def inventory(self, app: App, *, language: Language | None = None) -> Inventory[Item[Self], Self]:
         return (
@@ -35,11 +33,11 @@ class ClientUser(ClientUser_):
 
 
 class Client(Client_):
-    _state: GCState
+    _state: GCState[Any]
     _GC_HEART_BEAT: ClassVar = 30.0
 
     _ClientUserCls: ClassVar[type[ClientUser]] = ClientUser  # ideally one day this will be a generic
-    _GC_BASES: Final[tuple[type[GCState], ...]] = ()
+    _GC_BASES: Final[tuple[type[GCState[Any]], ...]] = ()
     _GC_APPS: Final[Mapping[AppID, App]] = {}
     user: cached_property[Self, ClientUser]  # type: ignore
 
@@ -47,7 +45,7 @@ class Client(Client_):
         bases = [base for base in cls.__mro__ if issubclass(base, Client) and base is not Client]
         previous_state = None
         cls._GC_BASES = cast(  # type: ignore
-            tuple[type[GCState], ...],
+            tuple[type[GCState[Any]], ...],
             tuple(
                 dict.fromkeys(
                     previous_state := get_annotations(base, eval_str=True).get("_state", previous_state)
@@ -67,7 +65,7 @@ class Client(Client_):
                 raise TypeError(f"Method(s) {', '.join(overridden_methods)} conflict inside of the state subclasses")
             seen_methods |= base.__dict__.keys()
 
-    def _get_state(self, **options: Any) -> GCState:
+    def _get_state(self, **options: Any) -> GCState[Any]:
         return type("GCState", self._GC_BASES, {})(self, **options)
 
     async def _ping_gc(self) -> None:

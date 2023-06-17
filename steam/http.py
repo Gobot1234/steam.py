@@ -6,13 +6,13 @@ import asyncio
 import logging
 import re
 import urllib.parse
-from collections.abc import AsyncGenerator, Callable
+from collections.abc import AsyncGenerator, Callable, Sequence, ValuesView
 from datetime import date, datetime
 from http.cookies import SimpleCookie
 from random import randbytes
 from sys import version_info
 from time import time
-from typing import TYPE_CHECKING, Any, Literal, Sequence, TypeVar, ValuesView, cast
+from typing import TYPE_CHECKING, Any, Literal, TypeVar, cast
 
 import aiohttp
 from bs4 import BeautifulSoup

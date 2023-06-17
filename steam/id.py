@@ -116,12 +116,10 @@ def parse_id64(
 
 
 ID2_REGEX = re.compile(r"STEAM_(?P<universe>\d+):(?P<remainder>[0-1]):(?P<id>\d{1,10})")
-
-
 ID3_REGEX = re.compile(
     (
         rf"\[(?P<type>[i{''.join(TypeChar._member_map_)}]):"
-        r"(?P<universe>[0-4]):"
+        rf"(?P<universe>[{min(Universe).value}-{max(Universe).value}]):"
         r"(?P<id>[0-9]{1,10})"
         r"(:(?P<instance>\d+))?]"
     )
@@ -135,13 +133,9 @@ _URL_START = r"(?:https?://)?(?:www\.)?"
 INVITE_REGEX = re.compile(rf"(?:{_URL_START}(?:s\.team/p/))?(?P<code>[\-{_INVITE_VALID}]{{1,8}})")
 
 
-def _sub(map: Mapping[str, str], m: re.Match[str]) -> str:
-    return map[m.group()]
-
-
 def _invite_custom_sub(
     s: str,
-    repl: Callable[[re.Match[str]], str] = lambda m, map=dict(zip(_INVITE_CUSTOM, _INVITE_HEX)): _sub(map, m),
+    repl: Callable[[re.Match[str]], str] = lambda m, map=dict(zip(_INVITE_CUSTOM, _INVITE_HEX)): map[m.group()],
     pattern: re.Pattern[str] = re.compile(f"[{_INVITE_CUSTOM}]"),
     /,
 ) -> str:
@@ -150,7 +144,7 @@ def _invite_custom_sub(
 
 def _invite_hex_sub(
     s: str,
-    repl: Callable[[re.Match[str]], str] = lambda m, map=dict(zip(_INVITE_HEX, _INVITE_CUSTOM)): _sub(map, m),
+    repl: Callable[[re.Match[str]], str] = lambda m, map=dict(zip(_INVITE_HEX, _INVITE_CUSTOM)): map[m.group()],
     pattern: re.Pattern[str] = re.compile(f"[{_INVITE_HEX}]"),
     /,
 ) -> str:
@@ -259,6 +253,7 @@ class ID(Generic[TypeT], metaclass=abc.ABCMeta):
                 "11000010264339c"
                 >>> format(steam_id, "32b")  # formats the `id` as binary
                 "10011001000011001110011100"
+                >>> f"{steam_id:32b}"  # same as above
 
 
     Parameters

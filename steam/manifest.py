@@ -850,8 +850,7 @@ def is_depot(item: tuple[str, Any]) -> TypeGuard[tuple[str, manifest.Depot]]:
 def maybe_get(map: Mapping[str, str | None] | str, key: str) -> int | None:
     if isinstance(map, str):
         return int(map)
-    value = map.get(key)
-    if value is not None:
+    if (value := map.get(key)) is not None:
         return int(value)
 
 

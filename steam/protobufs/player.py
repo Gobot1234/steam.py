@@ -512,9 +512,9 @@ class GetPurchasedProfileCustomizationsRequest(UnifiedMessage, um_name="Player.G
 
 
 class GetPurchasedProfileCustomizationsResponse(UnifiedMessage, um_name="Player.GetPurchasedProfileCustomizations"):
-    purchased_customizations: list[
-        "GetPurchasedProfileCustomizationsResponsePurchasedCustomization"
-    ] = betterproto.message_field(1)
+    purchased_customizations: "list[GetPurchasedProfileCustomizationsResponsePurchasedCustomization]" = (
+        betterproto.message_field(1)
+    )
 
 
 @dataclass(eq=False, repr=False)
@@ -532,12 +532,12 @@ class GetPurchasedAndUpgradedProfileCustomizationsRequest(
 class GetPurchasedAndUpgradedProfileCustomizationsResponse(
     UnifiedMessage, um_name="Player.GetPurchasedAndUpgradedProfileCustomizations"
 ):
-    purchased_customizations: list[
-        "GetPurchasedAndUpgradedProfileCustomizationsResponsePurchasedCustomization"
-    ] = betterproto.message_field(1)
-    upgraded_customizations: list[
-        "GetPurchasedAndUpgradedProfileCustomizationsResponseUpgradedCustomization"
-    ] = betterproto.message_field(2)
+    purchased_customizations: "list[GetPurchasedAndUpgradedProfileCustomizationsResponsePurchasedCustomization]" = (
+        betterproto.message_field(1)
+    )
+    upgraded_customizations: "list[GetPurchasedAndUpgradedProfileCustomizationsResponseUpgradedCustomization]" = (
+        betterproto.message_field(2)
+    )
 
 
 @dataclass(eq=False, repr=False)

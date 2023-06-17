@@ -93,7 +93,7 @@ class GCState(ConnectionState, Generic[Inv]):
     def _get_gc_message(self) -> GCProtobufMessage | GCMessage:
         raise NotImplementedError()
 
-    async def parse_gc_message(self, msg: CMsgGcClientFromGC) -> None:
+    def parse_gc_message(self, msg: CMsgGcClientFromGC) -> None:
         app_id = AppID(msg.appid)
         emsg_value = CLEAR_PROTO_BIT(msg.msgtype)
 

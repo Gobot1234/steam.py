@@ -17,6 +17,7 @@ import itertools
 import re
 import struct
 import sys
+import textwrap
 import threading
 from collections.abc import (
     AsyncGenerator,
@@ -321,9 +322,11 @@ class StructIOMeta(type):
         for method_name, format in PACK_FORMATS.items():
             exec(f"def write_{method_name}(self, item): self.write_struct('<{format}', item)", {}, namespace)
             exec(
-                (
-                    f"def read_{method_name}(self):"
-                    f"return self.read_struct('<{format}', {struct.calcsize(f'<{format}')})[0]"
+                textwrap.dedent(
+                    f"""def read_{method_name}(self):
+                        (value,) = self.read_struct('<{format}', {struct.calcsize(f'<{format}')})
+                        return value
+                    """
                 ),
                 {},
                 namespace,
@@ -434,7 +437,15 @@ class ChainMap(collections.ChainMap[_KT, _VT]):
                 pass
         raise KeyError()
 
-    def pop(self, key: _KT, default: _T = MISSING) -> _VT | _T:
+    @overload
+    def pop(self, key: _KT) -> _VT:
+        ...
+
+    @overload
+    def pop(self, key: _KT, default: _VT | _T) -> _VT | _T:
+        ...
+
+    def pop(self, key: _KT, default: _VT | _T = MISSING) -> _VT | _T:  # type: ignore  # this cannot work as MISSING is default
         for map in self.maps:
             try:
                 return map.pop(key)
@@ -726,6 +737,7 @@ def get(iterable: _Iter[_T], /, **attrs: Any) -> _T | None | Coro[_T | None]:
     .. code:: python
 
         bff = steam.utils.get(client.users, name="Gobot1234")
+
         trade = steam.utils.get(client.trades, state=TradeOfferState.Active, partner=message.author)
         # multiple attributes are also accepted
 

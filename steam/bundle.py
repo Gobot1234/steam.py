@@ -63,7 +63,7 @@ class PartialBundle(Bundle[NameT]):
 
         .. code:: python
 
-            bundle = await client.fetch_bundle(bundle)
+            bundle = await client.fetch_bundle(bundle_id)
         """
         return await self._state.client.fetch_bundle(self.id)
 

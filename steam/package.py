@@ -90,7 +90,7 @@ class PartialPackage(Package[NameT]):
 
         .. code:: python
 
-            package = await client.fetch_package(package)
+            package = await client.fetch_package(package, language=language)
         """
         return await self._state.client.fetch_package(self.id, language=language)
 
@@ -321,7 +321,7 @@ class FetchedAppPackage(PartialPackage[str]):
         return self._is_free
 
 
-class License(PartialPackage[NameT]):
+class License(PartialPackage[None]):
     """Represents a License to a package the client user has access to."""
 
     __slots__ = (

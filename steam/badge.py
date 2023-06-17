@@ -112,7 +112,7 @@ class BaseOwnedBadge(BaseBadge[AppT], Protocol[AppT, UserT]):  # type: ignore
     ):
         super().__init__(state, id, level, app)
         self.owner = owner
-        self.community_item_id = AssetID(int(community_item_id)) if community_item_id else None
+        self.community_item_id = AssetID(int(community_item_id)) if community_item_id is not None else None
 
     async def _from_inventory(self, offset: int) -> Item[UserT]:
         from .app import STEAM

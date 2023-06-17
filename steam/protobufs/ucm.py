@@ -152,9 +152,9 @@ class CMsgClientUcmEnumerateUserSubscribedFilesWithUpdates(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class CMsgClientUcmEnumerateUserSubscribedFilesWithUpdatesResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
-    subscribed_files: list[
-        "CMsgClientUcmEnumerateUserSubscribedFilesWithUpdatesResponsePublishedFileId"
-    ] = betterproto.message_field(2)
+    subscribed_files: "list[CMsgClientUcmEnumerateUserSubscribedFilesWithUpdatesResponsePublishedFileId]" = (
+        betterproto.message_field(2)
+    )
     total_results: int = betterproto.uint32_field(3)
 
 
@@ -223,9 +223,9 @@ class CMsgClientUcmEnumeratePublishedFilesByUserAction(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class CMsgClientUcmEnumeratePublishedFilesByUserActionResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
-    published_files: list[
-        "CMsgClientUcmEnumeratePublishedFilesByUserActionResponsePublishedFileId"
-    ] = betterproto.message_field(2)
+    published_files: "list[CMsgClientUcmEnumeratePublishedFilesByUserActionResponsePublishedFileId]" = (
+        betterproto.message_field(2)
+    )
     total_results: int = betterproto.uint32_field(3)
 
 

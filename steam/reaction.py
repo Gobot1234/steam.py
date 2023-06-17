@@ -202,7 +202,7 @@ class MessageReaction(PartialMessageReaction):
             and self.user == other.user
         )
 
-    def __hash__(self) -> int:  # type: ignore  # superclass cannot be hashable but this can
+    def __hash__(self) -> int:
         return hash((self.message, self.emoticon, self.sticker, self.user))
 
     def __repr__(self) -> str:
@@ -314,7 +314,7 @@ class Sticker(BaseEmoticon):
         """The URL for this sticker."""
         return str(BASE_ECONOMY_URL / "sticker" / self.name)
 
-    async def app(self) -> PartialApp:
+    async def app(self) -> PartialApp[None]:
         """Fetches this sticker's associated app."""
         data = await self._state.http.get(BASE_ECONOMY_URL / "stickerjson" / self.name)
         return PartialApp(self._state, id=data["appid"])
@@ -353,5 +353,5 @@ class ClientSticker(BaseClientEmoticon, Sticker):
         super().__init__(state, proto)
         self._app_id = proto.appid
 
-    async def app(self) -> PartialApp:
-        return PartialApp(self._state, id=self._app_id)  # no point fetching
+    async def app(self) -> PartialApp[None]:
+        return PartialApp(self._state, id=self._app_id)  # no point fetching cause endpoint doesn't return name

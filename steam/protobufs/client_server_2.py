@@ -647,9 +647,9 @@ class CMsgCreGetUserPublishedItemVoteDetailsPublishedFileId(betterproto.Message)
 @dataclass(eq=False, repr=False)
 class CMsgCreGetUserPublishedItemVoteDetailsResponse(betterproto.Message):
     eresult: int = betterproto.int32_field(1)
-    user_item_vote_details: list[
-        "CMsgCreGetUserPublishedItemVoteDetailsResponseUserItemVoteDetail"
-    ] = betterproto.message_field(2)
+    user_item_vote_details: "list[CMsgCreGetUserPublishedItemVoteDetailsResponseUserItemVoteDetail]" = (
+        betterproto.message_field(2)
+    )
 
 
 @dataclass(eq=False, repr=False)

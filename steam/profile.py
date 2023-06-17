@@ -397,7 +397,7 @@ class ProfileCustomisation(Generic[UserT]):
                         clan=(state.get_clan(ID32(slot.accountid)) or PartialClan(state, slot.accountid))
                         if slot.accountid
                         else None,
-                        replay_year=slot.replay_year if slot.replay_year else None,
+                        replay_year=slot.replay_year or None,
                     )
                     for slot in customisation.slots
                 ],

@@ -538,9 +538,6 @@ class Client:
             The shared secret for the account to login to.
         identity_secret
             The identity secret for the account to login to.
-
-        Other Parameters
-        ----------------
         refresh_token
             The refresh token of the account to login to.
         """

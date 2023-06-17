@@ -537,9 +537,9 @@ class StopPlaytimeTrackingForAllAppItemsResponse(
 
 class SetPlaytimeForControllerConfigsRequest(UnifiedMessage, um_name="PublishedFile.SetPlaytimeForControllerConfigs"):
     appid: int = betterproto.uint32_field(1)
-    controller_config_usage: list[
-        "SetPlaytimeForControllerConfigsRequestControllerConfigUsage"
-    ] = betterproto.message_field(2)
+    controller_config_usage: "list[SetPlaytimeForControllerConfigsRequestControllerConfigUsage]" = (
+        betterproto.message_field(2)
+    )
 
 
 @dataclass(eq=False, repr=False)

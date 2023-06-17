@@ -708,7 +708,7 @@ class PartialApp(App[NameT]):
 
         .. code:: python
 
-            app = await client.fetch_app(app)
+            app = await client.fetch_app(app_id, language=language)
         """
         return await self._state.fetch_app(self.id, language=language)
 
@@ -1123,10 +1123,10 @@ class Apps(PartialApp[str], Enum):
 
     @property
     def _state(self) -> ConnectionState:
-        state = STATE.get(MISSING)
-        if state is MISSING:
-            raise ValueError("Cannot access the state of constant apps outside of a client.")
-        return state
+        try:
+            return STATE.get(MISSING)
+        except LookupError:
+            raise ValueError("Cannot access the state of constant apps outside of a client.") from None
 
 
 TF2 = Apps.TF2
