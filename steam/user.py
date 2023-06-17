@@ -263,7 +263,7 @@ class User(_BaseUser, Messageable["UserMessage"]):
             message: friend_messages.GetRecentMessagesResponseFriendMessage | None = None
 
             for message in resp.messages:
-                new_message = UserMessage._from_history(message, self._channel)
+                new_message = UserMessage._from_history(self._channel, message)
                 new_message.created_at = DateTime.from_timestamp(message.timestamp)
                 if not after < new_message.created_at < before:
                     return
@@ -546,4 +546,4 @@ class AnonymousClientUser(ID[Literal[Type.AnonUser]]):
         self._state = state
 
     def __repr__(self) -> str:
-        return f"<AnonymousClientUser id={self.id} universe={self.universe!r}, instance={self.instance!r}>"
+        return f"<AnonymousClientUser id={self.id} universe={self.universe!r} instance={self.instance!r}>"
