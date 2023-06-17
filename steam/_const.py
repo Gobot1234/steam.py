@@ -61,9 +61,19 @@ try:
 except ModuleNotFoundError:
     import vdf
 
-    def multi_dict_ify(x: Any, __multi_dict: type[MultiDict[Any]] = MultiDict, /):
-        if isinstance(x, dict):
-            return __multi_dict({k: multi_dict_ify(v) for k, v in x.items()})
+    def multi_dict_ify(
+        x: Any,
+        __isinstance=isinstance,
+        __vdf_dict=vdf.VDFDict,
+        __multi_dict: type[MultiDict[Any]] = MultiDict,
+        /,
+    ):
+        if __isinstance(x, __vdf_dict):
+            multi_dict = __multi_dict()
+            adder = multi_dict.add
+            for k, v in x.items():
+                adder(k, multi_dict_ify(v))
+            return multi_dict
         return x
 
     def loads(
