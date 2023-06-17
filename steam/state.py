@@ -1404,7 +1404,7 @@ class ConnectionState:
                     match id.type:
                         case Type.Individual:
                             invitee = await self._maybe_user(id.id64)
-                            invite = UserInvite(state=self, invitee=invitee, relationship=relationship)
+                            invite = UserInvite(self, invitee=invitee, relationship=relationship)
                             self.invites[invitee.id64] = invite
                             self.dispatch("user_invite", invite)
 
