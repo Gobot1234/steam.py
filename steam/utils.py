@@ -31,7 +31,7 @@ from collections.abc import (
     Sized,
 )
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from inspect import getmembers, isawaitable
 from io import BytesIO
 from itertools import zip_longest
@@ -45,7 +45,7 @@ from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from typing_extensions import Self
 
-from ._const import JSON_LOADS, MISSING, URL
+from ._const import JSON_LOADS, MISSING, UNIX_EPOCH, URL
 from .enums import Type, _is_descriptor, classproperty as classproperty
 from .id import _URL_START, ID, id64_from_url as id64_from_url, parse_id64 as parse_id64
 
@@ -267,11 +267,15 @@ class DateTime:
 
     @staticmethod
     def from_timestamp(timestamp: float) -> datetime:
-        return datetime.fromtimestamp(timestamp, timezone.utc)
+        # work around python/cpython#75395
+        return UNIX_EPOCH + timedelta(seconds=timestamp)
 
     @staticmethod
     def strptime(input: str, format: str) -> datetime:
-        return datetime.strptime(input, format).replace(tzinfo=timezone.utc)
+        dt = datetime.strptime(input, format)
+        if dt.tzinfo is not None:
+            return dt
+        return dt.replace(tzinfo=timezone.utc)
 
     @staticmethod  # TODO actually make this reliable for languages other than english
     def parse_steam_date(input: str, *, full_month: bool = True) -> datetime | None:
