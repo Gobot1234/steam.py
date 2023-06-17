@@ -52,7 +52,7 @@ class UserMessage(Message[UserMessageAuthorT]):
             self.ordinal,
             str(emoticon) if isinstance(emoticon, Emoticon) else emoticon.name,
             reaction_type=emoticon._TYPE,
-            is_add=True,
+            is_add=add,
         )
         reaction = MessageReaction(
             self._state,
