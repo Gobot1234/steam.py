@@ -42,7 +42,7 @@ from .enums import (
 )
 from .game_server import GameServer, Query
 from .gateway import *
-from .guard import generate_one_time_code
+from .guard import get_authentication_code
 from .http import HTTPClient
 from .id import ID, parse_id64
 from .manifest import AppInfo, PackageInfo
@@ -236,7 +236,7 @@ class Client:
         This will read from :attr:`sys.stdin` if no `shared_secret` was passed to :meth:`login`.
         """
         if self.shared_secret:
-            return generate_one_time_code(self.shared_secret)
+            return get_authentication_code(self.shared_secret)
         print("Please enter a Steam guard code")
         code = await utils.ainput(">>> ")
         return code.strip()

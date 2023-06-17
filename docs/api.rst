@@ -295,11 +295,11 @@ Enumerations
 Guard
 ---------------
 
-.. autofunction:: steam.guard.generate_one_time_code
+.. autofunction:: steam.guard.get_authentication_code
 
-.. autofunction:: steam.guard.generate_confirmation_code
+.. autofunction:: steam.guard.get_confirmation_code
 
-.. autofunction:: steam.guard.generate_device_id
+.. autofunction:: steam.guard.get_device_id
 
 
 Abstract Base Classes

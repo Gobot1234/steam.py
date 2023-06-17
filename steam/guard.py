@@ -4,81 +4,85 @@ from __future__ import annotations
 
 import base64
 import hmac
-import struct
 from dataclasses import dataclass
 from hashlib import sha1
 from time import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Final, Literal, TypeAlias
 
 from ._const import URL
 from .errors import ConfirmationError
-from .types.id import Intable, TradeOfferID
+from .types.id import TradeOfferID
 
 if TYPE_CHECKING:
     from .state import ConnectionState
 
 
 __all__ = (
-    "generate_one_time_code",
-    "generate_confirmation_code",
-    "generate_device_id",
+    "get_authentication_code",
+    "get_confirmation_code",
+    "get_device_id",
     "Confirmation",
 )
 
+AUTH_CODE_CHARS: Final = "23456789BCDFGHJKMNPQRTVWXY"
+AUTH_CODE_CHARS_LEN: Final = len(AUTH_CODE_CHARS)
 
-def generate_one_time_code(shared_secret: str, timestamp: int | None = None) -> str:
-    """Generate a Steam Guard code for signing in or at a specific time.
+
+def _hmac(secret: str, buffer: bytes) -> bytes:
+    return hmac.new(base64.b64decode(secret), buffer, digestmod=sha1).digest()
+
+
+def get_authentication_code(shared_secret: str, timestamp: int | None = None) -> str:
+    """Get a Steam Guard code for signing in.
 
     Parameters
     -----------
     shared_secret
-        Shared secret from steam guard.
+        Base 64 encoded shared secret from Steam Guard.
     timestamp
-        The unix timestamp to generate the key for.
+        The Unix timestamp to generate the key for. Defaults to the timestamp returned by :func:`time.time`.
     """
-    timestamp = timestamp or int(time())
-    time_buffer = struct.pack(">Q", timestamp // 30)  # pack as Big endian, uint64
-    time_hmac = hmac.new(base64.b64decode(shared_secret), time_buffer, digestmod=sha1).digest()
+    timestamp = timestamp if timestamp is not None else int(time())
+    time_hmac = _hmac(shared_secret, (timestamp // 30).to_bytes(8))
     begin = time_hmac[19] & 0xF
 
-    full_code: int = struct.unpack(">I", time_hmac[begin : begin + 4])[0] & 0x7FFFFFFF  # unpack as Big endian uint32
+    full_code = int.from_bytes(time_hmac[begin : begin + 4]) & 0x7FFFFFFF
 
-    chars = "23456789BCDFGHJKMNPQRTVWXY"
     code: list[str] = []
     for _ in range(5):
-        full_code, i = divmod(full_code, len(chars))
-        code.append(chars[i])
+        full_code, i = divmod(full_code, AUTH_CODE_CHARS_LEN)
+        code.append(AUTH_CODE_CHARS[i])
     return "".join(code)
 
 
-def generate_confirmation_code(identity_secret: str, tag: str, timestamp: int | None = None) -> str:
-    """Generate a trade confirmation code.
+def get_confirmation_code(identity_secret: str, tag: str, timestamp: int | None = None) -> str:
+    """Get a trade confirmation code.
 
     Parameters
     -----------
     identity_secret
-        Identity secret from steam guard.
+        Base 64 encoded identity secret from Steam Guard.
     tag
-        Tag to encode to.
+        The confirmation tag to encode.
     timestamp
-        The time to generate the key for.
+        The time to generate the key for. Defaults to the timestamp returned by :func:`time.time`.
     """
-    timestamp = timestamp or int(time())
-    buffer = struct.pack(">Q", timestamp) + tag.encode("ascii")
-    return base64.b64encode(hmac.new(base64.b64decode(identity_secret), buffer, digestmod=sha1).digest()).decode()
+    timestamp = timestamp if timestamp is not None else int(time())
+    buffer = timestamp.to_bytes(8) + tag.encode("ascii")
+    return base64.b64encode(_hmac(identity_secret, buffer)).decode()
 
 
-def generate_device_id(user_id64: Intable) -> str:
-    """Generate the device id for a user's 64-bit ID.
+def get_device_id(id64: int) -> str:
+    """Get the device ID for a user's 64-bit ID.
 
     Parameters
     -----------
-    user_id64
-        The 64 bit steam id to generate the device id for.
+    id64
+        The 64-bit Steam ID to generate the device ID for.
     """
     # it works, however it's different that one generated from mobile app
 
-    hexed_steam_id = sha1(str(int(user_id64)).encode("ascii")).hexdigest()
+    hexed_steam_id = sha1(str(id64).encode("ascii")).hexdigest()
     partial_id = [
         hexed_steam_id[:8],
         hexed_steam_id[8:12],
@@ -87,6 +91,9 @@ def generate_device_id(user_id64: Intable) -> str:
         hexed_steam_id[20:32],
     ]
     return f'android:{"-".join(partial_id)}'
+
+
+Tags: TypeAlias = Literal["conf", "details", "allow", "cancel", "list"]
 
 
 @dataclass(repr=False, slots=True)
@@ -102,8 +109,8 @@ class Confirmation:
     def __eq__(self, other: object) -> bool:
         return isinstance(other, Confirmation) and self.creator_id == other.creator_id and self.id == other.id
 
-    async def _confirm_params(self, tag: str) -> dict[str, str | int]:
-        code, timestamp = await self._state._generate_confirmation_code(tag)
+    async def _confirm_params(self, tag: Tags) -> dict[str, str | int]:
+        code, timestamp = await self._state._get_confirmation_code(tag)
         return {
             "p": self._state._device_id,
             "a": self._state.user.id64,
@@ -113,7 +120,7 @@ class Confirmation:
             "tag": tag,
         }
 
-    async def _perform_op(self, op: str) -> None:
+    async def _perform_op(self, op: Tags) -> None:
         params = await self._confirm_params(op) | {"op": op, "cid": self.id, "ck": self.nonce}
         resp = await self._state.http.get(URL.COMMUNITY / "mobileconf/ajaxop", params=params)
         if not resp["success"]:
@@ -124,10 +131,3 @@ class Confirmation:
 
     async def cancel(self) -> None:
         await self._perform_op("cancel")
-
-    async def details(self) -> str:
-        params = await self._confirm_params(f"details{self.id}")
-        resp = await self._state.http.get(URL.COMMUNITY / f"mobileconf/details/{self.id}", params=params)
-        if not resp["success"]:
-            raise ConfirmationError(resp.get("message", "Unknown error"))
-        return resp["html"]

@@ -204,7 +204,7 @@ class ConnectionState:
 
         self._trades: dict[TradeOfferID, TradeOffer[Item[User], Item[ClientUser], User]] = {}
         self._confirmations: dict[TradeOfferID, Confirmation] = {}
-        self.confirmation_generation_locks: dict[str, tuple[asyncio.Lock, datetime]] = {}
+        self.confirmation_generation_locks = defaultdict[Tags, asyncio.Lock](asyncio.Lock)
         self.polling_trades = False
         self.trade_queue = Queue[TradeOffer[Item[User], Item[ClientUser], User]]()
         self._trades_to_watch: set[TradeOfferID] = set()
@@ -253,7 +253,7 @@ class ConnectionState:
 
     @utils.cached_property
     def _device_id(self) -> str:
-        return generate_device_id(self.user)
+        return get_device_id(self.user.id64)
 
     @utils.cached_property
     def _tg(self) -> TaskGroup:
@@ -456,7 +456,7 @@ class ConnectionState:
         return self._confirmations.get(id)
 
     async def fill_confirmations(self) -> None:
-        key, timestamp = await self._generate_confirmation_code("list")
+        key, timestamp = await self._get_confirmation_code("list")
         try:
             data = await self.http.get(
                 URL.COMMUNITY / "mobileconf/getlist",
@@ -486,45 +486,27 @@ class ConnectionState:
             confirmations.append(confirmation_)
         self.confirmation_queue += confirmations
 
-    async def _create_confirmation_params(self, tag: str) -> dict[str, Any]:
-        code, timestamp = await self._generate_confirmation_code(tag)
-        return {
-            "p": self._device_id,
-            "a": self.user.id64,
-            "k": code,
-            "t": timestamp,
-            "m": "android",
-            "tag": tag,
-        }
+    @cached_property
+    def identity_secret(self) -> str:
+        if (secret := self.client.identity_secret) is None:
+            raise ValueError("Cannot generate confirmation codes without passing an identity_secret")
+        return secret
 
-    async def _generate_confirmation_code(self, tag: str) -> tuple[str, int]:
+    async def _get_confirmation_code(self, tag: Tags) -> tuple[str, int]:
         # generate a confirmation code for a given tag at this instant.
         # this can wait x amount of time (<1s) for the code to be generated if codes would collide as they can only be
         # used once.
-        secret = self.client.identity_secret
-        if secret is None:
-            raise ValueError("Cannot generate confirmation codes without passing an identity_secret")
+        lock = self.confirmation_generation_locks[tag]
+        await lock.acquire()
 
         steam_time = self.steam_time
         timestamp = int(steam_time.timestamp())
         try:
-            lock, last_confirmation_time = self.confirmation_generation_locks[tag]
-        except KeyError:
-            lock = asyncio.Lock()
-            last_confirmation_time = steam_time - timedelta(seconds=2)
-            self.confirmation_generation_locks[tag] = lock, last_confirmation_time
-
-        await lock.acquire()
-        try:
-            return generate_confirmation_code(secret, tag, timestamp), timestamp
+            return get_confirmation_code(self.identity_secret, tag, timestamp), timestamp
         finally:
             # wait for the next second whole before allowing generation of a new confirmation code
-            next_code_valid_in = (steam_time.replace(microsecond=0) - last_confirmation_time).total_seconds()
-            if next_code_valid_in < 0:
-                lock.release()
-            else:
-                asyncio.get_running_loop().call_later(next_code_valid_in, lock.release)
-            self.confirmation_generation_locks[tag] = lock, steam_time
+            next_code_valid_at = steam_time.replace(microsecond=0) + timedelta(seconds=1)  # ceiling + 1 second
+            asyncio.get_running_loop().call_later((next_code_valid_at - steam_time).total_seconds(), lock.release)
 
     async def poll_confirmations(self) -> None:
         if self.polling_confirmations:
