@@ -593,12 +593,12 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
 
     def _remove_member(self, member: chat.Member) -> MemberT | PartialMember | None:
         id32 = ID32(member.accountid)
-        if self.chunked:
-            return self._members.pop(id32, None)
-
-        member_ = self._get_partial_member(id32)
-        del self._partial_members[id32]
-        return member_
+        try:
+            return self._members.pop(id32)
+        except KeyError:
+            return self._get_partial_member(id32)
+        finally:
+            self._partial_members.pop(id32, None)
 
     def _update_channels(
         self, channels: list[chat.State] | list[chat.ChatRoomState], *, default_channel_id: int | None = None
