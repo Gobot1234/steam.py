@@ -21,6 +21,7 @@ __all__ = (
     "get_authentication_code",
     "get_confirmation_code",
     "get_device_id",
+    "Tags",
     "Confirmation",
 )
 
