@@ -111,10 +111,7 @@ class GCState(GCState_[Backpack]):
                 is_casket_item = True  # noqa: F841  # used in macro
                 gc_item = utils.update_class(gc_item, CasketItem())
                 gc_item._casket_id = AssetID(
-                    int(
-                        f"{READ_U32(casket_id_high.value_bytes):032b}{READ_U32(casket_id_low.value_bytes):032b}",
-                        base=2,
-                    )
+                    READ_U32(casket_id_high.value_bytes) << 32 | READ_U32(casket_id_low.value_bytes)
                 )
             else:
                 for attribute_name in gc_item.__annotations__:

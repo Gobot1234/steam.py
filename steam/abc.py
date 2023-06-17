@@ -913,7 +913,6 @@ class Message(Generic[UserT], metaclass=abc.ABCMeta):
         "clan",
         "reactions",
         "partial_reactions",
-        "_id_cs",
         "_state",
     )
 
@@ -966,7 +965,7 @@ class Message(Generic[UserT], metaclass=abc.ABCMeta):
     def _from_history(cls, channel: Channel[Self], proto: betterproto.Message) -> Self:
         raise NotImplementedError
 
-    @cached_slot_property
+    @property
     def id(self) -> int:
         """A unique identifier for every message sent in a channel.
 
@@ -976,10 +975,7 @@ class Message(Generic[UserT], metaclass=abc.ABCMeta):
         """
         # a u64 "snowflake-esk" id measuring of the number of seconds passed since Steam's EPOCH and then the
         # "sequence"/ordinal of the message.
-        return int(
-            f"{int((self.created_at - STEAM_EPOCH).total_seconds()):032b}{self.ordinal:032b}",
-            base=2,
-        )
+        return int((self.created_at - STEAM_EPOCH).total_seconds()) << 32 | self.ordinal
 
     @abc.abstractmethod
     async def _react(self, emoticon: Emoticon | Sticker, add: bool) -> None:
