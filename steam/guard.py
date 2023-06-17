@@ -44,10 +44,10 @@ def get_authentication_code(shared_secret: str, timestamp: int | None = None) ->
         The Unix timestamp to generate the key for. Defaults to the timestamp returned by :func:`time.time`.
     """
     timestamp = timestamp if timestamp is not None else int(time())
-    time_hmac = _hmac(shared_secret, (timestamp // 30).to_bytes(8))
+    time_hmac = _hmac(shared_secret, (timestamp // 30).to_bytes(8, "big"))
     begin = time_hmac[19] & 0xF
 
-    full_code = int.from_bytes(time_hmac[begin : begin + 4]) & 0x7FFFFFFF
+    full_code = int.from_bytes(time_hmac[begin : begin + 4], "big") & 0x7FFFFFFF
 
     code: list[str] = []
     for _ in range(5):
@@ -69,7 +69,7 @@ def get_confirmation_code(identity_secret: str, tag: str, timestamp: int | None 
         The time to generate the key for. Defaults to the timestamp returned by :func:`time.time`.
     """
     timestamp = timestamp if timestamp is not None else int(time())
-    buffer = timestamp.to_bytes(8) + tag.encode("ascii")
+    buffer = timestamp.to_bytes(8, "big") + tag.encode("ascii")
     return base64.b64encode(_hmac(identity_secret, buffer)).decode()
 
 
