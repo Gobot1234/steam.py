@@ -1682,7 +1682,7 @@ class ConnectionState:
                 case 9:  # trade, this is only going to happen at startup
                     await self.poll_trades()
 
-        await self.ws.send_um_and_wait(
+        await self.ws.send_um(
             notifications.MarkNotificationsReadNotification(
                 notification_ids=[
                     notification.notification_id
