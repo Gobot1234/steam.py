@@ -124,6 +124,8 @@ class Queue(Generic[T]):
         return len(self.queue)
 
     def __iadd__(self, other: Iterable[T]) -> Self:
+        self.queue += other
+
         for item in other:
             attr = self.attr(item)
             try:
@@ -132,9 +134,9 @@ class Queue(Generic[T]):
                 pass
             else:
                 future.set_result(item)
+                self.queue.remove(item)
                 del self._waiting_for[attr]
 
-        self.queue += other
         return self
 
 
