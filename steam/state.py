@@ -997,7 +997,7 @@ class ConnectionState:
         msg: client_server_2.CMsgClientFsGetFriendsSteamLevelsResponse = await self.ws.send_proto_and_wait(
             client_server_2.CMsgClientFsGetFriendsSteamLevels(list(user_ids))
         )
-        if msg.result != Result.OK:
+        if msg.result not in (Result.OK, Result.Invalid):
             raise WSException(msg)
 
         return cast(dict[ID32, int], {friend.accountid: friend.level for friend in msg.friends})
