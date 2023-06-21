@@ -134,7 +134,6 @@ class Queue(Generic[T]):
                 pass
             else:
                 future.set_result(item)
-                self.queue.remove(item)
                 del self._waiting_for[attr]
 
         return self
