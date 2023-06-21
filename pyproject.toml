@@ -43,7 +43,6 @@ cryptography = ">=40,<42"
 betterproto = "2.0.0b5"
 typing-extensions = "4.6.3"
 vdf = "^3.4"
-tomli = {version = "~2", optional = true, python = "<3.11"}
 taskgroup = {git = "https://github.com/Gobot1234/taskgroup", rev = "default", python = "<3.11"}
 
 [tool.poetry.group.speedups]
@@ -76,6 +75,7 @@ pre-commit = "^3.1"
 poethepoet = ">=0.19,<0.21"
 blacken-docs = "^1.12"
 ruff = ">=0.0.261,<0.0.275"
+tomli = {version = "~2", python = "<3.11"}
 
 [tool.poe.tasks]
 test = {cmd = "pytest tests", help = "Run the tests"}
