@@ -284,7 +284,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
         "member_count",
         "in_game_count",
         "online_count",
-        "is_app_clan",
+        "_is_app_clan",
     )
 
     # TODO more to implement https://github.com/DoctorMcKay/node-steamcommunity/blob/master/components/groups.js
