@@ -32,7 +32,7 @@ from .enums import *
 from .enums import PurchaseResult
 from .errors import *
 from .friend import Friend
-from .gateway import CMServer, ConnectionClosed, Msgs, SteamWebSocket, unpack_multi
+from .gateway import CMServer, ConnectionClosed, Msgs, ProtoMsgs, SteamWebSocket, unpack_multi
 from .group import Group, GroupMember
 from .guard import *
 from .id import _ID64_TO_ID32, ID, parse_id64
@@ -159,7 +159,7 @@ def parser(func: F) -> F:
 
 
 class ConnectionState:
-    parsers: dict[EMsg, ParserCallback[Self, Msgs]]
+    parsers: dict[EMsg, ParserCallback[Self, ProtoMsgs]]
 
     def __init__(self, client: Client, **kwargs: Any):
         self.client = client
@@ -526,14 +526,6 @@ class ConnectionState:
     async def wait_for_confirmation(self, id: TradeOfferID) -> Confirmation:
         self._tg.create_task(self.poll_confirmations())
         return await self.confirmation_queue.wait_for(id=id)
-
-    async def fetch_and_confirm_confirmation(self, trade_id: TradeOfferID) -> bool:
-        if self.client.identity_secret:
-            confirmation = await self.wait_for_confirmation(id=trade_id)
-            await confirmation.confirm()
-            return True
-
-        return False
 
     @asynccontextmanager
     async def temporarily_play(self, *apps: App) -> AsyncGenerator[None, None]:

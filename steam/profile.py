@@ -233,7 +233,7 @@ class ProfileShowcaseSlot(Generic[UserT]):
 
     async def published_file(
         self, *, revision: PublishedFileRevision = PublishedFileRevision.Default, language: Language | None = None
-    ) -> PublishedFile:
+    ) -> PublishedFile[UserT]:
         """Fetches the associated :class:`.PublishedFile` from :attr:`published_file_id`.
 
         Parameters
@@ -309,7 +309,7 @@ class ProfileShowcase(Generic[UserT]):
 
     async def published_files(
         self, *, revision: PublishedFileRevision = PublishedFileRevision.Default, language: Language | None = None
-    ) -> list[PublishedFile]:
+    ) -> list[PublishedFile[UserT]]:
         """Fetches the associated :class:`.PublishedFile` for the entire showcase.
 
         Parameters
@@ -325,7 +325,7 @@ class ProfileShowcase(Generic[UserT]):
         assert all(published_files)
         return published_files  # type: ignore  # needs HKT to be fixed
 
-    async def badges(self) -> list[UserBadge]:
+    async def badges(self) -> list[UserBadge[UserT]]:
         """Fetches the associated :class:`.Badge`\\s for the entire showcase."""
         all_badges = await self.owner.badges()
         badges = [

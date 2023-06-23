@@ -106,7 +106,7 @@ class Client(Client_):
         user = self.http.user = self.__class__._ClientUserCls(self._state, us)
         user._friends = current_user._friends
         user._inventory_locks = current_user._inventory_locks
-        self._state.user = user  # type: ignore  # it should be writeable at this point
+        self._state.user = user
         await super()._handle_ready()
 
     async def wait_until_gc_ready(self) -> None:

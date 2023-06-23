@@ -163,6 +163,11 @@ class cached_property(Generic[_SelfT, _T_co]):
 
         return value
 
+    if TYPE_CHECKING:
+
+        def __set__(self, instance: _SelfT, value: _T_co) -> None:  # type: ignore
+            ...
+
 
 @overload
 def cached_slot_property(function: Callable[[_SelfT], _T_co], /) -> CachedSlotProperty[_SelfT, _T_co]:
@@ -184,11 +189,12 @@ def cached_slot_property(function_or_name: Any, /) -> Any:  # required to be a f
     return CachedSlotProperty(function_or_name, f"_{function_or_name.__name__}_cs")
 
 
-class CachedSlotProperty(cached_property[_SelfT, _T_co]):
-    __slots__ = ("name", "__doc__")
+class CachedSlotProperty(Generic[_SelfT, _T_co]):
+    __slots__ = ("function", "__doc__", "name")
 
     def __init__(self, function: Callable[[_SelfT], _T_co], name: str):
-        super().__init__(function)
+        self.function = function
+        self.__doc__: str | None = getattr(function, "__doc__", None)
         self.name = name
 
     @overload
