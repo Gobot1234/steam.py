@@ -94,7 +94,7 @@ def get_device_id(id64: int) -> str:
     return f'android:{"-".join(partial_id)}'
 
 
-Tags: TypeAlias = Literal["conf", "details", "allow", "cancel", "list"]
+Tags: TypeAlias = Literal["conf", "details", "accept", "reject", "list"]
 
 
 @dataclass(repr=False, slots=True)
@@ -128,7 +128,7 @@ class Confirmation:
             raise ConfirmationError(resp.get("message", "Unknown error"))
 
     async def confirm(self) -> None:
-        await self._perform_op("allow")
+        await self._perform_op("accept")
 
     async def cancel(self) -> None:
-        await self._perform_op("cancel")
+        await self._perform_op("reject")
