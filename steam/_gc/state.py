@@ -63,7 +63,7 @@ class GCState(ConnectionState, Generic[Inv]):
     def __init__(self, client: Client, **kwargs: Any):
         self._gc_connected = MultiEvent(len(client._GC_APPS))
         self._gc_ready = MultiEvent(len(client._GC_APPS))
-        self.backpacks: Mapping[AppID, Inventory[Item[ClientUser], ClientUser]] = None  # type: ignore
+        self.backpacks: Mapping[AppID, Inventory[Item[ClientUser], ClientUser]] = {}
         self.items_waiting: dict[tuple[AppID, AssetID], asyncio.Future[Item[ClientUser]]] = {}
 
         app = kwargs.pop("app", None)
