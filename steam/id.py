@@ -72,13 +72,6 @@ def parse_id64(
     if not id and type is None and universe is None and instance is None:
         return ID64(0)
 
-    if type is not None and not isinstance(type, Type):
-        raise InvalidID(id, type, universe, instance, "type is not a valid Type") from None
-    if universe is not None and not isinstance(universe, Universe):
-        raise InvalidID(id, type, universe, instance, "universe is not a valid Universe") from None
-    if instance is not None and not isinstance(instance, Instance):
-        raise InvalidID(id, type, universe, instance, "instance is not a valid Instance") from None
-
     try:
         id = int(id)
     except ValueError:

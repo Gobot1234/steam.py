@@ -104,11 +104,6 @@ def test_kwarg_type() -> None:
 
 
 def test_kwarg_universe() -> None:
-    with pytest.raises(InvalidID):
-        ID(5, universe="doesn't exist")  # type: ignore
-    with pytest.raises(InvalidID):
-        ID(5, universe=99999999)  # type: ignore
-
     assert ID(5, universe=Universe.Public).universe == Universe.Public
     assert ID(5, universe=Universe.Dev).universe == Universe.Dev
 
