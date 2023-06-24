@@ -141,7 +141,7 @@ STATE = ContextVar["ConnectionState"]("APP_STATE")
 class MissingSentinel(Any if TYPE_CHECKING else object):
     __slots__ = ()
 
-    def __eq__(self, other: Any) -> Literal[False]:
+    def __eq__(self, other: object) -> Literal[False]:
         return False
 
     def __bool__(self) -> Literal[False]:
@@ -180,7 +180,7 @@ TypeT = TypeVar("TypeT", bound=type[_IDComparable])
 
 def impl_eq_via_id(cls: TypeT) -> TypeT:
     def __eq__(self: _IDComparable, other: object, /) -> bool:
-        return self.id == other.id if isinstance(other, cls) else NotImplemented  # type: ignore
+        return isinstance(other, cls) and self.id == other.id
 
     def __hash__(self: _IDComparable) -> int:
         return hash(self.id)

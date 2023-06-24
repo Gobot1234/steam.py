@@ -171,9 +171,7 @@ class EnumType(_EnumMeta if TYPE_CHECKING else type):
         raise AttributeError(f"{cls.__name__}: cannot delete Enum members.")
 
     def __contains__(cls, member: object) -> bool:
-        return (
-            isinstance(member, cls) and member.name in cls._member_map_ if isinstance(member, Enum) else NotImplemented
-        )
+        return isinstance(member, Enum) and isinstance(member, cls) and member.name in cls._member_map_
 
 
 # pretending these are enum subclasses makes things much nicer for linters as enums have custom behaviour you can't

@@ -193,7 +193,7 @@ class MessageReaction(PartialMessageReaction):
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, self.__class__):
-            return NotImplemented
+            return False
 
         return (
             self.message == other.message
@@ -222,13 +222,13 @@ class BaseEmoticon(_IOMixin):
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, BaseEmoticon):
-            return NotImplemented
+            return False
         if (isinstance(self, Emoticon) and isinstance(other, Emoticon)) or (
             isinstance(self, Sticker) and isinstance(other, Sticker)
         ):
             return self.name == other.name
 
-        return NotImplemented
+        return False
 
     def __hash__(self) -> int:
         return hash(self.name)

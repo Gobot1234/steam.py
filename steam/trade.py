@@ -94,11 +94,12 @@ class Asset(Generic[OwnerT]):
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in cls.REPR_ATTRS]
         return f"<{cls.__name__} {' '.join(resolved)}>"
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         return (
-            self.id == other.id and self._app_id == other._app_id and self._context_id == other._context_id
-            if isinstance(other, Asset)
-            else NotImplemented
+            isinstance(other, Asset)
+            and self.id == other.id
+            and self._app_id == other._app_id
+            and self._context_id == other._context_id
         )
 
     def __hash__(self) -> int:
@@ -571,9 +572,9 @@ class TradeOffer(Generic[ReceivingAssetT, SendingAssetT, OwnerT]):
         self._is_our_offer = data.get("is_our_offer", False)
         return cast("TradeOffer[Item[OwnerT], Item[ClientUser], OwnerT]", self)
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, TradeOffer):
-            return NotImplemented
+            return False
         return (
             self.id == other.id
             if self._has_been_sent and other._has_been_sent

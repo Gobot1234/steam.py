@@ -338,7 +338,7 @@ class Chat(Channel[ChatMessageT]):
         return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
     def __eq__(self, other: object) -> bool:
-        return self._location == other._location if isinstance(other, Chat) else NotImplemented
+        return isinstance(other, Chat) and self._location == other._location
 
     def __hash__(self) -> int:
         return hash(self._location)

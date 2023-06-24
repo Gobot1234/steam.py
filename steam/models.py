@@ -238,7 +238,7 @@ class Avatar(_IOMixin):
         return f"https://avatars.cloudflare.steamstatic.com/{self.sha.hex()}_full.jpg"
 
     def __eq__(self, other: object) -> bool:
-        return self.sha == other.sha if isinstance(other, self.__class__) else NotImplemented
+        return isinstance(other, self.__class__) and self.sha == other.sha
 
     def __hash__(self) -> int:
         return hash(self.sha)
@@ -251,7 +251,7 @@ class CDNAsset(_IOMixin):
     """The URL of the asset."""
 
     def __eq__(self, other: object) -> bool:
-        return self.url == other.url if isinstance(other, self.__class__) else NotImplemented
+        return isinstance(other, self.__class__) and self.url == other.url
 
     def __hash__(self) -> int:
         return hash(self.url)

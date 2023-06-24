@@ -289,8 +289,8 @@ class ID(Generic[TypeT], metaclass=abc.ABCMeta):
     def __int__(self) -> ID64:
         return self.id64
 
-    def __eq__(self, other: Any) -> bool:
-        return self.id64 == other.id64 if isinstance(other, ID) else NotImplemented
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, ID) and self.id64 == other.id64
 
     def __str__(self) -> str:
         return str(self.id64)

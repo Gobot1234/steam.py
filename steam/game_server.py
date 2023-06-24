@@ -43,7 +43,7 @@ class QueryAll:
     def __repr__(self) -> str:
         return self.__class__.__name__
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         return isinstance(other, self.__class__)
 
     query = ""
@@ -268,7 +268,7 @@ class Query(Generic[T_co], metaclass=QueryMeta):
         return self._process_op(other, Operator.nor)
 
     def __eq__(self, other: object) -> bool:
-        return self._raw == other._raw if isinstance(other, Query) else NotImplemented
+        return isinstance(other, Query) and self._raw == other._raw
 
     @property
     def query(self) -> str:

@@ -53,9 +53,7 @@ class BaseBadge(Protocol[AppT]):  # type: ignore  # this is safe
 
     def __eq__(self, other: object) -> bool:
         return (
-            self.id == other.id and self.app == other.app and self.level == other.level
-            if isinstance(other, BaseBadge)
-            else NotImplemented
+            isinstance(other, BaseBadge) and self.id == other.id and self.app == other.app and self.level == other.level
         )
 
     def __hash__(self) -> int:

@@ -951,11 +951,7 @@ class Message(Generic[UserT], metaclass=abc.ABCMeta):
         return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
     def __eq__(self, other: object) -> bool:
-        return (
-            self.channel == other.channel and self.id == other.id
-            if isinstance(other, self.__class__)
-            else NotImplemented
-        )
+        return isinstance(other, self.__class__) and self.channel == other.channel and self.id == other.id
 
     def __hash__(self) -> int:
         return hash((self.channel, self.id))

@@ -137,7 +137,7 @@ class BaseEvent(Commentable, utils.AsyncInit, Generic[EventTypeT, ClanT], metacl
         return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
     def __eq__(self, other: object) -> bool:
-        return self.id == other.id and self.clan == other.clan if isinstance(other, self.__class__) else NotImplemented
+        return isinstance(other, self.__class__) and self.id == other.id and self.clan == other.clan
 
     def __hash__(self) -> int:
         return hash((self.id, self.clan))

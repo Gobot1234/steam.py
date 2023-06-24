@@ -45,7 +45,7 @@ class UserChannel(Channel[UserMessage]):
         return f"<UserChannel participant={self.participant!r}>"
 
     def __eq__(self, other: object) -> bool:
-        return self.participant == other.participant if isinstance(other, UserChannel) else NotImplemented
+        return isinstance(other, UserChannel) and self.participant == other.participant
 
     def __hash__(self) -> int:
         return hash(self.participant)
