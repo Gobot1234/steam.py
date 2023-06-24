@@ -106,17 +106,20 @@ class PartialPackage(Package[NameT]):
         _, (info,) = await self._state.fetch_product_info(package_ids=(self.id,))
         return info
 
-    async def store_item(self) -> PackageStoreItem:
+    async def store_item(self, *, language: Language | None = None) -> PackageStoreItem:
         """Fetches this package's store item.
 
         Shorthand for:
 
         .. code:: python
 
-            (item,) = await client.fetch_store_item(packages=[package])
+            (item,) = await client.fetch_store_item(packages=[package], language=language)
         """
-        (item,) = await self._state.client.fetch_store_item(packages=(self,))
-        return item
+        from .store import PackageStoreItem
+
+        language = language or self._state.http.language
+        (item,) = await self._state.fetch_store_info(package_ids=(self.id,), language=language)
+        return PackageStoreItem(self._state, item, language)
 
     async def apps_info(self) -> list[AppInfo]:
         """Fetch the product info for all apps in this package.

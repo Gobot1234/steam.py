@@ -67,17 +67,20 @@ class PartialBundle(Bundle[NameT]):
         """
         return await self._state.client.fetch_bundle(self.id)
 
-    async def store_item(self) -> BundleStoreItem:
+    async def store_item(self, *, language: Language | None = None) -> BundleStoreItem:
         """Fetch the store item for this bundle.
 
         Shorthand for:
 
         .. code:: python
 
-            (item,) = await client.fetch_store_item(bundles=[bundle])
+            (item,) = await client.fetch_store_item(bundles=[bundle], language=language)
         """
-        (item,) = await self._state.client.fetch_store_item(bundles=(self,))
-        return item
+        from .store import BundleStoreItem
+
+        language = language or self._state.http.language
+        (item,) = await self._state.fetch_store_info(bundle_ids=(self.id,), language=language)
+        return BundleStoreItem(self._state, item, language)
 
     async def apps(self) -> list[PartialApp]:
         """Fetch the bundle's apps."""

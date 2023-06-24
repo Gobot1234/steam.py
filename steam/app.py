@@ -712,17 +712,20 @@ class PartialApp(App[NameT]):
         """
         return await self._state.fetch_app(self.id, language=language)
 
-    async def store_item(self) -> AppStoreItem:
+    async def store_item(self, *, language: Language | None = None) -> AppStoreItem:
         """Fetch the store item for this app.
 
         Shorthand for:
 
         .. code:: python
 
-            (item,) = await client.fetch_store_item(apps=[app])
+            (item,) = await client.fetch_store_item(apps=[app], language=language)
         """
-        (item,) = await self._state.client.fetch_store_item(apps=(self,))
-        return item
+        from .store import AppStoreItem
+
+        language = language or self._state.http.language
+        (item,) = await self._state.fetch_store_info(app_ids=(self.id,), language=language)
+        return AppStoreItem(self._state, item, language)
 
     async def info(self) -> AppInfo:
         """Fetches this app's product info.
