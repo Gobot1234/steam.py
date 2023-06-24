@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Generic, Protocol
 from typing_extensions import TypeVar
 
 from . import utils
-from .app import PartialApp
+from .app import STEAM, PartialApp
 from .badge import UserBadge
 from .enums import *
 from .errors import WSException
@@ -147,7 +147,7 @@ class ProfileItem(Generic[UserT]):
 
     async def item(self, *, language: Language | None = None) -> Item[UserT]:
         """Resolve this to an actual item in the owner's inventory."""
-        inventory = await self.owner.inventory(self.app, language=language)
+        inventory = await self.owner.inventory(STEAM, language=language)
         item = utils.get(inventory, id=self.id)
         assert item
         return item
