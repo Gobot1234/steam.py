@@ -149,12 +149,6 @@ class User(_BaseUser, Messageable["UserMessage"]):
         seconds = their_escrow["escrow_end_duration_seconds"]
         return timedelta(seconds=seconds) if seconds else None
 
-    def _message_func(self, content: str) -> Coroutine[Any, Any, UserMessage]:
-        return self._state.send_user_message(self.id64, content)
-
-    def _media_func(self, media: Media) -> Coroutine[Any, Any, None]:
-        return self._state.http.send_user_media(self.id64, media)
-
     async def send(
         self,
         content: Any = None,
@@ -192,45 +186,7 @@ class User(_BaseUser, Messageable["UserMessage"]):
 
         message = await super().send(content, media=media)
         if trade is not None:
-            to_send = [item.to_dict() for item in trade.sending]
-            to_receive = [item.to_dict() for item in trade.receiving]
-            try:
-                resp = await self._state.http.send_trade_offer(
-                    self, to_send, to_receive, trade.token, trade.message or ""
-                )
-            except HTTPException as e:
-                if e.code == Result.Revoked and (
-                    any(item.owner != self for item in trade.receiving)
-                    or any(item.owner != self._state.user for item in trade.sending)
-                ):
-                    if sys.version_info >= (3, 11):
-                        e.add_note(
-                            "You've probably sent an item isn't either in your inventory or the user's inventory"
-                        )
-                    else:
-                        raise ValueError(
-                            "You've probably sent an item isn't either in your inventory or the user's inventory"
-                        ) from e
-                raise e
-            trade._has_been_sent = True
-            needs_confirmation = resp.get("needs_mobile_confirmation", False)
-            trade._update_from_send(self._state, resp, self, active=not needs_confirmation)
-            if needs_confirmation:
-                for tries in range(5):
-                    try:
-                        await trade.confirm()
-                        break
-                    except ConfirmationError:
-                        await asyncio.sleep(tries * 2)
-                else:
-                    raise ConfirmationError("Failed to confirm trade offer")
-                trade.state = TradeOfferState.Active
-
-            # make sure the trade is updated before this function returns
-            self._state._trades[trade.id] = cast(
-                "TradeOffer[Item[Self], Item[ClientUser], Self]", trade
-            )  # it gets upcast to this anyway after wait_for_trade
-            await self._state.wait_for_trade(trade.id)
+            await self._send_trade(trade)
             self._state.dispatch("trade_send", trade)
 
         return message

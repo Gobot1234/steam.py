@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import abc
 import asyncio
+import sys
 from collections.abc import AsyncGenerator, Coroutine, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -20,16 +21,16 @@ from .achievement import UserAppStats
 from .app import STEAM, App, PartialApp, UserApp, UserInventoryInfoApp, UserInventoryInfoContext, WishlistApp
 from .badge import FavouriteBadge, UserBadges
 from .enums import *
-from .errors import WSException
+from .errors import ConfirmationError, HTTPException, WSException
 from .game_server import GameServer
 from .id import ID
 from .models import Avatar, Ban
 from .profile import *
 from .reaction import Award, AwardReaction, Emoticon, MessageReaction, PartialMessageReaction, Sticker
-from .trade import Inventory, Item
+from .trade import Asset, Inventory, Item, TradeOffer
 from .types.id import ID64, AppID, AssetID, CommentID, ContextID, Intable, PostID
 from .types.user import UserT
-from .utils import DateTime, cached_slot_property, classproperty, parse_bb_code
+from .utils import DateTime, classproperty, parse_bb_code
 
 if TYPE_CHECKING:
     import betterproto
@@ -38,6 +39,7 @@ if TYPE_CHECKING:
     from .comment import Comment
     from .group import Group
     from .media import Media
+    from .message import UserMessage
     from .post import Post
     from .published_file import PublishedFile
     from .review import Review
@@ -303,6 +305,54 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
     @classproperty
     def _COMMENTABLE_TYPE(cls: type[Self]) -> _CommentableThreadType:  # type: ignore
         return _CommentableThreadType.User
+
+    def _send_message(self, content: str) -> Coroutine[Any, Any, UserMessage]:
+        return self._state.send_user_message(self.id64, content)
+
+    def _send_media(self, media: Media) -> Coroutine[Any, Any, None]:
+        return self._state.http.send_user_media(self.id64, media)
+
+    async def _send_trade(self, trade: TradeOffer[Asset[PartialUser], Asset[ClientUser], Any], **kwargs: Any) -> None:
+        try:
+            resp = await self._state.http.send_trade_offer(
+                self,
+                [item.to_dict() for item in trade.sending],
+                [item.to_dict() for item in trade.receiving],
+                trade.token,
+                trade.message or "",
+                **kwargs,
+            )
+        except HTTPException as e:
+            if e.code == Result.Revoked and (
+                any(item.owner != self for item in trade.receiving)
+                or any(item.owner != self._state.user for item in trade.sending)
+            ):
+                if sys.version_info >= (3, 11):
+                    e.add_note("You've probably sent an item isn't either in your inventory or the user's inventory")
+                else:
+                    raise ValueError(
+                        "You've probably sent an item isn't either in your inventory or the user's inventory"
+                    ) from e
+            raise e
+        trade._has_been_sent = True
+        needs_confirmation = resp.get("needs_mobile_confirmation", False)
+        trade._update_from_send(self._state, resp, self, active=not needs_confirmation)
+        if needs_confirmation:
+            for tries in range(5):
+                try:
+                    await trade.confirm()
+                    break
+                except ConfirmationError:
+                    await asyncio.sleep(tries * 2)
+            else:
+                raise ConfirmationError("Failed to confirm trade offer")
+            trade.state = TradeOfferState.Active
+
+        # make sure the trade is updated before this function returns
+        self._state._trades[trade.id] = cast(
+            "TradeOffer[Item[User], Item[ClientUser], User]", trade
+        )  # it gets upcast to this anyway after wait_for_trade
+        await self._state.wait_for_trade(trade.id)
 
     @property
     def trade_url(self) -> URL_:
@@ -777,11 +827,11 @@ class Messageable(Protocol[MessageT]):
     _state: ConnectionState
 
     @abc.abstractmethod
-    def _message_func(self, content: str) -> Coroutine[Any, Any, MessageT]:
+    def _send_message(self, content: str) -> Coroutine[Any, Any, MessageT]:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _media_func(self, media: Media) -> Coroutine[Any, Any, None]:
+    def _send_media(self, media: Media) -> Coroutine[Any, Any, None]:
         raise NotImplementedError
 
     async def send(self, content: Any = None, *, media: Media | None = None) -> MessageT | None:
@@ -809,9 +859,9 @@ class Messageable(Protocol[MessageT]):
         -------
         The sent message, only applicable if ``content`` is passed.
         """
-        message = None if content is None else await self._message_func(str(content))
+        message = None if content is None else await self._send_message(str(content))
         if media is not None:
-            await self._media_func(media)
+            await self._send_media(media)
 
         return message
 

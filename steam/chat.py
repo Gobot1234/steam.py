@@ -359,10 +359,10 @@ class Chat(Channel[ChatMessageT]):
     def _type_args(cls: type[Chat[ChatMessageT]]) -> tuple[type[ChatMessageT]]:  # type: ignore
         return cls.__orig_bases__[0].__args__  # type: ignore
 
-    def _message_func(self, content: str) -> Coroutine[Any, Any, ChatMessageT]:
+    def _send_message(self, content: str) -> Coroutine[Any, Any, ChatMessageT]:
         return self._state.send_chat_message(*self._location, content)  # type: ignore
 
-    def _media_func(self, media: Media) -> Coroutine[Any, Any, None]:
+    def _send_media(self, media: Media) -> Coroutine[Any, Any, None]:
         return self._state.http.send_chat_media(*self._location, media)
 
     async def history(

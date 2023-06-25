@@ -77,11 +77,11 @@ class Context(Generic[BotT], Messageable["Message"]):
         self.kwargs: dict[str, Any] | None = None
         self.command_failed: bool = False
 
-    def _message_func(self, content: str) -> Coroutine[Any, Any, Message]:
-        return self.channel._message_func(content)
+    def _send_message(self, content: str) -> Coroutine[Any, Any, Message]:
+        return self.channel._send_message(content)
 
-    def _media_func(self, media: Media) -> Coroutine[Any, Any, None]:
-        return self.channel._media_func(media)
+    def _send_media(self, media: Media) -> Coroutine[Any, Any, None]:
+        return self.channel._send_media(media)
 
     async def invoke(self) -> None:
         """A shortcut method that invokes the current context using :meth:`~steam.ext.commands.Command.invoke`.

@@ -50,11 +50,11 @@ class UserChannel(Channel[UserMessage]):
     def __hash__(self) -> int:
         return hash(self.participant)
 
-    def _message_func(self, content: str) -> Coroutine[Any, Any, UserMessage]:
-        return self.participant._message_func(content)
+    def _send_message(self, content: str) -> Coroutine[Any, Any, UserMessage]:
+        return self.participant._send_message(content)
 
-    def _media_func(self, media: Media) -> Coroutine[Any, Any, None]:
-        return self.participant._media_func(media)
+    def _send_media(self, media: Media) -> Coroutine[Any, Any, None]:
+        return self.participant._send_media(media)
 
     def typing(self) -> AbstractAsyncContextManager[None]:
         """Send a typing indicator continuously to the channel while in the context manager.
