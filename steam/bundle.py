@@ -82,12 +82,12 @@ class PartialBundle(Bundle[NameT]):
         (item,) = await self._state.fetch_store_info(bundle_ids=(self.id,), language=language)
         return BundleStoreItem(self._state, item, language)
 
-    async def apps(self) -> list[PartialApp]:
+    async def apps(self) -> list[PartialApp[None]]:
         """Fetch the bundle's apps."""
         fetched = await self.fetch()
         return fetched._apps
 
-    async def packages(self) -> list[PartialPackage]:
+    async def packages(self) -> list[PartialPackage[None]]:
         """Fetch the bundle's packages."""
         fetched = await self.fetch()
         return fetched._packages
@@ -123,8 +123,8 @@ class FetchedBundle(PartialBundle[str]):
         """Whether the app is playable on Linux."""
         return self._on_linux
 
-    async def apps(self) -> list[PartialApp]:
+    async def apps(self) -> list[PartialApp[None]]:
         return self._apps
 
-    async def packages(self) -> list[PartialPackage]:
+    async def packages(self) -> list[PartialPackage[None]]:
         return self._packages
