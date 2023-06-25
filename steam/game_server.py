@@ -244,7 +244,7 @@ class Query(Generic[T_co], metaclass=QueryMeta):
         return self
 
     def __repr__(self) -> str:
-        return f"<Query query={self.query!r}>"
+        return f"<{self.__class__.__name__} query={self.query!r}>"
 
     # it's safe to use a covariant TypeVar here as everything is read-only
     def _process_op(self, other: T_co, op: Operator) -> Q:  # type: ignore

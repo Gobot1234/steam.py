@@ -89,7 +89,7 @@ class PriceOverview:
 
     def __repr__(self) -> str:
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in self.__slots__]
-        return f"<PriceOverview {' '.join(resolved)}>"
+        return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
 
 class Ban:
@@ -120,7 +120,7 @@ class Ban:
             ("is_market_banned()", self.is_market_banned()),
         ]
         resolved = [f"{method}={value!r}" for method, value in attrs]
-        return f"<Ban {' '.join(resolved)}>"
+        return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
     def is_banned(self) -> bool:
         """Species if the user is banned from any part of Steam."""

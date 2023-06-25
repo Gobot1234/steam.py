@@ -133,7 +133,7 @@ class Shlex:
             "end",
         )
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
-        return f"<Shlex {' '.join(resolved)}>"
+        return f"<{self.__class__.__class__} {' '.join(resolved)}>"
 
     def __iter__(self) -> Generator[str, None, None]:
         while (token := self.read()) is not None:

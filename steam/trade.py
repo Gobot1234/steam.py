@@ -530,7 +530,7 @@ class TradeOffer(Generic[ReceivingAssetT, SendingAssetT, OwnerT]):
     def __repr__(self) -> str:
         attrs = ("id", "state", "partner")
         resolved = [f"{attr}={getattr(self, attr, None)!r}" for attr in attrs]
-        return f"<TradeOffer {' '.join(resolved)}>"
+        return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
     def _update(
         self: TradeOffer[Asset[OwnerT], Asset[ClientUser], OwnerT], data: trade.TradeOffer

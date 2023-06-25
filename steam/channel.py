@@ -42,7 +42,7 @@ class UserChannel(Channel[UserMessage]):
         self.last_message: UserMessage | None = None
 
     def __repr__(self) -> str:
-        return f"<UserChannel participant={self.participant!r}>"
+        return f"<{self.__class__.__name__} participant={self.participant!r}>"
 
     def __eq__(self, other: object) -> bool:
         return isinstance(other, UserChannel) and self.participant == other.participant

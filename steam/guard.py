@@ -105,7 +105,7 @@ class Confirmation:
     creator_id: TradeOfferID  # this isn't really always the trade ID, but for our purposes this is fine
 
     def __repr__(self) -> str:
-        return f"<Confirmation id={self.id} creator_id={self.creator_id}>"
+        return f"<{self.__class__.__name__} id={self.id} creator_id={self.creator_id}>"
 
     def __eq__(self, other: object) -> bool:
         return isinstance(other, Confirmation) and self.creator_id == other.creator_id and self.id == other.id

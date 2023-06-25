@@ -546,4 +546,4 @@ class AnonymousClientUser(ID[Literal[Type.AnonUser]]):
         self._state = state
 
     def __repr__(self) -> str:
-        return f"<AnonymousClientUser id={self.id} universe={self.universe!r} instance={self.instance!r}>"
+        return f"<{self.__class__.__name__} id={self.id} universe={self.universe!r} instance={self.instance!r}>"

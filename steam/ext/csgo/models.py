@@ -229,7 +229,7 @@ class ProfileInfo(Generic[UserT]):
         return math.floor(max(self.current_xp - 327680000, 0) / 5000)
 
     def __repr__(self) -> str:
-        return f"<ProfileInfo user={self.user!r}>"
+        return f"<{self.__class__.__name__} user={self.user!r}>"
 
 
 class CSGOUserConverter(Converter[User]):

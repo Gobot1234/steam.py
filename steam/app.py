@@ -112,9 +112,6 @@ class App(Generic[NameT]):
         self.context_id: ContextID = ContextID(2 if context_id is None else context_id)
         """The context id of the app normally ``2``."""
 
-    def __str__(self) -> str:
-        return self.name or ""
-
     def __repr__(self) -> str:
         attrs = ("name", "id", "context_id")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
@@ -1377,7 +1374,7 @@ class FetchedAppMovie(_IOMixin):
     def __repr__(self) -> str:
         attrs = ("name", "id", "url", "created_at")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
-        return f"<FetchedAppMovie {' '.join(resolved)}>"
+        return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
 
 @dataclass(slots=True)

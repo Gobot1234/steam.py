@@ -57,7 +57,7 @@ class Comment(Awardable, Generic[OwnerT, AuthorT]):
     def __repr__(self) -> str:
         attrs = ("id", "author")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
-        return f"<Comment {' '.join(resolved)}>"
+        return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
     async def report(self) -> None:
         """Reports the comment."""

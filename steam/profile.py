@@ -134,7 +134,7 @@ class ProfileItem(Generic[UserT]):
         self._um = um
 
     def __repr__(self) -> str:
-        return f"<ProfileItem id={self.id} name={self.name!r} app={self.app!r}>"
+        return f"<{self.__class__.__name__} id={self.id} name={self.name!r} app={self.app!r}>"
 
     async def equip(self) -> None:
         """Equip the profile item."""
@@ -214,7 +214,7 @@ class ProfileShowcaseSlot(Generic[UserT]):
     """If the :attr:`ProfileShowcase.type` is :attr:`ProfileItemType.Replay` the year the replay is for"""
 
     def __repr__(self) -> str:
-        return f"<ProfileShowcaseSlot name={self.name!r} index={self.index!r} app={self.app!r}>"
+        return f"<{self.__class__.__name__} name={self.name!r} index={self.index!r} app={self.app!r}>"
 
     async def item(self, *, language: Language | None = None) -> Item[UserT]:
         """Fetches the associated :class:`.Item` from :attr:`asset`.
@@ -285,7 +285,7 @@ class ProfileShowcase(Generic[UserT]):
     """The slots in this showcase."""
 
     def __repr__(self) -> str:
-        return f"<ProfileShowcase type={self.type!r} active={self.active!r} level={self.level!r} style={self.style!r}>"
+        return f"<{self.__class__.__name__} type={self.type!r} active={self.active!r} level={self.level!r} style={self.style!r}>"
 
     async def items(self, *, language: Language | None = None) -> list[Item[UserT]]:
         """Fetches the associated :class:`.Item`\\s for the entire showcase.
