@@ -93,7 +93,7 @@ if TYPE_CHECKING:
     from .abc import Message
     from .chat import PartialMember
     from .client import Client
-    from .types import trade
+    from .types import manifest, trade
     from .types.http import Coro
 
 
@@ -2045,14 +2045,31 @@ class ConnectionState:
             fetched_tokens = await self.fetch_manifest_access_tokens(
                 app_access_tokens_to_collect, package_access_tokens_to_collect
             )
-            apps_to_fetch.extend(
+            apps_to_fetch += (
                 app_info.CMsgClientPicsProductInfoRequestAppInfo(token.appid, token.access_token)
                 for token in fetched_tokens.app_access_tokens
             )
-            packages_to_fetch.extend(
+            packages_to_fetch += (
                 app_info.CMsgClientPicsProductInfoRequestPackageInfo(token.packageid, token.access_token)
                 for token in fetched_tokens.package_access_tokens
             )
+
+        # this is done to avoid missing the message if the product info is massive. this sizes for the worst case
+        # AFAICT where it's one response per app + 1 for the final termination message.
+        max_futures = len(apps_to_fetch) + len(packages_to_fetch) + 1
+        seen_msgs = list[app_info.CMsgClientPicsProductInfoResponse]()  # can't be hashed unfortunately
+
+        def check(msg: app_info.CMsgClientPicsProductInfoResponse) -> bool:
+            if msg.header.job_id_target != job_id:
+                return False
+            if msg in seen_msgs:
+                return False
+            seen_msgs.append(msg)
+            return True
+
+        futures = [
+            self.ws.wait_for(app_info.CMsgClientPicsProductInfoResponse, check=check) for _ in range(max_futures)
+        ]
 
         to_send = app_info.CMsgClientPicsProductInfoRequest(
             apps=apps_to_fetch,
@@ -2060,7 +2077,6 @@ class ConnectionState:
             supports_package_tokens=True,
         )
         to_send.header.job_id_source = job_id = self.ws.next_job_id
-
         await self.ws.send_proto(to_send)
 
         response_pending = True
@@ -2068,33 +2084,31 @@ class ConnectionState:
         packages: list[PackageInfo] = []
 
         while response_pending:
-            msg = await self.ws.wait_for(
-                app_info.CMsgClientPicsProductInfoResponse, check=lambda msg: msg.header.job_id_target == job_id
-            )
+            msg = await futures.pop(0)
 
-            apps.extend(
+            apps += (
                 AppInfo(
                     self,
-                    VDF_LOADS(  # type: ignore  # can be removed if AnyOf ever happens
-                        app.buffer[:-1].decode("UTF-8", "replace")
-                    )["appinfo"],
+                    cast("manifest.AppInfo", VDF_LOADS(app.buffer[:-1].decode("UTF-8", "replace"))["appinfo"]),
                     app,
                 )
                 for app in msg.apps
             )
 
-            packages.extend(
+            packages += (
                 PackageInfo(
                     self,
-                    VDF_BINARY_LOADS(package.buffer[4:])[  # type: ignore  # can be removed if AnyOf ever happens
-                        str(package.packageid)
-                    ],
+                    cast("manifest.PackageInfo", VDF_BINARY_LOADS(package.buffer[4:])[str(package.packageid)]),
                     package,
                 )
                 for package in msg.packages
             )
 
             response_pending = msg.response_pending
+
+        for future in futures:
+            future.cancel()
+        await asyncio.gather(*futures, return_exceptions=True)
 
         return apps, packages
 
