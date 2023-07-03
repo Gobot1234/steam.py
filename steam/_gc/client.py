@@ -72,7 +72,8 @@ class Client(Client_):
         await self._state.login_complete.wait()
         while not self.is_closed():
             for base in self._GC_BASES:
-                await self._state.ws.send_gc_message(base._get_gc_message(self._state))
+                if msg := base._get_gc_message(self._state):
+                    await self._state.ws.send_gc_message(msg)
             await asyncio.sleep(self._GC_HEART_BEAT)
 
     @overload
