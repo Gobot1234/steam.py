@@ -63,18 +63,26 @@ class _CommentableKwargs(TypedDict, total=False):
     forum_id: int
 
 
-class _CommentableThreadType(IntEnum):
-    # these just came from bashing the API and seeing what works, although they can now be reliably determined using
-    # ConnectionState.fetch_notifications() and observing body_data["type"] if it's a comment.
-    # AFAIK there aren't any more Commentable types
+class _CommentThreadType(IntEnum):
+    # from https://github.com/SteamDatabase/Protobufs/blob/62702bd83148fff64945f20a09eaf8f250782829/steam/enums.proto#L386
+    WorkshopAccountDeveloper = 2
+    WorkshopAccount = 3
+    PublishedFileDeveloper = 4
     PublishedFile = 5
+    Test = 6
     Topic = 7
     Review = 8
     User = 10
+    NewsPost = 11
     Clan = 12
     Announcement = 13
     Event = 14
     Post = 15
+    UserReceivedNewGame = 16
+    PublishedFileAnnouncement = 17
+    ModeratorMessage = 18
+    ClanCuratedApp = 19
+    QAndASession = 20
 
 
 class Commentable(Protocol):
@@ -89,8 +97,8 @@ class Commentable(Protocol):
         raise NotImplementedError
 
     @classproperty
-    def _COMMENTABLE_TYPE(cls: type[Self]) -> _CommentableThreadType:
-        return _CommentableThreadType[cls.__name__]
+    def _COMMENTABLE_TYPE(cls: type[Self]) -> _CommentThreadType:
+        return _CommentThreadType[cls.__name__]
 
     def __init_subclass__(cls) -> None:
         super().__init_subclass__()
@@ -98,7 +106,7 @@ class Commentable(Protocol):
             cls.__dict__.get("_COMMENTABLE_TYPE") is Commentable.__dict__["_COMMENTABLE_TYPE"]
             and cls.__name__ != "BaseEvent"
         ):
-            assert cls.__name__ in _CommentableThreadType.__members__, f"{cls.__name__} is not a valid commentable type"
+            assert cls.__name__ in _CommentThreadType.__members__, f"{cls.__name__} is not a valid commentable type"
 
     async def fetch_comment(self, id: int) -> Comment[Self]:
         """Fetch a comment by its ID.
@@ -303,8 +311,8 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
         }
 
     @classproperty
-    def _COMMENTABLE_TYPE(cls: type[Self]) -> _CommentableThreadType:  # type: ignore
-        return _CommentableThreadType.User
+    def _COMMENTABLE_TYPE(cls: type[Self]) -> _CommentThreadType:  # type: ignore
+        return _CommentThreadType.User
 
     def _send_message(self, content: str) -> Coroutine[Any, Any, UserMessage]:
         return self._state.send_user_message(self.id64, content)

@@ -16,7 +16,7 @@ from yarl import URL
 
 from . import utils
 from ._const import HTML_PARSER, UNIX_EPOCH
-from .abc import Commentable, PartialUser, _CommentableKwargs, _CommentableThreadType
+from .abc import Commentable, PartialUser, _CommentableKwargs, _CommentThreadType
 from .app import App, PartialApp
 from .channel import ClanChannel
 from .chat import ChatGroup, Member, PartialMember
@@ -79,8 +79,8 @@ class PartialClan(ID[Literal[Type.Clan]], Commentable):
         }
 
     @utils.classproperty
-    def _COMMENTABLE_TYPE(cls: type[Self]) -> _CommentableThreadType:  # type: ignore
-        return _CommentableThreadType.Clan
+    def _COMMENTABLE_TYPE(cls: type[Self]) -> _CommentThreadType:  # type: ignore
+        return _CommentThreadType.Clan
 
     async def fetch_members(self) -> list[PartialUser]:
         """Fetches a clan's member list.

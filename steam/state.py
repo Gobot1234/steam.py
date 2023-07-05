@@ -24,7 +24,7 @@ from yarl import URL as URL_
 
 from . import utils
 from ._const import JSON_LOADS, READ_U32, URL, VDF_BINARY_LOADS, VDF_LOADS, TaskGroup, timeout
-from .abc import Awardable, Commentable, PartialUser, _CommentableThreadType
+from .abc import Awardable, Commentable, PartialUser, _CommentThreadType
 from .app import App, AuthenticationTicket, FetchedApp
 from .clan import Clan, ClanMember, PartialClan
 from .comment import Comment
@@ -1641,25 +1641,25 @@ class ConnectionState:
                     forum_id = int(body["forum_id"])
                     partial_user = PartialUser(self, body["owner_steam_id"])
                     partial_clan = PartialClan(self, body["owner_steam_id"])
-                    match type := _CommentableThreadType.try_value(int(body["type"])):
-                        case _CommentableThreadType.User:
+                    match type := _CommentThreadType.try_value(int(body["type"])):
+                        case _CommentThreadType.User:
                             commentable = partial_user
-                        case _CommentableThreadType.Clan:
+                        case _CommentThreadType.Clan:
                             commentable = partial_clan
-                        case _CommentableThreadType.Event:
+                        case _CommentThreadType.Event:
                             commentable = await partial_clan.fetch_event(forum_id)
-                        case _CommentableThreadType.Announcement:
+                        case _CommentThreadType.Announcement:
                             commentable = await partial_clan.fetch_announcement(forum_id)
-                        case _CommentableThreadType.PublishedFile:
+                        case _CommentThreadType.PublishedFile:
                             (commentable,) = await self.fetch_published_files(
                                 (PublishedFileID(forum_id),), PublishedFileRevision.Latest, None
                             )
                             assert commentable is not None
-                        case _CommentableThreadType.Review:
+                        case _CommentThreadType.Review:
                             commentable = await partial_user.fetch_review(App(id=forum_id))
-                        case _CommentableThreadType.Post:
+                        case _CommentThreadType.Post:
                             commentable = await partial_user.fetch_post(forum_id)
-                        case _CommentableThreadType.Topic:
+                        case _CommentThreadType.Topic:
                             log.debug("Ignoring topic comment notification %s", notification)
                             continue
                         case _:
