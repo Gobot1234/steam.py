@@ -2,14 +2,27 @@
 
 from __future__ import annotations
 
+import math
 from fractions import Fraction
-from typing import Final, SupportsRound, overload
+from typing import Final, SupportsFloat, SupportsIndex, SupportsRound, TypeAlias, overload
 
 from typing_extensions import Self
 
 __all__ = ("Metal",)
 
 
+class SupportsRoundOrFloat(SupportsRound[int], SupportsFloat):
+    ...
+
+
+class SupportsRoundOrIndex(SupportsRound[int], SupportsIndex):
+    ...
+
+
+SupportsMetal: TypeAlias = float | str | SupportsRoundOrFloat | SupportsRoundOrIndex
+
+
+# TODO look into the discuss post about returning Self() in subclasses instead of concrete instances
 class Metal(Fraction):
     """A class to represent some metal in TF2.
 
@@ -28,26 +41,28 @@ class Metal(Fraction):
     __slots__ = ()
 
     @overload
-    def __new__(cls, value: float | str | SupportsRound[int], /) -> Self:  # type: ignore
+    def __new__(cls, value: SupportsMetal, /) -> Self:  # type: ignore
         ...
 
-    def __new__(cls, value: float | str | SupportsRound[int], /, *, _normalize: bool = ...) -> Self:
+    def __new__(cls, value: SupportsMetal, /, *, _normalize: bool = ...) -> Self:
         if isinstance(value, str):  # '1.22'
             value = float(value)
 
         self = object.__new__(cls)
+
         try:
-            numerator = round(value, 2)
+            true_value = round(value, 2)
         except (ValueError, TypeError):
             raise TypeError("non-int passed to Metal.__new__, that could not be cast") from None
 
-        stred = (
-            f"{numerator:.2f}"  # TODO find a reliable way to check for random digits at the end cause they should raise
-        )
+        if not math.isclose(value, true_value):
+            raise ValueError("metal value's last digits must be close to 0")
+
+        stred = f"{true_value:.2f}"
         if stred[-1] != stred[-2]:
             raise ValueError("metal value must be a multiple of 0.11")
 
-        self._numerator = round(numerator * 9)
+        self._numerator = round(true_value * 9)
         return self
 
     denominator: Final = 9  # type: ignore
