@@ -113,8 +113,7 @@ class StoreItemPurchaseOption:
 
 
 class StoreItem:
-    __slots__ = ()
-    SLOTS = (  # done to avoid "multiple bases have instance lay-out conflict"
+    __slots__ = SLOTS = (  # done to avoid "multiple bases have instance lay-out conflict"
         "_language",
         "hidden",
         "unavailable_for_country_restriction",
@@ -162,6 +161,8 @@ class StoreItem:
         "_on_mac_os",
         "_on_linux",
     )
+    if not TYPE_CHECKING:
+        __slots__ = ()
 
     def __init__(self, state: ConnectionState, proto: store.StoreItem, language: Language) -> None:
         super().__init__(state, id=proto.id, name=proto.name)  # type: ignore  # this is a mixin
