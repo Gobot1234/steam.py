@@ -2583,20 +2583,20 @@ class ConnectionState:
             raise WSException(msg)
         return msg.achievements
 
-    # async def fetch_user_achievements(
-    #     self, user_id64: ID64, *app_ids: AppID, language: Language | None
-    # ) -> list[player.GetGameAchievementsRequest]:
-    #     msg: player.GetAchievementsProgressResponse = await self.ws.send_proto_and_wait(
-    #         player.GetAchievementsProgressRequest(
-    #             steamid=user_id64,
-    #             appids=cast(list[int], list(app_ids)),
-    #             language=(self.language or language).api_name,
-    #         )
-    #     )
+    async def fetch_user_achievements(
+        self, user_id64: ID64, *app_ids: AppID, language: Language | None
+    ) -> list[player.GetAchievementsProgressResponseAchievementProgress]:
+        msg: player.GetAchievementsProgressResponse = await self.ws.send_proto_and_wait(
+            player.GetAchievementsProgressRequest(
+                steamid=user_id64,
+                appids=cast(list[int], list(app_ids)),
+                language=(self.language or language).api_name,
+            )
+        )
 
-    #     if msg.result != Result.OK:
-    #         raise WSException(msg)
-    #     return
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg.achievement_progress
 
     async def fetch_or_create_app_leaderboard(
         self, app_id: AppID, leaderboard_name: str, create: bool = False

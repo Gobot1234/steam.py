@@ -444,7 +444,17 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
         data = cast("achievement.UserAppStats", schema[str(app.id)])
         return UserAppStats(self._state, app, msg, data, language or self._state.language)
 
-    # TODO find a way to just get achievements
+    # TODO find a better way to do this
+    async def achievements(self, app: App, *, language: Language | None = None) -> list[UserAppAchievement]:
+        """Fetch the achievements for the user in the app.
+
+        Parameters
+        ----------
+        language
+            The language to fetch the stats in. If ``None`` will default to the current language.
+        """
+        stats = await self.app_stats(app, language=language)
+        return stats.achievements
 
     async def wishlist(self) -> list[WishlistApp]:
         r"""Get the :class:`.WishlistApp`\s the user has on their wishlist."""
