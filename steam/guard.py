@@ -128,7 +128,9 @@ class Confirmation:
             raise ConfirmationError(resp.get("message", "Unknown error"))
 
     async def confirm(self) -> None:
-        await self._perform_op("accept")
+        await self._perform_op("allow")
+        # ^ this is no longer "accept" as of the endpoint update to /mobileconf/getlist/ -- it is "allow" now
+        # "yeah idk either" -- @zudsniper
 
     async def cancel(self) -> None:
         await self._perform_op("reject")
