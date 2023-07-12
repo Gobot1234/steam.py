@@ -411,7 +411,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
             return self.members
 
         self._members = dict.fromkeys(self._partial_members)  # type: ignore
-        if self.flags & ClanAccountFlags.Large if self.flags is not None else len(self._partial_members) <= 100:
+        if self.flags & ClanAccountFlags.Large > 0 if self.flags is not None else len(self._partial_members) <= 100:
             for user, member in zip(
                 await self._state._maybe_users(parse_id64(id, type=Type.Individual) for id in self._partial_members),
                 self._partial_members.values(),

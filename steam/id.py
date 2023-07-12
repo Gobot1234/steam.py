@@ -367,9 +367,9 @@ class ID(Generic[TypeT], metaclass=abc.ABCMeta):
                 if self.instance != Instance.Desktop:
                     instance = self.instance
             case Type.Chat:
-                if self.instance & Instance.ChatClan == Instance.ChatClan:
+                if self.instance & Instance.ChatClan > 0:
                     type_char = "c"
-                elif self.instance & Instance.ChatLobby == Instance.ChatLobby:
+                elif self.instance & Instance.ChatLobby > 0:
                     type_char = "L"
                 else:
                     type_char = "T"

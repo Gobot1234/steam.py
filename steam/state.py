@@ -2576,7 +2576,7 @@ class ConnectionState:
         self, app_id: AppID, language: Language | None
     ) -> list[player.GetGameAchievementsResponseAchievement]:
         msg: player.GetGameAchievementsResponse = await self.ws.send_proto_and_wait(
-            player.GetGameAchievementsRequest(appid=app_id, language=(self.language or language).api_name)
+            player.GetGameAchievementsRequest(appid=app_id, language=(language or self.language).api_name)
         )
 
         if msg.result != Result.OK:
@@ -2590,7 +2590,7 @@ class ConnectionState:
             player.GetAchievementsProgressRequest(
                 steamid=user_id64,
                 appids=cast(list[int], list(app_ids)),
-                language=(self.language or language).api_name,
+                language=(language or self.language).api_name,
             )
         )
 

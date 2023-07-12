@@ -390,7 +390,7 @@ class License(PartialPackage[None]):
     @property
     def time_remaining(self) -> timedelta | None:
         """The amount of time that this license can be used for."""
-        if self.flags & LicenseFlag.Expired:
+        if self.flags & LicenseFlag.Expired > 0:
             return
         if self.time_limit is None:
             return
