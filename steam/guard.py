@@ -95,7 +95,7 @@ def get_device_id(id64: int) -> str:
 
 
 Tags: TypeAlias = Literal["conf", "details", "accept", "reject", "list"]
-#Tags: TypeAlias = Literal["conf", "details", "allow", "cancel", "list"]
+# Tags: TypeAlias = Literal["conf", "details", "allow", "cancel", "list"]
 # TODO: I'm not sure if these should also be modified to their old value (in the commented out line)
 
 
@@ -129,7 +129,7 @@ class Confirmation:
         if not resp["success"]:
             raise ConfirmationError(resp.get("message", "Unknown error"))
 
-# TODO: determine why keywords are right? test `cancel` 
+    # TODO: determine why keywords are right? test `cancel`
     async def confirm(self) -> None:
         await self._perform_op("allow")
         # ^ this is no longer "accept" as of the endpoint update to /mobileconf/getlist/ -- it is "allow", as it... used to be...
