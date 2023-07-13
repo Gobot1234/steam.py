@@ -20,7 +20,7 @@ A modern, easy to use, and async ready package to interact with the Steam API. H
 
 ## Installation
 
-**Python 3.7 or higher is required**
+**Python 3.10 or higher is required**
 
 To install the library just run either of the following commands:
 
