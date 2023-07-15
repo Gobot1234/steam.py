@@ -74,7 +74,7 @@ MCD = TypeVar("MCD", bound="CommandDeco | MaybeCommand")
 CallT = TypeVar("CallT", bound="Callable[..., Coroutine[Any, Any, Any]]")
 CHR = TypeVar("CHR", bound="CheckReturnType")
 
-P = ParamSpec("P", default=...)
+P = ParamSpec("P", default=...) if TYPE_CHECKING else ParamSpec("P", default=None)
 
 
 class CommandDeco(Protocol):
