@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Final
 
 from ._const import URL
 from .enums import Language
@@ -26,6 +26,14 @@ __all__ = (
     "AppStats",
     "UserAppStats",
 )
+
+
+class StatType:  # https://partner.steamgames.com/doc/api/steam_api#ESteamUserStatType
+    Int: Final = "1"
+    Float: Final = "2"
+    AverageRate: Final = "3"
+    Achievement: Final = "4"
+    GroupAchievement: Final = "5"
 
 
 @dataclass(slots=True)
@@ -220,7 +228,7 @@ class UserAppStats:
                 for achievement in achievement_["bits"].values()
             ]
             for achievement_ in data["stats"].values()
-            if achievement_["type"] == "4"
+            if achievement_["type"] == StatType.Achievement
         }
         stats = {
             int(stat["id"]): UserAppStat(
@@ -230,7 +238,7 @@ class UserAppStats:
                 bool(stat.get("incrementonly", False)),
             )
             for stat in data["stats"].values()
-            if stat["type"] == "1"
+            if stat["type"] == StatType.Int
         }
 
         self.stats: list[UserAppStat] = []
