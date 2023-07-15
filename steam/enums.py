@@ -173,6 +173,9 @@ class EnumType(_EnumMeta if TYPE_CHECKING else type):
     def __contains__(cls, member: object) -> bool:
         return isinstance(member, Enum) and isinstance(member, cls) and member.name in cls._member_map_
 
+    def __dir__(self) -> list[str]:
+        return super().__dir__() + list(self._member_map_)
+
 
 # pretending these are enum subclasses makes things much nicer for linters as enums have custom behaviour you can't
 # replicate in the current type system
