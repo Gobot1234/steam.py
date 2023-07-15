@@ -63,7 +63,7 @@ class PriceOverviewDict(TypedDict):
 
 
 class PriceOverview:
-    """Represents the data received from https://steamcommunity.com/market/priceoverview."""
+    """Represents the data received from the Steam Community Market."""
 
     __slots__ = ("currency", "volume", "lowest_price", "median_price")
 
@@ -73,8 +73,12 @@ class PriceOverview:
     """The median price observed by the market."""
 
     def __init__(self, data: PriceOverviewDict, currency: CurrencyCode) -> None:
-        lowest_price = PRICE_RE.search(data["lowest_price"])["price"]
-        median_price = PRICE_RE.search(data["median_price"])["price"]
+        lowest_price_ = PRICE_RE.search(data["lowest_price"])
+        median_price_ = PRICE_RE.search(data["median_price"])
+        assert lowest_price_ is not None
+        assert median_price_ is not None
+        lowest_price = lowest_price_["price"]
+        median_price = median_price_["price"]
 
         try:
             self.lowest_price = float(lowest_price.replace(",", "."))
@@ -244,17 +248,11 @@ class Avatar(_IOMixin):
         return hash(self.sha)
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, unsafe_hash=True)
 class CDNAsset(_IOMixin):
-    _state: ConnectionState = field(repr=False)
+    _state: ConnectionState = field(repr=False, hash=False)
     url: str = field()
     """The URL of the asset."""
-
-    def __eq__(self, other: object) -> bool:
-        return isinstance(other, self.__class__) and self.url == other.url
-
-    def __hash__(self) -> int:
-        return hash(self.url)
 
 
 @dataclass(slots=True)

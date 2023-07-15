@@ -59,19 +59,21 @@ class BaseBadge(Protocol[AppT]):  # type: ignore  # this is safe
     def __hash__(self) -> int:
         return hash((self.id, self.app, self.level))
 
-    async def name(self) -> str:
-        """Fetches the name of this badge."""
+    async def _fetch_app_badge(self) -> AppBadge[AppT]:
         badges = await self.app.badges()
         badge = get(badges, id=self.id)
         assert badge is not None
-        return await badge.name()
+        return badge
+
+    async def name(self) -> str:
+        """Fetches the name of this badge."""
+        app_badge = await self._fetch_app_badge()
+        return app_badge._name
 
     async def icon(self) -> CDNAsset:
         """Fetches the URL of this badge."""
-        badges = await self.app.badges()
-        badge = get(badges, id=self.id)
-        assert badge is not None
-        return await badge.icon()
+        app_badge = await self._fetch_app_badge()
+        return app_badge._icon
 
 
 class AppBadge(BaseBadge[AppT]):
@@ -184,12 +186,12 @@ class UserBadge(BaseOwnedBadge["PartialApp", UserT]):
             owner,
             data.get("communityitemid"),
         )
-        self.xp: int = data["xp"]
+        self.xp = data["xp"]
         """The badge's XP."""
         self.completed_at = DateTime.from_timestamp(data["completion_time"])
         """The time the badge was completed at."""
-        self.scarcity: int = data["scarcity"]
-        """The scarcity of the badge."""
+        self.scarcity = data["scarcity"]
+        """The scarcity of the badge. The lower this value, the rarer the badge."""
 
 
 class UserBadges(Sequence[UserBadge[UserT]]):

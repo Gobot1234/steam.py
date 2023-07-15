@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import re
-from collections.abc import AsyncGenerator, Sequence
+from collections.abc import AsyncGenerator, Mapping, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -405,7 +405,7 @@ class CommunityItemDefinition(Generic[AppT]):
     title: str
     description: str
     image: CDNAsset | None
-    data: dict[str, Any] | None
+    data: Mapping[str, Any] | None
     series: int
     class_: CommunityItemClass
     editor: Author | None
@@ -416,6 +416,12 @@ class CommunityItemDefinition(Generic[AppT]):
     edited_at: datetime | None
     # broadcast_channel_id: int = betterproto.uint64_field(17)
     movie: CDNAsset | None
+
+    def __hash__(self) -> int:
+        hashable_slots = set(self.__slots__) - {"data"}
+        return hash(
+            tuple(getattr(self, attr) for attr in hashable_slots) + (tuple(self.data.items()) if self.data else None,)
+        )
 
 
 class PartialApp(App[NameT]):
@@ -945,37 +951,44 @@ class PartialApp(App[NameT]):
                 def_.item_name,
                 def_.item_title,
                 def_.item_description,
-                CDNAsset(
-                    self._state,
-                    f"{URL.CDN}/steamcommunity/public/images/items/{def_.item_image_large or def_.item_image_small}",
-                )
-                if def_.item_image_large or def_.item_image_small
-                else None,
+                (
+                    CDNAsset(
+                        self._state,
+                        f"{URL.CDN}/steamcommunity/public/images/items/{def_.item_image_large or def_.item_image_small}",
+                    )
+                    if def_.item_image_large or def_.item_image_small
+                    else None
+                ),
                 JSON_LOADS(def_.item_key_values) if def_.item_key_values else None,
                 def_.item_series,
                 CommunityItemClass.try_value(def_.item_class),
                 await self._state._maybe_user(def_.editor_accountid) if def_.editor_accountid else None,
                 def_.active,
-                CDNAsset(
-                    self._state,
-                    f"https://community.cloudflare.steamstatic.com/economy/image/{def_.item_image_composed}",
-                )
-                if def_.item_image_composed
-                else None,
-                CDNAsset(
-                    self._state,
-                    f"{URL.CDN}/steamcommunity/public/images/items/{def_.item_image_composed_foil}",
-                )
-                if def_.item_image_composed_foil
-                else None,
+                (
+                    CDNAsset(
+                        self._state,
+                        f"https://community.cloudflare.steamstatic.com/economy/image/{def_.item_image_composed}",
+                    )
+                    if def_.item_image_composed
+                    else None
+                ),
+                (
+                    CDNAsset(
+                        self._state, f"{URL.CDN}/steamcommunity/public/images/items/{def_.item_image_composed_foil}"
+                    )
+                    if def_.item_image_composed_foil
+                    else None
+                ),
                 def_.deleted,
                 DateTime.from_timestamp(def_.item_last_changed) if def_.item_last_changed else None,
-                CDNAsset(
-                    self._state,
-                    f"{URL.CDN}/steamcommunity/public/images/items/{def_.item_movie_mp4 or def_.item_movie_mp4_small}",
-                )
-                if def_.item_movie_mp4 or def_.item_movie_mp4_small
-                else None,
+                (
+                    CDNAsset(
+                        self._state,
+                        f"{URL.CDN}/steamcommunity/public/images/items/{def_.item_movie_mp4 or def_.item_movie_mp4_small}",
+                    )
+                    if def_.item_movie_mp4 or def_.item_movie_mp4_small
+                    else None
+                ),
             )
             for def_ in defs
         ]
@@ -1000,12 +1013,11 @@ class PartialApp(App[NameT]):
             return []
 
         badges: list[AppBadge[Self]] = []
-        previous_name: str | None = None
+        previous_name = ""
         for id, (name, image) in enumerate(
             zip(badge_def.data["level_names"].values(), badge_def.data["level_images"].values()), start=1
         ):
             if not name:
-                assert previous_name is not None
                 name = previous_name
             badge = AppBadge(
                 self._state,
@@ -1468,6 +1480,7 @@ class FetchedApp(PartialApp[str]):
         self.content_descriptors = [
             ContentDescriptor.try_value(descriptor) for descriptor in data.get("content_descriptors", {}).get("ids", [])
         ]
+        """The app's content descriptors for explicit content"""
 
         self._free = data["is_free"]
         self._on_windows = bool(data["platforms"].get("windows", False))

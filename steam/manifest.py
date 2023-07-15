@@ -767,7 +767,7 @@ class PrivateManifestInfo(ManifestInfo):
         cipher = Cipher(algorithms.AES(self.branch.password.encode("UTF-8")), modes.ECB())
         decryptor = cipher.decryptor()
         to_unpack = utils.unpad(decryptor.update(bytes.fromhex(self.encrypted_id) + decryptor.finalize()))
-        return ManifestID(*struct.unpack("<Q", to_unpack))
+        return ManifestID(int.from_bytes(to_unpack, byteorder="little"))
 
     @staticmethod
     def _get_id(depots: manifest.Depot, branch: Branch) -> VDFInt | None:

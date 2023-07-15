@@ -122,7 +122,7 @@ class BaseEvent(Commentable, utils.AsyncInit, Generic[EventTypeT, ClanT], metacl
         self._feature = int(data["gidfeature"])
         self._feature2 = int(data.get("gidfeature2", 0) or 0)
 
-    async def __ainit__(self) -> None:
+    async def __ainit__(self) -> None:  # TODO can we get clan members?
         if self.last_edited_by and self.last_edited_by != ID_ZERO:
             self.author, self.last_edited_by = await self._state._maybe_users(
                 (self.author.id64, self.last_edited_by.id64)

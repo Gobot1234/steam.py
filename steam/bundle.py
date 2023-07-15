@@ -29,7 +29,7 @@ NameT = TypeVar("NameT", bound=str | None, default=str | None, covariant=True)
 
 @impl_eq_via_id
 class Bundle(Generic[NameT]):
-    """Represents a bundle of apps and packages."""
+    """Represents a bundle of apps and packages. Read more on :works:`steamworks <store/application/bundles>`"""
 
     __slots__ = ("id", "name")
 

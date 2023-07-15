@@ -12,7 +12,9 @@ from ...abc import Message, Messageable, PartialUser
 if TYPE_CHECKING:
     from datetime import datetime
 
+    from ...friend import Friend
     from ...media import Media
+    from ...user import User
     from .bot import Bot
     from .cog import Cog
     from .commands import Command
@@ -52,7 +54,7 @@ class Context(Generic[BotT], Messageable["Message"]):
     def __init__(
         self,
         bot: BotT,
-        message: Message,
+        message: Message[User],
         lex: Shlex,
         prefix: str | None,
         command: Command | None = None,

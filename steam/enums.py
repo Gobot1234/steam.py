@@ -271,7 +271,7 @@ class Flags(IntEnum):
 
 # fmt: off
 class Result(IntEnum):
-    """The result of a Steam API call. Read more: :works:`api/steam_api#EResult`
+    """The result of a Steam API call. Read more on :works:`steamworks <api/steam_api#EResult>`.
     """
     # these are a combination of https://partner.steamgames.com/doc/api/steam_api#EResult and https://steamerrors.com
     Invalid                         = 0

@@ -61,7 +61,7 @@ __all__ = (
 T = TypeVar("T")
 T_co = TypeVar("T_co", covariant=True)
 BotT = TypeVar("BotT", bound="Bot", covariant=True)
-Converters: TypeAlias = "ConverterBase | BasicConverter[Any]"
+Converters: TypeAlias = "ConverterBase[Any] | BasicConverter[Any]"
 
 
 class ConverterDict(dict[type, "tuple[Converters, ...]"]):
@@ -412,7 +412,7 @@ class AppConverter(Converter[App]):
 
 
 @runtime_checkable
-class Default(Protocol):
+class Default(Protocol, Any if TYPE_CHECKING else object):
     """A custom way to specify a default values for commands.
 
     Examples

@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal, TypedDict
 
-from typing_extensions import Literal, TypedDict
+from typing_extensions import NotRequired
 
 
 class WishlistApp(TypedDict):
@@ -81,7 +81,7 @@ class FetchedApp(TypedDict):
     dlc: list[int]
     detailed_description: str
     short_description: str
-    fullgame: dict[str, Any]
+    fullgame: NotRequired[dict[str, Any]]
     supported_languages: str
     header_image: str
     pc_requirements: list[dict[str, str]]

@@ -322,7 +322,7 @@ class TransactionReceipt:
                 PartialApp(state, id=item.appid, name=item.line_item_description) if item.appid else None,
             )
             for item in proto.line_items
-        ]
+        ]  # TODO research if this is a union?
         """The items in the transaction."""
 
         self.package = PartialPackage(state, id=proto.packageid)  # TODO can this be upgraded to a License?

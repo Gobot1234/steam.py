@@ -91,6 +91,7 @@ class PartialClan(ID[Literal[Type.Clan]], Commentable):
         """
 
         async def getter(i: int) -> BeautifulSoup:
+            nonlocal ret
             try:
                 resp = await self._state.http.get(
                     f"{self.community_url}/members", params={"p": i + 1, "content_only": "true"}
@@ -100,7 +101,7 @@ class PartialClan(ID[Literal[Type.Clan]], Commentable):
                 return await getter(i)
             else:
                 soup = BeautifulSoup(resp, HTML_PARSER)
-                ret.extend(
+                ret += (
                     PartialUser(self._state, user["data-miniprofile"])
                     for s in soup.find_all("div", id="memberList")
                     for user in s.find_all("div", class_="member_block")
@@ -522,7 +523,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
         for year in range(start_at_month.year, stop_at_month.year + 1):
             if year == stop_at_month.year:
                 stop_month = stop_at_month.month + 1
-            dates.extend(date(year, month, 1) for month in range(start_month, stop_month))
+            dates += (date(year, month, 1) for month in range(start_month, stop_month))
             start_month = 1
 
         ids = [

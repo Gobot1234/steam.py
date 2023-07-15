@@ -164,7 +164,7 @@ class DefaultHelpCommand(HelpCommand):
                 if cog_name is not None
                 else message.append("\nUn-categorized commands")
             )
-            message.extend(
+            message += (
                 f'{command.name}{f": {self._get_doc(command)}" if command.help else ""}' for command in commands
             )
 

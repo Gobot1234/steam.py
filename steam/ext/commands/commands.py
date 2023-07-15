@@ -19,10 +19,8 @@ from typing import (
     ForwardRef,
     Generic,
     Literal,
-    ParamSpec,
     Protocol,
     TypeAlias,
-    TypeVar,
     Union,
     get_args,
     get_origin,
@@ -30,7 +28,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Self
+from typing_extensions import ParamSpec, Self, TypeVar
 
 from ...channel import UserChannel
 from ...errors import ClientException
@@ -67,8 +65,8 @@ __all__ = (
 CheckType: TypeAlias = "Callable[[Context], Union[bool, Coroutine[Any, Any, bool]]]"
 MaybeCommand: TypeAlias = "Callable[..., Command[Any]] | CallbackType[Any]"
 BaseCallback: TypeAlias = "Callable[P, Coroutine[Any, Any, Any]]"
-C = TypeVar("C", bound="Command[Any]")
-G = TypeVar("G", bound="Group[Any]")
+C = TypeVar("C", bound="Command[Any]", default="Command[Any]")
+G = TypeVar("G", bound="Group[Any]", default="Group[Any]")
 Err = TypeVar("Err", bound="Callable[[Context, Exception], Coroutine[Any, Any, None]]")
 InvokeT = TypeVar("InvokeT", bound="Callable[[Context], Coroutine[Any, Any, None]]")
 MC = TypeVar("MC", bound=MaybeCommand)
@@ -76,7 +74,7 @@ MCD = TypeVar("MCD", bound="CommandDeco | MaybeCommand")
 CallT = TypeVar("CallT", bound="Callable[..., Coroutine[Any, Any, Any]]")
 CHR = TypeVar("CHR", bound="CheckReturnType")
 
-P = ParamSpec("P")
+P = ParamSpec("P", default=...)
 
 
 class CommandDeco(Protocol):
@@ -712,14 +710,14 @@ class GroupMixin:
         self,
         *,
         name: str | None = ...,
-        cls: type[C] | None = ...,
+        cls: type[C] = Command,
         help: str | None = ...,
         brief: str | None = ...,
         usage: str | None = ...,
         description: str | None = ...,
         aliases: Iterable[str] | None = ...,
         checks: list[CheckReturnType] = ...,
-        cooldown: list[Cooldown] = ...,
+        cooldown: list[Cooldown[Any]] = ...,
         special_converters: list[type[converters.Converters]] = ...,
         cog: Cog | None = ...,
         parent: GroupMixin | None = ...,
@@ -734,7 +732,7 @@ class GroupMixin:
         callback: CallT | None = None,
         *,
         name: str | None = None,
-        cls: type[G] | None = None,
+        cls: type[C] = Command,
         **attrs: Any,
     ) -> Callable[[CallT], C] | C:
         """|maybecallabledeco|
@@ -756,7 +754,7 @@ class GroupMixin:
 
         def decorator(callback: CallT) -> C:
             attrs.setdefault("parent", self)
-            result = command(callback, name=name, cls=cls or Command, **attrs)  # type: ignore
+            result = command(callback, name=name, cls=cls, **attrs)  # type: ignore
             self.add_command(result)
             return result
 
@@ -781,14 +779,14 @@ class GroupMixin:
         self,
         *,
         name: str | None = ...,
-        cls: type[G] | None = ...,
+        cls: type[G] | None = None,
         help: str | None = ...,
         brief: str | None = ...,
         usage: str | None = ...,
         description: str | None = ...,
         aliases: Iterable[str] | None = ...,
         checks: list[CheckReturnType] = ...,
-        cooldown: list[Cooldown] = ...,
+        cooldown: list[Cooldown[Any]] = ...,
         special_converters: list[type[converters.Converters]] = ...,
         cog: Cog | None = ...,
         parent: GroupMixin | None = ...,
@@ -843,7 +841,7 @@ class GroupMixin:
         for command in self.commands:
             commands.append(command)
             if isinstance(command, Group):
-                commands.extend(command.children)
+                commands += command.children
 
         return commands
 
@@ -886,17 +884,17 @@ def command(callback: None) -> Callable[[BaseCallback[P]], Command[P]]:
 def command(
     *,
     name: str | None = ...,
-    cls: type[C] | None = ...,
+    cls: type[C] = Command,
     help: str | None = ...,
     brief: str | None = ...,
     usage: str | None = ...,
     description: str | None = ...,
     aliases: Iterable[str] | None = ...,
     checks: list[CheckReturnType] = ...,
-    cooldown: list[Cooldown] = ...,
+    cooldown: list[Cooldown[Any]] = ...,
     special_converters: list[type[converters.Converters]] = ...,
     cog: Cog | None = ...,
-    parent: Command | None = ...,
+    parent: Command[Any] | None = ...,
     enabled: bool = ...,
     hidden: bool = ...,
     case_insensitive: bool = ...,
@@ -908,7 +906,7 @@ def command(
     callback: CallT | None = None,
     *,
     name: str | None = None,
-    cls: type[C] | None = None,
+    cls: type[C] = Command,
     **attrs: Any,
 ) -> Callable[[CallT], C] | C:
     """|maybecallabledeco|
@@ -953,14 +951,14 @@ def group(callback: None) -> Callable[[BaseCallback[P]], Group[P]]:
 def group(
     *,
     name: str | None = ...,
-    cls: type[G] | None = ...,
+    cls: type[G] = Group,
     help: str | None = ...,
     brief: str | None = ...,
     usage: str | None = ...,
     description: str | None = ...,
     aliases: Iterable[str] | None = ...,
     checks: list[CheckReturnType] = ...,
-    cooldown: list[Cooldown] = ...,
+    cooldown: list[Cooldown[Any]] = ...,
     special_converters: list[type[converters.Converters]] = ...,
     cog: Cog | None = ...,
     parent: Command | None = ...,
@@ -995,7 +993,7 @@ def group(
     The created group command.
     """
 
-    return command(callback, name=name, cls=cls or Group, **attrs)
+    return command(callback, name=name, cls=cls, **attrs)
 
 
 def check(predicate: CheckType) -> CheckReturnType:

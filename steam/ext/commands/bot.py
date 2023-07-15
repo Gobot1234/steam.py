@@ -623,10 +623,8 @@ class Bot(GroupMixin, Client):
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
     if TYPE_CHECKING or _const.DOCS_BUILDING:
-        # these methods shouldn't exist at runtime unless subclassed to prevent pollution of logs or we are building the
-        # docs
 
-        async def on_command(self, ctx: "commands.Context") -> None:
+        async def on_command(self, ctx: "commands.Context", /) -> None:
             """A method that is called every time a command is dispatched.
 
             Parameters
@@ -635,7 +633,7 @@ class Bot(GroupMixin, Client):
                 The invocation context.
             """
 
-        async def on_command_completion(self, ctx: "commands.Context") -> None:
+        async def on_command_completion(self, ctx: "commands.Context", /) -> None:
             """A method that is called every time a command is dispatched and completed without error.
 
             Parameters
@@ -643,130 +641,3 @@ class Bot(GroupMixin, Client):
             ctx
                 The invocation context.
             """
-
-        @overload
-        async def wait_for(
-            self,
-            event: Literal[
-                "connect",
-                "disconnect",
-                "ready",
-                "login",
-                "logout",
-            ],
-            *,
-            check: Callable[[], bool] | None = ...,
-            timeout: float | None = ...,
-        ) -> None:
-            ...
-
-        @overload
-        async def wait_for(
-            self,
-            event: Literal["error"],
-            *,
-            check: Callable[[str, Exception, tuple[Any, ...], dict[str, Any]], bool] | None = ...,
-            timeout: float | None = ...,
-        ) -> tuple[str, Exception, tuple[Any, ...], dict[str, Any]]:
-            ...
-
-        @overload
-        async def wait_for(
-            self,
-            event: Literal["message"],
-            *,
-            check: Callable[[Message], bool] | None = ...,
-            timeout: float | None = ...,
-        ) -> Message:
-            ...
-
-        @overload
-        async def wait_for(
-            self,
-            event: Literal["comment"],
-            *,
-            check: Callable[[Comment], bool] | None = ...,
-            timeout: float | None = ...,
-        ) -> Comment:
-            ...
-
-        @overload
-        async def wait_for(
-            self,
-            event: Literal["user_update"],
-            *,
-            check: Callable[[User, User], bool] | None = ...,
-            timeout: float | None = ...,
-        ) -> tuple[User, User]:
-            ...
-
-        @overload
-        async def wait_for(
-            self,
-            event: Literal["typing"],
-            *,
-            check: Callable[[User, datetime.datetime], bool] | None = ...,
-            timeout: float | None = ...,
-        ) -> tuple[User, datetime.datetime]:
-            ...
-
-        @overload
-        async def wait_for(
-            self,
-            event: Literal[
-                "trade_receive",
-                "trade_send",
-                "trade_accept",
-                "trade_decline",
-                "trade_cancel",
-                "trade_expire",
-                "trade_counter",
-            ],
-            *,
-            check: Callable[[TradeOffer], bool] | None = ...,
-            timeout: float | None = ...,
-        ) -> TradeOffer:
-            ...
-
-        @overload
-        async def wait_for(
-            self,
-            event: Literal["user_invite"],
-            *,
-            check: Callable[[UserInvite], bool] | None = ...,
-            timeout: float | None = ...,
-        ) -> UserInvite:
-            ...
-
-        @overload
-        async def wait_for(
-            self,
-            event: Literal["clan_invite"],
-            *,
-            check: Callable[[ClanInvite], bool] | None = ...,
-            timeout: float | None = ...,
-        ) -> ClanInvite:
-            ...
-
-        @overload
-        async def wait_for(
-            self,
-            event: Literal["command_error"],
-            *,
-            check: Callable[[Context, Exception], bool] | None = ...,
-            timeout: float | None = ...,
-        ) -> tuple[Context, Exception]:
-            ...
-
-        @overload
-        async def wait_for(
-            self,
-            event: Literal[
-                "command",
-                "command_completion",
-            ],
-            *,
-            check: Callable[[Context], bool] | None = ...,
-            timeout: float | None = ...,
-        ) -> Context:
-            ...
