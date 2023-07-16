@@ -9,8 +9,9 @@ import logging
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass
+from inspect import get_annotations
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, ClassVar, Final, TypeVar, get_type_hints
+from typing import TYPE_CHECKING, Any, ClassVar, Final, TypeVar
 
 import betterproto
 from typing_extensions import Self, dataclass_transform
@@ -44,7 +45,7 @@ TT = TypeVar("TT", bound=type[object])
 
 def load_annotations(cls: TT) -> TT:
     """Needed so dataclasses don't break when evaluating ForwardRefs"""
-    cls.__annotations__ = get_type_hints(cls)
+    cls.__annotations__ = get_annotations(cls, eval_str=True)
     return cls
 
 
