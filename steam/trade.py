@@ -15,9 +15,9 @@ from typing_extensions import NamedTuple, TypeVar
 from . import utils
 from ._const import URL
 from .app import App, PartialApp
-from .enums import Language, TradeOfferState
+from .enums import CurrencyCode, Language, TradeOfferState
 from .errors import ClientException, ConfirmationError
-from .models import CDNAsset
+from .models import CDNAsset, PriceOverview
 from .protobufs import econ
 from .types.id import AppID, AssetID, ClassID, ContextID, InstanceID, TradeOfferID
 from .utils import DateTime
@@ -180,12 +180,14 @@ class Item(Asset[OwnerT]):
         "colour",
         "icon",
         "display_name",
+        "market_hash_name",
         "descriptions",
         "owner_descriptions",
         "fraud_warnings",
         "actions",
         "owner_actions",
         "market_actions",
+        "_market_fee_app_id",
         "_is_tradable",
         "_is_marketable",
     )
@@ -197,7 +199,10 @@ class Item(Asset[OwnerT]):
         self.name = description.market_name
         """The market_name of the item."""
         self.display_name = description.name or self.name
-        """The displayed name of the item. This could be different to :attr:`Item.name` if the item is user re-nameable."""
+        """
+        The displayed name of the item. This could be different to :attr:`Item.name` if the item is user re-nameable.
+        """
+        self.market_hash_name = description.market_hash_name
         self.colour = int(description.name_color, 16) if description.name_color else None
         """The colour of the item."""
         self.descriptions = description.descriptions
@@ -223,6 +228,7 @@ class Item(Asset[OwnerT]):
         """The owner actions for the item."""
         self.market_actions = description.market_actions
         """The market actions for the item."""
+        self._market_fee_app_id = AppID(description.market_fee_app)
         self._is_tradable = description.tradable
         self._is_marketable = description.marketable
 
@@ -233,6 +239,23 @@ class Item(Asset[OwnerT]):
     def is_marketable(self) -> bool:
         """Whether the item is marketable."""
         return self._is_marketable
+
+    async def price(self, *, currency: CurrencyCode | None = None) -> PriceOverview:
+        """Fetch the price of this item on the Steam Community Market place.
+
+        Shorthand for:
+
+        .. code:: python
+
+            await client.fetch_price(item.market_hash_name, item.app, currency)
+        """
+        price = await self._state.http.get_price(self._app_id, self.market_hash_name, currency)
+        return PriceOverview(price, currency or CurrencyCode.USD)
+
+    @property
+    def market_fee_app(self) -> PartialApp[None]:
+        """The app for which the Steam Community Market fee percentage is applied."""
+        return PartialApp(self._state, id=self._market_fee_app_id)
 
 
 class InventoryGenericAlias(types.GenericAlias):
