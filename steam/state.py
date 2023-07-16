@@ -9,7 +9,7 @@ import logging
 import random
 import weakref
 from collections import defaultdict, deque
-from collections.abc import AsyncGenerator, Callable, Collection, Iterable, Sequence
+from collections.abc import AsyncGenerator, Callable, Iterable, Sequence
 from contextlib import asynccontextmanager
 from copy import copy
 from datetime import datetime, timedelta
@@ -290,6 +290,9 @@ class ConnectionState:
     def confirmations(self) -> list[Confirmation]:
         return list(self._confirmations.values())
 
+    def get_partial_user(self, id: Intable) -> PartialUser:
+        return PartialUser(self, id)
+
     def get_user(self, id: ID32) -> User | None:
         return self._users.get(id)
 
@@ -297,15 +300,15 @@ class ConnectionState:
         (user,) = await self.fetch_users((user_id64,))
         return user
 
-    async def fetch_users(self, user_id64s: Iterable[ID64]) -> list[User]:
+    async def fetch_users(self, user_id64s: Iterable[ID64]) -> Sequence[User]:
         friends = await self.ws.fetch_users(user_id64s)
         return [self._store_user(user) for user in friends]
 
     async def _maybe_user(self, id: Intable) -> User:
         steam_id = ID(id, type=Type.Individual)
-        return self.get_user(steam_id.id) or await self.fetch_user(steam_id.id64) or PartialUser(self, steam_id.id64)
+        return self.get_user(steam_id.id) or await self.fetch_user(steam_id.id64)
 
-    async def _maybe_users(self, id64s: Iterable[ID64]) -> list[User]:
+    async def _maybe_users(self, id64s: Iterable[ID64]) -> Sequence[User]:
         ret: list[User | None] = []
         to_fetch: dict[ID64, list[int]] = {}
         for idx, id64 in enumerate(id64s):
@@ -1639,7 +1642,7 @@ class ConnectionState:
                     comment_index += 1
                     body: dict[str, Any] = JSON_LOADS(notification.body_data)
                     forum_id = int(body["forum_id"])
-                    partial_user = PartialUser(self, body["owner_steam_id"])
+                    partial_user = self.get_partial_user(body["owner_steam_id"])
                     partial_clan = PartialClan(self, body["owner_steam_id"])
                     match type := _CommentThreadType.try_value(int(body["type"])):
                         case _CommentThreadType.User:

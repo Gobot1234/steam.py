@@ -102,7 +102,7 @@ class PartialClan(ID[Literal[Type.Clan]], Commentable):
             else:
                 soup = BeautifulSoup(resp, HTML_PARSER)
                 ret += (
-                    PartialUser(self._state, user["data-miniprofile"])
+                    self._state.get_partial_user(user["data-miniprofile"])
                     for s in soup.find_all("div", id="memberList")
                     for user in s.find_all("div", class_="member_block")
                 )

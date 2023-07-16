@@ -210,7 +210,7 @@ class Commentable(Protocol):
                     content=comment.content,
                     created_at=DateTime.from_timestamp(comment.timestamp),
                     reactions=[AwardReaction(self._state, reaction) for reaction in comment.reactions],
-                    author=PartialUser(self._state, comment.author_id64),
+                    author=self._state.get_partial_user(comment.author_id64),
                     owner=self,
                 )
                 if after < comment.created_at < before:

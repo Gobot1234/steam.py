@@ -7,8 +7,8 @@ import logging
 import math
 import struct
 import sys
-from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, cast
+from collections.abc import Callable, Iterable, Sequence
+from typing import TYPE_CHECKING, Any
 from weakref import WeakValueDictionary
 
 from ... import utils
@@ -18,10 +18,10 @@ from ...app import CSGO
 from ...id import _ID64_TO_ID32
 from ...protobufs import friends
 from ...state import parser
-from ...types.id import ID32, AssetID
+from ...types.id import ID32, ID64, AssetID, Intable
 from .backpack import Backpack, Casket, CasketItem, Paint, Sticker
 from .enums import ItemFlags, ItemOrigin, ItemQuality
-from .models import User
+from .models import PartialUser, User
 from .protobufs import base, cstrike, sdk
 
 if TYPE_CHECKING:
@@ -54,6 +54,26 @@ class GCState(GCState_[Backpack]):
         else:
             user._update(proto)
         return user
+
+    def get_partial_user(self, id: Intable) -> PartialUser:
+        return PartialUser(self, id)
+
+    if TYPE_CHECKING:
+
+        def get_user(self, id: ID32) -> User | None:
+            ...
+
+        async def fetch_user(self, user_id64: ID64) -> User:
+            ...
+
+        async def fetch_users(self, user_id64s: Iterable[ID64]) -> Sequence[User]:
+            ...
+
+        async def _maybe_user(self, id: Intable) -> User:
+            ...
+
+        async def _maybe_users(self, id64s: Iterable[ID64]) -> Sequence[User]:
+            ...
 
     def _get_gc_message(self) -> sdk.ClientHello:
         return sdk.ClientHello()

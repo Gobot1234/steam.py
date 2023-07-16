@@ -411,7 +411,7 @@ class PublishedFile(Commentable, Awardable, Generic[UserT]):
             more = len(parents) < proto.total
 
             for file in proto.publishedfiledetails:
-                author = PartialUser(self._state, file.creator)
+                author = self._state.get_partial_user(file.creator)
                 parents.append(PublishedFile(self._state, file, author))
                 authors.add(author)
 
