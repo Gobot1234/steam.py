@@ -246,7 +246,7 @@ class Client:
         return self._ready.is_set()
 
     def is_closed(self) -> bool:
-        """Indicates if connection is closed to the API or CMs."""
+        """Indicates if connection is closed to the WebSocket."""
         return self._closed
 
     @overload
@@ -458,20 +458,16 @@ class Client:
         async with nullcontext() if self._aentered else self._tg:
             STATE.set(self._state)
 
-            exceptions = (
-                OSError,
-                ConnectionClosed,
-                aiohttp.ClientError,
-                asyncio.TimeoutError,
-                errors.HTTPException,
-            )
-
             async def throttle() -> None:
                 now = time.monotonic()
                 between = now - last_connect
-                sleep = random.random() * 4 if between > 600 else 100 / between**0.5
+                sleep = random.random() * 4 if between > 300 else min(100 / between**0.5, 20)
                 log.info("Attempting to connect to another CM in %ds", sleep)
                 await asyncio.sleep(sleep)
+
+            async def poll() -> None:
+                while True:
+                    await self._state.ws.poll_event()
 
             while not self.is_closed():
                 last_connect = time.monotonic()
@@ -479,20 +475,56 @@ class Client:
                 try:
                     async with timeout(60):
                         self.ws = await login_func(self, *args, **kwargs)
-                except exceptions:
+                except RAISED_EXCEPTIONS:
                     await throttle()
                     continue
 
+                # this entire thing is a bit of a cluster fuck
+                # but that's what you deserve for having async parsers
+
+                done: asyncio.Future[asyncio.Future[None]] = asyncio.get_running_loop().create_future()
+
+                poll_task = asyncio.create_task(poll())
+                callback_error = self._state._task_error
+
+                def maybe_set_result(future: asyncio.Future[None]) -> None:
+                    if not done.done():
+                        done.set_result(future)
+                    else:
+                        try:
+                            future.exception()  # mark the exception as retrieved (the other set task should raise the error)
+                        except asyncio.CancelledError:
+                            pass
+
+                poll_task.add_done_callback(maybe_set_result)
+                callback_error.add_done_callback(maybe_set_result)
+
                 try:
-                    while True:
-                        await self.ws.poll_event()
-                except exceptions as exc:
-                    if isinstance(exc, ConnectionClosed):
-                        self._state._connected_cm = exc.cm
+                    task = await done  # get which task is done
+                except asyncio.CancelledError:  # KeyboardInterrupt
+                    if not self.is_closed():
+                        try:
+                            await self.close()
+                        except asyncio.CancelledError:
+                            pass
+                    for task in (poll_task, callback_error):
+                        task.cancel()
+                    await asyncio.gather(poll_task, callback_error, return_exceptions=True)
+                    return
+
+                to_cancel = poll_task if task is callback_error else callback_error
+                to_cancel.cancel()
+                for task_ in self.ws._pending_parsers:
+                    task_.cancel()
+                await asyncio.gather(*self.ws._pending_parsers, to_cancel, return_exceptions=True)
+                self.ws._pending_parsers.clear()
+                try:
+                    await task  # handle the exception raised
+                except RAISED_EXCEPTIONS + (asyncio.CancelledError,):
                     self.dispatch("disconnect")
-                finally:
                     if not self.is_closed():
                         await throttle()
+                self._state._task_error = asyncio.get_running_loop().create_future()
 
     @overload
     async def login(

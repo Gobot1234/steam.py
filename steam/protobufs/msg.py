@@ -28,6 +28,7 @@ from .struct_messages import StructMessage
 log = logging.getLogger(__name__)
 
 __all__ = (
+    "NoMsg",
     "Message",
     "ProtobufMessage",
     "UnifiedMessage",

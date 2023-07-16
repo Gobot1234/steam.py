@@ -121,9 +121,9 @@ class GCState(ConnectionState, Generic[Inv]):
                 return log.exception("Failed to execute %r", event_parser.__name__)
 
             if isinstance(result, CoroutineType):
-                self._tg.create_task(result, name=f"steam.py GC {app_id}: {event_parser.__name__}").add_done_callback(
-                    self._run_parser_callback
-                )
+                task = asyncio.create_task(result, name=f"steam.py GC {app_id}: {event_parser.__name__}")
+                self.ws._pending_parsers.add(task)
+                task.add_done_callback(self.ws._pending_parsers.remove)
 
         # remove the dispatched listener
         removed: list[int] = []

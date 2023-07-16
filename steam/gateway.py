@@ -18,6 +18,7 @@ import threading
 import time
 import traceback
 from collections.abc import AsyncGenerator, Callable, Iterable
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from functools import partial
@@ -34,9 +35,9 @@ from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from typing_extensions import TypeVar
 
 from . import utils
-from ._const import CLEAR_PROTO_BIT, DEFAULT_CMS, IS_PROTO, READ_U32, SET_PROTO_BIT, TaskGroup
+from ._const import CLEAR_PROTO_BIT, DEFAULT_CMS, IS_PROTO, READ_U32, SET_PROTO_BIT
 from .enums import *
-from .errors import NoCMsFound, WSException
+from .errors import HTTPException, NoCMsFound, WSException
 from .id import parse_id64
 from .models import return_true
 from .protobufs import (
@@ -70,6 +71,7 @@ __all__ = (
     "SteamWebSocket",
     "CMServer",
     "Msgs",
+    "RAISED_EXCEPTIONS",
 )
 
 log = logging.getLogger(__name__)
@@ -87,6 +89,8 @@ UnifiedMsgT = TypeVar("UnifiedMsgT", bound=UnifiedMessage, default=UnifiedMessag
 MsgT = TypeVar("MsgT", bound=Message, default=Message)
 GCMsgT = TypeVar("GCMsgT", bound=GCMessage, default=GCMessage)
 GCMsgProtoT = TypeVar("GCMsgProtoT", bound=GCProtobufMessage, default=GCProtobufMessage)
+
+PROTOCOL_VERSION: Final = 65580
 
 
 @dataclass(slots=True)
@@ -165,7 +169,7 @@ def unpack_multi(msg: CMsgMulti) -> bytearray | None:
 
     if flag := data[3]:  # this isn't ever hit, might as well save a few nanos
         if flag & FEXTRA:
-            extra_len = int.from_bytes(data[position : position + 2], byteorder="little")
+            extra_len = int.from_bytes(data[position : position + 2], "little")
             position += 2 + extra_len
         if flag & FNAME:
             while data[position:]:
@@ -192,6 +196,15 @@ class ConnectionClosed(Exception):
 
 class WebSocketClosure(Exception):
     """An exception to make up for the fact that aiohttp doesn't signal closure."""
+
+
+RAISED_EXCEPTIONS: Final = (
+    OSError,
+    ConnectionClosed,
+    aiohttp.ClientError,
+    asyncio.TimeoutError,
+    HTTPException,
+)
 
 
 class KeepAliveHandler(threading.Thread):
@@ -291,6 +304,7 @@ class SteamWebSocket:
         self.listeners: list[EventListener[Any]] = []
         self.gc_listeners: list[GCEventListener[Any]] = []
         self.closed = False
+        self._pending_parsers = set[asyncio.Task[Any]]()
 
         self.session_id = 0
         self.id64 = ID64(0)
@@ -308,10 +322,6 @@ class SteamWebSocket:
     def latency(self) -> float:
         """Measures latency between a heartbeat send and the heartbeat interval in seconds."""
         return self._keep_alive.latency
-
-    @utils.cached_property
-    def _tg(self) -> TaskGroup:
-        return self._state._tg
 
     @overload
     def wait_for(
@@ -370,7 +380,7 @@ class SteamWebSocket:
         from ._gc import APP
 
         future: asyncio.Future[GCMsgsT] = asyncio.get_running_loop().create_future()
-        entry = GCEventListener(
+        entry: GCEventListener[GCMsgsT] = GCEventListener(
             msg=msg.MSG if msg else emsg,
             check=check,
             future=future,
@@ -379,9 +389,24 @@ class SteamWebSocket:
         self.gc_listeners.append(entry)
         return future
 
+    @asynccontextmanager
+    async def poll(self) -> AsyncGenerator[None, None]:
+        async def inner_poll():
+            while True:
+                await self.poll_event()
+
+        poll_task = self._state._tg.create_task(inner_poll())
+
+        yield
+
+        poll_task.cancel()  # we let Client.connect handle poll_event from here on out
+        try:
+            await poll_task  # needed to ensure the task is cancelled and socket._waiting is removed
+        except asyncio.CancelledError:
+            pass
+
     @classmethod
     async def from_client(cls, client: Client, refresh_token: str | None = None) -> SteamWebSocket:
-        PROTOCOL_VERSION: Final = 65580
         state = client._state
         cm_list = fetch_cm_list(state)
         async for cm in cm_list:
@@ -393,79 +418,68 @@ class SteamWebSocket:
             client.ws = self
             self._dispatch("connect")
 
-            async def poll():
-                while True:
-                    await self.poll_event()
+            async with self.poll():
+                await self.send_proto(login.CMsgClientHello(PROTOCOL_VERSION))
 
-            task = asyncio.create_task(poll())
-            await self.send_proto(login.CMsgClientHello(PROTOCOL_VERSION))
+                if refresh_token is None:
+                    self.refresh_token = await self.fetch_refresh_token()
+                    # id64 is set in fetch_refresh_token
+                else:
+                    self.refresh_token = refresh_token
+                    self.id64 = parse_id64(utils.decode_jwt(refresh_token)["sub"])
 
-            if refresh_token is None:
-                self.refresh_token = await self.fetch_refresh_token()
-                # steam_id is set in fetch_refresh_token
-            else:
-                self.refresh_token = refresh_token
-                self.id64 = parse_id64(utils.decode_jwt(refresh_token)["sub"])
+                msg: login.CMsgClientLogonResponse = await self.send_proto_and_wait(
+                    login.CMsgClientLogon(
+                        protocol_version=PROTOCOL_VERSION,
+                        client_package_version=1561159470,
+                        client_os_type=16,
+                        client_language=state.language.api_name,
+                        supports_rate_limit_response=True,
+                        chat_mode=2,
+                        access_token=self.refresh_token,  # lol
+                    ),
+                    check=lambda msg: isinstance(msg, login.CMsgClientLogonResponse),
+                )
+                if msg.result != Result.OK:
+                    log.debug("Failed to login with result: %r", msg.result)
+                    await self._state.handle_close()
 
-            msg: login.CMsgClientLogonResponse = await self.send_proto_and_wait(
-                login.CMsgClientLogon(
-                    protocol_version=PROTOCOL_VERSION,
-                    client_package_version=1561159470,
-                    client_os_type=16,
-                    client_language=state.language.api_name,
-                    supports_rate_limit_response=True,
-                    chat_mode=2,
-                    access_token=self.refresh_token,  # lol
-                ),
-                check=lambda msg: isinstance(msg, login.CMsgClientLogonResponse),
-            )
-            if msg.result != Result.OK:
-                log.debug("Failed to login with result: %r", msg.result)
-                await self._state.handle_close()
-                return await self.from_client(client)
+                self.public_ip = IPv4Address(msg.public_ip.v4)
+                self.connect_time = utils.DateTime.now()
+                self.session_id = msg.header.session_id
 
-            self.public_ip = IPv4Address(msg.public_ip.v4)
-            self.connect_time = utils.DateTime.now()
-            self.session_id = msg.header.session_id
+                (us,) = await self.fetch_users((self.id64,))
+                client.http.user = ClientUser(state, us)
+                if hasattr(self._state, "_original_client_user_msg"):
+                    self._state._original_client_user_msg = us  # type: ignore
+                state._users[client.user.id] = client.user  # type: ignore
+                self._state.cell_id = msg.cell_id
 
-            (us,) = await self.fetch_users((self.id64,))
-            client.http.user = ClientUser(state, us)
-            if hasattr(self._state, "_original_client_user_msg"):
-                self._state._original_client_user_msg = us  # type: ignore
-            state._users[client.user.id] = client.user  # type: ignore
-            self._state.cell_id = msg.cell_id
+                self._keep_alive = KeepAliveHandler(
+                    ws=self, interval=msg.heartbeat_seconds, loop=asyncio.get_running_loop()
+                )
+                self._keep_alive.start()
+                log.debug("Heartbeat started.")
 
-            self._keep_alive = KeepAliveHandler(
-                ws=self, interval=msg.heartbeat_seconds, loop=asyncio.get_running_loop()
-            )
-            self._keep_alive.start()
-            log.debug("Heartbeat started.")
+                state.login_complete.set()
 
-            state.login_complete.set()
+                await self.send_um(chat.GetMyChatRoomGroupsRequest())
+                await self.send_proto(friends.CMsgClientGetEmoticonList())
+                await self._state.fetch_notifications()
+                await self.send_proto(
+                    login.CMsgClientServerTimestampRequest(client_request_timestamp=int(time.time() * 1000))
+                )
+                await self.change_presence(
+                    apps=self._state._apps,
+                    state=self._state._state,
+                    flags=self._state._flags,
+                    force_kick=self._state._force_kick,
+                )
 
-            await self.send_um(chat.GetMyChatRoomGroupsRequest())
-            await self.send_proto(friends.CMsgClientGetEmoticonList())
-            await self._state.fetch_notifications()
-            await self.send_proto(
-                login.CMsgClientServerTimestampRequest(client_request_timestamp=int(time.time() * 1000))
-            )
-            await self.change_presence(
-                apps=self._state._apps,
-                state=self._state._state,
-                flags=self._state._flags,
-                force_kick=self._state._force_kick,
-            )
+                self._dispatch("login")
+                log.debug("Logon completed")
 
-            self._dispatch("login")
-            log.debug("Logon completed")
-
-            task.cancel()  # we let Client.connect handle poll_event from here on out
-            try:
-                await task  # needed to ensure the task is cancelled and socket._waiting is removed
-            except asyncio.CancelledError:
-                pass
-
-            return self
+                return self
         raise NoCMsFound("No CMs found could be connected to. Steam is likely down")
 
     async def fetch_refresh_token(self) -> str:
@@ -505,10 +519,8 @@ class SteamWebSocket:
                             code_type=allowed_confirmation.confirmation_type,
                         )
                     )
-                    if code_msg.result == Result.DuplicateRequest and any(
-                        allowed_confirmation.confirmation_type
-                        in (auth.EAuthSessionGuardType.DeviceCode, auth.EAuthSessionGuardType.EmailCode)
-                        for allowed_confirmation in begin_resp.allowed_confirmations
+                    if (
+                        code_msg.result == Result.DuplicateRequest
                     ):  # not actually sure how to deal with this properly currently, but this works
                         log.debug("Duplicate request, may have been confirmed by login request")
                     elif code_msg.result != Result.OK:  # TODO handle Result.InvalidLoginAuthCode
@@ -533,7 +545,6 @@ class SteamWebSocket:
         else:
             raise ValueError("No valid auth session guard type was found")
 
-        self.id64 = ID64(begin_resp.steamid)
         self.client_id = poll_resp.new_client_id or begin_resp.client_id
         self._access_token = poll_resp.access_token
         return poll_resp.refresh_token
@@ -552,7 +563,6 @@ class SteamWebSocket:
 
     @classmethod
     async def anonymous_login_from_client(cls, client: Client) -> SteamWebSocket:
-        PROTOCOL_VERSION: Final = 65580
         state = client._state
         cm_list = fetch_cm_list(state)
         async for cm in cm_list:
@@ -564,52 +574,40 @@ class SteamWebSocket:
             client.ws = self
             self._dispatch("connect")
 
-            async def poll():
-                while True:
-                    await self.poll_event()
-
-            task = asyncio.create_task(poll())
-
             self.id64 = parse_id64(0, type=Type.AnonUser, universe=Universe.Public)
 
-            msg: login.CMsgClientLogonResponse = await self.send_proto_and_wait(
-                login.CMsgClientLogon(
-                    protocol_version=PROTOCOL_VERSION,
-                    client_package_version=1561159470,
-                    client_language=state.language.api_name,
-                ),
-                check=lambda msg: isinstance(msg, login.CMsgClientLogonResponse),
-            )
-            if msg.result != Result.OK:
-                log.debug("Failed to login with result: %r", msg.result)
-                await self._state.handle_close()
-                return await self.from_client(client)
+            async with self.poll():
+                msg: login.CMsgClientLogonResponse = await self.send_proto_and_wait(
+                    login.CMsgClientLogon(
+                        protocol_version=PROTOCOL_VERSION,
+                        client_package_version=1561159470,
+                        client_language=state.language.api_name,
+                    ),
+                    check=lambda msg: isinstance(msg, login.CMsgClientLogonResponse),
+                )
+                if msg.result != Result.OK:
+                    log.debug("Failed to login with result: %r", msg.result)
+                    await self._state.handle_close()
 
-            self.session_id = msg.header.session_id
-            self.id64 = msg.header.steam_id
-            self._state.cell_id = msg.cell_id
+                self.session_id = msg.header.session_id
+                self.id64 = msg.header.steam_id
+                self._state.cell_id = msg.cell_id
 
-            self._keep_alive = KeepAliveHandler(
-                ws=self, interval=msg.heartbeat_seconds, loop=asyncio.get_running_loop()
-            )
-            self._keep_alive.start()
-            log.debug("Heartbeat started.")
+                self._keep_alive = KeepAliveHandler(
+                    ws=self, interval=msg.heartbeat_seconds, loop=asyncio.get_running_loop()
+                )
+                self._keep_alive.start()
+                log.debug("Heartbeat started.")
 
-            state.login_complete.set()
-            state.http.user = AnonymousClientUser(state, self.id64)  # type: ignore
+                state.login_complete.set()
+                state.http.user = AnonymousClientUser(state, self.id64)  # type: ignore
 
-            await self.send_proto(
-                login.CMsgClientServerTimestampRequest(client_request_timestamp=int(time.time() * 1000))
-            )
+                await self.send_proto(
+                    login.CMsgClientServerTimestampRequest(client_request_timestamp=int(time.time() * 1000))
+                )
 
-            self._dispatch("login")
-            log.debug("Logon completed")
-
-            task.cancel()
-            try:
-                await task
-            except asyncio.CancelledError:
-                pass
+                self._dispatch("login")
+                log.debug("Logon completed")
 
             await client._handle_ready()
             return self
@@ -629,6 +627,13 @@ class SteamWebSocket:
             log.debug("Dropped unexpected message type: %r", message)
         except WebSocketClosure:
             await self._state.handle_close()
+
+    async def wrap_coro(self, task: CoroutineType[Any, Any, Any]) -> None:
+        try:
+            await task
+        except RAISED_EXCEPTIONS as e:
+            if not self._state._task_error.done():
+                self._state._task_error.set_exception(e)
 
     def receive(self, message: bytearray, /) -> None:
         emsg_value = READ_U32(message)
@@ -662,9 +667,9 @@ class SteamWebSocket:
                 return traceback.print_exc()
 
             if isinstance(result, CoroutineType):
-                self._state._tg.create_task(result, name=f"steam.py: {event_parser.__name__}").add_done_callback(
-                    self._state._run_parser_callback
-                )
+                task = asyncio.create_task(self.wrap_coro(result), name=f"steam.py: {event_parser.__name__}")
+                task.add_done_callback(self._pending_parsers.remove)
+                self._pending_parsers.add(task)
         # remove the dispatched listener
         removed: list[int] = []
         for idx, entry in enumerate(self.listeners):

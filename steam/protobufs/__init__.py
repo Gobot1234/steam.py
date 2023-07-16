@@ -26,6 +26,7 @@ if TYPE_CHECKING:
 
 __all__ = (
     "EMsg",
+    "NoMsg",
     "Message",
     "ProtobufMessage",
     "UnifiedMessage",

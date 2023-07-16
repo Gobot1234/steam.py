@@ -19,7 +19,7 @@ from types import CoroutineType
 from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeVar, cast, get_args
 from zlib import crc32
 
-from typing_extensions import Self
+from typing_extensions import Never, Self
 from yarl import URL as URL_
 
 from . import utils
@@ -45,6 +45,7 @@ from .package import FetchedPackage, License
 from .protobufs import (
     SERVICE_EMSGS,
     EMsg,
+    NoMsg,
     UnifiedMessage,
     app_info,
     base,
@@ -70,7 +71,6 @@ from .protobufs import (
     store,
     user_stats,
 )
-from .protobufs.msg import NoMsg
 from .published_file import PublishedFile
 from .reaction import (
     Award,
@@ -259,6 +259,10 @@ class ConnectionState:
     @utils.cached_property
     def _tg(self) -> TaskGroup:
         return self.client._tg
+
+    @utils.cached_property
+    def _task_error(self) -> asyncio.Future[None]:
+        return asyncio.get_running_loop().create_future()
 
     @property
     def language(self) -> Language:
@@ -1019,9 +1023,7 @@ class ConnectionState:
     # parsers
 
     @parser
-    async def handle_close(self, _: login.CMsgClientLoggedOff | Any = None) -> None:
-        if self.ws.closed:  # don't want ConnectionClosed to be raised multiple times
-            return
+    async def handle_close(self, _: login.CMsgClientLogOff | Any = None) -> Never:
         if not self.ws.socket.closed:
             await self.ws.close()
         if hasattr(self.ws, "_keep_alive"):
@@ -1049,7 +1051,7 @@ class ConnectionState:
             data = data[4 + size :]
 
     @parser
-    async def handle_logoff(self, msg: login.CMsgClientLoggedOff):
+    async def handle_logoff(self, msg: login.CMsgClientLoggedOff) -> Never:
         await self.handle_close()
 
     @parser
@@ -2683,14 +2685,6 @@ class ConnectionState:
         if msg.result != Result.OK:
             raise WSException(msg)
         return msg.item_definitions
-
-    def _run_parser_callback(self, task: asyncio.Task[object]) -> None:
-        try:
-            exception = task.exception()
-        except asyncio.CancelledError:
-            return
-        if exception:
-            log.error(exception)
 
 
 ConnectionState.parsers = {}
