@@ -391,7 +391,7 @@ class PublishedFile(Commentable, Awardable, Generic[UserT]):
         *,
         revision: PublishedFileRevision = PublishedFileRevision.Default,
         language: Language | None = None,
-    ) -> list[PublishedFile[Author]]:
+    ) -> AsyncGenerator[PublishedFile[Author], None]:
         """Fetches this published file's parents.
 
         Parameters
@@ -403,10 +403,11 @@ class PublishedFile(Commentable, Awardable, Generic[UserT]):
         """
         cursor = "*"
         more = True
-        parents: list[PublishedFile[Author]] = []
-        authors = set[PartialUser]()
 
         while more:
+            parents: list[PublishedFile[Author]] = []
+            authors = set[PartialUser]()
+
             proto = await self._state.fetch_published_file_parents(self.id, revision, language, cursor)
             more = len(parents) < proto.total
 
@@ -415,12 +416,11 @@ class PublishedFile(Commentable, Awardable, Generic[UserT]):
                 parents.append(PublishedFile(self._state, file, author))
                 authors.add(author)
 
-        for author in await self._state._maybe_users(a.id64 for a in authors):
-            for parent in parents:
-                if parent.author == author:
-                    parent.author = author
-
-        return parents
+            for author in await self._state._maybe_users(a.id64 for a in authors):
+                for parent in parents:
+                    if parent.author == author:
+                        parent.author = author
+                    yield parent
 
     async def upvote(self) -> None:
         """Upvotes this published file."""
@@ -515,7 +515,7 @@ class PublishedFile(Commentable, Awardable, Generic[UserT]):
         name: str | None = None,
         description: str | None = None,
         visibility: PublishedFileVisibility | None = None,
-        tags: Sequence[str] = (),
+        tags: Sequence[str] | None = None,
         filename: str | None = None,
         preview_filename: str | None = None,
     ) -> None:
@@ -536,10 +536,11 @@ class PublishedFile(Commentable, Awardable, Generic[UserT]):
         preview_filename
             The new preview filename of the file.
         """
-        try:
-            preview_filename = self.previews[0].filename  # TODO test
-        except IndexError:
-            preview_filename = ""
+        if preview_filename is None:
+            try:
+                preview_filename = self.previews[0].filename  # TODO test
+            except IndexError:
+                preview_filename = ""
         await self._state.edit_published_file(
             self.id,
             self.app.id,
@@ -548,5 +549,5 @@ class PublishedFile(Commentable, Awardable, Generic[UserT]):
             visibility or self.visibility,
             list(tags) if tags is not None else [t.display_name for t in self.tags],
             filename if filename is not None else self.file.name,
-            preview_filename if preview_filename is not None else preview_filename,
+            preview_filename,
         )
