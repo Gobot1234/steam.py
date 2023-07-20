@@ -19,10 +19,8 @@ jobs:
           repository: ${{ env.TARGET }}
           path: steam-py.github.io
 
-      - name: Install
-        uses: snok/install-poetry@v1
-        with:
-          version: "latest"
+      - name: Install poetry
+        run: pipx install poetry && pipx install poethepoet
 
       - name: Set up Python
         uses: actions/setup-python@v4

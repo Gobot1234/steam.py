@@ -1,24 +1,18 @@
 name: Run tests.
 
-on:
-  push:
-    branches:
-      - main
+on: [push]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.10"]
+        python-version: ["3.10", "3.11"]
 
     steps:
       - uses: actions/checkout@v3
-      - uses: snok/install-poetry@v1
-        with:
-          version: "latest"
-          virtualenvs-create: true
-          virtualenvs-in-project: true
+      - name: Install poetry
+        run: pipx install poetry && pipx install poethepoet
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
@@ -32,11 +26,16 @@ jobs:
       - name: Install dependencies
         run: poetry install --with dev
 
-      - name: Run tests for CPython ${{ matrix.python-version }}
+      - name: Run full tests for CPython ${{ matrix.python-version }}
+        if: ${{ github.ref_name == 'main' && github.repository == 'Gobot1234/steam.py'}}
         env:
           USERNAME: ${{ secrets.STEAM_USERNAME }}
           PASSWORD: ${{ secrets.STEAM_PASSWORD }}
           SHARED_SECRET: ${{ secrets.STEAM_SHARED_SECRET }}
           IDENTITY_SECRET: ${{ secrets.STEAM_IDENTITY_SECRET }}
-        run: poetry run pytest .
+        run: poe test full
         timeout-minutes: 30
+
+      - name: Run unit tests for CPython ${{ matrix.python-version }}
+        if: ${{ github.ref_name != 'main' || github.repository != 'Gobot1234/steam.py'}}
+        run: poe test unit

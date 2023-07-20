@@ -79,14 +79,32 @@ tomli = {version = "~2", python = "<3.11"}
 hypothesis = "^6.82.0"
 
 [tool.poe.tasks]
-test = {cmd = "pytest tests", help = "Run the tests"}
 fmt = {sequence = [
     {script = "scripts.blacken_docs_correctly:main"},
     {cmd = "black ."},
     {cmd = "isort ."}
-], help = "Format the code"}
+], ignore_fail = true, help = "Format the code"}
 doc = {cmd = "sphinx-build -b html -T -W --keep-going docs/ docs/_build", help = "Build the documentation"}  # TODO -n
 add-cms = {script = "scripts.add_cms:main", help = "Add a default list of CMs for when the API is down"}
+
+[tool.poe.tasks.test]
+help = "Run the tests"
+control.expr = "type"
+[tool.poe.tasks.test.args.type]
+required = true
+positional = true
+help = "Which types of tests to run can be one of 'full', 'unit' or 'integration'"
+    [[tool.poe.tasks.test.switch]]
+    case = "full"
+    cmd = "pytest tests"
+
+    [[tool.poe.tasks.test.switch]]
+    case = "unit"
+    cmd  = "pytest tests/unit"
+
+    [[tool.poe.tasks.test.switch]]
+    case = "integration"
+    cmd  = "pytests tests/integration"
 
 [tool.poe.tasks.decode]
 script = "scripts.decode:main"
