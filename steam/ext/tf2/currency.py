@@ -1,3 +1,4 @@
+# pyright: reportIncompatibleMethodOverride = none
 """A nice way to work with TF2's currencies."""
 
 from __future__ import annotations
@@ -24,12 +25,12 @@ def modf(value: Decimal) -> tuple[Decimal, Decimal]:
 
     if not as_tuple.exponent:
         integer = value
-        fractional = Decimal()
+        fractional = Decimal().copy_sign(value)
     elif as_tuple.exponent < 0:
         integer = Decimal((as_tuple.sign, as_tuple.digits[: as_tuple.exponent], 0))
         fractional = Decimal((as_tuple.sign, as_tuple.digits[as_tuple.exponent :], as_tuple.exponent))
     else:
-        raise AssertionError("shouldn't be reachable")
+        raise AssertionError("shouldn't be reachable")  # you get rounding issues here either way
 
     return fractional, integer
 
@@ -61,12 +62,7 @@ class Metal(Fraction):
         ...
 
     def __new__(cls, value: SupportsMetal, /, *, _normalize: bool = ...) -> Self:
-        scrap = cls.extract_scrap(value)
-
-        if scrap < 0:
-            raise ValueError(f"Metal value cannot be negative")
-
-        return super().__new__(cls, scrap, 9)
+        return super().__new__(cls, cls.extract_scrap(value), 9)
 
     @classmethod
     def extract_scrap(cls, value: SupportsMetal) -> int:
@@ -81,34 +77,41 @@ class Metal(Fraction):
             raise TypeError("non-int passed to Metal.__new__, that could not be cast") from None
 
         fractional, integer = modf(value)
-        if not math.isclose(fractional - round(fractional, 2), 0, abs_tol=1e-9):
+        rounded_fractional = round(fractional, 2)
+        if not math.isclose(fractional - rounded_fractional, 0, abs_tol=1e-9):
             raise ValueError("metal value's last digits must be close to 0")
 
-        digits = round(fractional, 2).as_tuple().digits
+        digits = rounded_fractional.as_tuple().digits
         if len(digits) >= 2 and digits[0] != digits[1]:
             raise ValueError("metal value must be a multiple of 0.11")
 
-        return int(integer) * 9 + digits[0]
+        return int(integer) * 9 + (digits[0] if fractional >= 0 else -digits[0])
 
-    def __add__(self, other: SupportsMetal) -> Fraction:
-        scrap = Metal.extract_scrap(other)
-        return Metal(Fraction(self.numerator + scrap, 9))
+    def __add__(self, other: SupportsMetal) -> Metal:
+        return Metal(super().__add__(Fraction(self.extract_scrap(other), 9)))
 
-    def __sub__(self, other: SupportsMetal) -> Fraction:
-        scrap = Metal.extract_scrap(other)
-        return Metal(Fraction(self.numerator - scrap, 9))
+    def __sub__(self, other: SupportsMetal) -> Metal:
+        return Metal(super().__sub__(Fraction(self.extract_scrap(other), 9)))
 
-    def __mul__(self, other: SupportsMetal) -> Fraction:
-        scrap = Metal.extract_scrap(other)
-        return Metal(Fraction(self.numerator * scrap, 9))
+    def __mul__(self, other: SupportsMetal) -> Metal:
+        return Metal(super().__mul__(Fraction(self.extract_scrap(other), 9)))
 
-    def __div__(self, other: SupportsMetal) -> Fraction:
-        scrap = Metal.extract_scrap(other)
+    def __truediv__(self, other: SupportsMetal) -> Metal:
+        return Metal(super().__truediv__(Fraction(self.extract_scrap(other), 9)))
 
-        if self.numerator % scrap != 0:
-            raise ValueError(f"{self.numerator} scrap cannot be divided by {scrap}")
+    __radd__ = __add__  # type: ignore
+    __rsub__ = __sub__  # type: ignore
+    __rmul__ = __mul__  # type: ignore
+    __rtruediv__ = __truediv__  # type: ignore
 
-        return Metal(Fraction(self.numerator // scrap, 9))
+    def __abs__(self) -> Fraction:
+        return Metal(super().__abs__())
+
+    def __pos__(self) -> Fraction:
+        return Metal(super().__pos__())
+
+    def __neg__(self) -> Fraction:
+        return Metal(super().__neg__())
 
     def __str__(self) -> str:
         return f"{self.numerator // self.denominator}.{f'{(self.numerator % self.denominator) * 9 // self.denominator}' * 2}"
