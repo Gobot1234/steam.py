@@ -76,6 +76,7 @@ poethepoet = ">=0.19,<0.22"
 blacken-docs = "^1.12"
 ruff = ">=0.0.261,<0.0.279"
 tomli = {version = "~2", python = "<3.11"}
+hypothesis = "^6.82.0"
 
 [tool.poe.tasks]
 test = {cmd = "pytest tests", help = "Run the tests"}
