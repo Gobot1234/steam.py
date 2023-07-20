@@ -64,10 +64,10 @@ class Metal(Fraction):
         scrap = cls.extract_scrap(value)
 
         if scrap < 0:
-            raise ValueError(f'Metal value cannot be negative')
+            raise ValueError(f"Metal value cannot be negative")
 
         return super().__new__(cls, scrap, 9)
-    
+
     @classmethod
     def extract_scrap(cls, value: SupportsMetal) -> int:
         if isinstance(value, Fraction):
@@ -87,27 +87,27 @@ class Metal(Fraction):
         digits = round(fractional, 2).as_tuple().digits
         if len(digits) >= 2 and digits[0] != digits[1]:
             raise ValueError("metal value must be a multiple of 0.11")
-        
+
         return int(integer) * 9 + digits[0]
-    
+
     def __add__(self, other: SupportsMetal) -> Fraction:
         scrap = Metal.extract_scrap(other)
         return Metal(Fraction(self.numerator + scrap, 9))
-    
+
     def __sub__(self, other: SupportsMetal) -> Fraction:
         scrap = Metal.extract_scrap(other)
         return Metal(Fraction(self.numerator - scrap, 9))
-    
+
     def __mul__(self, other: SupportsMetal) -> Fraction:
         scrap = Metal.extract_scrap(other)
         return Metal(Fraction(self.numerator * scrap, 9))
-    
+
     def __div__(self, other: SupportsMetal) -> Fraction:
         scrap = Metal.extract_scrap(other)
 
         if self.numerator % scrap != 0:
-            raise ValueError(f'{self.numerator} scrap cannot be divided by {scrap}')
-        
+            raise ValueError(f"{self.numerator} scrap cannot be divided by {scrap}")
+
         return Metal(Fraction(self.numerator // scrap, 9))
 
     def __str__(self) -> str:
