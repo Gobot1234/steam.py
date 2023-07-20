@@ -109,6 +109,7 @@ html_context = {
 
 extlinks = {
     "issue": (f"{html_context['repository']}/%s", "GH-"),
+    "works": ("https://partner.steamgames.com/doc/", None),
 }
 
 resource_links = {
