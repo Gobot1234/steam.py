@@ -15,14 +15,7 @@ def test_metal_initializations():
     assert tf2.Metal(Fraction(7, 9)) == tf2.Metal(0.77)
     assert tf2.Metal(Decimal(0.77)) == tf2.Metal(0.77)
     assert tf2.Metal(Fraction(18, 9)) == tf2.Metal(2)
-    assert tf2.Metal(1.11) + tf2.Metal(1) == tf2.Metal(2.11)
-    assert tf2.Metal(1.88) + tf2.Metal(1.11) == tf2.Metal(3)
-    assert tf2.Metal(1.11) + tf2.Metal(1.11) == tf2.Metal(2.22)
-    assert tf2.Metal(1.88) + tf2.Metal(1.88) == tf2.Metal(3.77)
-    assert tf2.Metal(1.00) + tf2.Metal(0) == tf2.Metal(1)
-
     assert tf2.Metal(1.99) == tf2.Metal(2)
-    # TODO test inf prec
 
 
 def test_metal_addition():
@@ -30,6 +23,8 @@ def test_metal_addition():
     assert tf2.Metal(1.88) + tf2.Metal(1.11) == tf2.Metal(3)
     assert tf2.Metal(1.11) + tf2.Metal(1.11) == tf2.Metal(2.22)
     assert tf2.Metal(1.88) + tf2.Metal(1.88) == tf2.Metal(3.77)
+    assert tf2.Metal(1.00) + tf2.Metal(0) == tf2.Metal(1)
+    # TODO test inf prec
 
 
 def test_metal_subtraction():
