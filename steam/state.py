@@ -256,7 +256,7 @@ class ConnectionState:
     def _device_id(self) -> str:
         return get_device_id(self.user.id64)
 
-    @utils.cached_property
+    @property
     def _tg(self) -> TaskGroup:
         return self.client._tg
 
