@@ -69,6 +69,7 @@ def test_metal_invalid_values():
     with pytest.raises(ValueError):
         tf2.Metal(Fraction(1, 10))
 
+
 def test_str():
     assert str(tf2.Metal(1.22)) == "1.22"
     assert str(tf2.Metal(1.33)) == "1.33"
