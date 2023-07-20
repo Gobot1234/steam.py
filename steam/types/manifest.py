@@ -51,6 +51,9 @@ class Extended(TypedVDFDict, total=False):
     isfreeapp: VDFBool
     listofdlc: str
     homepage: str
+    demoofappid: VDFInt
+    developer: str
+    publisher: str
 
 
 class Manifest(TypedVDFDict, total=False):

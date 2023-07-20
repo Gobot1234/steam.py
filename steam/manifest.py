@@ -881,6 +881,7 @@ class AppInfo(ProductInfo, PartialApp[str]):
         "logo",
         "website_url",
         "parent",
+        "demo_of_app",
         "_stats_visible",
         "_free",
         "_on_windows",
@@ -965,6 +966,7 @@ class AppInfo(ProductInfo, PartialApp[str]):
         """This app's website URL."""
         self.parent = PartialApp(state, id=int(common["parent"])) if "parent" in common else None
         """This app's parent."""
+        self.demo_of_app = PartialApp(state, id=int(extended["demoofappid"])) if "demoofappid" in extended else None
 
         depots: manifest.Depot = data.get("depots", MultiDict())  # type: ignore
         self._branches: dict[str, Branch] = {}
@@ -1014,7 +1016,11 @@ class AppInfo(ProductInfo, PartialApp[str]):
                     int(public_manifest_info if isinstance(public_manifest_info, str) else public_manifest_info["gid"])
                 )
                 for branch_name, manifest_info in manifests.items():
-                    branch = self._branches[branch_name]
+                    try:
+                        branch = self._branches[branch_name]
+                    except KeyError:
+                        log.debug("Got a manifest %s that has no associated branch", manifest_info)
+                        continue
                     manifest_id = manifest_info if isinstance(manifest_info, str) else manifest_info["gid"]
                     if not branch.password_required:
                         manifest = ManifestInfo(
