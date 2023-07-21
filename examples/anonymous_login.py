@@ -11,7 +11,7 @@ async def on_login():
 
     info = await steam.TF2.info()
     print(f"TF2 info: {info!r}")
-    print(f"TF2 was created on {info.created_at:%A %y/%m/%d at %H:%M:%S}")
+    print(f"TF2 was created on {info.created_at:%A %Y/%m/%d at %H:%M:%S}")
     print(f"TF2 has {len(info.branches)} branches")
 
     await client.close()
