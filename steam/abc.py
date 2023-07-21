@@ -39,6 +39,7 @@ if TYPE_CHECKING:
     from .comment import Comment
     from .game_server import GameServer
     from .group import Group
+    from .invite import AppInvite
     from .media import Media
     from .message import UserMessage
     from .post import Post
@@ -757,6 +758,9 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
 
         post = await self._state.fetch_user_post(self.id64, PostID(id))
         return Post(self._state, PostID(post.postid), post.status_text, self, PartialApp(self._state, id=post.appid))
+
+    async def invite_to(self, app: App) -> AppInvite:
+        ...
 
     def is_friend(self) -> bool:
         """Whether the user is in the :class:`ClientUser`'s friends."""

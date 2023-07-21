@@ -1568,24 +1568,22 @@ class ConnectionState:
                                 assert user is not None
                                 self._add_friend(user)
                     else:
+                        self.dispatch("invite_accept", invite)
                         if isinstance(invite, UserInvite):
-                            self.dispatch("user_invite_accept", invite)
-                            if isinstance(invite.invitee, User):
-                                friend = self._add_friend(invite.invitee)
+                            if isinstance(invite.author, User):
+                                friend = self._add_friend(invite.author)
                                 self.dispatch("friend_add", friend)
                         else:
-                            self.dispatch("clan_invite_accept", invite)
                             if isinstance(invite.clan, Clan):
                                 self._clans[invite.clan.id] = invite.clan
 
-                case FriendRelationship.RequestInitiator | FriendRelationship.RequestRecipient:
+                case FriendRelationship.RequestInitiator | FriendRelationship.RequestRecipient:  # TODO this needs checking for clans
                     match id.type:
                         case Type.Individual:
                             invitee = await self._maybe_user(id.id64)
-                            invite = UserInvite(self, invitee=invitee, relationship=relationship)
-                            self.invites[invitee.id64] = invite
-                            self.dispatch("user_invite", invite)
-
+                            self.invites[invitee.id64] = invite = UserInvite(
+                                self, self.user, author=invitee, relationship=relationship
+                            )
                         case Type.Clan:
                             if clan_invitees is None:
                                 clan_invitees = await self.http.get_clan_invitees()
@@ -1594,14 +1592,16 @@ class ConnectionState:
                             clan = await self.fetch_clan(id.id64)
                             assert clan is not None
 
-                            invitee = await self._maybe_user(invitee_id64)
                             try:
-                                clan = await self.fetch_clan(id.id64) or id
+                                clan = await self.fetch_clan(id.id64)
                             except WSException:
-                                clan = id
-                            invite = ClanInvite(state=self, invitee=invitee, clan=clan, relationship=relationship)
-                            self.invites[clan.id64] = invite
-                            self.dispatch("clan_invite", invite)
+                                clan = PartialClan(self, id.id64)
+                            self.invites[clan.id64] = invite = ClanInvite(
+                                self, self.user, author=invitee, clan=clan, relationship=relationship
+                            )
+                        case _:
+                            continue
+                    self.dispatch("invite", invite)
 
                 case FriendRelationship.NONE:
                     match id.type:
@@ -1613,8 +1613,7 @@ class ConnectionState:
                                 if friend is None:
                                     return log.debug("Unknown friend %s removed", id)
                                 self.dispatch("friend_remove", friend)
-                            else:
-                                self.dispatch("user_invite_decline", invite)
+                                continue
 
                         case Type.Clan:
                             try:
@@ -1624,8 +1623,11 @@ class ConnectionState:
                                 if clan is None:
                                     return log.debug("Unknown clan %s removed", id)
                                 self.dispatch("clan_leave", clan)
-                            else:
-                                self.dispatch("clan_invite_decline", invite)
+                                continue
+                        case _:
+                            continue
+
+                    self.dispatch("invite_decline", invite)
 
         if is_load:
             self.user._friends = {user.id: Friend(self, user) for user in await self.fetch_users(client_user_friends)}

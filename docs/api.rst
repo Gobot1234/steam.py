@@ -33,7 +33,7 @@ Client
                       on_comment,
                       on_invite, on_invite_accept, on_invite_decline, on_friend_add, on_user_update,
                       on_friend_remove,
-                      on_clan_invite, on_clan_invite_accept, on_clan_invite_decline, on_clan_join, on_clan_update,
+                      on_clan_join, on_clan_update,
                       on_clan_leave,
                       on_group_join, on_group_update, on_group_leave,
                       on_event_create, on_announcement_create,
@@ -93,23 +93,17 @@ traceback and ignoring the exception.
 
 .. automethod:: Client.on_comment
 
-.. automethod:: Client.on_user_invite
+.. automethod:: Client.on_invite
 
-.. automethod:: Client.on_user_invite_accept
+.. automethod:: Client.on_invite_accept
 
-.. automethod:: Client.on_user_invite_decline
+.. automethod:: Client.on_invite_decline
 
 .. automethod:: Client.on_friend_add
 
 .. automethod:: Client.on_user_update
 
 .. automethod:: Client.on_friend_remove
-
-.. automethod:: Client.on_clan_invite
-
-.. automethod:: Client.on_clan_invite_accept
-
-.. automethod:: Client.on_clan_invite_decline
 
 .. automethod:: Client.on_clan_join
 

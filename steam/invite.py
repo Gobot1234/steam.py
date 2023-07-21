@@ -4,19 +4,19 @@ from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, ClassVar, Final, Literal
-
-from .enums import FriendRelationship, classproperty
+from typing import TYPE_CHECKING, ClassVar
 
 if TYPE_CHECKING:
-    from typing_extensions import Self
+    from typing_extensions import Never
 
     from .abc import PartialUser
     from .app import PartialApp
-    from .clan import Clan
+    from .clan import Clan, PartialClan
+    from .enums import FriendRelationship
+    from .game_server import GameServer
     from .group import Group
     from .state import ConnectionState
-    from .user import User
+    from .user import ClientUser, User
 
 
 __all__ = (
@@ -24,15 +24,18 @@ __all__ = (
     "UserInvite",
     "ClanInvite",
     "GroupInvite",
+    "AppInvite",
 )
 
 
 @dataclass(slots=True)
 class Invite(metaclass=ABCMeta):
     _state: ConnectionState
-    invitee: User | PartialUser
+    user: User | ClientUser | PartialUser
+    """The user that was invited."""
+    author: User | ClientUser | PartialUser
     """The user who sent the invite."""
-    relationship: FriendRelationship
+    relationship: FriendRelationship | None
     """The relationship you have with the invitee."""
     REPR_ATTRS: ClassVar[tuple[str, ...]]
 
@@ -46,6 +49,9 @@ class Invite(metaclass=ABCMeta):
         """Decline the invite request."""
         raise NotImplementedError()
 
+    async def revoke(self) -> None:  # ChatGroup only
+        ...
+
     def __repr__(self) -> str:
         cls = self.__class__
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in cls.REPR_ATTRS]
@@ -56,37 +62,27 @@ class Invite(metaclass=ABCMeta):
 class UserInvite(Invite):
     """Represents a invite from a user to become their friend."""
 
-    REPR_ATTRS: Final = ("invitee", "relationship")
+    REPR_ATTRS: ClassVar = ("author", "relationship")
 
     async def accept(self) -> None:
-        await self._state.add_user(self.invitee.id64)
+        await self._state.add_user(self.author.id64)
 
     async def decline(self) -> None:
-        await self._state.remove_user(self.invitee.id64)
+        await self._state.remove_user(self.author.id64)
+
+
+class ChatGroupInvite(Invite):
+    code: str | None
 
 
 @dataclass(repr=False, slots=True)
-class GroupInvite(Invite):
-    """Represents a invite from a user to join a group."""
+class ClanInvite(ChatGroupInvite):
+    """Represents an invitation to join a :class:`~steam.Clan` from a user."""
 
-    REPR_ATTRS: ClassVar = ("invitee", "relationship", "group")
-    group: Group
-    """The group to join."""
-
-    async def accept(self) -> None:
-        await self.group.join()
-
-    async def decline(self) -> None:
-        await self.group.leave()  # TODO this probably errors
-
-
-@dataclass(repr=False, slots=True)
-class ClanInvite(Invite):
-    """Represents a invite to join a :class:`~steam.Clan` from a user."""
-
-    REPR_ATTRS: ClassVar = ("invitee", "relationship", "clan")
-    clan: Clan
+    REPR_ATTRS: ClassVar = ("author", "relationship", "clan")
+    clan: Clan | PartialClan
     """The clan to join."""
+    relationship: FriendRelationship
 
     async def accept(self) -> None:
         await self._state.respond_to_clan_invite(self.clan.id64, True)
@@ -96,13 +92,35 @@ class ClanInvite(Invite):
 
 
 @dataclass(repr=False, slots=True)
-class AppInvite(Invite):
-    """Represents a invite to join a :class:`~steam.App` from a user."""
+class GroupInvite(ChatGroupInvite):
+    """Represents an invitation from a user to join a group."""
 
-    REPR_ATTRS: ClassVar = ("invitee", "app")
+    REPR_ATTRS: ClassVar = ("author", "relationship", "group")
+    group: Group
+    """The group to join."""
+    code: str
+
+    async def accept(self) -> None:
+        await self.group.join(invite_code=self.code)
+
+    async def decline(self) -> Never:
+        await self.group.leave()  # TODO this probably errors
+
+
+@dataclass(repr=False, slots=True)
+class AppInvite(Invite):
+    """Represents an invitation to join a :class:`~steam.App` from a user."""
+
+    REPR_ATTRS: ClassVar = ("author", "app")
     app: PartialApp
     """The app to join."""
+    server: GameServer | None
+    """The server you being requested to join"""
+    connect: str
+    """A string containing information about the invite."""
 
-    @classproperty
-    def relationship(cls: type[Self]) -> Literal[FriendRelationship.Friend]:  # type: ignore
-        return FriendRelationship.Friend
+    async def accept(self) -> None:
+        return await super().accept()
+
+    async def decline(self) -> None:
+        return await super().decline()

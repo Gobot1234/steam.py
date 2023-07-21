@@ -26,8 +26,7 @@ from typing import (
     Literal,
     ParamSpec,
     TypeAlias,
-    TypedDict,
-    TypeVar,
+   TypedDict, TypeVar,
     cast,
     final,
     overload,
@@ -35,7 +34,7 @@ from typing import (
 
 from bs4 import BeautifulSoup
 
-from . import errors, utils
+from . import utils
 from ._const import DOCS_BUILDING, STATE, UNIX_EPOCH, URL, TaskGroup, timeout
 from .app import App, AppListApp, AuthenticationTicket, FetchedApp, PartialApp
 from .bundle import Bundle, FetchedBundle, PartialBundle
@@ -61,14 +60,16 @@ if TYPE_CHECKING:
     from typing_extensions import Self, Unpack
 
     import steam
+    from steam.ext import commands
 
     from .abc import Message
     from .clan import Clan
     from .comment import Comment
     from .event import Announcement, Event
+    from .ext.commands.bot import Bot
     from .friend import Friend
     from .group import Group
-    from .invite import ClanInvite, UserInvite
+    from .invite import AppInvite, ClanInvite, GroupInvite, UserInvite
     from .manifest import AppInfo, PackageInfo
     from .published_file import PublishedFile
     from .reaction import ClientEmoticon, ClientSticker, MessageReaction
@@ -1409,7 +1410,7 @@ class Client:
         async def on_logout(self) -> None:
             """Called when the client has logged out of https://steamcommunity.com."""
 
-        async def on_message(self, message: steam.Message) -> None:
+        async def on_message(self, message: steam.Message, /) -> None:
             """Called when a message is created.
 
             Parameters
@@ -1418,7 +1419,7 @@ class Client:
                 The message that was received.
             """
 
-        async def on_typing(self, user: steam.User, when: datetime.datetime) -> None:
+        async def on_typing(self, user: steam.User, when: datetime.datetime, /) -> None:
             """Called when typing is started.
 
             Parameters
@@ -1429,7 +1430,7 @@ class Client:
                 The time the user started typing at.
             """
 
-        async def on_reaction_add(self, reaction: MessageReaction) -> None:
+        async def on_reaction_add(self, reaction: MessageReaction, /) -> None:
             """Called when a reaction is added to a message.
 
             Parameters
@@ -1438,7 +1439,7 @@ class Client:
                 The reaction that was added.
             """
 
-        async def on_reaction_remove(self, reaction: MessageReaction) -> None:
+        async def on_reaction_remove(self, reaction: MessageReaction, /) -> None:
             """Called when a reaction is removed from a message.
 
             Parameters
@@ -1476,8 +1477,10 @@ class Client:
                 The comment received.
             """
 
-        async def on_user_invite(self, invite: steam.UserInvite) -> None:
-            """Called when the client receives/sends an invite from/to a :class:`~steam.User` to become a friend.
+        async def on_invite(
+            self, invite: steam.UserInvite | steam.ClanInvite | steam.GroupInvite | steam.AppInvite, /
+        ) -> None:
+            """Called when the client receives/sends an invitation.
 
             Parameters
             ----------
@@ -1485,8 +1488,10 @@ class Client:
                 The invite received.
             """
 
-        async def on_user_invite_accept(self, invite: steam.UserInvite) -> None:
-            """Called when the client/invitee accepts an invite from/to a :class:`~steam.User` to become a friend.
+        async def on_invite_accept(
+            self, invite: steam.UserInvite | steam.ClanInvite | steam.GroupInvite | steam.AppInvite, /
+        ) -> None:
+            """Called when the client/author accepts an invitation.
 
             Parameters
             ----------
@@ -1494,8 +1499,10 @@ class Client:
                 The invite that was accepted.
             """
 
-        async def on_user_invite_decline(self, invite: steam.UserInvite) -> None:
-            """Called when the client/invitee declines an invite from/to a :class:`~steam.User` to become a friend.
+        async def on_invite_decline(
+            self, invite: steam.UserInvite | steam.ClanInvite | steam.GroupInvite | steam.AppInvite, /
+        ) -> None:
+            """Called when the client/author declines an invitation.
 
             Parameters
             ----------
@@ -1503,7 +1510,7 @@ class Client:
                 The invite that was declined.
             """
 
-        async def on_user_update(self, before: steam.User, after: steam.User) -> None:
+        async def on_user_update(self, before: steam.User, after: steam.User, /) -> None:
             """Called when a user is updated, due to one or more of the following attributes changing:
 
                 - :attr:`~steam.User.name`
@@ -1523,7 +1530,7 @@ class Client:
                 The user's state now.
             """
 
-        async def on_friend_add(self, friend: steam.Friend) -> None:
+        async def on_friend_add(self, friend: steam.Friend, /) -> None:
             """Called when a friend is added to the client's friends list.
 
             Parameters
@@ -1532,7 +1539,7 @@ class Client:
                 The friend that was added.
             """
 
-        async def on_friend_remove(self, friend: steam.Friend) -> None:
+        async def on_friend_remove(self, friend: steam.Friend, /) -> None:
             """Called when you or the ``friend`` remove each other from your friends lists.
 
             Parameters
@@ -1541,35 +1548,7 @@ class Client:
                 The friend who was removed.
             """
 
-        async def on_clan_invite(self, invite: steam.ClanInvite) -> None:
-            """Called when the client receives/sends an invite from/to a :class:`~steam.User` to join a
-            :class:`~steam.Clan`.
-
-            Parameters
-            ----------
-            invite
-                The invite received.
-            """
-
-        async def on_clan_invite_accept(self, invite: steam.ClanInvite) -> None:
-            """Called when the client/invitee accepts an invite to join a :class:`~steam.Clan`.
-
-            Parameters
-            ----------
-            invite
-                The invite that was accepted.
-            """
-
-        async def on_clan_invite_decline(self, invite: steam.ClanInvite) -> None:
-            """Called when the client/invitee declines an invite to join a :class:`~steam.Clan`.
-
-            Parameters
-            ----------
-            invite
-                The invite that was declined.
-            """
-
-        async def on_clan_join(self, clan: steam.Clan) -> None:
+        async def on_clan_join(self, clan: steam.Clan, /) -> None:
             """Called when the client joins a new clan.
 
             Parameters
@@ -1578,7 +1557,7 @@ class Client:
                 The joined clan.
             """
 
-        async def on_clan_update(self, before: steam.Clan, after: steam.Clan) -> None:
+        async def on_clan_update(self, before: steam.Clan, after: steam.Clan, /) -> None:
             """Called when a clan is updated, due to one or more of the following attributes changing:
 
                 - :attr:`~steam.Clan.name`
@@ -1596,7 +1575,7 @@ class Client:
                 The clan's state now.
             """
 
-        async def on_clan_leave(self, clan: steam.Clan) -> None:
+        async def on_clan_leave(self, clan: steam.Clan, /) -> None:
             """Called when the client leaves a clan.
 
             Parameters
@@ -1605,7 +1584,7 @@ class Client:
                 The left clan.
             """
 
-        async def on_group_join(self, group: steam.Group) -> None:
+        async def on_group_join(self, group: steam.Group, /) -> None:
             """Called when the client joins a new group.
 
             Parameters
@@ -1614,7 +1593,7 @@ class Client:
                 The joined group.
             """
 
-        async def on_group_update(self, before: steam.Group, after: steam.Group) -> None:
+        async def on_group_update(self, before: steam.Group, after: steam.Group, /) -> None:
             """Called when a group is updated.
 
             Parameters
@@ -1625,7 +1604,7 @@ class Client:
                 The group's state now.
             """
 
-        async def on_group_leave(self, group: steam.Group) -> None:
+        async def on_group_leave(self, group: steam.Group, /) -> None:
             """Called when the client leaves a group.
 
             Parameters
@@ -1634,7 +1613,7 @@ class Client:
                 The left group.
             """
 
-        async def on_event_create(self, event: steam.Event) -> None:
+        async def on_event_create(self, event: steam.Event, /) -> None:
             """Called when an event in a clan is created.
 
             Parameters
@@ -1643,7 +1622,7 @@ class Client:
                 The event that was created.
             """
 
-        async def on_announcement_create(self, announcement: steam.Announcement) -> None:
+        async def on_announcement_create(self, announcement: steam.Announcement, /) -> None:
             """Called when an announcement in a clan is created.
 
             Parameters
@@ -1653,7 +1632,7 @@ class Client:
             """
 
         async def on_authentication_ticket_update(
-            self, ticket: steam.AuthenticationTicket, response: steam.AuthSessionResponse, state: int
+            self, ticket: steam.AuthenticationTicket, response: steam.AuthSessionResponse, state: int, /
         ) -> None:
             """Called when the client's authentication ticket is updated.
 
@@ -1790,14 +1769,14 @@ class Client:
     async def wait_for(
         self,
         event: Literal[
-            "clan_invite",
-            "clan_invite_accept",
-            "clan_invite_decline",
+            "invite",
+            "invite_accept",
+            "invite_decline",
         ],
         *,
-        check: Callable[[ClanInvite], bool] = ...,
+        check: Callable[[UserInvite | ClanInvite | GroupInvite | AppInvite], bool] = ...,
         timeout: float | None = ...,
-    ) -> ClanInvite:
+    ) -> UserInvite | ClanInvite | GroupInvite | AppInvite:
         ...
 
     @overload
@@ -1854,6 +1833,29 @@ class Client:
         check: Callable[[AuthenticationTicket, AuthSessionResponse, int], bool] = ...,
         timeout: float | None = ...,
     ) -> tuple[AuthenticationTicket, AuthSessionResponse, int]:
+        ...
+
+    @overload
+    async def wait_for(
+        self: Bot,
+        event: Literal["command_error"],
+        *,
+        check: Callable[[commands.Context, Exception], bool] | None = ...,
+        timeout: float | None = ...,
+    ) -> tuple[commands.Context, Exception]:
+        ...
+
+    @overload
+    async def wait_for(
+        self: Bot,
+        event: Literal[
+            "command",
+            "command_completion",
+        ],
+        *,
+        check: Callable[[commands.Context], bool] | None = ...,
+        timeout: float | None = ...,
+    ) -> commands.Context:
         ...
 
     async def wait_for(
