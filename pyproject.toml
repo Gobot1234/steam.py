@@ -66,6 +66,8 @@ csscompressor = "^0.9.5"
 htmlmin = "^0.1.12"
 rjsmin = "^1.2.0"
 
+[tool.poetry.group.dev]
+optional = true
 [tool.poetry.group.dev.dependencies]
 black = "^23.1"
 isort = "^5.10"
