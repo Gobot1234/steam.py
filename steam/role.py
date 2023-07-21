@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, cast, overload
 
 from .enums import Type
 from .protobufs import chat
@@ -33,7 +33,7 @@ class Role:
 
     def __init__(self, state: ConnectionState, group: ChatGroup, role: chat.Role, permissions: chat.RoleActions):
         self._state = state
-        self.id = RoleID(int(role.role_id))
+        self.id = RoleID(role.role_id)
         """The ID of the role."""
         self.name = role.name.removeprefix("#ChatRoomRole_")
         """The name of the role."""
@@ -73,10 +73,7 @@ class Role:
         permissions
             The new permissions of the role.
         """
-        if name is not None:
-            await self._state.edit_role_name(self._chat_group._id, self.id, name=name)
-        if permissions is not None:
-            await self._state.edit_role_permissions(self._chat_group._id, self.id, permissions=permissions)
+        await self._state.edit_role(self._chat_group._id, self.id, name=name, permissions=permissions)
 
     async def delete(self) -> None:
         """Delete this role."""
@@ -139,3 +136,27 @@ class RolePermissions:
             can_mention_all=self.mention_all,
             can_set_watching_broadcast=self.set_watching_broadcast,
         )
+
+    @overload
+    def replace(  # type: ignore
+        self,
+        *,
+        kick: bool = ...,
+        ban_members: bool = ...,
+        invite: bool = ...,
+        manage_group: bool = ...,
+        send_messages: bool = ...,
+        read_message_history: bool = ...,
+        change_group_roles: bool = ...,
+        change_user_roles: bool = ...,
+        mention_all: bool = ...,
+        set_watching_broadcast: bool = ...,
+    ) -> Self:
+        ...
+
+    def replace(self, **kwargs: bool) -> Self:
+        """Return a new RolePermissions with the specified changes."""
+        new = self.copy()
+        for name, value in kwargs.items():
+            setattr(new, name, value)
+        return new

@@ -49,8 +49,20 @@ log = logging.getLogger(__name__)
 
 
 @runtime_checkable
-class _PartialMemberProto(Protocol):
-    __slots__ = ()
+class _PartialMemberProto(
+    Protocol,
+    IndividualID if TYPE_CHECKING else object,  # type: ignore   # needs intersection types
+):
+    __slots__ = SLOTS = (
+        "clan",
+        "group",
+        "rank",
+        "kick_expires",
+        "_role_ids",
+        "_state",
+    )
+    if not TYPE_CHECKING:
+        __slots__ = ()
     _state: ConnectionState
     rank: ChatMemberRank
     _role_ids: tuple[RoleID, ...]
@@ -75,25 +87,33 @@ class _PartialMemberProto(Protocol):
         chat_group = self._chat_group
         return [chat_group._roles[role_id] for role_id in self._role_ids]
 
-    # async def add_role(self, role: Role):
-    #     """Add a role to the member."""
+    async def add_role(self, role: Role) -> None:
+        """Add a role to the member."""
+        chat_group = self._chat_group
+        await chat_group.add_role(self, role)
 
-    # async def ban(self, *, reason: str | None = None) -> None:
-    #     """Bans the member from the chat group."""
-    #     group = self.group or self.clan
-    #     assert group is not None
-    #     await group.ban(self, reason=reason)
+    async def remove_role(self, role: Role) -> None:
+        chat_group = self._chat_group
+        await chat_group.remove_role(self, role)
+
+    async def mute(self, expires_at: datetime) -> None:
+        """Mutes the member from the chat group."""
+        chat_group = self._chat_group
+        await chat_group.mute(self, expires_at)
+
+    async def kick(self, expires_at: datetime) -> None:
+        """Kicks the member from the chat group."""
+        chat_group = self._chat_group
+        await chat_group.kick(self, expires_at)
+
+    async def ban(self) -> None:
+        """Bans the member from the chat group."""
+        chat_group = self._chat_group
+        await chat_group.ban(self)
 
 
-class PartialMember(PartialUser, _PartialMemberProto):
-    __slots__: tuple[str, ...] = (
-        "clan",
-        "group",
-        "rank",
-        "kick_expires",
-        "_role_ids",
-        "_state",
-    )
+class PartialMember(PartialUser, _PartialMemberProto):  # type: ignore
+    __slots__ = _PartialMemberProto.SLOTS
 
     clan: Clan | None
     group: Group | None
@@ -146,10 +166,7 @@ else:
 class Member(_BaseMember):
     """Represents a member of a chat group."""
 
-    __slots__ = tuple(set(PartialMember.__slots__) - {"_state"})
-    rank: ChatMemberRank
-    kick_expires_at: datetime
-    _role_ids: tuple[int, ...]
+    __slots__ = tuple(slot for slot in _BaseMember.__slots__ if slot not in {"_state"})
 
     def __init__(
         self, state: ConnectionState, chat_group: ChatGroup[Any, Any], user: User, member: chat.Member
@@ -384,7 +401,7 @@ class Chat(Channel[ChatMessageT]):
         (message_cls,) = self._type_args
 
         while True:
-            resp = await self._state.fetch_chat_group_history(
+            resp = await self._state.fetch_chat_history(
                 *self._location, start=after_timestamp, last=last_message_timestamp, last_ordinal=last_ordinal
             )
             message = None
@@ -435,8 +452,21 @@ class Chat(Channel[ChatMessageT]):
             if not resp.more_available:
                 return
 
-    # async def edit(self, *, name: str) -> None:
-    #     await self._state.edit_channel(*self._location, name)
+    async def edit(self, *, name: str, move_below: Self) -> None:
+        """Edit the chat.
+
+        Parameters
+        ----------
+        name
+            The new name of the chat.
+        move_below
+            The chat to move this chat below.
+        """
+        await self._state.edit_chat(*self._location, name, move_below.id)
+
+    async def delete(self) -> None:
+        """Delete the chat."""
+        await self._state.delete_chat(*self._location)
 
     async def bulk_delete(self, messages: Iterable[ChatMessage]) -> None:
         """Bulk delete messages.
@@ -604,12 +634,12 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
     def _update_channels(
         self, channels: list[chat.State] | list[chat.ChatRoomState], *, default_channel_id: int | None = None
     ) -> None:
-        _, channel_cls, _ = self._type_args
+        _, chat_cls, _ = self._type_args
         for channel in channels:
             try:
                 new_channel = self._channels[ChatID(channel.chat_id)]
             except KeyError:
-                new_channel = channel_cls(self._state, self, channel)
+                new_channel = chat_cls(self._state, self, channel)
                 self._channels[new_channel.id] = new_channel
             else:
                 new_channel._update(channel)
@@ -815,17 +845,32 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
         """Leaves the chat group."""
         await self._state.leave_chat_group(self._id)
 
-    # TODO
-    # async def edit(self, *, name: str | None = None, tagline: str | None = None, avatar: bytes | SupportsRead) -> None:
-    #     """Edits the chat group."""
-    #     await self._state.edit_chat_group(self._id, name, tagline, avatar)
-    #
-    # async def create_role(self) -> Role:  # chat.CreateRoleRequest
-    #     ...
-    #
-    # async def create_channel(self) -> ChannelT:  # chat.CreateChatRoomRequest
-    #     ...
-    #
+    async def edit(self, *, name: str | None = None, tagline: str | None = None, avatar: Media) -> None:
+        """Edits the chat group."""
+        await self._state.edit_chat_group(self._id, name, tagline, avatar)
+
+    async def create_role(self, name: str) -> Role:
+        """Creates a role in the chat group.
+
+        Parameters
+        ----------
+        name
+            The name of the role to create.
+        """
+        return await self._state.create_role(self._id, name)
+
+    async def create_channel(self, name: str) -> ChatT:
+        """Creates a channel in the chat group.
+
+        Parameters
+        ----------
+        name
+            The name of the channel to create.
+        """
+        state = await self._state.create_chat(self._id, name)
+        _, chat_cls, _ = self._type_args
+        return chat_cls(self._state, self, state)
+
     # async def create_invite(self) -> InviteLink:  # chat.CreateInviteLinkRequest
     #     ...
     #
@@ -835,18 +880,37 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
     # async def invites(self) -> list[InviteLink]:  # chat.GetChatInvitesResponse
     #     ...
     #
-    # add Member.x equivalent for these 3
-    # async def mute(self, member: ID) -> None:  # chat.MuteUserRequest
-    #     ...
-    #
-    # async def kick(self, member: ID) -> None:  # chat.KickUserRequest
-    #     ...
-    #
-    # async def ban(self, member: ID) -> None:  # chat.SetUserBanStateRequest
-    #     ...
-    #
+    async def mute(self, member: IndividualID, expires_at: datetime) -> None:
+        """Mutes a member of the chat group.
+
+        Parameters
+        ----------
+        member
+            The member to mute.
+        expires_at
+            When the mute expires.
+        """
+        await self._state.mute_chat_group_member(self._id, member.id64, expires_at)
+
+    async def kick(self, member: IndividualID, expires_at: datetime) -> None:
+        """Kicks a member of the chat group.
+
+        Parameters
+        ----------
+        member
+            The member to kick.
+        expires_at
+            When the kick expires.
+        """
+        await self._state.kick_chat_group_member(self._id, member.id64, expires_at)
+
+    async def ban(self, member: IndividualID) -> None:
+        """Bans a member of the chat group."""
+        await self._state.set_chat_group_ban_state(self._id, member.id64, True)
+
+    async def unban(self, user: IndividualID) -> None:
+        """Unbans a member of the chat group."""
+        await self._state.set_chat_group_ban_state(self._id, user.id64, False)
+
     # async def bans(self) -> list[Ban]:  # chat.GetBanListRequest
-    #     ...
-    #
-    # async def unban(self, user: ID) -> None:  # chat.SetUserBanStateRequest
     #     ...

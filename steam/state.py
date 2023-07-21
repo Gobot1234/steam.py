@@ -81,6 +81,7 @@ from .reaction import (
     Sticker,
     _Reaction,
 )
+from .role import Role, RolePermissions
 from .trade import Item, TradeOffer
 from .types.id import *
 from .user import ClientUser, User
@@ -94,7 +95,7 @@ if TYPE_CHECKING:
     from .abc import Message
     from .chat import PartialMember
     from .client import Client
-    from .role import RolePermissions
+    from .media import Media
     from .types import manifest, trade
     from .types.http import Coro
     from .types.user import Author
@@ -628,6 +629,30 @@ class ConnectionState:
             raise WSException(msg)
         self.dispatch("typing", self.user, DateTime.from_timestamp(msg.server_timestamp))
 
+    async def fetch_user_history(
+        self,
+        user_id64: ID64,
+        start: int,
+        last: int,
+        start_ordinal: int = 0,
+    ) -> friend_messages.GetRecentMessagesResponse:
+        msg: friend_messages.GetRecentMessagesResponse = await self.ws.send_um_and_wait(
+            friend_messages.GetRecentMessagesRequest(
+                steamid1=self.user.id64,
+                steamid2=user_id64,
+                rtime32_start_time=start,
+                bbcode_format=False,
+                time_last=last,
+                start_ordinal=start_ordinal,
+                count=100,
+            )
+        )
+
+        if msg.result != Result.OK:
+            raise WSException(msg)
+
+        return msg
+
     async def react_to_user_message(
         self,
         user_id64: ID64,
@@ -796,23 +821,51 @@ class ConnectionState:
         msg = await fut
         return [self._store_user(member.persona) for member in msg.members]
 
-    async def edit_role_name(self, chat_group_id: ChatGroupID, role_id: RoleID, name: str) -> None:
-        msg = await self.ws.send_um_and_wait(
-            chat.RenameRoleRequest(chat_group_id=chat_group_id, role_id=role_id, name=name)
-        )
-        if msg.result == Result.InvalidParameter:
-            raise WSNotFound(msg)
-        elif msg.result != Result.OK:
-            raise WSException(msg)
+    # TODO before pushing reorder everything
+    async def edit_chat_group(
+        self, chat_group_id: ChatGroupID, name: str | None, tagline: str | None, avatar: Media | None
+    ):
+        if name is not None:
+            msg = await self.ws.send_um_and_wait(
+                chat.RenameChatRoomGroupRequest(
+                    chat_group_id=chat_group_id,
+                    name=name,
+                )
+            )
+            if msg.result == Result.InvalidParameter:
+                raise WSNotFound(msg)
+            elif msg.result != Result.OK:
+                raise WSException(msg)
+        if avatar is not None:
+            sha = await self.http.upload_chat_icon(avatar)
+            msg = await self.ws.send_um_and_wait(
+                chat.SetChatRoomGroupAvatarRequest(
+                    chat_group_id=chat_group_id,
+                    avatar_sha=sha.encode(),  # TODO not sure if this is right
+                )
+            )
+            if msg.result == Result.InvalidParameter:
+                raise WSNotFound(msg)
+            elif msg.result != Result.OK:
+                raise WSException(msg)
+        if tagline is not None:
+            msg = await self.ws.send_um_and_wait(
+                chat.SetChatRoomGroupTaglineRequest(
+                    chat_group_id=chat_group_id,
+                    tagline=tagline,
+                )
+            )
+            if msg.result == Result.InvalidParameter:
+                raise WSNotFound(msg)
+            elif msg.result != Result.OK:
+                raise WSException(msg)
 
-    async def edit_role_permissions(
-        self, chat_group_id: ChatGroupID, role_id: RoleID, permissions: RolePermissions
-    ) -> None:
+    async def mute_chat_group_member(self, chat_group_id: ChatGroupID, user_id64: ID64, expires_at: datetime) -> None:
         msg = await self.ws.send_um_and_wait(
-            chat.ReplaceRoleActionsRequest(
+            chat.MuteUserRequest(
                 chat_group_id=chat_group_id,
-                role_id=role_id,
-                actions=permissions.to_proto(),
+                steamid=user_id64,
+                expiration=int(expires_at.timestamp()),
             )
         )
         if msg.result == Result.InvalidParameter:
@@ -820,38 +873,76 @@ class ConnectionState:
         elif msg.result != Result.OK:
             raise WSException(msg)
 
-    async def delete_role(self, chat_group_id: ChatGroupID, role_id: RoleID) -> None:
-        msg = await self.ws.send_um_and_wait(chat.DeleteRoleRequest(chat_group_id=chat_group_id, role_id=role_id))
+    async def kick_chat_group_member(self, chat_group_id: ChatGroupID, user_id64: ID64, expires_at: datetime) -> None:
+        msg = await self.ws.send_um_and_wait(
+            chat.KickUserRequest(
+                chat_group_id=chat_group_id,
+                steamid=user_id64,
+                expiration=int(expires_at.timestamp()),
+            )
+        )
         if msg.result == Result.InvalidParameter:
             raise WSNotFound(msg)
         elif msg.result != Result.OK:
             raise WSException(msg)
 
-    async def fetch_user_history(
+    async def set_chat_group_ban_state(self, chat_group_id: ChatGroupID, user_id64: ID64, banned: bool) -> None:
+        msg = await self.ws.send_um_and_wait(
+            chat.SetUserBanStateRequest(
+                chat_group_id=chat_group_id,
+                steamid=user_id64,
+                ban_state=banned,
+            )
+        )
+        if msg.result == Result.InvalidParameter:
+            raise WSNotFound(msg)
+        elif msg.result != Result.OK:
+            raise WSException(msg)
+
+    async def create_chat(self, chat_group_id: ChatGroupID, name: str) -> chat.State:
+        msg: chat.CreateChatRoomResponse = await self.ws.send_um_and_wait(
+            chat.CreateChatRoomRequest(chat_group_id=chat_group_id, name=name)
+        )
+        if msg.result == Result.InvalidParameter:
+            raise WSNotFound(msg)
+        elif msg.result != Result.OK:
+            raise WSException(msg)
+        return msg.chat_room
+
+    async def edit_chat(
         self,
-        user_id64: ID64,
-        start: int,
-        last: int,
-        start_ordinal: int = 0,
-    ) -> friend_messages.GetRecentMessagesResponse:
-        msg: friend_messages.GetRecentMessagesResponse = await self.ws.send_um_and_wait(
-            friend_messages.GetRecentMessagesRequest(
-                steamid1=self.user.id64,
-                steamid2=user_id64,
-                rtime32_start_time=start,
-                bbcode_format=False,
-                time_last=last,
-                start_ordinal=start_ordinal,
-                count=100,
+        chat_group_id: ChatGroupID,
+        chat_id: ChatID,
+        name: str | None,
+        after_chat_id: ChatID | None,
+    ) -> None:
+        if name is not None:
+            msg = await self.ws.send_um_and_wait(
+                chat.RenameChatRoomRequest(chat_group_id=chat_group_id, chat_id=chat_id, name=name)
             )
-        )
+            if msg.result == Result.InvalidParameter:
+                raise WSNotFound(msg)
+            elif msg.result != Result.OK:
+                raise WSException(msg)
+        if after_chat_id is not None:
+            msg = await self.ws.send_um_and_wait(
+                chat.ReorderChatRoomRequest(
+                    chat_group_id=chat_group_id, chat_id=chat_id, move_after_chat_id=after_chat_id
+                )
+            )
+            if msg.result == Result.InvalidParameter:
+                raise WSNotFound(msg)
+            elif msg.result != Result.OK:
+                raise WSException(msg)
 
-        if msg.result != Result.OK:
+    async def delete_chat(self, chat_group_id: ChatGroupID, chat_id: ChatID) -> None:
+        msg = await self.ws.send_um_and_wait(chat.DeleteChatRoomRequest(chat_group_id=chat_group_id, chat_id=chat_id))
+        if msg.result == Result.InvalidParameter:
+            raise WSNotFound(msg)
+        elif msg.result != Result.OK:
             raise WSException(msg)
 
-        return msg
-
-    async def fetch_chat_group_history(
+    async def fetch_chat_history(
         self, chat_group_id: ChatGroupID, chat_id: ChatID, start: int, last: int, last_ordinal: int
     ) -> chat.GetMessageHistoryResponse:
         msg: chat.GetMessageHistoryResponse = await self.ws.send_um_and_wait(
@@ -894,6 +985,57 @@ class ConnectionState:
             raise WSException(msg)
 
         return cast("list[ID32]", msg.reactors)
+
+    async def create_role(self, chat_group_id: ChatGroupID, name: str) -> Role:
+        msg: chat.CreateRoleResponse = await self.ws.send_um_and_wait(
+            chat.CreateRoleRequest(
+                chat_group_id=chat_group_id,
+                name=name,
+            )
+        )
+        if msg.result == Result.InvalidParameter:
+            raise WSNotFound(msg)
+        elif msg.result != Result.OK:
+            raise WSException(msg)
+        roles = await self.fetch_chat_group_roles(chat_group_id)
+        role = utils.get(roles, id=msg.actions.role_id)
+        assert role is not None
+        return Role(self, self._chat_groups[chat_group_id], role, msg.actions)
+
+    async def edit_role(
+        self, chat_group_id: ChatGroupID, role_id: RoleID, name: str | None, permissions: RolePermissions | None
+    ) -> None:
+        if name is not None:
+            msg = await self.ws.send_um_and_wait(
+                chat.RenameRoleRequest(chat_group_id=chat_group_id, role_id=role_id, name=name)
+            )
+            if msg.result == Result.InvalidParameter:
+                raise WSNotFound(msg)
+            elif msg.result != Result.OK:
+                raise WSException(msg)
+        if permissions is not None:
+            msg = await self.ws.send_um_and_wait(
+                chat.ReplaceRoleActionsRequest(
+                    chat_group_id=chat_group_id,
+                    role_id=role_id,
+                    actions=permissions.to_proto(),
+                )
+            )
+            if msg.result == Result.InvalidParameter:
+                raise WSNotFound(msg)
+            elif msg.result != Result.OK:
+                raise WSException(msg)
+
+    # TODO no idea what this does
+    # async def edit_role_position(self, chat_group_id: ChatGroupID, role_id: RoleID, ordinal: int) -> None:
+    #     chat.ReorderRoleRequest(chat_group_id=chat_group_id, role_id=role_id, ordinal=ordinal)
+
+    async def delete_role(self, chat_group_id: ChatGroupID, role_id: RoleID) -> None:
+        msg = await self.ws.send_um_and_wait(chat.DeleteRoleRequest(chat_group_id=chat_group_id, role_id=role_id))
+        if msg.result == Result.InvalidParameter:
+            raise WSNotFound(msg)
+        elif msg.result != Result.OK:
+            raise WSException(msg)
 
     async def fetch_servers(self, query: str, limit: int) -> list[game_servers.GetServerListResponseServer]:
         msg: game_servers.GetServerListResponse = await self.ws.send_um_and_wait(
