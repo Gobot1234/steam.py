@@ -394,7 +394,7 @@ class SteamWebSocket:
             while True:
                 await self.poll_event()
 
-        poll_task = self._state._tg.create_task(inner_poll())
+        poll_task = asyncio.create_task(inner_poll())
 
         yield
 
@@ -627,12 +627,15 @@ class SteamWebSocket:
         except WebSocketClosure:
             await self._state.handle_close()
 
-    async def wrap_coro(self, task: CoroutineType[Any, Any, Any]) -> None:
+    def parser_callback(self, task: asyncio.Task[Any]) -> None:
         try:
-            await task
-        except RAISED_EXCEPTIONS as e:
-            if not self._state._task_error.done():
-                self._state._task_error.set_exception(e)
+            exc = task.exception()
+        except asyncio.CancelledError:
+            pass
+        else:
+            if isinstance(exc, RAISED_EXCEPTIONS) and not self._state._task_error.done():
+                self._state._task_error.set_exception(exc)
+        self._pending_parsers.remove(task)
 
     def receive(self, message: bytearray, /) -> None:
         emsg_value = READ_U32(message)
@@ -666,9 +669,9 @@ class SteamWebSocket:
                 return traceback.print_exc()
 
             if isinstance(result, CoroutineType):
-                task = asyncio.create_task(self.wrap_coro(result), name=f"steam.py: {event_parser.__name__}")
-                task.add_done_callback(self._pending_parsers.remove)
+                task = asyncio.create_task(result, name=f"steam.py: {event_parser.__name__}")
                 self._pending_parsers.add(task)
+                task.add_done_callback(self.parser_callback)
         # remove the dispatched listener
         removed: list[int] = []
         for idx, entry in enumerate(self.listeners):
