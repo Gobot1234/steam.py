@@ -296,7 +296,7 @@ class UserInventoryInfo(Generic[UserT]):
     owner_only: bool
     contexts: list[UserInventoryInfoContext]
 
-    async def all_inventories(self) -> AsyncGenerator[Inventory[Item[UserT], UserT], None]:
+    async def inventories(self) -> AsyncGenerator[Inventory[Item[UserT], UserT], None]:
         """An :term:`asynchronous iterator` for accessing a user's full inventory in an app."""
         for context in self.contexts:
             yield await self.user.inventory(App(id=self.app.id, context_id=context.id))
@@ -418,6 +418,12 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
         """
         resp = await self._state.fetch_user_inventory(self.id64, app.id, app.context_id, language)
         return Inventory(state=self._state, data=resp, owner=self, app=app, language=language)
+
+    async def inventories(self) -> AsyncGenerator[Inventory[Item[Self], Self], None]:
+        """Fetches all the inventories a user has."""
+        for inventory_info in await self.inventory_info():
+            async for inventory in inventory_info.inventories():
+                yield inventory
 
     async def friends(self) -> Sequence[User]:
         """Fetch the list of the users friends."""
