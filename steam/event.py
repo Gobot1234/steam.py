@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import abc
-from collections.abc import Sequence
-from datetime import datetime
 from ipaddress import IPv4Address
 from typing import TYPE_CHECKING, Generic, Literal, cast, overload
 
@@ -18,6 +16,9 @@ from .id import ID_ZERO
 from .utils import DateTime
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+    from datetime import datetime
+
     from .clan import BoringEvents, Clan, CreateableEvents, PartialClan
     from .game_server import GameServer
     from .state import ConnectionState
@@ -314,7 +315,7 @@ class Announcement(BaseEvent[EventType, ClanT]):
 
     @property
     def _commentable_kwargs(self) -> _CommentableKwargs:
-        from .clan import Clan
+        from .clan import Clan  # noqa: F811
 
         if isinstance(self.clan, Clan) and self.clan.is_ogg():
             raise NotImplementedError("Fetching an app announcement's comments is not currently supported")

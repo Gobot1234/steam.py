@@ -5,16 +5,12 @@ from __future__ import annotations
 import asyncio
 import inspect
 import logging
-from collections.abc import Mapping
 from contextvars import ContextVar
 from types import CoroutineType
 from typing import TYPE_CHECKING, Any, Final, Generic, TypeVar, cast, get_args
 
-from typing_extensions import Self
-
 from .._const import CLEAR_PROTO_BIT, IS_PROTO
 from ..app import App
-from ..gateway import GCMsgs
 from ..protobufs import GCMessage, GCProtobufMessage, friends
 from ..protobufs.emsg import EMsg
 from ..state import ConnectionState, ParserCallback
@@ -22,6 +18,11 @@ from ..trade import Inventory, Item
 from ..types.id import AppID, AssetID
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from typing_extensions import Self
+
+    from ..gateway import GCMsgs
     from ..protobufs.client_server_2 import CMsgGcClientFromGC
     from .client import Client, ClientUser
 
@@ -80,7 +81,10 @@ class GCState(ConnectionState, Generic[Inv]):
     def __init_subclass__(cls) -> None:
         cls.gc_parsers = {}
         for _, func in inspect.getmembers(cls, lambda x: inspect.isfunction(x) and hasattr(x, "__parser__")):
-            params = list(inspect.get_annotations(func, eval_str=True).values())
+            try:
+                params = list(inspect.get_annotations(func, eval_str=True).values())
+            except NameError:
+                continue
             msg = (
                 args[0] if (args := get_args(params[0])) else params[0]
             )  # if it's a union only use the first type (Message | None or Message | Any)

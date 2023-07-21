@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Any
-
-from typing_extensions import Self
+from typing import TYPE_CHECKING, Any
 
 from ..utils import StructIO
+
+if TYPE_CHECKING:
+    from typing_extensions import Self
 
 
 class StructMessage:

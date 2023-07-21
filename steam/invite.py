@@ -6,11 +6,11 @@ from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, ClassVar, Final, Literal
 
-from typing_extensions import Self
-
 from .enums import FriendRelationship, classproperty
 
 if TYPE_CHECKING:
+    from typing_extensions import Self
+
     from .abc import PartialUser
     from .app import PartialApp
     from .clan import Clan

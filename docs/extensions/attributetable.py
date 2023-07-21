@@ -27,20 +27,22 @@ import contextlib
 import importlib
 import inspect
 import re
-from contextlib import AbstractAsyncContextManager
-from typing import NamedTuple
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
+from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple
 
 import sphinxcontrib_trio
 from docutils import nodes
 from sphinx import addnodes
-from sphinx.application import Sphinx
-from sphinx.environment import BuildEnvironment
 from sphinx.locale import _
 from sphinx.util.docutils import SphinxDirective
-from sphinx.util.typing import OptionSpec
-from sphinx.writers.html import HTMLTranslator
 
 from docs.extensions import is_async_iterable
+
+if TYPE_CHECKING:
+    from sphinx.application import Sphinx
+    from sphinx.environment import BuildEnvironment
+    from sphinx.util.typing import OptionSpec
+    from sphinx.writers.html import HTMLTranslator
 
 
 class attributetable(nodes.General, nodes.Element):
@@ -120,7 +122,7 @@ class PyAttributeTable(SphinxDirective):
     required_arguments = 1
     optional_arguments = 0
     final_argument_whitespace = False
-    option_spec: OptionSpec = {}
+    option_spec: ClassVar[OptionSpec] = {}
 
     def parse_name(self, content: str) -> tuple[str, str]:
         match = _name_parser_regex.match(content)
@@ -228,6 +230,9 @@ def process_attributetable(app: Sphinx, doctree: nodes.Node, fromdocname: str) -
             node.replace_self([table])
 
 
+ACM_CODE = asynccontextmanager(Any).__code__
+
+
 def get_class_results(
     lookup: dict[str, list[str]], modulename: str, name: str, fullname: str
 ) -> dict[str, list[TableElement]]:
@@ -273,9 +278,7 @@ def get_class_results(
                     key = _("Methods")
                     badge = attributetablebadge("@", "@")
                     badge["badge-type"] = _("decorator")
-                elif value.__code__ in sphinxcontrib_trio.ACM_CODES or isinstance(
-                    value, contextlib.AbstractAsyncContextManager
-                ):
+                elif value.__code__ == ACM_CODE or isinstance(value, contextlib.AbstractAsyncContextManager):
                     key = _("Methods")
                     badge = attributetablebadge("async with", "async with")
                     badge["badge-type"] = _("async context manager")

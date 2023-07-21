@@ -5,7 +5,6 @@ from __future__ import annotations
 from collections.abc import AsyncGenerator, Mapping
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from datetime import datetime
 from typing import TYPE_CHECKING, Final, Protocol, cast, overload
 
 from yarl import URL
@@ -13,13 +12,15 @@ from yarl import URL
 from .app import PartialApp
 from .models import _IOMixin
 from .protobufs.chat import EChatRoomMessageReactionType
-from .protobufs.friend_messages import EMessageReactionType
 from .utils import DateTime
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from aiohttp import StreamReader
 
     from .message import Message
+    from .protobufs.friend_messages import EMessageReactionType
     from .protobufs.friends import (
         CMsgClientEmoticonListEffect as ClientEffectProto,
         CMsgClientEmoticonListEmoticon as ClientEmoticonProto,

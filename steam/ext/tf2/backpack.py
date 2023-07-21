@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable
 from contextvars import ContextVar
 from typing import TYPE_CHECKING
 
@@ -9,13 +8,15 @@ from betterproto.casing import pascal_case
 from typing_extensions import TypeVar
 
 from ...trade import Inventory, Item
-from ...user import User
 from ...utils import cached_slot_property
 from .enums import *
 from .protobufs import base, econ, struct_messages
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from ...abc import BaseUser, PartialUser
+    from ...user import User
     from .client import ClientUser
     from .state import GCState
     from .types.schema import Schema

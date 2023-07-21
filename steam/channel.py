@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncGenerator, Coroutine
-from contextlib import AbstractAsyncContextManager
-from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from .abc import Channel
@@ -12,6 +9,10 @@ from .chat import Chat, GroupChannelProtos
 from .message import ClanMessage, GroupMessage, UserMessage
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator, Coroutine
+    from contextlib import AbstractAsyncContextManager
+    from datetime import datetime
+
     from .clan import Clan
     from .friend import Friend
     from .group import Group

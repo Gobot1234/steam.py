@@ -4,14 +4,16 @@
 from __future__ import annotations
 
 import random
-from collections.abc import AsyncGenerator
 from datetime import datetime, timezone
-from typing import Any, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 import pytest
 from yarl import URL
 
 from steam import ID, utils
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
 
 
 class FakeModel(NamedTuple):

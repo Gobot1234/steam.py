@@ -14,7 +14,6 @@ import os
 import sys
 import traceback
 import warnings
-from collections.abc import Callable, Coroutine, Iterable
 from pathlib import Path
 from types import MappingProxyType, ModuleType
 from typing import TYPE_CHECKING, Any, Literal, TypeAlias, TypeVar, overload
@@ -32,6 +31,7 @@ from .utils import Shlex
 
 if TYPE_CHECKING:
     import datetime
+    from collections.abc import Callable, Coroutine, Iterable
 
     from steam.ext import commands
 
@@ -599,7 +599,7 @@ class Bot(GroupMixin, Client):
         """
         return self.__cogs__.get(name)
 
-    async def on_command_error(self, ctx: "commands.Context", error: Exception) -> None:
+    async def on_command_error(self, ctx: commands.Context, error: Exception) -> None:
         """The default command error handler provided by the bot. This only fires if you do not specify any listeners for
         command error.
 
@@ -624,7 +624,7 @@ class Bot(GroupMixin, Client):
 
     if TYPE_CHECKING or _const.DOCS_BUILDING:
 
-        async def on_command(self, ctx: "commands.Context", /) -> None:
+        async def on_command(self, ctx: commands.Context, /) -> None:
             """A method that is called every time a command is dispatched.
 
             Parameters
@@ -633,7 +633,7 @@ class Bot(GroupMixin, Client):
                 The invocation context.
             """
 
-        async def on_command_completion(self, ctx: "commands.Context", /) -> None:
+        async def on_command_completion(self, ctx: commands.Context, /) -> None:
             """A method that is called every time a command is dispatched and completed without error.
 
             Parameters

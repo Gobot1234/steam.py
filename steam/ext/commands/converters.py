@@ -5,7 +5,6 @@ from __future__ import annotations
 import types
 import warnings
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Generator, Sequence
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -21,8 +20,6 @@ from typing import (
     runtime_checkable,
 )
 
-from typing_extensions import Never
-
 from ... import _const, utils
 from ...abc import PartialUser
 from ...app import App, PartialApp
@@ -35,6 +32,10 @@ from ...user import ClientUser, User
 from .errors import BadArgument
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Generator, Sequence
+
+    from typing_extensions import Never
+
     from steam.ext import commands
 
     from .bot import Bot
@@ -67,7 +68,7 @@ Converters: TypeAlias = "ConverterBase[Any] | BasicConverter[Any]"
 class ConverterDict(dict[type, "tuple[Converters, ...]"]):
     def __setitem__(self, key: Any, value: Converters) -> None:
         old_value = super().get(key, ())
-        super().__setitem__(key, old_value + (value,))
+        super().__setitem__(key, (*old_value, value))
 
 
 class BasicConverter(Protocol[T]):
@@ -128,7 +129,7 @@ def converter_for(converter_for: type[T]) -> Callable[[Callable[[str], T]], Basi
 class ConverterBase(Protocol[T_co]):
     # this is the base class we use for isinstance checks, don't actually this
     @abstractmethod
-    async def convert(self, ctx: "commands.Context[Any]", argument: str, /) -> "T_co":
+    async def convert(self, ctx: commands.Context[Any], argument: str, /) -> T_co:
         """An abstract method all converters must derive.
 
         Parameters
@@ -444,7 +445,7 @@ class Default(Protocol, Any if TYPE_CHECKING else object):
     """
 
     @abstractmethod
-    async def default(self, ctx: "commands.Context"):
+    async def default(self, ctx: commands.Context):
         raise NotImplementedError("Derived classes must to implement this")
 
 
@@ -531,7 +532,10 @@ class Greedy(Generic[T]):
         Passing more than one argument to ``converter`` is shorthand for ``Union[converter_tuple]``.
         """
         if isinstance(converter, tuple):
-            converter = converter[0] if len(converter) == 1 else Union[converter]
+            try:
+                (converter,) = converter
+            except ValueError:
+                raise TypeError("Cannot pass variadic arguments to Greedy")
         if not (callable(converter) or isinstance(converter, (Converter, str)) or get_origin(converter) is not None):
             raise TypeError(f"Greedy[...] expects a type or a Converter instance not {converter!r}")
 
@@ -539,8 +543,10 @@ class Greedy(Generic[T]):
             raise TypeError(f"Greedy[{converter.__name__}] is invalid")
 
         seen = tuple(dict.fromkeys(flatten_greedy(converter)))
+        if len(seen) != 1:
+            raise TypeError(f"Cannot create Greedy instance with {converter} ({len(seen)} args)")
 
-        annotation = super().__class_getitem__(seen[0] if len(seen) == 1 else Union[tuple(seen)])
+        annotation = super().__class_getitem__(seen[0])
         annotation.converter = get_args(annotation)[0]
         return annotation
 

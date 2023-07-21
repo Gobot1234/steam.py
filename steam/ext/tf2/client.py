@@ -1,23 +1,24 @@
 from __future__ import annotations
 
 import asyncio
-import os
-from collections.abc import Collection
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final, Literal, cast, overload
 
-from typing_extensions import Self
+from typing_extensions import Self  # noqa: TCH002
 
 from ..._const import DOCS_BUILDING, VDF_LOADS, timeout
 from ..._gc import Client as Client_
 from ..._gc.client import ClientUser as ClientUser_
 from ...app import TF2, App
 from ...ext import commands
-from ...utils import cached_property
+from ...utils import cached_property  # noqa: TCH001
 from .protobufs import struct_messages
-from .state import GCState
+from .state import GCState  # noqa: TCH001
 
 if TYPE_CHECKING:
+    import os
+    from collections.abc import Collection
+
     from ...enums import Language as Language_
     from ...ext import tf2
     from ...trade import Inventory, Item

@@ -84,7 +84,7 @@ hypothesis = "^6.82.0"
 fmt = {sequence = [
     {script = "scripts.blacken_docs_correctly:main"},
     {cmd = "black ."},
-    {cmd = "isort ."}
+    {cmd = "ruff . --select=I --fix"}
 ], ignore_fail = true, help = "Format the code"}
 doc = {cmd = "sphinx-build -b html -T -W --keep-going docs/ docs/_build", help = "Build the documentation"}  # TODO -n
 add-cms = {script = "scripts.add_cms:main", help = "Add a default list of CMs for when the API is down"}
@@ -97,7 +97,7 @@ required = true
 positional = true
 help = "Which types of tests to run can be one of 'full', 'unit' or 'integration'"
     [[tool.poe.tasks.test.switch]]
-    case = "full"
+    case = ["full", "all"]
     cmd = "pytest tests"
 
     [[tool.poe.tasks.test.switch]]
@@ -120,13 +120,6 @@ help = "A base64 encoded protobufs message from Steam to decode"
 line-length = 120
 python_version = "py310"
 
-[tool.isort]
-profile = "black"
-line_length = 120
-combine_as_imports = true
-atomic = true
-ensure_newline_before_comments = true
-
 [tool.blacken-docs]
 line-length = 120
 target-version = ["py310"]
@@ -134,9 +127,33 @@ target-version = ["py310"]
 [tool.ruff]
 line-length = 120
 select = [
-    "F", "W", "SIM", "G", "TCH004", "PTH", "RUF"
+    "C4",
+    "F",
+    "G",
+    "I",
+    "PTH",
+    "RUF",
+    "SIM",
+    "TCH",
+    "UP",
+    "W",
+    "PERF",
 ]
-ignore = ["SIM105", "F405", "F402", "F403", "F401", "RUF001"]
+ignore = [
+    "F401",
+    "F402",
+    "F403",
+    "F405",
+    "PERF203",
+    "RUF001",
+    "RUF009",
+    "SIM105",
+    "UP034",
+    "UP038",
+]
+[tool.ruff.isort]
+split-on-trailing-comma = true
+combine-as-imports = true
 
 [tool.mypy]
 ignore_missing_imports = true
@@ -151,7 +168,6 @@ pretty = true
 
 [tool.pyright]
 typeCheckingMode = "basic"
-pythonVersion = "3.10"
 useLibraryCodeForTypes = true
 reportSelfClsParameterName = "none"
 reportUntypedFunctionDecorator = "error"

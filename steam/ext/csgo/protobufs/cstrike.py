@@ -3,13 +3,15 @@
 # plugin: python-betterproto
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import betterproto
 
 from ....protobufs.msg import GCProtobufMessage
 from ..enums import EMsg
-from .engine import GotvSyncPacket
+
+if TYPE_CHECKING:
+    from .engine import GotvSyncPacket
 
 
 class ECsgoSteamUserStat(betterproto.Enum):
@@ -812,8 +814,8 @@ class PreviewDataBlock(betterproto.Message):
     quality: int = betterproto.uint32_field(6)
     paintwear: int = betterproto.uint32_field(7)
     paintseed: int = betterproto.uint32_field(8)
-    killeaterscoretype: Optional[int] = betterproto.uint32_field(9, optional=True, group="_killeaterscoretype")
-    killeatervalue: Optional[int] = betterproto.uint32_field(10, optional=True, group="_killeatervalue")
+    killeaterscoretype: int | None = betterproto.uint32_field(9, optional=True, group="_killeaterscoretype")
+    killeatervalue: int | None = betterproto.uint32_field(10, optional=True, group="_killeatervalue")
     customname: str = betterproto.string_field(11)
     stickers: "list[PreviewDataBlockSticker]" = betterproto.message_field(12)
     inventory: int = betterproto.uint32_field(13)

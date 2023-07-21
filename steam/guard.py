@@ -11,10 +11,10 @@ from typing import TYPE_CHECKING, Final, Literal, TypeAlias
 
 from ._const import URL
 from .errors import ConfirmationError
-from .types.id import TradeOfferID
 
 if TYPE_CHECKING:
     from .state import ConnectionState
+    from .types.id import TradeOfferID
 
 
 __all__ = (

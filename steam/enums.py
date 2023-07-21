@@ -7,9 +7,10 @@ from enum import Enum as _Enum, EnumMeta as _EnumMeta, IntEnum as _IntEnum
 from types import MappingProxyType, new_class
 from typing import TYPE_CHECKING, Any, Final, Generic, Literal, SupportsInt, TypeVar, cast
 
-from typing_extensions import Never, Self
-
 from ._const import DOCS_BUILDING
+
+if TYPE_CHECKING:
+    from typing_extensions import Never, Self
 
 __all__ = (
     "Enum",
@@ -188,14 +189,13 @@ class Enum(_Enum if TYPE_CHECKING else object, metaclass=EnumType):
     def __new__(cls, *, name: str, value: Any) -> Self:
         # N.B. this method is not ever called after enum creation as it is shadowed by EnumMeta.__call__ and is just
         # for creating Enum members
-        super_ = super()
         self = (
-            super_.__new__(cls, value)
+            super().__new__(cls, value)
             if any(not issubclass(base, Enum) for base in cls.__mro__[:-1])  # is it is a mixin enum
-            else super_.__new__(cls)  # type: ignore
+            else super().__new__(cls)  # type: ignore
         )
-        super_.__setattr__(self, "name", name)
-        super_.__setattr__(self, "value", value)
+        super().__setattr__(self, "name", name)
+        super().__setattr__(self, "value", value)
 
         return self
 
@@ -233,8 +233,8 @@ if not TYPE_CHECKING and DOCS_BUILDING:
     for key in ("__new__",):
         del enum_dict[key]
 
-    Enum = new_class("Enum", (_Enum,), {}, lambda ns: dict.update(ns, enum_dict))  # type: ignore
-    IntEnum = new_class("IntEnum", (Enum, _IntEnum))
+    Enum = new_class("Enum", (_Enum,), {}, lambda ns: dict.update(ns, enum_dict))
+    IntEnum = new_class("IntEnum", (Enum, _IntEnum))  # noqa: F811
 
 
 class Flags(IntEnum):

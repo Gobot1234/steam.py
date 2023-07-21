@@ -1,8 +1,11 @@
 from __future__ import annotations
 
-from typing_extensions import Self
+from typing import TYPE_CHECKING
 
 from ...enums import Enum, Flags, IntEnum, classproperty
+
+if TYPE_CHECKING:
+    from typing_extensions import Self
 
 __all__ = (
     "GCGoodbyeReason",
@@ -330,7 +333,7 @@ class Spell(IntEnum):
     HeadlessHorseshoe       = 8920
 
     @classproperty
-    def indices(cls: type[Self]) -> dict[int, dict[int, Spells]]:  # type: ignore
+    def indices(cls: type[Self]) -> dict[int, dict[int, Self]]:  # type: ignore
         return {
             1004: {
                 0: cls.DieJob,

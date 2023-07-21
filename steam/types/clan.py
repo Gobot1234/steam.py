@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from typing import Literal, TypeAlias, TypedDict
+from typing import TYPE_CHECKING, Literal, TypeAlias, TypedDict
 
-from typing_extensions import Required
+if TYPE_CHECKING:
+    from typing_extensions import Required
 
-from ..enums import EventType
+    from ..enums import EventType
 
 
 class Event(TypedDict, total=False):

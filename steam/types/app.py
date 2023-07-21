@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Any, Literal, TypedDict
+from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
-from typing_extensions import NotRequired
+if TYPE_CHECKING:
+    from typing_extensions import NotRequired
 
 
 class WishlistApp(TypedDict):

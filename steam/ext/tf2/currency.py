@@ -6,9 +6,10 @@ from __future__ import annotations
 import math
 from decimal import Decimal
 from fractions import Fraction
-from typing import TypeAlias, overload
+from typing import TYPE_CHECKING, TypeAlias, overload
 
-from typing_extensions import Self
+if TYPE_CHECKING:
+    from typing_extensions import Self
 
 __all__ = ("Metal",)
 

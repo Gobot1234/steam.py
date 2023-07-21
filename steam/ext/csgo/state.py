@@ -7,16 +7,13 @@ import logging
 import math
 import struct
 import sys
-from collections.abc import Callable, Iterable, Sequence
 from typing import TYPE_CHECKING, Any
-from weakref import WeakValueDictionary
 
 from ... import utils
 from ..._const import READ_U32
 from ..._gc import GCState as GCState_
 from ...app import CSGO
 from ...id import _ID64_TO_ID32
-from ...protobufs import friends
 from ...state import parser
 from ...types.id import ID32, ID64, AssetID, Intable
 from .backpack import Backpack, Casket, CasketItem, Paint, Sticker
@@ -25,6 +22,10 @@ from .models import PartialUser, User
 from .protobufs import base, cstrike, sdk
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable, Sequence
+    from weakref import WeakValueDictionary
+
+    from ...protobufs import friends
     from .client import Client
 
 log = logging.getLogger(__name__)

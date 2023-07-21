@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Sequence
 from typing import TYPE_CHECKING, Literal
 
 from .channel import GroupChannel
@@ -11,6 +10,8 @@ from .chat import ChatGroup, Member, PartialMember
 from .enums import Type
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from .protobufs import chat
     from .state import ConnectionState
     from .types.id import ID32, ChatGroupID

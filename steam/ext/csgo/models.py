@@ -9,12 +9,9 @@ from datetime import timedelta
 from operator import itemgetter
 from typing import TYPE_CHECKING, Generic, TypeVar, cast, overload
 
-from typing_extensions import Literal, Self
-
 from ... import abc, user, utils
 from ..._const import timeout
 from ..._gc.client import ClientUser as ClientUser_
-from ...app import CSGO, App
 from ...id import parse_id64
 from ...types.id import ID32
 from ...utils import DateTime
@@ -22,6 +19,11 @@ from ..commands.converters import Converter, UserConverter
 from .protobufs import cstrike
 
 if TYPE_CHECKING:
+    from typing import Literal
+
+    from typing_extensions import Self
+
+    from ...app import CSGO, App
     from ...enums import Language
     from ...trade import Inventory, Item
     from .backpack import Backpack
@@ -122,8 +124,8 @@ class Match:
 @dataclass
 class Matches:
     matches: list[Match]
-    streams: list["cstrike.TournamentTeam"]
-    tournament_info: "cstrike.TournamentInfo"
+    streams: list[cstrike.TournamentTeam]
+    tournament_info: cstrike.TournamentInfo
 
 
 class PartialUser(abc.PartialUser):

@@ -1,3 +1,4 @@
+# ruff: noqa: F811
 import contextlib
 import traceback
 from collections.abc import AsyncGenerator, Generator
@@ -49,7 +50,7 @@ async def test_commands():
         with pytest.raises(steam.ClientException):
 
             @commands.command
-            async def not_even_close() -> None:  # noqa
+            async def not_even_close() -> None:
                 ...
 
     async with TheTestBot() as bot:

@@ -7,12 +7,12 @@ from typing import TYPE_CHECKING, Generic
 
 from ._const import impl_eq_via_id
 from .abc import Awardable, Commentable, _CommentableKwargs
-from .app import PartialApp
-from .types.id import PostID
 from .types.user import UserT
 
 if TYPE_CHECKING:
+    from .app import PartialApp
     from .state import ConnectionState
+    from .types.id import PostID
 
 
 @dataclass(repr=False, slots=True, eq=False)

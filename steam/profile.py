@@ -4,14 +4,12 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime
 from typing import TYPE_CHECKING, Generic, Protocol
 
 from typing_extensions import TypeVar
 
 from . import utils
 from .app import STEAM, PartialApp
-from .badge import UserBadge
 from .enums import *
 from .errors import WSException
 from .models import _IOMixin
@@ -20,7 +18,10 @@ from .trade import Asset, Item
 from .types.id import ID32, AppID, AssetID, PublishedFileID
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from .abc import PartialUser
+    from .badge import UserBadge
     from .clan import Clan, PartialClan
     from .friend import Friend
     from .protobufs import player

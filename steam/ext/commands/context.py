@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncGenerator, Coroutine
 from typing import TYPE_CHECKING, Any, Generic
 
 from typing_extensions import TypeVar
@@ -10,6 +9,7 @@ from typing_extensions import TypeVar
 from ...abc import Message, Messageable, PartialUser
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator, Coroutine
     from datetime import datetime
 
     from ...friend import Friend

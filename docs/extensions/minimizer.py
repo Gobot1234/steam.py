@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Generator
 from functools import partial
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import csscompressor
 import htmlmin
 import rjsmin
-from sphinx.application import Sphinx
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
+    from sphinx.application import Sphinx
 
 
 def get_files(output_dir, suffix: str) -> Generator[Path, None, None]:

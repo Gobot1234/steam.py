@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncGenerator, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Generic, Literal, cast, overload
 
@@ -14,6 +13,8 @@ from .enums import LeaderboardDataRequest, LeaderboardDisplayType, LeaderboardSo
 from .user import User, WrapsUser
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator, Sequence
+
     from .app import App
     from .state import ConnectionState
     from .types.id import ID64, LeaderboardID

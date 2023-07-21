@@ -93,7 +93,7 @@ def test_from_id(steam_id: ID, components: list[int]) -> None:
         -50,
     ],
 )
-def test_invalid_steam_id(id64: Union[int, str]) -> None:
+def test_invalid_steam_id(id64: int | str) -> None:
     with pytest.raises(InvalidID):
         ID(id64)
 
@@ -213,7 +213,7 @@ def test_as_steam3(steam_id: ID, id3: str) -> None:
         [ID("[A:1:4]"), None],  # else None
     ],
 )
-def test_community_url(steam_id: ID, community_url: Optional[str]) -> None:
+def test_community_url(steam_id: ID, community_url: str | None) -> None:
     assert steam_id.community_url == community_url
 
 
@@ -227,7 +227,7 @@ def test_community_url(steam_id: ID, community_url: Optional[str]) -> None:
         [ID(123456, type=Type.Clan, universe=Universe.Public, instance=Instance.Desktop), None],
     ],
 )
-def test_as_invite_code(steam_id: ID, invite_code: Optional[str]) -> None:
+def test_as_invite_code(steam_id: ID, invite_code: str | None) -> None:
     assert steam_id.invite_code == invite_code
 
 
@@ -247,5 +247,5 @@ def test_as_invite_code(steam_id: ID, invite_code: Optional[str]) -> None:
         [ID(123456, type=Type.Clan, universe=Universe.Public, instance=Instance.Desktop), None],
     ],
 )
-def test_as_invite_url(steam_id: ID, invite_url: Optional[str]) -> None:
+def test_as_invite_url(steam_id: ID, invite_url: str | None) -> None:
     assert steam_id.invite_url == invite_url

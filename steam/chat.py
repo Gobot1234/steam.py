@@ -9,8 +9,6 @@ from __future__ import annotations
 import abc
 import asyncio
 import logging
-from collections.abc import AsyncGenerator, Callable, Coroutine, Iterable, Sequence
-from datetime import datetime
 from typing import TYPE_CHECKING, Any, Generic, Literal, Protocol, TypeAlias, cast, overload, runtime_checkable
 
 from typing_extensions import Self, TypeVar
@@ -32,6 +30,9 @@ from .user import User, WrapsUser
 from .utils import DateTime, cached_slot_property
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator, Callable, Coroutine, Iterable, Sequence
+    from datetime import datetime
+
     from .channel import ClanChannel, GroupChannel
     from .clan import Clan
     from .group import Group

@@ -7,13 +7,13 @@ from typing import TYPE_CHECKING, Any, Literal, Protocol, runtime_checkable
 
 from typing_extensions import TypeVar
 
-from .models import CDNAsset
 from .types.id import AssetID
 from .types.user import UserT
 from .utils import DateTime, get
 
 if TYPE_CHECKING:
     from .app import STEAM, PartialApp
+    from .models import CDNAsset
     from .state import ConnectionState
     from .trade import Item
     from .types import user
@@ -115,7 +115,7 @@ class BaseOwnedBadge(BaseBadge[AppT], Protocol[AppT, UserT]):  # type: ignore
         self.community_item_id = AssetID(int(community_item_id)) if community_item_id is not None else None
 
     async def _from_inventory(self, offset: int) -> Item[UserT]:
-        from .app import STEAM
+        from .app import STEAM  # noqa: F811
 
         if self.community_item_id is None:
             raise ValueError("This badge doesn't have an associated item.")
@@ -176,7 +176,7 @@ class UserBadge(BaseOwnedBadge["PartialApp | Literal[STEAM]", UserT]):
     __slots__ = ("xp", "scarcity", "completed_at")
 
     def __init__(self, state: ConnectionState, owner: UserT, data: user.UserBadgeBadge):
-        from .app import STEAM, PartialApp
+        from .app import STEAM, PartialApp  # noqa: F811
 
         super().__init__(
             state,

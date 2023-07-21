@@ -7,7 +7,6 @@ import contextlib
 import itertools
 import types
 from collections.abc import Iterator, Sequence
-from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Generic, cast, overload
 
 from typing_extensions import NamedTuple, TypeVar
@@ -23,6 +22,8 @@ from .types.id import AppID, AssetID, ClassID, ContextID, InstanceID, TradeOffer
 from .utils import DateTime
 
 if TYPE_CHECKING:
+    from datetime import datetime, timedelta
+
     from .abc import BaseUser, PartialUser
     from .friend import Friend
     from .state import ConnectionState

@@ -24,9 +24,13 @@ DEALINGS IN THE SOFTWARE.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from docutils import nodes
 from docutils.parsers.rst import Directive
-from sphinx.application import Sphinx
+
+if TYPE_CHECKING:
+    from sphinx.application import Sphinx
 
 
 class exception_hierarchy(nodes.General, nodes.Element):

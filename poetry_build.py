@@ -11,7 +11,7 @@ except ImportError:
     import tomli as tomllib
 
 if TYPE_CHECKING:
-    from typing_extensions import TypeAlias
+    from typing import TypeAlias
 
 ROOT = pathlib.Path()
 PYPROJECT = tomllib.loads((ROOT / "pyproject.toml").read_text())

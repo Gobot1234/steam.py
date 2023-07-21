@@ -7,7 +7,6 @@ import functools
 import importlib
 import logging
 import sys
-from collections.abc import Callable
 from dataclasses import dataclass
 from inspect import get_annotations
 from types import MappingProxyType
@@ -18,13 +17,17 @@ from typing_extensions import Self, dataclass_transform
 
 from .._const import MISSING, SET_PROTO_BIT, WRITE_U32
 from ..enums import IntEnum, Result
-from ..types.id import AppID
 from ..utils import classproperty
 from . import GC_PROTOBUFS, PROTOBUFS, UMS
 from .emsg import *
 from .headers import *
 from .headers import MessageHeader
 from .struct_messages import StructMessage
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from ..types.id import AppID
 
 log = logging.getLogger(__name__)
 
@@ -227,7 +230,7 @@ class UnifiedMessage(ProtobufMessage):
         super().__init_subclass__(msg)
 
 
-@functools.lru_cache()
+@functools.lru_cache
 def get_app_id(module: str) -> AppID:
     gc_protobuf_locations, _, _ = module.rpartition(".")
     protobufs_module = importlib.import_module(gc_protobuf_locations)

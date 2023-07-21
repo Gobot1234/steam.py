@@ -15,11 +15,9 @@ from copy import copy
 from datetime import datetime, timedelta
 from itertools import count
 from operator import attrgetter
-from types import CoroutineType
 from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeVar, cast, get_args
 from zlib import crc32
 
-from typing_extensions import Never, Self
 from yarl import URL as URL_
 
 from . import utils
@@ -82,19 +80,23 @@ from .reaction import (
     Sticker,
     _Reaction,
 )
-from .role import RolePermissions
 from .trade import Item, TradeOffer
 from .types.id import *
-from .types.user import Author
 from .user import ClientUser, User
 from .utils import DateTime, cached_property
 
 if TYPE_CHECKING:
+    from types import CoroutineType
+
+    from typing_extensions import Never, Self
+
     from .abc import Message
     from .chat import PartialMember
     from .client import Client
+    from .role import RolePermissions
     from .types import manifest, trade
     from .types.http import Coro
+    from .types.user import Author
 
 
 log = logging.getLogger(__name__)
@@ -1139,7 +1141,6 @@ class ConnectionState:
     ):
         match msg.message:
             case chat.EChatRoomServerMessage.Invited:
-                invitee = msg.accountid_param
                 invite = ...
                 chat_group._invites[...] = ...
                 self.dispatch(f"{chat_group.__class__.__name__.lower()}_invite", invite)
@@ -2689,7 +2690,10 @@ class ConnectionState:
 
 ConnectionState.parsers = {}
 for _, func in inspect.getmembers(ConnectionState, lambda x: inspect.isfunction(x) and getattr(x, "__parser__", False)):
-    params = list(inspect.get_annotations(func, eval_str=True).values())
+    try:
+        params = list(inspect.get_annotations(func, eval_str=True).values())
+    except NameError:
+        continue
     if args := get_args(params[0]):
         ConnectionState.parsers[args[0].MSG] = func
     elif params[0].MSG not in SERVICE_EMSGS | {NoMsg.NONE}:

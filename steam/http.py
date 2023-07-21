@@ -6,7 +6,6 @@ import asyncio
 import logging
 import re
 import urllib.parse
-from collections.abc import AsyncGenerator, Callable, Sequence, ValuesView
 from datetime import date, datetime
 from http.cookies import SimpleCookie
 from random import randbytes
@@ -25,14 +24,16 @@ from .enums import CurrencyCode, Language, Result, Type
 from .id import CLAN_ID64_FROM_URL_REGEX, parse_id64
 from .models import PriceOverviewDict, api_route
 from .types.id import ID32, ID64, AppID, AssetID, BundleID, ChatGroupID, ChatID, PackageID, PostID, TradeOfferID
-from .types.user import IndividualID
-from .user import ClientUser
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator, Callable, Sequence, ValuesView
+
     from .client import Client
     from .media import Media
     from .types import achievement, app, bundle, clan, guard, trade, user
     from .types.http import CMList, Coro, EResultSuccess, ResponseDict, StrOrURL
+    from .types.user import IndividualID
+    from .user import ClientUser
 
 
 T = TypeVar("T")

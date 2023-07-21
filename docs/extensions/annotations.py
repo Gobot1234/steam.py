@@ -8,12 +8,11 @@ import importlib
 import inspect
 import io
 import re
-import types
 from collections import ChainMap
 from collections.abc import Callable, Generator
 from importlib import reload
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Literal, Union
 
 import mypy  # Remove compiled mypy files  # https://github.com/mypyc/mypyc/issues/754
 
@@ -26,13 +25,14 @@ from mypy import nodes, types
 from mypy.build import BuildSource, build
 from mypy.options import Options
 from mypy.type_visitor import TypeVisitor
-from sphinx.application import Sphinx
 from sphinx.util.inspect import isenumclass
 
 from docs.extensions import ROOT
 
 if TYPE_CHECKING:
     from types import GenericAlias
+
+    from sphinx.application import Sphinx
 
 
 class NullIO(io.IOBase):
@@ -81,7 +81,7 @@ class TypeEvalVisitor(TypeVisitor[Any]):
         return Any
 
     def visit_overloaded(self, t: types.Overloaded) -> GenericAlias:
-        return Union[self.collect_types(t.items)]
+        return Union[self.collect_types(t.items)]  # noqa: UP007
 
     def visit_callable_type(self, t: types.CallableType) -> GenericAlias:
         return Callable[list(self.collect_types(t.arg_types)), self.collect_types([t.ret_type])[0]]
@@ -117,7 +117,7 @@ class TypeEvalVisitor(TypeVisitor[Any]):
             return t.items[0]
         if all(isinstance(arg, LiteralGenericAlias) for arg in t.items):
             return Literal[tuple(t.__args__[0] for t in self.collect_types(t.items))]
-        return Union[self.collect_types(t.items)]
+        return Union[self.collect_types(t.items)]  # noqa: UP007
 
     def visit_type_alias_type(self, t: types.TypeAliasType) -> Any:
         return t.expand_all_if_possible().accept(self) if not t.is_recursive else self.get(t.alias.fullname)
@@ -202,7 +202,7 @@ def get_annotations(object: object, what: str, name: str) -> Generator[tuple[str
                     return_type = type_.ret_type.args[-1] if is_coroutine else type_.ret_type
                     names = type_.arg_names
                     arg_types = type_.arg_types
-                yield from zip(names + ["return"], [t.accept(TypeEvalVisitor()) for t in (arg_types + [return_type])])
+                yield from zip([*names, "return"], [t.accept(TypeEvalVisitor()) for t in ([*arg_types, return_type])])
                 break
 
 

@@ -4,14 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import weakref
-from collections.abc import AsyncGenerator, Sequence
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from ipaddress import IPv4Address
 from operator import attrgetter
 from typing import TYPE_CHECKING, Any, Literal
-
-from typing_extensions import Self
 
 from . import utils
 from ._const import DOCS_BUILDING, UNIX_EPOCH, URL, TaskGroup
@@ -22,11 +19,14 @@ from .id import _ID64_TO_ID32, ID
 from .profile import ClientUserProfile, OwnedProfileItems, ProfileInfo, ProfileItem
 from .protobufs import friend_messages, player
 from .reaction import Emoticon, MessageReaction, Sticker
-from .trade import Asset
 from .types.id import ID32, AppID, Intable
 from .utils import DateTime, cached_slot_property, parse_bb_code
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator, Sequence
+
+    from typing_extensions import Self
+
     from .app import App
     from .channel import UserChannel
     from .friend import Friend
@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     from .message import UserMessage
     from .protobufs.friends import CMsgClientPersonaStateFriend as UserProto
     from .state import ConnectionState
-    from .trade import Inventory, Item, TradeOffer
+    from .trade import Asset, Inventory, Item, TradeOffer
 
 __all__ = (
     "User",

@@ -1,9 +1,13 @@
 from __future__ import annotations
 
-from sphinx.application import Sphinx
+from typing import TYPE_CHECKING
+
 from sphinx.ext import autodoc
 
 from docs.extensions import is_async_iterable
+
+if TYPE_CHECKING:
+    from sphinx.application import Sphinx
 
 
 def add_directive_header(self: autodoc.Documenter, sig: str) -> None:

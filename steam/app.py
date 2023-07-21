@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import re
-from collections.abc import AsyncGenerator, Mapping, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -35,23 +34,25 @@ from .enums import *
 from .id import _ID64_TO_ID32, id64_from_url
 from .models import CDNAsset, _IOMixin
 from .protobufs import client_server, player
-from .protobufs.encrypted_app_ticket import EncryptedAppTicket as EncryptedAppTicketProto
 from .types.id import ID32, ID64, AppID, ContextID, DepotID, Intable, LeaderboardID, ManifestID
-from .types.user import Author
 from .utils import DateTime
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator, Mapping, Sequence
+
     from .abc import PartialUser
     from .clan import Clan
     from .friend import Friend
     from .leaderboard import Leaderboard
     from .manifest import AppInfo, Depot, HeadlessDepot, Manifest
     from .package import FetchedAppPackage, License, PartialPackage
+    from .protobufs.encrypted_app_ticket import EncryptedAppTicket as EncryptedAppTicketProto
     from .published_file import PublishedFile
     from .review import Review
     from .state import ConnectionState
     from .store import AppStoreItem
     from .types import app
+    from .types.user import Author
 
 __all__ = (
     "App",
@@ -420,7 +421,7 @@ class CommunityItemDefinition(Generic[AppT]):
     def __hash__(self) -> int:
         hashable_slots = set(self.__slots__) - {"data"}
         return hash(
-            tuple(getattr(self, attr) for attr in hashable_slots) + (tuple(self.data.items()) if self.data else None,)
+            (*tuple(getattr(self, attr) for attr in hashable_slots), tuple(self.data.items()) if self.data else None)
         )
 
 

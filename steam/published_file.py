@@ -2,13 +2,10 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncGenerator, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from datetime import datetime
 from typing import TYPE_CHECKING, Generic
 
-from aiohttp import StreamReader
 from bs4 import BeautifulSoup
 from yarl import URL as URL_
 
@@ -23,6 +20,11 @@ from .types.user import Author, UserT
 from .utils import DateTime, get
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator, Sequence
+    from datetime import datetime
+
+    from aiohttp import StreamReader
+
     from .friend import Friend
     from .manifest import Manifest
     from .protobufs.published_file import PublishedFileDetails

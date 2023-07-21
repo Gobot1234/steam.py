@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
-from typing import Any
-
-from multidict import MultiDict
-from typing_extensions import Literal, NotRequired, Required
+from typing import TYPE_CHECKING, Any
 
 from .vdf import TypedVDFDict, VDFBool, VDFDict, VDFInt, VDFList
+
+if TYPE_CHECKING:
+    from typing import Literal
+
+    from multidict import MultiDict
+    from typing_extensions import NotRequired, Required
 
 
 class AppInfo(TypedVDFDict):

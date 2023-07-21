@@ -5,16 +5,18 @@ from __future__ import annotations
 import abc
 import sys
 import traceback
-from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
 
 from typing_extensions import final
 
-from .commands import Command, Group
-from .context import Context
+from .commands import Command, Group, group
+from .context import Context  # noqa: TCH001
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from steam.ext import commands
+
 
 __all__ = (
     "HelpCommand",
@@ -28,11 +30,11 @@ class HelpCommand(Command):
     context: Context  #: The context for the command's invocation.
 
     def __init__(self, **kwargs: Any):
-        default = dict(name="help", help="Shows this message.", cog=self) | kwargs
+        default = {"name": "help", "help": "Shows this message.", "cog": self} | kwargs
         super().__init__(self.command_callback, **default)
 
     @final
-    async def command_callback(self, ctx: Context, *, content: str = None) -> None:
+    async def command_callback(self, ctx: Context, *, content: str | None = None) -> None:
         """The actual implementation of the help command.
 
         This method should not directly subclassed instead you should change the behaviour through the methods that
@@ -72,7 +74,7 @@ class HelpCommand(Command):
         return mapping
 
     @abc.abstractmethod
-    async def send_help(self, mapping: "Mapping[str | None, list[commands.Command]]") -> None:
+    async def send_help(self, mapping: Mapping[str | None, list[commands.Command]]) -> None:
         """Send the basic help message for the bot's command.
 
         Parameters
@@ -82,7 +84,7 @@ class HelpCommand(Command):
         """
 
     @abc.abstractmethod
-    async def send_cog_help(self, cog: "commands.Cog") -> None:
+    async def send_cog_help(self, cog: commands.Cog) -> None:
         """The method called with a cog is passed as an argument.
 
         Note
@@ -96,7 +98,7 @@ class HelpCommand(Command):
         """
 
     @abc.abstractmethod
-    async def send_command_help(self, command: "commands.Command") -> None:
+    async def send_command_help(self, command: commands.Command) -> None:
         """The method called when a normal command is passed as an argument.
 
         Parameters
@@ -106,7 +108,7 @@ class HelpCommand(Command):
         """
 
     @abc.abstractmethod
-    async def send_group_help(self, command: "commands.Group") -> None:
+    async def send_group_help(self, command: commands.Group) -> None:
         """The method called when a group command is passed as an argument.
 
         Parameters
@@ -127,7 +129,7 @@ class HelpCommand(Command):
             The command that was not found.
         """
 
-    async def on_error(self, ctx: "commands.Context", error: Exception) -> None:
+    async def on_error(self, ctx: commands.Context, error: Exception) -> None:
         """The default error handler for the help command. This performs the functionality as
         :meth:`steam.ext.commands.Bot.on_command_error`.
 
@@ -156,7 +158,7 @@ class DefaultHelpCommand(HelpCommand):
         except (IndexError, AttributeError):
             return ""
 
-    async def send_help(self, mapping: "Mapping[str | None, list[commands.Command]]") -> None:
+    async def send_help(self, mapping: Mapping[str | None, list[commands.Command]]) -> None:
         message = ["/pre"]
         for cog_name, commands in mapping.items():
             (
@@ -170,17 +172,17 @@ class DefaultHelpCommand(HelpCommand):
 
         await self.context.send("\n".join(message))
 
-    async def send_cog_help(self, cog: "commands.Cog") -> None:
+    async def send_cog_help(self, cog: commands.Cog) -> None:
         message = [f"/pre {cog.qualified_name}'s commands"]
         for name in sorted(c.name for c in cog.commands):
             command = cog.__commands__[name]
             message.append(f'{name}{f": {self._get_doc(command)}" if command.help else ""}')
         await self.context.send("\n".join(message))
 
-    async def send_command_help(self, command: "commands.Command") -> None:
+    async def send_command_help(self, command: commands.Command) -> None:
         await self.context.send(f"/pre Help with {command.name}:\n\n{command.help}")
 
-    async def send_group_help(self, command: "commands.Group") -> None:
+    async def send_group_help(self, command: commands.Group) -> None:
         msg = [f"/pre Help with {command.name}:\n\n{command.help}"]
         if sub_commands := "\n".join(c.name for c in command.children):
             msg.append(f"\nAnd its sub commands:\n{sub_commands}")

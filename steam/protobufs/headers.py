@@ -4,13 +4,15 @@ from __future__ import annotations
 
 import struct
 from dataclasses import dataclass
-from typing import Final
+from typing import TYPE_CHECKING, Final
 
 import betterproto
-from typing_extensions import Self
 
 from .._const import READ_U32
 from ..enums import Result
+
+if TYPE_CHECKING:
+    from typing_extensions import Self
 
 __all__ = (
     "MessageHeader",

@@ -43,13 +43,14 @@ from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from typing_extensions import Self
 
 from ._const import JSON_LOADS, MISSING, UNIX_EPOCH, URL
 from .enums import Type, _is_descriptor, classproperty as classproperty
 from .id import _URL_START, ID, id64_from_url as id64_from_url, parse_id64 as parse_id64
 
 if TYPE_CHECKING:
+    from typing_extensions import Self
+
     from .types.http import Coro, StrOrURL
     from .types.user import IndividualID
 

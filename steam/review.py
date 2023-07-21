@@ -6,20 +6,20 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
-from typing_extensions import Self
-
 from ._const import impl_eq_via_id
 from .abc import Awardable, Commentable, PartialUser, _CommentableKwargs
 from .app import PartialApp
 from .chat import WrapsUser
 from .enums import Language, ReviewType
 from .reaction import AwardReaction
-from .user import User
 from .utils import DateTime
 
 if TYPE_CHECKING:
+    from typing_extensions import Self
+
     from .protobufs.reviews import RecommendationDetails as ReviewProto
     from .state import ConnectionState
+    from .user import User
 
 __all__ = (
     "Review",

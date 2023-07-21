@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
-from collections.abc import Coroutine
 from ipaddress import IPv4Address
-from typing import Any, Generic, TypeVar, final
+from typing import TYPE_CHECKING, Any, Generic, TypeAlias, TypeVar, final
 
-from typing_extensions import TypeAlias, TypedDict
+from typing_extensions import TypedDict
 from yarl import URL
+
+if TYPE_CHECKING:
+    from collections.abc import Coroutine
 
 T = TypeVar("T")
 

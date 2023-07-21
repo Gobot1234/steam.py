@@ -9,7 +9,6 @@ The appropriate license is in LICENSE
 from __future__ import annotations
 
 import asyncio
-import datetime
 import inspect
 import logging
 import math
@@ -22,9 +21,7 @@ from contextlib import nullcontext
 from ipaddress import IPv4Address
 from typing import TYPE_CHECKING, Any, Concatenate, Literal, ParamSpec, TypeAlias, TypeVar, cast, final, overload
 
-import aiohttp
 from bs4 import BeautifulSoup
-from typing_extensions import Self
 
 from . import errors, utils
 from ._const import DOCS_BUILDING, STATE, UNIX_EPOCH, URL, TaskGroup, timeout
@@ -45,19 +42,21 @@ from .gateway import *
 from .guard import get_authentication_code
 from .http import HTTPClient
 from .id import ID, parse_id64
-from .manifest import AppInfo, PackageInfo
 from .models import PriceOverview, Wallet, return_true
 from .package import FetchedPackage, License, Package, PartialPackage
 from .post import Post
 from .protobufs import store
-from .published_file import PublishedFile
-from .reaction import ClientEmoticon, ClientSticker
 from .state import ConnectionState
 from .store import AppStoreItem, BundleStoreItem, PackageStoreItem, TransactionReceipt
 from .types.id import AppID, BundleID, Intable, PackageID, PostID, PublishedFileID, TradeOfferID
 from .utils import DateTime, TradeURLInfo
 
 if TYPE_CHECKING:
+    import datetime
+
+    import aiohttp
+    from typing_extensions import Self
+
     import steam
 
     from .abc import Message
@@ -67,7 +66,9 @@ if TYPE_CHECKING:
     from .friend import Friend
     from .group import Group
     from .invite import ClanInvite, UserInvite
-    from .reaction import MessageReaction
+    from .manifest import AppInfo, PackageInfo
+    from .published_file import PublishedFile
+    from .reaction import ClientEmoticon, ClientSticker, MessageReaction
     from .trade import Item, MovedItem, TradeOffer
     from .types.http import IPAdress
     from .user import ClientUser, User
@@ -520,7 +521,7 @@ class Client:
                 self.ws._pending_parsers.clear()
                 try:
                     await task  # handle the exception raised
-                except RAISED_EXCEPTIONS + (asyncio.CancelledError,):
+                except (*RAISED_EXCEPTIONS, asyncio.CancelledError):
                     self.dispatch("disconnect")
                     if not self.is_closed():
                         await throttle()
@@ -1387,7 +1388,7 @@ class Client:
         async def on_logout(self) -> None:
             """Called when the client has logged out of https://steamcommunity.com."""
 
-        async def on_message(self, message: "steam.Message") -> None:
+        async def on_message(self, message: steam.Message) -> None:
             """Called when a message is created.
 
             Parameters
@@ -1396,7 +1397,7 @@ class Client:
                 The message that was received.
             """
 
-        async def on_typing(self, user: "steam.User", when: "datetime.datetime") -> None:
+        async def on_typing(self, user: steam.User, when: datetime.datetime) -> None:
             """Called when typing is started.
 
             Parameters
@@ -1425,7 +1426,7 @@ class Client:
                 The reaction that was removed.
             """
 
-        async def on_trade_receive(self, trade: "steam.TradeOffer") -> None:
+        async def on_trade_receive(self, trade: steam.TradeOffer) -> None:
             """Called when the client receives a trade offer.
 
             Parameters
@@ -1434,7 +1435,7 @@ class Client:
                 The trade offer that was received.
             """
 
-        async def on_trade_send(self, trade: "steam.TradeOffer") -> None:
+        async def on_trade_send(self, trade: steam.TradeOffer) -> None:
             """Called when the client sends a trade offer.
 
             Parameters
@@ -1443,7 +1444,7 @@ class Client:
                 The trade offer that was sent.
             """
 
-        async def on_trade_accept(self, trade: "steam.TradeOffer") -> None:
+        async def on_trade_accept(self, trade: steam.TradeOffer) -> None:
             """Called when the client or the trade partner accepts a trade offer.
 
             Parameters
@@ -1452,7 +1453,7 @@ class Client:
                 The trade offer that was accepted.
             """
 
-        async def on_trade_decline(self, trade: "steam.TradeOffer") -> None:
+        async def on_trade_decline(self, trade: steam.TradeOffer) -> None:
             """Called when the client or the trade partner declines a trade offer.
 
             Parameters
@@ -1461,7 +1462,7 @@ class Client:
                 The trade offer that was declined.
             """
 
-        async def on_trade_cancel(self, trade: "steam.TradeOffer") -> None:
+        async def on_trade_cancel(self, trade: steam.TradeOffer) -> None:
             """Called when the client or the trade partner cancels a trade offer.
 
             Note
@@ -1475,7 +1476,7 @@ class Client:
                 The trade offer that was cancelled.
             """
 
-        async def on_trade_expire(self, trade: "steam.TradeOffer") -> None:
+        async def on_trade_expire(self, trade: steam.TradeOffer) -> None:
             """Called when a trade offer expires due to being active for too long.
 
             Parameters
@@ -1484,7 +1485,7 @@ class Client:
                 The trade offer that expired.
             """
 
-        async def on_trade_counter(self, trade: "steam.TradeOffer") -> None:
+        async def on_trade_counter(self, trade: steam.TradeOffer) -> None:
             """Called when the client or the trade partner counters a trade offer.
 
             Parameters
@@ -1493,7 +1494,7 @@ class Client:
                 The trade offer that was countered.
             """
 
-        async def on_comment(self, comment: "steam.Comment") -> None:
+        async def on_comment(self, comment: steam.Comment) -> None:
             """Called when the client receives a comment notification.
 
             Parameters
@@ -1502,7 +1503,7 @@ class Client:
                 The comment received.
             """
 
-        async def on_user_invite(self, invite: "steam.UserInvite") -> None:
+        async def on_user_invite(self, invite: steam.UserInvite) -> None:
             """Called when the client receives/sends an invite from/to a :class:`~steam.User` to become a friend.
 
             Parameters
@@ -1511,7 +1512,7 @@ class Client:
                 The invite received.
             """
 
-        async def on_user_invite_accept(self, invite: "steam.UserInvite") -> None:
+        async def on_user_invite_accept(self, invite: steam.UserInvite) -> None:
             """Called when the client/invitee accepts an invite from/to a :class:`~steam.User` to become a friend.
 
             Parameters
@@ -1520,7 +1521,7 @@ class Client:
                 The invite that was accepted.
             """
 
-        async def on_user_invite_decline(self, invite: "steam.UserInvite") -> None:
+        async def on_user_invite_decline(self, invite: steam.UserInvite) -> None:
             """Called when the client/invitee declines an invite from/to a :class:`~steam.User` to become a friend.
 
             Parameters
@@ -1529,7 +1530,7 @@ class Client:
                 The invite that was declined.
             """
 
-        async def on_user_update(self, before: "steam.User", after: "steam.User") -> None:
+        async def on_user_update(self, before: steam.User, after: steam.User) -> None:
             """Called when a user is updated, due to one or more of the following attributes changing:
 
                 - :attr:`~steam.User.name`
@@ -1549,7 +1550,7 @@ class Client:
                 The user's state now.
             """
 
-        async def on_friend_add(self, friend: "steam.Friend") -> None:
+        async def on_friend_add(self, friend: steam.Friend) -> None:
             """Called when a friend is added to the client's friends list.
 
             Parameters
@@ -1558,7 +1559,7 @@ class Client:
                 The friend that was added.
             """
 
-        async def on_friend_remove(self, friend: "steam.Friend") -> None:
+        async def on_friend_remove(self, friend: steam.Friend) -> None:
             """Called when you or the ``friend`` remove each other from your friends lists.
 
             Parameters
@@ -1567,7 +1568,7 @@ class Client:
                 The friend who was removed.
             """
 
-        async def on_clan_invite(self, invite: "steam.ClanInvite") -> None:
+        async def on_clan_invite(self, invite: steam.ClanInvite) -> None:
             """Called when the client receives/sends an invite from/to a :class:`~steam.User` to join a
             :class:`~steam.Clan`.
 
@@ -1577,7 +1578,7 @@ class Client:
                 The invite received.
             """
 
-        async def on_clan_invite_accept(self, invite: "steam.ClanInvite") -> None:
+        async def on_clan_invite_accept(self, invite: steam.ClanInvite) -> None:
             """Called when the client/invitee accepts an invite to join a :class:`~steam.Clan`.
 
             Parameters
@@ -1586,7 +1587,7 @@ class Client:
                 The invite that was accepted.
             """
 
-        async def on_clan_invite_decline(self, invite: "steam.ClanInvite") -> None:
+        async def on_clan_invite_decline(self, invite: steam.ClanInvite) -> None:
             """Called when the client/invitee declines an invite to join a :class:`~steam.Clan`.
 
             Parameters
@@ -1595,7 +1596,7 @@ class Client:
                 The invite that was declined.
             """
 
-        async def on_clan_join(self, clan: "steam.Clan") -> None:
+        async def on_clan_join(self, clan: steam.Clan) -> None:
             """Called when the client joins a new clan.
 
             Parameters
@@ -1604,7 +1605,7 @@ class Client:
                 The joined clan.
             """
 
-        async def on_clan_update(self, before: "steam.Clan", after: "steam.Clan") -> None:
+        async def on_clan_update(self, before: steam.Clan, after: steam.Clan) -> None:
             """Called when a clan is updated, due to one or more of the following attributes changing:
 
                 - :attr:`~steam.Clan.name`
@@ -1622,7 +1623,7 @@ class Client:
                 The clan's state now.
             """
 
-        async def on_clan_leave(self, clan: "steam.Clan") -> None:
+        async def on_clan_leave(self, clan: steam.Clan) -> None:
             """Called when the client leaves a clan.
 
             Parameters
@@ -1631,7 +1632,7 @@ class Client:
                 The left clan.
             """
 
-        async def on_group_join(self, group: "steam.Group") -> None:
+        async def on_group_join(self, group: steam.Group) -> None:
             """Called when the client joins a new group.
 
             Parameters
@@ -1640,7 +1641,7 @@ class Client:
                 The joined group.
             """
 
-        async def on_group_update(self, before: "steam.Group", after: "steam.Group") -> None:
+        async def on_group_update(self, before: steam.Group, after: steam.Group) -> None:
             """Called when a group is updated.
 
             Parameters
@@ -1651,7 +1652,7 @@ class Client:
                 The group's state now.
             """
 
-        async def on_group_leave(self, group: "steam.Group") -> None:
+        async def on_group_leave(self, group: steam.Group) -> None:
             """Called when the client leaves a group.
 
             Parameters
@@ -1660,7 +1661,7 @@ class Client:
                 The left group.
             """
 
-        async def on_event_create(self, event: "steam.Event") -> None:
+        async def on_event_create(self, event: steam.Event) -> None:
             """Called when an event in a clan is created.
 
             Parameters
@@ -1669,7 +1670,7 @@ class Client:
                 The event that was created.
             """
 
-        async def on_announcement_create(self, announcement: "steam.Announcement") -> None:
+        async def on_announcement_create(self, announcement: steam.Announcement) -> None:
             """Called when an announcement in a clan is created.
 
             Parameters
@@ -1679,7 +1680,7 @@ class Client:
             """
 
         async def on_authentication_ticket_update(
-            self, ticket: "steam.AuthenticationTicket", response: "steam.AuthSessionResponse", state: int
+            self, ticket: steam.AuthenticationTicket, response: steam.AuthSessionResponse, state: int
         ) -> None:
             """Called when the client's authentication ticket is updated.
 

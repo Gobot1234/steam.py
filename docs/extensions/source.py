@@ -4,13 +4,16 @@ from __future__ import annotations
 
 import importlib
 import inspect
+from typing import TYPE_CHECKING
 
 from docutils import nodes
 from docutils.parsers.rst import directives
 from docutils.parsers.rst.directives.body import CodeBlock  # type: ignore
-from sphinx.application import Sphinx
 from sphinx.util import docutils
 from sphinx.util.docutils import SphinxDirective
+
+if TYPE_CHECKING:
+    from sphinx.application import Sphinx
 
 
 class SourceDirective(SphinxDirective, CodeBlock):

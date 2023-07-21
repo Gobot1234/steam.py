@@ -2,9 +2,12 @@
 # NB: this is the only types file that is expected to importable at runtime
 #     these are internal types and user's shouldn't ever have to use them for the public API
 
-from typing import NewType as _NewType, SupportsIndex as _SupportsIndex, SupportsInt as _SupportsInt
-
-from typing_extensions import TypeAlias as _TypeAlias
+from typing import (
+    NewType as _NewType,
+    SupportsIndex as _SupportsIndex,
+    SupportsInt as _SupportsInt,
+    TypeAlias as _TypeAlias,
+)
 
 Intable: _TypeAlias = _SupportsInt | _SupportsIndex | str | bytes  # anything int(x) wouldn't normally fail on
 ID64 = _NewType("ID64", int)  # u64

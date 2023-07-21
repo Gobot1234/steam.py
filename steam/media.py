@@ -5,18 +5,18 @@ from __future__ import annotations
 import hashlib
 import os
 import struct
-from collections.abc import Callable
 from time import time
 from typing import TYPE_CHECKING, Any, Literal, Protocol, runtime_checkable
-
-from typing_extensions import Self
 
 from .utils import cached_slot_property
 
 __all__ = ("Media",)
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from _typeshed import StrOrBytesPath
+    from typing_extensions import Self
 
 
 @runtime_checkable
@@ -69,7 +69,7 @@ class Media:
     fp: MediaIO
 
     def __init__(self, fp: MediaIO | StrOrBytesPath | int, *, spoiler: bool = False):
-        self.fp = fp if isinstance(fp, MediaIO) else open(fp, "rb")
+        self.fp = fp if isinstance(fp, MediaIO) else open(fp, "rb")  # noqa
         if not (self.fp.seekable() and self.fp.readable()):
             raise ValueError(f"File buffer {fp!r} must be seekable and readable")
 
@@ -127,7 +127,7 @@ class Media:
     @cached_slot_property
     def size(self) -> int:
         try:
-            size = os.stat(self.fp.fileno()).st_size - self._tell
+            size = os.stat(self.fp.fileno()).st_size - self._tell  # noqa: PTH116
         except OSError:  # slow fallback
             size = len(self.fp.read())
             self.fp.seek(self._tell)
@@ -145,9 +145,7 @@ tests: list[Callable[[bytes], str | None]] = []
 
 @tests.append
 def test_jpeg(h: bytes) -> Literal["jpeg"] | None:
-    if h[6:10] in {b"JFIF", b"Exif"}:
-        return "jpeg"
-    elif h[:3] == b"\xff\xd8\xff":
+    if h[6:10] in {b"JFIF", b"Exif"} or h[:3] == b"\xff\xd8\xff":
         return "jpeg"
 
 

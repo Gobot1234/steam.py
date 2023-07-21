@@ -3,16 +3,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import TYPE_CHECKING, Final
 
 from ._const import URL
-from .enums import Language
 from .models import CDNAsset
 from .utils import DateTime
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from .app import App, PartialApp
+    from .enums import Language
     from .protobufs import user_stats
     from .state import ConnectionState
     from .types import achievement

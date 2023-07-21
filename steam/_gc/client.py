@@ -3,20 +3,23 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Mapping
 from inspect import get_annotations
-from typing import Any, ClassVar, Final, cast, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Final, cast, overload
 
-from typing_extensions import Self
-
-from ..app import App
 from ..client import Client as Client_
-from ..enums import Language
-from ..trade import Inventory, Item
-from ..types.id import AppID
 from ..user import ClientUser as ClientUser_
-from ..utils import cached_property
 from .state import GCState
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from typing_extensions import Self
+
+    from ..app import App
+    from ..enums import Language
+    from ..trade import Inventory, Item
+    from ..types.id import AppID
+    from ..utils import cached_property
 
 __all__ = ("Client",)
 

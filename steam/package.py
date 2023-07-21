@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import re
 import sys
-from collections.abc import AsyncGenerator, Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Generic
@@ -20,6 +19,8 @@ from .types.id import DepotID, Intable, PackageID
 from .utils import DateTime
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator, Mapping
+
     from .manifest import AppInfo, Depot, HeadlessDepot, Manifest, PackageInfo
     from .protobufs.client_server import CMsgClientLicenseListLicense
     from .state import ConnectionState

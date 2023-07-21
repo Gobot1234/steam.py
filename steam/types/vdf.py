@@ -5,7 +5,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Literal, TypeVar
 
 from multidict import MultiDict
-from typing_extensions import Never, TypeAlias, TypedDict
+
+if TYPE_CHECKING:
+    from typing import TypeAlias
+
+    from typing_extensions import Never, TypedDict
 
 # VDF related types
 try:

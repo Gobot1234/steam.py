@@ -5,13 +5,13 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Literal
 
-from .enums import Language
 from .profile import FriendProfile
 from .user import ClientUser, WrapsUser
 
 if TYPE_CHECKING:
     from .app import App
     from .clan import Clan
+    from .enums import Language
     from .group import Group
 
 __all__ = ("Friend",)

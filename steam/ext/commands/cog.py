@@ -5,13 +5,14 @@ from __future__ import annotations
 import inspect
 import sys
 import traceback
-from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Final, overload
 
 from ... import ClientException
 from .commands import Command, Group
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from steam.ext import commands
 
     from ...client import E, EventType
@@ -141,7 +142,7 @@ class Cog:
 
         return decorator(name) if callable(name) else decorator
 
-    async def cog_command_error(self, ctx: "commands.Context", error: Exception) -> None:
+    async def cog_command_error(self, ctx: commands.Context, error: Exception) -> None:
         """A special method that is called when an error is dispatched inside this cog. This is similar to
         :func:`~commands.Bot.on_command_error` except it only applies to the commands inside this cog.
 
@@ -155,7 +156,7 @@ class Cog:
         print(f"Ignoring exception in command {ctx.command}:", file=sys.stderr)
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
-    async def cog_check(self, ctx: "commands.Context") -> bool:
+    async def cog_check(self, ctx: commands.Context) -> bool:
         """|maybecoro|
         A special method that registers as a :func:`commands.check` for every command and subcommand in this cog.
         This should return a boolean result.
@@ -166,7 +167,7 @@ class Cog:
             The invocation context.
         """
 
-    async def bot_check(self, ctx: "commands.Context") -> bool:
+    async def bot_check(self, ctx: commands.Context) -> bool:
         """|maybecoro|
         A special method that registers as a :meth:`commands.Bot.check` globally. This should return a boolean result.
 

@@ -3,7 +3,6 @@
 # plugin: python-betterproto
 
 from dataclasses import dataclass
-from typing import List
 
 import betterproto
 

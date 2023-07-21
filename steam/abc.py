@@ -5,10 +5,8 @@ from __future__ import annotations
 import abc
 import asyncio
 import sys
-from collections.abc import AsyncGenerator, Coroutine, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from ipaddress import IPv4Address
 from typing import TYPE_CHECKING, Any, Generic, Literal, Protocol, TypedDict, cast, runtime_checkable
 
 from bs4 import BeautifulSoup
@@ -22,7 +20,6 @@ from .app import STEAM, App, PartialApp, UserApp, UserInventoryInfoApp, UserInve
 from .badge import FavouriteBadge, UserBadges
 from .enums import *
 from .errors import ConfirmationError, HTTPException, WSException
-from .game_server import GameServer
 from .id import ID
 from .models import Avatar, Ban
 from .profile import *
@@ -33,10 +30,14 @@ from .types.user import UserT
 from .utils import DateTime, classproperty, parse_bb_code
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator, Coroutine, Sequence
+    from ipaddress import IPv4Address
+
     import betterproto
 
     from .clan import Clan
     from .comment import Comment
+    from .game_server import GameServer
     from .group import Group
     from .media import Media
     from .message import UserMessage

@@ -1,11 +1,15 @@
 from __future__ import annotations
 
-from typing_extensions import Self
+from typing import TYPE_CHECKING
 
 from ....protobufs.msg import GCMessage
-from ....types.id import ID64, AssetID
 from ....utils import StructIO
 from ..enums import EMsg
+
+if TYPE_CHECKING:
+    from typing_extensions import Self
+
+    from ....types.id import ID64, AssetID
 
 # some custom messages to make things a lot easier decoding/encoding wise
 

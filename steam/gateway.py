@@ -17,7 +17,6 @@ import sys
 import threading
 import time
 import traceback
-from collections.abc import AsyncGenerator, Callable, Iterable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -54,16 +53,17 @@ from .protobufs import (
     friends,
     login,
 )
-from .types.http import IPAdress
 from .types.id import ID64, AppID
 from .user import AnonymousClientUser, ClientUser
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator, Callable, Iterable
+
     from .client import Client
     from .enums import UIMode
     from .protobufs.base import CMsgMulti
     from .state import ConnectionState
-    from .types.http import Coro
+    from .types.http import Coro, IPAdress
 
 
 __all__ = (
@@ -119,11 +119,10 @@ class CMServer:
 
     async def ping(self) -> float:
         try:
-            async with async_timeout.timeout(5):
-                async with self._state.http._session.get(f"https://{self.url}/cmping/") as resp:
-                    if resp.status != 200:
-                        raise KeyError
-                    return int(resp.headers["X-Steam-CMLoad"])
+            async with async_timeout.timeout(5), self._state.http._session.get(f"https://{self.url}/cmping/") as resp:
+                if resp.status != 200:
+                    raise KeyError
+                return int(resp.headers["X-Steam-CMLoad"])
         except (KeyError, asyncio.TimeoutError, aiohttp.ClientError):
             return float("inf")
 

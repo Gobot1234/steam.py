@@ -6,13 +6,12 @@ import asyncio
 from abc import ABCMeta
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from datetime import datetime
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Literal, cast
 
-from typing_extensions import Literal, Self, TypeVar
+from typing_extensions import Self, TypeVar
 
 from ... import utils
-from ...abc import BaseUser, PartialUser
+from ...abc import BaseUser
 from ...trade import Inventory, Item
 from ...types.id import AssetID
 from .enums import (
@@ -24,6 +23,9 @@ from .enums import (
 from .protobufs import base, econ, struct_messages
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
+    from ...abc import PartialUser
     from .client import ClientUser
     from .state import GCState
 

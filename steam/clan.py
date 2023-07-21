@@ -5,13 +5,11 @@ from __future__ import annotations
 import asyncio
 import itertools
 import re
-from collections.abc import AsyncGenerator, Sequence
 from datetime import date, datetime, timezone
 from ipaddress import IPv4Address
 from typing import TYPE_CHECKING, Literal, TypeVar, overload
 
 from bs4 import BeautifulSoup
-from typing_extensions import Self
 from yarl import URL
 
 from . import utils
@@ -24,11 +22,15 @@ from .enums import ClanAccountFlags, EventType, Language, Type
 from .errors import HTTPException
 from .event import Announcement, Event
 from .id import ID, parse_id64
-from .protobufs import chat
 from .types.id import ID32, ID64, Intable
 from .utils import BBCodeStr, DateTime, parse_bb_code
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator, Sequence
+
+    from typing_extensions import Self
+
+    from .protobufs import chat
     from .state import ConnectionState
     from .types.http import IPAdress
     from .user import User

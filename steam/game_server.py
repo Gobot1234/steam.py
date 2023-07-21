@@ -2,12 +2,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from datetime import timedelta
 from ipaddress import IPv4Address
 from typing import TYPE_CHECKING, Any, Generic, Literal, NamedTuple, TypeAlias, TypeVar
-
-from typing_extensions import Unpack
 
 from .app import App, PartialApp
 from .enums import Enum, GameServerRegion, Type
@@ -15,6 +12,10 @@ from .id import ID
 from .protobufs.game_servers import EQueryType, GetServerListResponseServer, QueryResponse
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from typing_extensions import Unpack
+
     from .state import ConnectionState
 
 T = TypeVar("T")
@@ -138,7 +139,7 @@ class QueryMeta(type):
     @property
     def not_running(cls) -> Query[App | int]:
         """Fetches servers not running a :class:`.App` or an :class:`int` app id."""
-        return Query["App | int"]("\\nappid\\", type=(App, int), callback=lambda app: getattr(app, "id", game))
+        return Query["App | int"]("\\nappid\\", type=(App, int), callback=lambda app: getattr(app, "id", app))
 
     @property
     def match_tags(cls) -> Query[list[str]]:

@@ -3,22 +3,22 @@
 from __future__ import annotations
 
 import re
-from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import timedelta
 from io import BytesIO
 from typing import TYPE_CHECKING, Any, Literal, ParamSpec, Protocol, TypedDict, TypeVar, cast
 
-from aiohttp.streams import AsyncStreamIterator, ChunkTupleAsyncStreamIterator
-from yarl import URL as _URL
-
 from ._const import DEFAULT_AVATAR, URL
 from .enums import CurrencyCode, PurchaseResult, Realm, Result
 from .media import Media
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator, Callable
+
     from _typeshed import StrOrBytesPath
+    from aiohttp.streams import AsyncStreamIterator, ChunkTupleAsyncStreamIterator
+    from yarl import URL as _URL
 
     from .state import ConnectionState
     from .types import user

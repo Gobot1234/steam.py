@@ -6,10 +6,10 @@ Licensed under The MIT License (MIT) - Copyright (c) 2020-present James H-B. See
 
 import asyncio
 from pathlib import Path
+from typing import Final
 
 import aiohttp
 import black
-from typing_extensions import Final
 
 from steam import NoCMsFound
 from steam.models import api_route
@@ -23,9 +23,8 @@ CONST_FILE: Final = ROOT.parent / "steam" / "_const.py"
 
 
 async def main() -> None:
-    async with aiohttp.ClientSession() as client:
-        async with client.get(DEFAULT_CMS_URL) as r:
-            default_cms = await r.json(encoding="UTF-8")
+    async with aiohttp.ClientSession() as client, client.get(DEFAULT_CMS_URL) as r:
+        default_cms = await r.json(encoding="UTF-8")
 
     resp = default_cms["response"]
     if not resp["success"]:

@@ -1,3 +1,4 @@
+# ruff: noqa: PTH100
 # Configuration file for the Sphinx documentation builder.
 #
 # This file only contains a selection of the most common options. For a full
@@ -12,7 +13,7 @@ import sys
 from pathlib import Path
 
 builtins.__sphinx__ = True
-from steam import __version__ as release, __version__ as version, version_info  # noqa
+from steam import __version__ as release, __version__ as version, version_info
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the

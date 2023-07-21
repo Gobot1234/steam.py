@@ -11,11 +11,11 @@ from __future__ import annotations
 import asyncio
 import functools
 import inspect
-from collections.abc import Callable, Coroutine, Iterable
 from time import time
 from typing import (
     TYPE_CHECKING,
     Any,
+    Final,
     ForwardRef,
     Generic,
     Literal,
@@ -48,6 +48,8 @@ from .errors import (
 from .utils import CaseInsensitiveDict
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Coroutine, Iterable
+
     from .bot import Bot
     from .cog import Cog
     from .context import Context
@@ -62,7 +64,7 @@ __all__ = (
     "cooldown",
 )
 
-CheckType: TypeAlias = "Callable[[Context], Union[bool, Coroutine[Any, Any, bool]]]"
+CheckType: TypeAlias = "Callable[[Context], bool | Coroutine[Any, Any, bool]]"
 MaybeCommand: TypeAlias = "Callable[..., Command[Any]] | CallbackType[Any]"
 BaseCallback: TypeAlias = "Callable[P, Coroutine[Any, Any, Any]]"
 C = TypeVar("C", bound="Command[Any]", default="Command[Any]")
@@ -136,11 +138,13 @@ class Command(Generic[P]):
         The command's parameters.
     """
 
-    DECORATORS: set[str] = {  # used in Cog._inject to update any unbound methods
-        "on_error",
-        "_before_hook",
-        "_after_hook",
-    }
+    DECORATORS: Final = frozenset(  # used in Cog._inject to update any unbound methods
+        {
+            "on_error",
+            "_before_hook",
+            "_after_hook",
+        }
+    )
 
     def __new__(cls: type[C], *args: Any, **kwargs: Any) -> C:
         self = super().__new__(cls)
@@ -398,7 +402,7 @@ class Command(Generic[P]):
                 return False
         for cooldown in self.cooldown:
             bucket = cooldown.bucket.get_bucket(ctx)
-            if retry_after := cooldown.get_retry_after(bucket, time()):
+            if cooldown.get_retry_after(bucket, time()):
                 return False
 
         return True

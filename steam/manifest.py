@@ -10,10 +10,8 @@ import os.path
 import struct
 import sys
 from base64 import b64decode
-from collections.abc import AsyncGenerator, Generator, Mapping, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-from datetime import datetime
 from io import BytesIO
 from operator import attrgetter, methodcaller
 from typing import TYPE_CHECKING, Any, Final, Literal, TypeGuard, cast, overload
@@ -23,8 +21,6 @@ from zlib import crc32
 from aiohttp.streams import AsyncStreamReaderMixin
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from multidict import MultiDict
-from typing_extensions import Never, Self
-from yarl import URL as URL_
 
 from . import utils
 from ._const import MISSING, URL, VDF_LOADS, VDFDict, impl_eq_via_id
@@ -33,7 +29,6 @@ from .enums import AppType, BillingType, DepotFileFlag, Language, LicenseType, P
 from .id import ID
 from .models import CDNAsset, _IOMixin
 from .package import PartialPackage
-from .protobufs import app_info
 from .protobufs.content_manifest import Metadata, Payload, PayloadFileMapping, PayloadFileMappingChunkData, Signature
 from .types.id import AppID, DepotID, ManifestID
 from .utils import DateTime, cached_slot_property
@@ -45,8 +40,14 @@ else:
 
 
 if TYPE_CHECKING:
-    from _typeshed import StrPath
+    from collections.abc import AsyncGenerator, Generator, Mapping, Sequence
+    from datetime import datetime
 
+    from _typeshed import StrPath
+    from typing_extensions import Never, Self
+    from yarl import URL as URL_
+
+    from .protobufs import app_info
     from .state import ConnectionState
     from .types import manifest
     from .types.vdf import VDFInt

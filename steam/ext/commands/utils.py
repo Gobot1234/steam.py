@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from collections import deque
-from collections.abc import Generator
-from typing import TypeVar, overload
+from typing import TYPE_CHECKING, TypeVar, overload
 
 from .errors import MissingClosingQuotation
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 _T = TypeVar("_T")
 _VT = TypeVar("_VT")

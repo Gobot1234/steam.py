@@ -4,10 +4,12 @@
 # Last updated
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import betterproto
 
-from .base import Item
+if TYPE_CHECKING:
+    from .base import Item
 
 
 class EtfMatchGroup(betterproto.Enum):

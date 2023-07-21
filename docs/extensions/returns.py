@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import re
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from sphinx.application import Sphinx
 from sphinx.ext import napoleon
 from sphinx.util.typing import restify
+
+if TYPE_CHECKING:
+    from sphinx.application import Sphinx
 
 RETURN_HEADER = "Returns\n-------+\n"
 RETURNS_WITH_TYPE_RE = re.compile(rf"{RETURN_HEADER}:[^:]+:`[^`]+`\n {{4}}.*", flags=re.S)  # do nothing to this
@@ -45,10 +47,7 @@ def _parse_returns_section(self: napoleon.NumpyDocstring, section: str) -> list[
     lines = []
 
     for _name, _type, _desc in fields:
-        if use_rtype:
-            field = self._format_field(_name, "", _desc)
-        else:
-            field = self._format_field(_name, _type, _desc)
+        field = self._format_field(_name, "", _desc) if use_rtype else self._format_field(_name, _type, _desc)
 
         if multi:
             if lines:
