@@ -157,8 +157,9 @@ class BackpackItem(Item[OwnerT]):
         """
         if slot >= ItemSlot.Misc:
             raise ValueError("cannot use enums that aren't real item slots")
-        msg = base.AdjustItemEquippedState(item_id=self.id, new_class=mercenary, new_slot=slot)
-        await self._state.ws.send_gc_message(msg)
+        await self._state.ws.send_gc_message(
+            base.AdjustItemEquippedState(item_id=self.id, new_class=mercenary, new_slot=slot)
+        )
 
     async def set_position(self: BackpackItem[ClientUser], position: int) -> None:
         """Set the position for this item.
@@ -237,8 +238,7 @@ class BackpackItem(Item[OwnerT]):
     @cached_slot_property
     def def_index(self) -> int:
         """The item's def index. This is used to form the item's SKU."""
-        schema = SCHEMA.get()
-        for def_index, item in schema["items"].items():
+        for def_index, item in SCHEMA.get()["items"].items():
             if item.get("name") == self.name:
                 return int(def_index)
         raise RuntimeError(f"Could not find def_index for {self.name}")

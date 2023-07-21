@@ -41,5 +41,6 @@ def add_directive_header(self: autodoc.Documenter, sig: str) -> None:
         self.add_line("   :async-for:", source_name)
 
 
-def setup(app: Sphinx) -> None:
+def setup(app: Sphinx) -> dict[str, bool]:
     autodoc.Documenter.add_directive_header = add_directive_header
+    return {"parallel_read_safe": True}

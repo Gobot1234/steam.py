@@ -244,7 +244,8 @@ class Commentable(Protocol):
 
 
 class _AwardableType(IntEnum):
-    # these members do have an actual source not that I can find it 8)
+    # from https://github.com/SteamDatabase/SteamTracking/blob/9ed188c12e9a3474416972873601185c6e0848c7/store.steampowered.com/public/javascript/applications/store/reviewaward.js#L453-L466
+    # yes I know it's not great, I thought I had a better one but until I find that, suffer.
     Review = 1
     PublishedFile = 2
     Post = 3

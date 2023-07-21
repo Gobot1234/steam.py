@@ -217,6 +217,7 @@ class BaseInspectedItem(metaclass=ABCMeta):
 
 OwnerT = TypeVar("OwnerT", bound="PartialUser", default="BaseUser", covariant=True)
 
+
 if TYPE_CHECKING:  # avoid mro issues but keep types
 
     class InspectedItem(Item[OwnerT], BaseInspectedItem):

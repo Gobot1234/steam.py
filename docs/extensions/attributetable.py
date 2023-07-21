@@ -36,7 +36,7 @@ from sphinx import addnodes
 from sphinx.locale import _
 from sphinx.util.docutils import SphinxDirective
 
-from docs.extensions import is_async_iterable
+from docs.extensions import is_async_iterable, parse_name
 
 if TYPE_CHECKING:
     from sphinx.application import Sphinx
@@ -114,31 +114,12 @@ def depart_attributetable_item_node(self: HTMLTranslator, node: attributetable_i
     self.body.append("</li>")
 
 
-_name_parser_regex = re.compile(r"(?P<module>[\w.]+\.)?(?P<name>\w+)")
-
-
 class PyAttributeTable(SphinxDirective):
     has_content = False
     required_arguments = 1
     optional_arguments = 0
     final_argument_whitespace = False
     option_spec: ClassVar[OptionSpec] = {}
-
-    def parse_name(self, content: str) -> tuple[str, str]:
-        match = _name_parser_regex.match(content)
-        if match is None:
-            raise RuntimeError(f"content {content} somehow doesn't match regex in {self.env.docname}.")
-        path, name = match.groups()
-        if path:
-            modulename = path.rstrip(".")
-        else:
-            modulename = self.env.temp_data.get("autodoc:module")
-            if not modulename:
-                modulename = self.env.ref_context.get("py:module")
-        if modulename is None:
-            raise RuntimeError(f"modulename somehow None for {content} in {self.env.docname}.")
-
-        return modulename, name
 
     def run(self) -> list[attributetableplaceholder]:
         """If you're curious on the HTML this is meant to generate:
@@ -169,7 +150,7 @@ class PyAttributeTable(SphinxDirective):
         """
         content = self.arguments[0].strip()
         node = attributetableplaceholder("")
-        modulename, name = self.parse_name(content)
+        modulename, name = parse_name(content, self.env)
         node["python-doc"] = self.env.docname
         node["python-module"] = modulename
         node["python-class"] = name
@@ -312,7 +293,7 @@ def class_results_to_node(key: str, elements: list[TableElement]) -> attributeta
     return attributetablecolumn("", title, ul)
 
 
-def setup(app: Sphinx) -> None:
+def setup(app: Sphinx) -> dict[str, bool]:
     app.add_directive("attributetable", PyAttributeTable)
     app.add_node(attributetable, html=(visit_attributetable_node, depart_attributetable_node))
     app.add_node(attributetablecolumn, html=(visit_attributetablecolumn_node, depart_attributetablecolumn_node))
@@ -321,3 +302,4 @@ def setup(app: Sphinx) -> None:
     app.add_node(attributetable_item, html=(visit_attributetable_item_node, depart_attributetable_item_node))
     app.add_node(attributetableplaceholder)
     app.connect("doctree-resolved", process_attributetable)
+    return {"parallel_read_safe": True}

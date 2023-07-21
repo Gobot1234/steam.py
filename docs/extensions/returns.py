@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Any
+from collections.abc import AsyncIterable
+from typing import TYPE_CHECKING, Any, get_args
 
 from sphinx.ext import napoleon
 from sphinx.util.typing import restify
@@ -29,11 +30,18 @@ def add_return_type(app: Sphinx, what: str, fullname: str, object: Any, options:
         for i in reversed(range(docs.index("Returns"), len(docs))):
             del docs[i]
 
-    docs += (
-        "Returns",
-        "-------",
-        restify(return_type),
-    )
+    if isinstance(return_type, AsyncIterable):
+        docs += (
+            "Yields",
+            "------",
+            restify(get_args(return_type)[0]),
+        )
+    else:
+        docs += (
+            "Returns",
+            "-------",
+            restify(return_type),
+        )
     if match := RETURNS_WITH_INFO_RE.search(doc):
         # append the info to the return type
         info = match["info"].replace("\n", " ").strip()
@@ -67,5 +75,6 @@ def _parse_returns_section(self: napoleon.NumpyDocstring, section: str) -> list[
 napoleon.NumpyDocstring._parse_returns_section = _parse_returns_section  # TODO pr this
 
 
-def setup(app: Sphinx) -> None:
+def setup(app: Sphinx) -> dict[str, bool]:
     app.connect("autodoc-process-docstring", add_return_type, priority=2)
+    return {"parallel_read_safe": True}

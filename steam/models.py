@@ -189,7 +189,7 @@ class _IOMixin:
     if __debug__:
 
         def __init_subclass__(cls) -> None:
-            if cls.open is _IOMixin.open and not getattr(cls, "url", None) and not getattr(cls, "_state", None):
+            if cls.open is _IOMixin.open and not hasattr(cls, "url") and not hasattr(cls, "_state"):
                 raise NotImplementedError("Missing required attributes for implicit _IOMixin.open()")
 
     @asynccontextmanager
@@ -282,6 +282,11 @@ class Wallet:
         ----------
         code
             The wallet code to redeem.
+
+        Raises
+        ------
+        ValueError
+            The code was invalid.
 
         Returns
         -------

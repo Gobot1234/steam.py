@@ -55,6 +55,7 @@ class ExceptionHierarchyDirective(Directive):
         return [node]
 
 
-def setup(app: Sphinx) -> None:
+def setup(app: Sphinx) -> dict[str, bool]:
     app.add_node(exception_hierarchy, html=(visit_exception_hierarchy_node, depart_exception_hierarchy_node))
     app.add_directive("exception_hierarchy", ExceptionHierarchyDirective)
+    return {"parallel_read_safe": True}

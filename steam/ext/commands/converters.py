@@ -409,6 +409,7 @@ class AppConverter(Converter[App]):
     """
 
     async def convert(self, ctx: Context, argument: str) -> App:
+        # TODO resolve URLs, and names by fetching
         return App(id=int(argument)) if argument.isdigit() else App(name=argument)
 
 

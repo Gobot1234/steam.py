@@ -2626,9 +2626,15 @@ class ConnectionState:
         if msg.result != Result.OK:
             raise WSException(msg)
 
-    async def request_free_licenses(self, *app_ids: AppID) -> dict[AppID, list[License]]:
+    @asynccontextmanager
+    async def hold_licenses(self) -> AsyncGenerator[None, None]:
         async with self._license_lock:
             self.handled_licenses.clear()
+            yield
+            await self.handled_licenses.wait()
+
+    async def request_free_licenses(self, *app_ids: AppID) -> dict[AppID, list[License]]:
+        async with self.hold_licenses():
             msg: client_server_2.CMsgClientRequestFreeLicenseResponse = await self.ws.send_proto_and_wait(
                 client_server_2.CMsgClientRequestFreeLicense(appids=list(app_ids)),
             )
@@ -2638,7 +2644,6 @@ class ConnectionState:
                 raise WSNotFound(msg)
             if not msg.granted_packageids:
                 raise ValueError("No licenses granted")
-            await self.handled_licenses.wait()
 
         ret: dict[AppID, list[License]] = {app_id: [] for app_id in cast(list[AppID], msg.granted_appids)}
         _, packages = await self.fetch_product_info((), cast(list[PackageID], msg.granted_packageids))
@@ -2678,7 +2683,7 @@ class ConnectionState:
 
     @parser
     def handle_game_connect_tokens(self, msg: client_server.CMsgClientGameConnectTokens) -> None:
-        self._game_connect_bytes.extend(msg.tokens)
+        self._game_connect_bytes += msg.tokens
 
     async def activate_auth_session_tickets(self, *tickets: AuthenticationTicket) -> None:
         for ticket in tickets:
