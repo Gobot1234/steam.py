@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from .client import Client, ClientUser
 
 log = logging.getLogger(__name__)
-Inv = TypeVar("Inv", bound=Inventory[Item[ClientUser], ClientUser])
+Inv = TypeVar("Inv", bound=Inventory[Item["ClientUser"], "ClientUser"])
 
 APP = ContextVar[App]("APP")
 
