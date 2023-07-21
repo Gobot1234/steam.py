@@ -178,6 +178,7 @@ reportUnnecessaryContains = true
 reportIncompatibleMethodOverride = true
 reportIncompatibleVariableOverride = true
 reportShadowedImports = "none"
+ignore = ["steam/ext/commands", "tests"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

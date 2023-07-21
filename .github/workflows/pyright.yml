@@ -1,0 +1,26 @@
+name: Run pyright.
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install poetry
+        run: pipx install poetry && pipx install poethepoet
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.x"
+          cache: 'poetry'
+
+      - name: Validate pyproject.toml
+        run: poetry check
+
+      - name: Install dependencies
+        run: poetry install --with dev
+      - run: echo "$(poetry env info --path)/bin" >> $GITHUB_PATH
+
+      - uses: jakebailey/pyright-action@v1

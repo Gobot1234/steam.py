@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from .client import Client, ClientUser
 
 log = logging.getLogger(__name__)
-Inv = TypeVar("Inv", bound=Inventory)
+Inv = TypeVar("Inv", bound=Inventory[Item[ClientUser], ClientUser])
 
 APP = ContextVar[App]("APP")
 
@@ -89,6 +89,10 @@ class GCState(ConnectionState, Generic[Inv]):
     @property
     def backpack(self) -> Inv:
         return cast(Inv, self.backpacks[APP.get().id])
+
+    @backpack.setter
+    def backpack(self, value: Inv):
+        self.backpacks[APP.get().id] = value  # type: ignore
 
     def _get_gc_message(self) -> GCProtobufMessage | GCMessage:
         raise NotImplementedError()

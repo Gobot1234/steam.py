@@ -252,7 +252,7 @@ class Bot(GroupMixin, Client):
             del sys.modules[name]
             raise ImportError(f"{extension!r} is missing a setup function", name=name, path=extension)
 
-        module.setup(self)  # type: ignore
+        module.setup(self)
         self.__extensions__[name] = module
 
     def unload_extension(self, extension: str | os.PathLike[str]) -> None:

@@ -31,8 +31,10 @@ async def trade(ctx: commands.Context):
         await ctx.send("You took too long to send the offer")
     else:
         await ctx.send(
-            f"You were going to send {len(offer.receiving)} items\n"
-            f"You were going to receive {len(offer.receiving)} items"
+            (
+                f"You were going to send {len(offer.receiving)} items\n"
+                f"You were going to receive {len(offer.receiving)} items"
+            )
         )
         await offer.decline()
 

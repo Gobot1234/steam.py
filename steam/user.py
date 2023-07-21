@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 import asyncio
-import sys
 import weakref
-from collections.abc import AsyncGenerator, Coroutine, Sequence
+from collections.abc import AsyncGenerator, Sequence
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from ipaddress import IPv4Address
 from operator import attrgetter
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal
 
 from typing_extensions import Self
 
@@ -18,8 +17,7 @@ from . import utils
 from ._const import DOCS_BUILDING, UNIX_EPOCH, URL, TaskGroup
 from .abc import BaseUser, Messageable
 from .app import PartialApp
-from .enums import Language, PersonaState, PersonaStateFlag, Result, TradeOfferState, Type
-from .errors import ConfirmationError, HTTPException
+from .enums import Language, PersonaState, PersonaStateFlag, Type
 from .id import _ID64_TO_ID32, ID
 from .profile import ClientUserProfile, OwnedProfileItems, ProfileInfo, ProfileItem
 from .protobufs import friend_messages, player

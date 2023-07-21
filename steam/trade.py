@@ -411,8 +411,8 @@ class MovedItem(Item[OwnerT]):
     def __init__(self, state: ConnectionState, data: trade.TradeOfferReceiptItem, owner: OwnerT):
         super().__init__(
             state,
-            asset=econ.Asset().from_dict(data),  # type: ignore  # TODO waiting on https://github.com/danielgtaylor/python-betterproto/issues/432
-            description=econ.ItemDescription().from_dict(data),  # type: ignore
+            asset=econ.Asset().from_dict(data),
+            description=econ.ItemDescription().from_dict(data),
             owner=owner,
         )
         self.new_id = int(data["new_assetid"])

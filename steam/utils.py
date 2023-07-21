@@ -455,7 +455,7 @@ class ChainMap(collections.ChainMap[_KT, _VT]):
     def pop(self, key: _KT, default: _VT | _T) -> _VT | _T:
         ...
 
-    def pop(self, key: _KT, default: _VT | _T = MISSING) -> _VT | _T:  # type: ignore  # this cannot work as MISSING is default
+    def pop(self, key: _KT, default: _VT | _T = MISSING) -> _VT | _T:
         for map in self.maps:
             try:
                 return map.pop(key)

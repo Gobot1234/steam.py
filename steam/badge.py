@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Literal, Protocol, runtime_checkable
 
 from typing_extensions import TypeVar
 
@@ -13,7 +13,7 @@ from .types.user import UserT
 from .utils import DateTime, get
 
 if TYPE_CHECKING:
-    from .app import PartialApp
+    from .app import STEAM, PartialApp
     from .state import ConnectionState
     from .trade import Item
     from .types import user
@@ -147,7 +147,7 @@ class BaseOwnedBadge(BaseBadge[AppT], Protocol[AppT, UserT]):  # type: ignore
         return await self._from_inventory(2)
 
 
-class FavouriteBadge(BaseOwnedBadge["PartialApp", UserT]):
+class FavouriteBadge(BaseOwnedBadge[AppT, UserT]):
     """Represents a User's favourite badge."""
 
     __slots__ = ("border_colour", "type")
@@ -157,7 +157,7 @@ class FavouriteBadge(BaseOwnedBadge["PartialApp", UserT]):
         state: ConnectionState,
         id: int,
         level: int,
-        app: PartialApp,
+        app: AppT,
         owner: UserT,
         community_item_id: int,
         type: int,
@@ -170,7 +170,7 @@ class FavouriteBadge(BaseOwnedBadge["PartialApp", UserT]):
         """The badge's border colour."""
 
 
-class UserBadge(BaseOwnedBadge["PartialApp", UserT]):
+class UserBadge(BaseOwnedBadge["PartialApp | Literal[STEAM]", UserT]):
     """Represents a Steam badge on a user's profile."""
 
     __slots__ = ("xp", "scarcity", "completed_at")
