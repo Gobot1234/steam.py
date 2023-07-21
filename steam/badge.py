@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Literal, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Literal, NamedTuple, Protocol, runtime_checkable
 
 from typing_extensions import TypeVar
 
@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 
 __all__ = (
     "AppBadge",
+    "BadgeProgress",
     "FavouriteBadge",
     "UserBadge",
     "UserBadges",
@@ -96,6 +97,11 @@ class AppBadge(BaseBadge[AppT]):
         return f"<{self.__class__.__name__} id={self.id} name()={self._name!r} level={self.level} app={self.app!r}>"
 
 
+class BadgeProgress(NamedTuple):
+    quest_id: int
+    complete: bool
+
+
 @runtime_checkable
 class BaseOwnedBadge(BaseBadge[AppT], Protocol[AppT, UserT]):  # type: ignore
     __slots__ = ("owner", "community_item_id")
@@ -115,7 +121,7 @@ class BaseOwnedBadge(BaseBadge[AppT], Protocol[AppT, UserT]):  # type: ignore
         self.community_item_id = AssetID(int(community_item_id)) if community_item_id is not None else None
 
     async def _from_inventory(self, offset: int) -> Item[UserT]:
-        from .app import STEAM  # noqa: F811
+        from .app import STEAM
 
         if self.community_item_id is None:
             raise ValueError("This badge doesn't have an associated item.")
@@ -145,6 +151,16 @@ class BaseOwnedBadge(BaseBadge[AppT], Protocol[AppT, UserT]):  # type: ignore
             The background for this badge doesn't exist.
         """
         return await self._from_inventory(2)
+
+    async def progress(self: BaseOwnedBadge[Literal[STEAM]]) -> list[BadgeProgress]:
+        """Get the progress
+
+        Returns
+        -------
+        .. source:: BadgeProgress
+        """
+        data = await self._state.http.get_user_community_badge_progress(self.owner.id64, self.id)
+        return [BadgeProgress(badge["questid"], badge["completed"]) for badge in data]
 
 
 class FavouriteBadge(BaseOwnedBadge[AppT, UserT]):
@@ -176,7 +192,7 @@ class UserBadge(BaseOwnedBadge["PartialApp | Literal[STEAM]", UserT]):
     __slots__ = ("xp", "scarcity", "completed_at")
 
     def __init__(self, state: ConnectionState, owner: UserT, data: user.UserBadgeBadge):
-        from .app import STEAM, PartialApp  # noqa: F811
+        from .app import STEAM, PartialApp
 
         super().__init__(
             state,

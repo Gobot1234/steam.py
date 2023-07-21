@@ -108,6 +108,11 @@ class UserBadgeBadge(TypedDict):
     scarcity: int
 
 
+class CommunityBadgeProgressQuest(TypedDict):
+    questid: int
+    completed: bool
+
+
 class TradeHoldDurations(TypedDict):
     my_escrow: NotRequired[Escrow]
     their_escrow: NotRequired[Escrow]

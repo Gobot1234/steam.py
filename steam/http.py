@@ -501,6 +501,18 @@ class HTTPClient:
         data: ResponseDict[user.UserBadges] = await self.get(api_route("IPlayerService/GetBadges"), params=params)
         return data["response"]
 
+    async def get_user_community_badge_progress(
+        self, user_id64: ID64, badge_id: int
+    ) -> list[user.CommunityBadgeProgressQuest]:
+        params = {
+            "steamid": user_id64,
+            "badgeid": badge_id,
+        }
+        data: ResponseDict[dict[Literal["quests"], list[user.CommunityBadgeProgressQuest]]] = await self.get(
+            api_route("IPlayerService/GetCommunityBadgeProgress"), params=params
+        )
+        return data["response"]["quests"]
+
     async def get_user_recently_played_apps(self, user_id64: ID64) -> list[app.UserRecentlyPlayedApp]:
         params = {"steamid": user_id64}
         data: ResponseDict[dict[Literal["games"], list[app.UserRecentlyPlayedApp]]] = await self.get(
