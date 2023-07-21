@@ -79,6 +79,11 @@ class FetchedAppPriceOverview(TypedDict):
     final_formatted: str
 
 
+class FetchedAppCategory(TypedDict):
+    id: int
+    description: str
+
+
 class FetchedApp(TypedDict):
     # https://wiki.teamfortress.com/wiki/User:RJackson/StorefrontAPI#Result_data_3
     type: Literal["game", "dlc", "demo", "advertising", "mod", "video"]
@@ -105,7 +110,7 @@ class FetchedApp(TypedDict):
     package_groups: list[PackageGroups]
     platforms: dict[str, bool]
     metacritic: list[dict[str, str]]
-    categories: list[dict[str, str]]
+    categories: list[FetchedAppCategory]
     release_date: dict[str, str]
     background: str
     website: str

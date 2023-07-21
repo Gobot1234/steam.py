@@ -2341,6 +2341,34 @@ class ConnectionState:
             raise WSException(msg)
         return msg.purchase_receipt_info
 
+    async def _fetch_store_info(
+        self, ids: list[store.StoreItemId], language: Language | None = None
+    ) -> list[store.StoreItem]:
+        msg: store.GetItemsResponse = await self.ws.send_proto_and_wait(
+            store.GetItemsRequest(
+                ids=ids,
+                context=store.StoreBrowseContext(
+                    country_code=(language or self.language).web_api_name,
+                ),
+                data_request=store.StoreBrowseItemDataRequest(
+                    include_assets=True,
+                    include_release=True,
+                    include_platforms=True,
+                    include_all_purchase_options=True,
+                    include_screenshots=True,
+                    include_trailers=True,
+                    include_ratings=True,
+                    include_tag_count=True,
+                    include_reviews=True,
+                    include_basic_info=True,
+                    include_supported_languages=True,
+                ),
+            )
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg.store_items
+
     async def fetch_store_info(
         self,
         app_ids: Iterable[AppID] = (),
@@ -2353,31 +2381,10 @@ class ConnectionState:
             + [store.StoreItemId(packageid=package_id) for package_id in package_ids]
             + [store.StoreItemId(bundleid=bundle_id) for bundle_id in bundle_ids]
         )
+        return await self._fetch_store_info(ids, language)
 
-        msg: store.GetItemsResponse = await self.ws.send_proto_and_wait(
-            store.GetItemsRequest(
-                ids=ids,
-                context=store.StoreBrowseContext(
-                    country_code=(language or self.language).web_api_name,
-                ),
-                data_request=store.StoreBrowseItemDataRequest(
-                    include_assets=True,
-                    include_release=True,
-                    include_platforms=True,
-                    include_all_purchase_options=True,
-                    # include_screenshots=True,  # steam doesn't like these params for some reason
-                    include_trailers=True,
-                    include_ratings=True,
-                    # include_tag_count=True,
-                    include_reviews=True,
-                    # include_basic_info=True,
-                    # include_supported_languages=True,
-                ),
-            )
-        )
-        if msg.result != Result.OK:
-            raise WSException(msg)
-        return msg.store_items
+    async def fetch_app_tag(self, *tag_ids: int, language: Language | None = None) -> list[store.StoreItem]:
+        return await self._fetch_store_info([store.StoreItemId(tagid=tag_id) for tag_id in tag_ids], language)
 
     async def fetch_published_files(
         self,

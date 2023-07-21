@@ -35,6 +35,7 @@ class Common(TypedVDFDict, total=False):
     community_visible_stats: VDFBool
     controller_support: Literal["full", "partial", "none"]
     associations: VDFList[CommonAssociations]
+    category: MultiDict[VDFBool]  # category_{id}: "1" cause lol valve
     languages: MultiDict[VDFBool]
     steam_release_date: str
     review_score: str

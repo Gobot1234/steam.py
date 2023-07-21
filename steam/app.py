@@ -35,6 +35,7 @@ from .enums import *
 from .id import _ID64_TO_ID32, id64_from_url
 from .models import CDNAsset, DescriptionMixin, _IOMixin
 from .protobufs import client_server, player
+from .tag import FetchedAppCategory, PartialTag
 from .types.id import *
 from .utils import DateTime
 
@@ -1466,7 +1467,7 @@ class WishlistApp(PartialApp[str]):
         """The time that the app was added to their wishlist."""
         self.background = CDNAsset(state, data["background"])
         """The background of the app."""
-        self.tags = data["tags"]
+        self.tags = [PartialTag(int(tag)) for tag in data["tags"]]
         """The tags of the app."""
         self.rank = data["rank"]
         """The global rank of the app by popularity."""
@@ -1533,6 +1534,7 @@ class FetchedApp(PartialApp[str]):
         "background",
         "created_at",
         "type",
+        "categories",
         "partial_dlc",
         "_packages",
         "website_url",
@@ -1566,6 +1568,10 @@ class FetchedApp(PartialApp[str]):
         """The time the app was uploaded at."""
         self.type = AppType.from_str(data["type"])
         """The type of the app."""
+
+        self.categories = [
+            FetchedAppCategory(id=category["id"], name=category["description"]) for category in data["categories"]
+        ]
 
         try:
             currency = CurrencyCode[data["price_overview"].pop("currency")]  # type: ignore

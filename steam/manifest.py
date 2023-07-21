@@ -30,6 +30,7 @@ from .id import ID
 from .models import CDNAsset, _IOMixin
 from .package import PartialPackage
 from .protobufs.content_manifest import Metadata, Payload, PayloadFileMapping, PayloadFileMappingChunkData, Signature
+from .tag import PartialCategory
 from .types.id import AppID, DepotID, ManifestID
 from .utils import DateTime, cached_slot_property
 
@@ -874,6 +875,7 @@ class AppInfo(ProductInfo, PartialApp[str]):
         "publishers",
         "developers",
         "supported_languages",
+        "categories",
         "created_at",
         "review_score",
         "review_percentage",
@@ -936,8 +938,11 @@ class AppInfo(ProductInfo, PartialApp[str]):
             if value == "1"
         ]
         """This app's supported languages."""
+        self.categories = [
+            PartialCategory(id=int(name.removeprefix("category_"))) for name in common.get("category", ())
+        ]
 
-        # TODO categories/genres
+        # TODO genres
         self.created_at = (
             DateTime.from_timestamp(int(common["steam_release_date"])) if "steam_release_date" in common else None
         )

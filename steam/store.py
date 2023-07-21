@@ -16,6 +16,7 @@ from .enums import AppType, ContentDescriptor, CurrencyCode, Language, PaymentMe
 from .models import CDNAsset
 from .package import PartialPackage
 from .protobufs import store
+from .tag import PartialTag
 from .utils import DateTime
 
 if TYPE_CHECKING:
@@ -33,8 +34,7 @@ __all__ = (
 
 
 @dataclass(slots=True)
-class StoreItemTag:
-    id: int
+class StoreItemTag(PartialTag):
     weight: int
 
 
@@ -186,7 +186,7 @@ class StoreItem:
                 self.included_types.append(AppType.try_value(included_type))
 
         self.related_parent_app = PartialApp(state, id=proto.related_items.parent_appid)
-        self.tags = [StoreItemTag(tag.tagid, tag.weight) for tag in proto.tags]
+        self.tags = [StoreItemTag(state, tag.tagid, tag.weight) for tag in proto.tags]
         self.categories = proto.categories
         self.review_score = ReviewType.try_value(proto.reviews.summary_unfiltered.review_score)
         self.review_count = proto.reviews.summary_unfiltered.review_count
