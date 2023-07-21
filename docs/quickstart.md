@@ -32,8 +32,9 @@ class MyClient(steam.Client):
     async def on_ready(self) -> None:
         print("Logged in as", self.user)
 
-    async def on_trade_receive(self, trade: steam.TradeOffer) -> None:
-        print(f"Received trade: #{trade.id} from", trade.partner)
+    async def on_trade(self, trade: steam.TradeOffer) -> None:
+        if not trade.is_our_offer():
+            print(f"Received trade: #{trade.id} from", trade.user)
 
 
 client = MyClient()

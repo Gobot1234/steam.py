@@ -29,9 +29,9 @@ Client
     :members:
     :exclude-members: on_connect, on_disconnect, on_ready, on_login, on_logout, on_error,
                       on_message, on_typing,
-                      on_trade_receive, on_trade_send, on_trade_accept, on_trade_decline, on_trade_cancel,
-                      on_trade_expire, on_trade_counter, on_comment,
-                      on_user_invite, on_user_invite_accept, on_user_invite_decline, on_friend_add, on_user_update,
+                      on_trade, on_trade_update,
+                      on_comment,
+                      on_invite, on_invite_accept, on_invite_decline, on_friend_add, on_user_update,
                       on_friend_remove,
                       on_clan_invite, on_clan_invite_accept, on_clan_invite_decline, on_clan_join, on_clan_update,
                       on_clan_leave,
@@ -54,9 +54,9 @@ through subclassing :class:`Client` and overriding the specific events. For exam
 
     class MyClient(steam.Client):
         async def on_trade_receive(self, trade: steam.TradeOffer) -> None:
-            await trade.partner.send("Thank you for your trade")
+            await trade.user.send("Thank you for your trade")
             print(f"Received trade: #{trade.id}")
-            print("Trade partner is:", trade.partner)
+            print("Trade partner is:", trade.user)
             print("We would send:", len(trade.sending), "items")
             print("We would receive:", len(trade.receiving), "items")
 
@@ -87,17 +87,9 @@ traceback and ignoring the exception.
 
 .. automethod:: Client.on_trade_receive
 
-.. automethod:: Client.on_trade_send
+.. automethod:: Client.on_trade
 
-.. automethod:: Client.on_trade_accept
-
-.. automethod:: Client.on_trade_decline
-
-.. automethod:: Client.on_trade_cancel
-
-.. automethod:: Client.on_trade_expire
-
-.. automethod:: Client.on_trade_counter
+.. automethod:: Client.on_trade_update
 
 .. automethod:: Client.on_comment
 

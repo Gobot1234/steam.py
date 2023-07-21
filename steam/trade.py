@@ -7,7 +7,7 @@ import contextlib
 import itertools
 import types
 from collections.abc import Iterator, Sequence
-from typing import TYPE_CHECKING, Any, Generic, cast, overload
+from typing import TYPE_CHECKING, Any, Generic, cast
 
 from typing_extensions import NamedTuple, TypeVar
 
@@ -262,29 +262,17 @@ class Inventory(Generic[ItemT, OwnerT], Sequence[ItemT]):
     def __len__(self) -> int:
         return len(self.items)
 
-    @overload
-    def __getitem__(self, idx: int) -> ItemT:
-        ...
+    if not TYPE_CHECKING:
+        __class_getitem__ = classmethod(InventoryGenericAlias)
 
-    @overload
-    def __getitem__(self, idx: slice) -> Sequence[ItemT]:
-        ...
-
-    def __getitem__(self, idx: int | slice) -> ItemT | Sequence[ItemT]:
-        return self.items[idx]
+        def __getitem__(self, idx):
+            return self.items[idx]
 
     def __iter__(self) -> Iterator[ItemT]:
         return iter(self.items)
 
     def __contains__(self, item: Asset) -> bool:
-        if not isinstance(item, Asset):
-            raise TypeError(
-                f"unsupported operand type(s) for 'in': {item.__class__.__qualname__!r} and {self.__orig_class__!r}"
-            )
         return item in self.items
-
-    if not TYPE_CHECKING:
-        __class_getitem__ = classmethod(InventoryGenericAlias)
 
     def _update(self, data: econ.GetInventoryItemsWithDescriptionsResponse) -> None:
         items: list[ItemT] = []
@@ -377,7 +365,7 @@ class TradeOffer(Generic[ReceivingAssetT, SendingAssetT, OwnerT]):
         "_id",
         "state",
         "escrow",
-        "partner",
+        "user",
         "message",
         "token",
         "expires",
@@ -392,7 +380,7 @@ class TradeOffer(Generic[ReceivingAssetT, SendingAssetT, OwnerT]):
 
     id: TradeOfferID
     """The trade offer's ID."""
-    partner: OwnerT
+    user: OwnerT
     """The trade offer partner."""
 
     def __init__(
@@ -434,12 +422,22 @@ class TradeOffer(Generic[ReceivingAssetT, SendingAssetT, OwnerT]):
         self._has_been_sent = False
 
     @classmethod
-    def _from_api(cls, state: ConnectionState, data: trade.TradeOffer, partner: OwnerT) -> TradeOffer[Item[OwnerT], Item[ClientUser], OwnerT]:  # type: ignore
+    def _from_api(
+        cls,
+        state: ConnectionState,
+        data: trade.TradeOffer,
+        sending: list[tuple[econ.Asset, econ.ItemDescription]],
+        receiving: list[tuple[econ.Asset, econ.ItemDescription]],
+        user: OwnerT,  # type: ignore
+    ) -> TradeOffer[Item[OwnerT], Item[ClientUser], OwnerT]:
         trade = cls()
         trade._has_been_sent = True
         trade._state = state
-        trade.partner = partner
-        return cast("TradeOffer[Item[OwnerT], Item[ClientUser], OwnerT]", trade._update(data))
+        trade.user = user
+        return cast(
+            "TradeOffer[Item[OwnerT], Item[ClientUser], OwnerT]",
+            trade._update(data, sending=sending, receiving=receiving),
+        )
 
     @classmethod
     def _from_history(
@@ -450,10 +448,10 @@ class TradeOffer(Generic[ReceivingAssetT, SendingAssetT, OwnerT]):
     ) -> TradeOffer[MovedItem[OwnerT], MovedItem[ClientUser], OwnerT]:
         from .abc import PartialUser
 
-        partner = cast("OwnerT", PartialUser(state, data["steamid_other"]))
+        user = cast("OwnerT", PartialUser(state, data["steamid_other"]))
         trade = cls(
             receiving=[
-                MovedItem(state, description | asset, partner)
+                MovedItem(state, description | asset, user)
                 for asset, description in itertools.product(data.get("assets_received", ()), descriptions)
                 if description["instanceid"] == asset["instanceid"] and description["classid"] == asset["classid"]
             ],
@@ -465,29 +463,32 @@ class TradeOffer(Generic[ReceivingAssetT, SendingAssetT, OwnerT]):
         )
         trade._state = state
         trade._id = int(data["tradeid"])
-        trade.partner = partner
+        trade.user = user
         trade.created_at = DateTime.from_timestamp(data["time_init"])
         trade.state = TradeOfferState.try_value(data["status"])
 
         return trade
 
     def _update_from_send(
-        self, state: ConnectionState, data: trade.TradeOfferCreateResponse, partner: OwnerT, active: bool = True  # type: ignore
+        self, state: ConnectionState, data: trade.TradeOfferCreateResponse, user: OwnerT, active: bool = True  # type: ignore
     ) -> None:
         self.id = TradeOfferID(int(data["tradeofferid"]))
         self._state = state
-        self.partner = partner
+        self.user = user
         self.state = TradeOfferState.Active if active else TradeOfferState.ConfirmationNeed
         self.created_at = DateTime.now()
         self._is_our_offer = True
 
     def __repr__(self) -> str:
-        attrs = ("id", "state", "partner")
+        attrs = ("id", "state", "user")
         resolved = [f"{attr}={getattr(self, attr, None)!r}" for attr in attrs]
         return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
     def _update(
-        self: TradeOffer[Asset[OwnerT], Asset[ClientUser], OwnerT], data: trade.TradeOffer
+        self: TradeOffer[Asset[OwnerT], Asset[ClientUser], OwnerT],
+        data: trade.TradeOffer,
+        sending: list[tuple[econ.Asset, econ.ItemDescription]],
+        receiving: list[tuple[econ.Asset, econ.ItemDescription]],
     ) -> TradeOffer[Item[OwnerT], Item[ClientUser], OwnerT]:
         self.message = data.get("message") or None
         self.id = TradeOfferID(int(data["tradeofferid"]))
@@ -501,27 +502,26 @@ class TradeOffer(Generic[ReceivingAssetT, SendingAssetT, OwnerT]):
         self.updated_at = DateTime.from_timestamp(updated_at) if updated_at else None
         self.created_at = DateTime.from_timestamp(created_at) if created_at else None
         self.state = TradeOfferState.try_value(data.get("trade_offer_state", 1))
-        if (
-            self.state != TradeOfferState.Accepted
+        if (self.state != TradeOfferState.Accepted) or (
+            sending and receiving
         ):  # steam doesn't really send the item data if the offer just got accepted
-            # TODO update this to actually check if the items are different (they shouldn't be)
             self.sending = [
                 Item(
                     self._state,
-                    asset=econ.Asset().from_dict(item),
-                    description=econ.ItemDescription().from_dict(item),
+                    asset=asset,
+                    description=description,
                     owner=self._state.user,
                 )
-                for item in data.get("items_to_give", ())
+                for asset, description in sending
             ]
             self.receiving = [
                 Item(
                     self._state,
-                    asset=econ.Asset().from_dict(item),
-                    description=econ.ItemDescription().from_dict(item),
-                    owner=self.partner,
+                    asset=asset,
+                    description=description,
+                    owner=self.user,
                 )
-                for item in data.get("items_to_receive", ())
+                for asset, description in sending
             ]
         self._is_our_offer = data.get("is_our_offer", False)
         return cast("TradeOffer[Item[OwnerT], Item[ClientUser], OwnerT]", self)
@@ -575,8 +575,8 @@ class TradeOffer(Generic[ReceivingAssetT, SendingAssetT, OwnerT]):
         if self.is_our_offer():
             raise ClientException("You cannot accept an offer the ClientUser has made")
         self._check_active()
-        assert self.partner is not None
-        resp = await self._state.http.accept_user_trade(self.partner.id64, self.id)
+        assert self.user is not None
+        resp = await self._state.http.accept_user_trade(self.user.id64, self.id)
         if resp.get("needs_mobile_confirmation", False):
             await self.confirm()
 
@@ -623,7 +623,7 @@ class TradeOffer(Generic[ReceivingAssetT, SendingAssetT, OwnerT]):
         data = await self._state.http.get_trade_receipt(self._id)
         (trade,) = data["trades"]
         descriptions = data["descriptions"]
-        assert self.partner is not None
+        assert self.user is not None
 
         return TradeOfferReceipt(
             sent=[
@@ -632,7 +632,7 @@ class TradeOffer(Generic[ReceivingAssetT, SendingAssetT, OwnerT]):
                 if description["instanceid"] == asset["instanceid"] and description["classid"] == asset["classid"]
             ],
             received=[
-                MovedItem(self._state, data=description | asset, owner=self.partner)
+                MovedItem(self._state, data=description | asset, owner=self.user)
                 for asset, description in itertools.product(trade.get("assets_received", ()), descriptions)
                 if description["instanceid"] == asset["instanceid"] and description["classid"] == asset["classid"]
             ],
@@ -658,32 +658,8 @@ class TradeOffer(Generic[ReceivingAssetT, SendingAssetT, OwnerT]):
         if self.is_our_offer():
             raise ClientException("You cannot counter an offer the ClientUser has made")
 
-        assert self.partner is not None
-        resp = await self._state.http.send_trade_offer(
-            self.partner,
-            [item.to_dict() for item in trade.sending],
-            [item.to_dict() for item in trade.receiving],
-            trade.token,
-            trade.message or "",
-            tradeofferid_countered=self.id,
-        )
-        trade._has_been_sent = True
-        needs_confirmation = resp.get("needs_mobile_confirmation", False)
-        trade._update_from_send(self._state, resp, self.partner, active=not needs_confirmation)
-        if needs_confirmation:
-            for tries in range(5):
-                try:
-                    await trade.confirm()
-                    break
-                except ConfirmationError:
-                    await asyncio.sleep(tries * 2)
-            else:
-                raise ConfirmationError("Failed to confirm trade offer")
-            trade.state = TradeOfferState.Active
-
-        # make sure the trade is updated before this function returns
-        self._state._trades[trade.id] = trade  # type: ignore  # we only use the value covariant-ly but but type checkers can't figure that out
-        await self._state.wait_for_trade(trade.id)
+        assert self.user is not None
+        await self.user._send_trade(trade, tradeofferid_countered=self.id)
 
     @property
     def url(self) -> str:

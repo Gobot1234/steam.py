@@ -1156,7 +1156,7 @@ class Client:
             async for trade in client.trade_history(limit=10):
                 items = [getattr(item, "name", str(item.id)) for item in trade.receiving]
                 items = ", ".join(items) or "Nothing"
-                print("Partner:", trade.partner)
+                print("Partner:", trade.user)
                 print("Sent:", items)
 
         All parameters are optional.
@@ -1208,8 +1208,8 @@ class Client:
             previous_created_at = trades[-1].created_at
             assert previous_created_at is not None
             previous_time = previous_created_at.timestamp()
-            for trade, partner in zip(trades, await self._state._maybe_users(trade.partner.id64 for trade in trades)):
-                trade.partner = partner
+            for trade, partner in zip(trades, await self._state._maybe_users(trade.user.id64 for trade in trades)):
+                trade.user = partner
                 for item in trade.receiving:
                     item.owner = partner
             return cast(
@@ -1447,75 +1447,27 @@ class Client:
                 The reaction that was removed.
             """
 
-        async def on_trade_receive(self, trade: steam.TradeOffer) -> None:
-            """Called when the client receives a trade offer.
+        async def on_trade(self, trade: steam.TradeOffer, /) -> None:
+            """Called when the client sends/receives a trade offer.
 
             Parameters
             ----------
             trade
-                The trade offer that was received.
+                The trade offer that was received/send.
             """
 
-        async def on_trade_send(self, trade: steam.TradeOffer) -> None:
-            """Called when the client sends a trade offer.
+        async def on_trade_update(self, before: steam.TradeOffer, after: steam.TradeOffer, /) -> None:
+            """Called when the client or the trade partner updates a trade offer.
 
             Parameters
             ----------
-            trade
-                The trade offer that was sent.
+            before
+                The trade offer that was updated prior to the update.
+            after
+                The trade offer now.
             """
 
-        async def on_trade_accept(self, trade: steam.TradeOffer) -> None:
-            """Called when the client or the trade partner accepts a trade offer.
-
-            Parameters
-            ----------
-            trade
-                The trade offer that was accepted.
-            """
-
-        async def on_trade_decline(self, trade: steam.TradeOffer) -> None:
-            """Called when the client or the trade partner declines a trade offer.
-
-            Parameters
-            ----------
-            trade
-                The trade offer that was declined.
-            """
-
-        async def on_trade_cancel(self, trade: steam.TradeOffer) -> None:
-            """Called when the client or the trade partner cancels a trade offer.
-
-            Note
-            ----
-            This is called when the trade state becomes :attr:`~steam.TradeOfferState.Canceled` and
-            :attr:`~steam.TradeOfferState.CanceledBySecondaryFactor`.
-
-            Parameters
-            ----------
-            trade
-                The trade offer that was cancelled.
-            """
-
-        async def on_trade_expire(self, trade: steam.TradeOffer) -> None:
-            """Called when a trade offer expires due to being active for too long.
-
-            Parameters
-            ----------
-            trade
-                The trade offer that expired.
-            """
-
-        async def on_trade_counter(self, trade: steam.TradeOffer) -> None:
-            """Called when the client or the trade partner counters a trade offer.
-
-            Parameters
-            ----------
-            trade
-                The trade offer that was countered.
-            """
-
-        async def on_comment(self, comment: steam.Comment) -> None:
+        async def on_comment(self, comment: steam.Comment, /) -> None:
             """Called when the client receives a comment notification.
 
             Parameters
@@ -1804,15 +1756,7 @@ class Client:
     @overload
     async def wait_for(
         self,
-        event: Literal[
-            "trade_receive",
-            "trade_send",
-            "trade_accept",
-            "trade_decline",
-            "trade_cancel",
-            "trade_expire",
-            "trade_counter",
-        ],
+        event: Literal["trade"],
         *,
         check: Callable[[TradeOffer], bool] = ...,
         timeout: float | None = ...,
@@ -1822,15 +1766,11 @@ class Client:
     @overload
     async def wait_for(
         self,
-        event: Literal[
-            "user_invite",
-            "user_invite_accept",
-            "user_invite_decline",
-        ],
+        event: Literal["trade_update",],
         *,
-        check: Callable[[UserInvite], bool] = ...,
+        check: Callable[[TradeOffer, TradeOffer], bool] = ...,
         timeout: float | None = ...,
-    ) -> UserInvite:
+    ) -> tuple[TradeOffer, TradeOffer]:
         ...
 
     @overload

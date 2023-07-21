@@ -398,8 +398,8 @@ class HTTPClient:
     def send_trade_offer(
         self,
         user: IndividualID,
-        to_send: list[trade.AssetToDict],
-        to_receive: list[trade.AssetToDict],
+        sending: list[trade.AssetToDict],
+        receiving: list[trade.AssetToDict],
         token: str | None,
         offer_message: str,
         **kwargs: Any,
@@ -412,9 +412,9 @@ class HTTPClient:
             "json_tradeoffer": JSON_DUMPS(
                 {
                     "newversion": True,
-                    "version": len(to_send) + len(to_receive) + 1,
-                    "me": {"assets": to_send, "currency": [], "ready": False},
-                    "them": {"assets": to_receive, "currency": [], "ready": False},
+                    "version": len(sending) + len(receiving) + 1,
+                    "me": {"assets": sending, "currency": [], "ready": False},
+                    "them": {"assets": receiving, "currency": [], "ready": False},
                 }
             ),
             "captcha": "",

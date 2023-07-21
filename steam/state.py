@@ -229,8 +229,6 @@ class ConnectionState:
         self.polling_trades = False
         self.trade_queue = Queue[TradeOffer[Item[User], Item[ClientUser], User]]()
         self._trades_to_watch: set[TradeOfferID] = set()
-        self._trades_received_cache: Sequence[trade.TradeOffer] = ()
-        self._trades_sent_cache: Sequence[trade.TradeOffer] = ()
         self.polling_confirmations = False
         self.confirmation_queue = Queue[Confirmation](attr=attrgetter("creator_id"))
 
@@ -397,50 +395,69 @@ class ConnectionState:
         except KeyError:
             pass
         else:
-            (trade,) = await self._process_trades((data["offer"],), data.get("descriptions", ()))
+            (trade,) = await self._process_trades(
+                (data["offer"],),
+                {
+                    (description["classid"], description["instanceid"]): econ.ItemDescription().from_dict(description)
+                    for description in data.get("descriptions", ())
+                },
+            )
             return trade
 
-    async def _store_trade(self, data: trade.TradeOffer) -> TradeOffer[Item[User], Item[ClientUser], User]:
-        try:
-            trade = self._trades[TradeOfferID(int(data["tradeofferid"]))]
-        except KeyError:
-            log.info("Received trade #%s", data["tradeofferid"])
-            trade = TradeOffer._from_api(state=self, data=data, partner=await self._maybe_user(data["accountid_other"]))
-            self._trades[trade.id] = trade
-            if trade.state in (TradeOfferState.Active, TradeOfferState.ConfirmationNeed) and (
-                trade.sending or trade.receiving  # trade could be glitched
-            ):
-                self.dispatch("trade_send" if trade.is_our_offer() else "trade_receive", trade)
-                self._trades_to_watch.add(trade.id)
-        else:
-            before_state = trade.state
-            trade._update(data)
-            if trade.state != before_state:
-                log.info("Trade #%d has updated its trade state to %r", trade.id, trade.state)
-                event_name = trade.state.event_name
-                if event_name and (trade.sending or trade.receiving):
-                    self.dispatch(f"trade_{event_name}", trade)
-                    self._trades_to_watch.discard(trade.id)
-        return trade
-
     async def _process_trades(
-        self, trades: Iterable[trade.TradeOffer], descriptions: Collection[trade.Description]
+        self, trades_: Iterable[trade.TradeOffer], descriptions: dict[tuple[str, str], econ.ItemDescription]
     ) -> list[TradeOffer[Item[User], Item[ClientUser], User]]:
-        ret: list[TradeOffer[Item[User], Item[ClientUser], User]] = []
-        for trade in trades:
-            for description in descriptions:
-                for asset in trade.get("items_to_receive", ()):
-                    if description["classid"] == asset["classid"] and description["instanceid"] == asset["instanceid"]:
-                        asset |= description
-                for asset in trade.get("items_to_give", ()):
-                    if description["classid"] == asset["classid"] and description["instanceid"] == asset["instanceid"]:
-                        asset |= description
-            ret.append(await self._store_trade(trade))
-        return ret
+        trades: list[TradeOffer[Item[User], Item[ClientUser], User]] = []
+        for trade_ in trades_:
+            id = TradeOfferID(int(trade_["tradeofferid"]))
+            user = trade_["accountid_other"]
+            try:
+                receiving = [
+                    (econ.Asset().from_dict(asset), descriptions[asset["classid"], asset["instanceid"]])
+                    for asset in trade_.get("items_to_receive", ())
+                ]
+                sending: list[tuple[econ.Asset, econ.ItemDescription]] = [
+                    (econ.Asset().from_dict(asset), descriptions[asset["classid"], asset["instanceid"]])
+                    for asset in trade_.get("items_to_give", ())
+                ]
+            except KeyError:
+                receiving = []
+                sending = []
+
+            try:
+                trade = self._trades[id]
+            except KeyError:
+                log.info("Received trade #%d", id)
+                trade = TradeOffer._from_api(
+                    state=self, data=trade_, user=cast(User, ID(user)), sending=sending, receiving=receiving
+                )
+                self._trades[id] = trade
+                if trade.state in (TradeOfferState.Active, TradeOfferState.ConfirmationNeed) and (
+                    trade.sending or trade.receiving
+                ):  # could be glitched
+                    self.dispatch("trade", trade)
+                    self._trades_to_watch.add(trade.id)
+            else:
+                before = copy(trade)
+                trade._update(trade_, sending=sending, receiving=receiving)
+                if trade.state != before.state:
+                    log.info("Trade #%d has updated its trade state to %r", id, trade.state)
+                    if trade.sending or trade.receiving:
+                        self.dispatch("trade_update", before, trade)
+                        self._trades_to_watch.discard(trade.id)
+            trades.append(trade)
+
+        for trade, user in zip(trades, await self._maybe_users(trade.user.id64 for trade in trades)):
+            if trade.user is not user:  # should only have been fetched if _from_api
+                for item in trade.receiving:
+                    item.owner = user
+            trade.user = user
+
+        return trades
 
     @requires_intent(Intents.TradeOffers)
     async def poll_trades(self) -> None:
-        if self.polling_trades or not await self.http.get_api_key():
+        if self.polling_trades or not await self.http.get_api_key():  # TODO can this be changed safely?
             return
 
         self.polling_trades = True
@@ -461,18 +478,12 @@ class ConnectionState:
                 await asyncio.sleep(300)
                 return await self.fill_trades()
             raise
-        descriptions = trades.get("descriptions", ())
-        trades_received = trades.get("trade_offers_received", ())
-        trades_sent = trades.get("trade_offers_sent", ())
-        updated_received_trades = [trade for trade in trades_received if trade not in self._trades_received_cache]
-        updated_sent_trades = [trade for trade in trades_sent if trade not in self._trades_sent_cache]
-        received_trades = await self._process_trades(updated_received_trades, descriptions)
-        sent_trades = await self._process_trades(updated_sent_trades, descriptions)
-        self._trades_received_cache = trades_received
-        self._trades_sent_cache = trades_sent
-
-        self.trade_queue += received_trades
-        self.trade_queue += sent_trades
+        descriptions = {
+            (description["classid"], description["instanceid"]): econ.ItemDescription().from_dict(description)
+            for description in trades.get("descriptions", ())
+        }
+        self.trade_queue += await self._process_trades(trades.get("trade_offers_received", ()), descriptions)
+        self.trade_queue += await self._process_trades(trades.get("trade_offers_sent", ()), descriptions)
 
     async def wait_for_trade(self, id: TradeOfferID) -> TradeOffer[Item[User], Item[ClientUser], User]:
         self._trades_to_watch.add(id)

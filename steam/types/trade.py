@@ -3,17 +3,20 @@
 from typing_extensions import NotRequired, Required, TypedDict
 
 
-# str | int keys are cast to int in Asset.__init__
 class AssetToDict(TypedDict):
-    assetid: str | int
+    assetid: str
     amount: int
-    appid: str | int
-    contextid: str | int
+    appid: str
+    contextid: str
 
 
-class Asset(AssetToDict):
-    instanceid: str | int
-    classid: str | int
+class Asset(TypedDict):
+    assetid: str
+    amount: int
+    appid: str
+    contextid: str
+    instanceid: str
+    classid: str
     missing: bool
     # rollback_new_assetid: NotRequired[str]
 
@@ -40,8 +43,8 @@ class ItemTag(TypedDict):
 
 
 class Description(TypedDict, total=False):
-    instanceid: Required[str | int]
-    classid: Required[str | int]
+    instanceid: Required[str]
+    classid: Required[str]
     market_name: str
     currency: int
     name: str
@@ -77,8 +80,8 @@ class TradeOffer(TypedDict):
     time_created: int
     time_updated: int
     escrow_end_date: int
-    items_to_give: list[Item]
-    items_to_receive: list[Item]
+    items_to_give: list[Asset]
+    items_to_receive: list[Asset]
     is_our_offer: bool
     from_real_time_trade: bool
     confirmation_method: int  # https://cs.github.com/SteamDatabase/SteamTracking/blob/e86f560898e9f8fbc93fa4f55d5872b03db5f72b/Structs/enums.steamd#L1607

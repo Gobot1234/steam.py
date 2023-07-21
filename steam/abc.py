@@ -362,6 +362,7 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
             "TradeOffer[Item[User], Item[ClientUser], User]", trade
         )  # it gets upcast to this anyway after wait_for_trade
         await self._state.wait_for_trade(trade.id)
+        self._state.dispatch("trade", trade)
 
     @property
     def trade_url(self) -> URL_:

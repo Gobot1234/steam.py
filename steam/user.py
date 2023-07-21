@@ -185,7 +185,6 @@ class User(_BaseUser, Messageable["UserMessage"]):
         message = await super().send(content, media=media)
         if trade is not None:
             await self._send_trade(trade)
-            self._state.dispatch("trade_send", trade)
 
         return message
 

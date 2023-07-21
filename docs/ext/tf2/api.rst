@@ -15,9 +15,8 @@ Client
     :members:
     :inherited-members:
     :exclude-members: on_connect, on_disconnect, on_ready, on_login, on_logout, on_error, on_message, on_typing,
-                      on_trade_receive, on_trade_send, on_trade_accept, on_trade_decline, on_trade_cancel,
-                      on_trade_expire, on_trade_counter, on_comment, on_user_invite, on_user_invite_accept,
-                      on_clan_invite, on_clan_invite_accept, on_user_update,
+                      on_trade, on_trade_update, on_comment, on_invite, on_invite_accept, on_invite_decline,
+                      on_user_update,
                       on_gc_connect, on_gc_disconnect, on_gc_ready, on_item_receive, on_item_remove, on_item_update,
                       on_account_update
 
@@ -52,9 +51,8 @@ Bot
     :members:
     :inherited-members:
     :exclude-members: on_connect, on_disconnect, on_ready, on_login, on_logout, on_error, on_message, on_typing,
-                      on_trade_receive, on_trade_send, on_trade_accept, on_trade_decline, on_trade_cancel,
-                      on_trade_expire, on_trade_counter, on_comment, on_user_invite, on_user_invite_accept,
-                      on_clan_invite, on_clan_invite_accept, on_user_update,
+                      on_trade, on_trade_update, on_comment, on_invite, on_invite_accept, on_invite_decline,
+                      on_user_update,
                       on_command, on_command_error, on_command_completion,
                       on_gc_connect, on_gc_disconnect, on_gc_ready, on_item_receive, on_item_remove, on_item_update
                       on_account_update

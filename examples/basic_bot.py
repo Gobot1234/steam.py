@@ -23,10 +23,10 @@ async def trade(ctx: commands.Context):
     await ctx.send(f"Send me a trade {ctx.author}!")
 
     def check(trade: steam.TradeOffer) -> bool:
-        return trade.partner == ctx.author
+        return trade.user == ctx.author and not trade.is_our_offer()
 
     try:
-        offer = await bot.wait_for("trade_receive", timeout=60, check=check)
+        offer = await bot.wait_for("trade", timeout=60, check=check)
     except asyncio.TimeoutError:
         await ctx.send("You took too long to send the offer")
     else:

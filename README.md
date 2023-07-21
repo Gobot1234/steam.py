@@ -50,16 +50,17 @@ class MyClient(steam.Client):
     async def on_ready(self) -> None:
         print("Logged in as", self.user)
 
-    async def on_trade_receive(self, trade: steam.TradeOffer) -> None:
-        await trade.partner.send("Thank you for your trade")
-        print(f"Received trade: #{trade.id}")
-        print("Trade partner is:", trade.partner)
-        print("We would send:", len(trade.sending), "items")
-        print("We would receive:", len(trade.receiving), "items")
+    async def on_trade(self, trade: steam.TradeOffer) -> None:
+        if not trade.is_our_offer():
+            await trade.user.send("Thank you for your trade")
+            print(f"Received trade: #{trade.id}")
+            print("Trade partner is:", trade.user)
+            print("We would send:", len(trade.sending), "items")
+            print("We would receive:", len(trade.receiving), "items")
 
-        if trade.is_gift():
-            print("Accepting the trade as it is a gift")
-            await trade.accept()
+            if trade.is_gift():
+                print("Accepting the trade as it is a gift")
+                await trade.accept()
 
 
 client = MyClient()
