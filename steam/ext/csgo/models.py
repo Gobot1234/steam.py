@@ -154,15 +154,10 @@ class PartialUser(abc.PartialUser):
         players = {
             user.id: user
             for user in await self._state._maybe_users(
-                map(
-                    parse_id64,
-                    (
-                        id
-                        for match in msg.matches
-                        for round in match.roundstatsall
-                        for id in round.reservation.account_ids
-                    ),
-                )
+                parse_id64(id)
+                for match in msg.matches
+                for round in match.roundstatsall
+                for id in round.reservation.account_ids
             )
         }
 

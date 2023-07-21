@@ -38,7 +38,7 @@ def READ_F32(bytes: bytes, *, _unpacker: Callable[[bytes], tuple[float]] = struc
 
 class GCState(GCState_[Backpack]):
     client: Client
-    _users: WeakValueDictionary[ID32, User]  # type: ignore
+    _users: WeakValueDictionary[ID32, User]
     _APP = CSGO  # type: ignore
 
     def __init__(self, client: Client, **kwargs: Any):
@@ -190,7 +190,7 @@ class GCState(GCState_[Backpack]):
                 del self.waiting_for_casket_items[gc_item.id]
 
             elif isinstance(gc_item, CasketItem):
-                self.casket_items[gc_item.id].set_result(gc_item)
+                self.waiting_for_casket_items[gc_item.id].set_result(gc_item)
 
         return backpack
 

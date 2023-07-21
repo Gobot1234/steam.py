@@ -15,7 +15,7 @@ from yarl import URL as URL_
 
 from . import utils
 from ._const import HTML_PARSER, MISSING, STEAM_EPOCH, UNIX_EPOCH, URL, VDF_BINARY_LOADS
-from .achievement import UserAppStats
+from .achievement import UserAppAchievement, UserAppStats
 from .app import STEAM, App, PartialApp, UserApp, UserInventoryInfoApp, UserInventoryInfoContext, WishlistApp
 from .badge import FavouriteBadge, UserBadges
 from .enums import *
@@ -512,7 +512,7 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
         data = await self._state.http.get_user_badges(self.id64)
         return UserBadges(self._state, self, data=data)
 
-    async def favourite_badge(self) -> FavouriteBadge | None:
+    async def favourite_badge(self) -> FavouriteBadge[PartialApp | Literal[STEAM]] | None:
         """The user's favourite badge."""
         badge = await self._state.fetch_user_favourite_badge(self.id64)
         if not badge.has_favorite_badge:

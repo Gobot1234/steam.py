@@ -18,7 +18,7 @@ DOCS_STEAM_PY = ROOT / "docs"
 
 @click.command()
 @click.option("--tag", default=None)
-def main(tag: str | None):
+def main(tag: str | None = None):
     GITHUB_PAGES = ROOT / "steam-py.github.io"
     GITHUB_PAGES_DOCS = GITHUB_PAGES / "docs"
     target_dir = GITHUB_PAGES_DOCS / (tag or "latest")
