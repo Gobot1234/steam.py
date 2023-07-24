@@ -18,7 +18,7 @@ def test_metal_initializations():
     assert tf2.Metal(1.99) == tf2.Metal(2)
 
 
-def test_metal_addition():
+def test_metal_addition():  # TODO this can cmp against adding 2 Fractions? Decimals?
     assert tf2.Metal(1.11) + tf2.Metal(1) == tf2.Metal(2.11)
     assert tf2.Metal(1.88) + tf2.Metal(1.11) == tf2.Metal(3)
     assert tf2.Metal(1.11) + tf2.Metal(1.11) == tf2.Metal(2.22)
@@ -74,7 +74,7 @@ def test_str():
 # some property tests
 @given(st.integers(), st.integers())
 def test_ints_are_commutative(x: int, y: int):
-    assert x + y == y + x
+    assert tf2.Metal(x) + tf2.Metal(y) == tf2.Metal(y) + tf2.Metal(x)
 
 
 @given(x=st.integers(), y=st.integers())
