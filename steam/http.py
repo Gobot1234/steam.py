@@ -546,7 +546,7 @@ class HTTPClient:
         }
         headers = {"Referer": f"{URL.STORE}/checkout/sendgift/{asset_id}"}
         data: EResultSuccess = await self.post(URL.STORE / "checkout/sendgiftsubmit", data=payload, headers=headers)
-        if data["sucess"] != Result.OK:
+        if data["success"] != Result.OK:
             raise RuntimeError("Failed to send gift")
 
     def clear_nickname_history(self) -> Coro[None]:

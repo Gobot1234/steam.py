@@ -37,4 +37,4 @@ class CM(TypedDict):
 
 
 class EResultSuccess(TypedDict):
-    sucess: int
+    success: int
