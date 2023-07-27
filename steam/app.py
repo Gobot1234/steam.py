@@ -1244,7 +1244,7 @@ class Apps(PartialApp[str], Enum):
     @property
     def _state(self) -> ConnectionState:
         try:
-            return STATE.get(MISSING)
+            return STATE.get()
         except LookupError:
             raise ValueError("Cannot access the state of constant apps outside of a client.") from None
 

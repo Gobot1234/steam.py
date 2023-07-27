@@ -229,6 +229,12 @@ class Enum(_Enum if TYPE_CHECKING else object, metaclass=EnumType):
 class IntEnum(Enum, int):
     """An enumeration where all the values are integers, emulates `enum.IntEnum`."""
 
+    if TYPE_CHECKING:
+
+        @classmethod
+        def try_value(cls, value: int) -> Self:
+            ...
+
 
 if not TYPE_CHECKING and DOCS_BUILDING:
     enum_dict = Enum.__dict__.copy()
@@ -283,19 +289,19 @@ class Flags(IntEnum):
 # fmt: off
 class Intents(Flags):
     """Flags that control what features the client will interact with."""
-    NONE = 0
+    NONE        = 0
     """Very little interaction happens from our end of the connection."""
-    Users = 1 << 0
+    Users       = 1 << 0
     """Users and members are cached."""
     TradeOffers = 1 << 1
     """TradeOffers are fetched and processed automatically"""
-    Messages = 1 << 2
+    Messages    = 1 << 2
     """Messages are cached, cannot be enabled without :attr:`Chat`."""
-    Chat = 1 << 3
+    Chat        = 1 << 3
     """Chats/Channels are cached."""
-    ChatGroups = 1 << 4
+    ChatGroups  = 1 << 4
     """Groups/Clans are cached."""
-    Market = 1 << 5
+    Market      = 1 << 5
     """Market interactions are enabled.
 
     Warning
@@ -324,8 +330,7 @@ class Intents(Flags):
 
 
 class Result(IntEnum):
-    """The result of a Steam API call. Read more on :works:`steamworks <api/steam_api#EResult>`.
-    """
+    """The result of a Steam API call. Read more on :works:`steamworks <api/steam_api#EResult>`."""
     # these are a combination of https://partner.steamgames.com/doc/api/steam_api#EResult and https://steamerrors.com
     Invalid                         = 0
     """Invalid Result."""

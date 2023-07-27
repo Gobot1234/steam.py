@@ -16,7 +16,7 @@ from copy import copy
 from datetime import datetime, timedelta
 from itertools import count
 from operator import attrgetter
-from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeVar, cast, get_args
+from typing import TYPE_CHECKING, Any, Final, Generic, Protocol, TypeVar, cast, get_args
 from zlib import crc32
 
 from yarl import URL as URL_
@@ -29,7 +29,6 @@ from .bundle import FetchedBundle
 from .clan import Clan, ClanMember, PartialClan
 from .comment import Comment
 from .enums import *
-from .enums import PurchaseResult
 from .errors import *
 from .friend import Friend
 from .gateway import CMServer, ConnectionClosed, Msgs, ProtoMsgs, SteamWebSocket, unpack_multi
@@ -91,11 +90,11 @@ from .utils import DateTime, cached_property
 if TYPE_CHECKING:
     from types import CoroutineType
 
-    from typing_extensions import Never, Self
+    from typing_extensions import Never, Self, Unpack
 
     from .abc import Message
     from .chat import PartialMember
-    from .client import Client
+    from .client import Client, ClientKwargs
     from .media import Media
     from .types import manifest, trade
     from .types.http import Coro
@@ -182,7 +181,7 @@ def requires_intent(intent: Intents) -> Callable[[F], F]:
 class ConnectionState:
     parsers: dict[EMsg, ParserCallback[Self, ProtoMsgs]]
 
-    def __init__(self, client: Client, **kwargs: Any):
+    def __init__(self, client: Client, **kwargs: Unpack[ClientKwargs]):
         self.client = client
         self.dispatch = client.dispatch
         self.http = client.http
@@ -194,8 +193,8 @@ class ConnectionState:
         self.login_complete = asyncio.Event()
         self.handled_licenses = asyncio.Event()
         self.handled_wallet = asyncio.Event()
-        self.intents = kwargs.pop("intents", Intents.safe())
-        self.max_messages: int | None = kwargs.pop("max_messages", 1000)
+        self.intents: Final = kwargs.get("intents", Intents.safe())
+        self.max_messages: int | None = kwargs.get("max_messages", 1000)
 
         app = kwargs.get("app")
         apps = kwargs.get("apps")
@@ -1594,9 +1593,6 @@ class ConnectionState:
                                 clan_invitees = await self.http.get_clan_invitees()
 
                             invitee = await self._maybe_user(clan_invitees[id.id64])
-                            clan = await self.fetch_clan(id.id64)
-                            assert clan is not None
-
                             try:
                                 clan = await self.fetch_clan(id.id64)
                             except WSException:
@@ -1670,7 +1666,7 @@ class ConnectionState:
                     contextid=context_id,
                     get_descriptions=True,
                     language=(language or self.language).api_name,
-                    count=5000,
+                    count=2000,
                     start_assetid=start_asset_id,
                 )
             )

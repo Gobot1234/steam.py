@@ -193,9 +193,11 @@ async def id64_from_url(url: StrOrURL, session: aiohttp.ClientSession | None = N
     if not (search := URL_REGEX.match(str(url))):
         return None
 
-    async with aiohttp.ClientSession() if session is None else nullcontext(session) as session:  # noqa: SIM117
-        async with session.get(f"https://{search['clean_url']}") as r:
-            text = await r.text()
+    async with (
+        aiohttp.ClientSession() if session is None else nullcontext(session) as session,
+        session.get(f"https://{search['clean_url']}") as r,
+    ):
+        text = await r.text()
 
     if search["type"] in USER_URL_PATHS:
         data = JSON_LOADS(match["json"]) if (match := USER_ID64_FROM_URL_REGEX.search(text)) else None

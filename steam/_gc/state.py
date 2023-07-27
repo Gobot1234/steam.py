@@ -24,6 +24,7 @@ if TYPE_CHECKING:
 
     from ..gateway import GCMsgs
     from ..protobufs.client_server_2 import CMsgGcClientFromGC
+    from ..utils import cached_property
     from .client import Client, ClientUser
 
 log = logging.getLogger(__name__)
@@ -60,6 +61,7 @@ class GCState(ConnectionState, Generic[Inv]):
     ]  # different to parsers to save on dict lookups 1 vs 2 (1 for app, 1 for msg)
     client: Client
     _APP: Final[App]  # type: ignore
+    user: cached_property[Self, ClientUser]
 
     def __init__(self, client: Client, **kwargs: Any):
         self._gc_connected = MultiEvent(len(client._GC_APPS))

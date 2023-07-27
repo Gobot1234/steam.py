@@ -14,7 +14,7 @@ from .msg import Message, ProtobufMessage
 
 
 class ClientGetFriendsWhoPlayGame(Message, msg=EMsg.ClientGetFriendsWhoPlayGame):
-    app_id: "int"
+    app_id: int
 
 
 class ClientGetFriendsWhoPlayGameResponse(Message, msg=EMsg.ClientGetFriendsWhoPlayGameResponse):

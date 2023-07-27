@@ -26,7 +26,8 @@ from typing import (
     Literal,
     ParamSpec,
     TypeAlias,
-   TypedDict, TypeVar,
+    TypedDict,
+    TypeVar,
     cast,
     final,
     overload,
@@ -96,9 +97,9 @@ class ClientKwargs(TypedDict, total=False):
     max_messages: int | None
     app: App | None
     apps: list[App]
-    state: PersonaState | None
-    ui_mode: UIMode | None
-    flags: PersonaStateFlag | None
+    state: PersonaState
+    ui_mode: UIMode
+    flags: PersonaStateFlag
     force_kick: bool
     language: Language
     auto_chunk_chat_groups: bool
@@ -122,7 +123,7 @@ class Client:
     connector
         The connector to use with the :class:`aiohttp.ClientSession`.
     intents
-        The intents
+        The intents you wish to start the client with.
     max_messages
         The maximum number of messages to store in the internal cache, default is 1000.
     app
@@ -478,6 +479,7 @@ class Client:
                 if state.intents & Intents.ChatGroups > 0:
                     await state.handled_chat_groups.wait()  # ensure group cache is ready
                 if state.intents & Intents.ChatGroups > 0:
+                    # due to a steam limitation we can't get these reliably on reconnect?  TODO check?
                     await state.handled_friends.wait()  # ensure friend cache is ready
                 await state.handled_emoticons.wait()  # ensure emoticon cache is ready
                 await state.handled_licenses.wait()  # ensure licenses are ready
@@ -631,7 +633,7 @@ class Client:
         id64 = parse_id64(id=id, type=Type.Individual)
         return await self._state.fetch_user(id64)
 
-    async def fetch_users(self, *ids: Intable) -> list[User]:
+    async def fetch_users(self, *ids: Intable) -> Sequence[User]:
         """Fetches a list of :class:`~steam.User`.
 
         Note
@@ -728,8 +730,8 @@ class Client:
         steam_id = await ID.from_url(URL.COMMUNITY / "clans" / name, self.http._session)
         return await self._state.fetch_clan(steam_id.id64) if steam_id is not None else None
 
-    def get_app(self, id: int) -> PartialApp:
-        """Creates a stateful app from its ID.
+    def get_app(self, id: int) -> PartialApp[None]:
+        """Creates a :class:`PartialApp` instance from its ID.
 
         Parameters
         ----------
@@ -756,7 +758,7 @@ class Client:
         return await self._state.fetch_app(AppID(id), language)
 
     def get_package(self, id: int) -> PartialPackage:
-        """Creates a package from its ID.
+        """Creates a :class:`PartialPackage` from its ID.
 
         Parameters
         ----------
@@ -798,7 +800,7 @@ class Client:
             return await future
 
     def get_bundle(self, id: int) -> PartialBundle:
-        """Creates a bundle from its ID.
+        """Creates a :class:`PartialBundle` instance from its ID.
 
         Parameters
         ----------
@@ -1374,7 +1376,7 @@ class Client:
             The key-word arguments associated with the event.
         """
         print(f"Ignoring exception in {event}", file=sys.stderr)
-        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+        traceback.print_exception(error, file=sys.stderr)
 
     if TYPE_CHECKING or DOCS_BUILDING:
         # these methods shouldn't exist at runtime unless subclassed to prevent pollution of logs

@@ -395,6 +395,7 @@ class SteamWebSocket:
                 await self.poll_event()
 
         poll_task = asyncio.create_task(inner_poll())
+        poll_task.add_done_callback(self.parser_callback)
 
         yield
 
@@ -635,7 +636,7 @@ class SteamWebSocket:
         else:
             if isinstance(exc, RAISED_EXCEPTIONS) and not self._state._task_error.done():
                 self._state._task_error.set_exception(exc)
-        self._pending_parsers.remove(task)
+        self._pending_parsers.discard(task)
 
     def receive(self, message: bytearray, /) -> None:
         emsg_value = READ_U32(message)

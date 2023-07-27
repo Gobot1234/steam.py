@@ -125,7 +125,7 @@ class NotProtobufWrapped(MessageBase, StructMessage):
                 ),
                 /,
             ) -> bytes:
-                return bytes(bytearray(starting_header) + bytes(self.header) + bytes_method(self))
+                return starting_header + bytes(self.header) + bytes_method(self)
 
             cls.__bytes__ = __bytes__
         super().__init_subclass__(**kwargs)
