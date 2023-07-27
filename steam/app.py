@@ -612,20 +612,19 @@ class PartialApp(App[NameT]):
         """
         from .leaderboard import Leaderboard
 
-        xml = await self._state.http.get_app_leaderboards(self.id, language)
-        soup = BeautifulSoup(xml, HTML_PARSER)
+        leaderboards = await self._state.http.get_app_leaderboards(self.id, language)
         return [
             Leaderboard(
                 self._state,
-                id=LeaderboardID(int(board.lbid.text)),
+                id=LeaderboardID(leaderboard["id"]),
                 app=self,
-                name=board.find("name").text,
-                display_name=str(board.display_name.text),
-                entry_count=int(board.entries.text),
-                sort_method=LeaderboardSortMethod.try_value(int(board.sortmethod.text)),
-                display_type=LeaderboardDisplayType.try_value(int(board.displaytype.text)),
+                name=leaderboard["name"],
+                display_name=leaderboard["display_name"],
+                entry_count=leaderboard["entry_count"],
+                sort_method=LeaderboardSortMethod.try_value(leaderboard["sort_method"]),
+                display_type=LeaderboardDisplayType.try_value(leaderboard["display_type"]),
             )
-            for board in soup.response.find_all("leaderboard")  # type: ignore
+            for leaderboard in leaderboards
         ]
 
     async def fetch_leaderboard(self, name: str) -> Leaderboard[Self, None]:

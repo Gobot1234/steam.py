@@ -146,6 +146,15 @@ class DLC(TypedDict):
     release_date: DLCReleaseDate
 
 
+class Leaderboard(TypedDict):
+    id: int
+    name: str
+    display_name: str
+    entry_count: int
+    sort_method: int
+    display_type: int
+
+
 class GetAppList(TypedDict):
     apps: list[AppListApp]
     have_more_results: bool

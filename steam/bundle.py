@@ -56,7 +56,7 @@ class PartialBundle(Bundle[NameT]):
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} name={self.name!r} id={self.id}>"
 
-    async def fetch(self) -> FetchedBundle:
+    async def fetch(self, *, language: Language | None = None) -> FetchedBundle:
         """Fetch this bundle.
 
         Shorthand for:
@@ -65,7 +65,7 @@ class PartialBundle(Bundle[NameT]):
 
             bundle = await client.fetch_bundle(bundle_id)
         """
-        return await self._state.client.fetch_bundle(self.id)
+        return await self._state.fetch_bundle(self.id, language)
 
     async def store_item(self, *, language: Language | None = None) -> BundleStoreItem:
         """Fetch the store item for this bundle.

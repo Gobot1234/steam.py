@@ -38,3 +38,8 @@ class CM(TypedDict):
 
 class EResultSuccess(TypedDict):
     success: int
+
+
+class AddWalletCode(EResultSuccess):
+    amount: int
+    detail: int

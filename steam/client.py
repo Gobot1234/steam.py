@@ -817,8 +817,7 @@ class Client:
         language
             The language to fetch the bundle in. If ``None`` uses the current language.
         """
-        (data,) = await self.http.get_bundle(BundleID(id), language)
-        return FetchedBundle(self._state, data)
+        return await self._state.fetch_bundle(BundleID(id), language)
 
     @overload
     async def fetch_server(self, *, id: Intable) -> GameServer | None:

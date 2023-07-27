@@ -25,6 +25,7 @@ from . import utils
 from ._const import JSON_LOADS, READ_U32, URL, VDF_BINARY_LOADS, VDF_LOADS, TaskGroup, timeout
 from .abc import Awardable, Commentable, PartialUser, _CommentThreadType
 from .app import App, AuthenticationTicket, FetchedApp
+from .bundle import FetchedBundle
 from .clan import Clan, ClanMember, PartialClan
 from .comment import Comment
 from .enums import *
@@ -1098,6 +1099,10 @@ class ConnectionState:
         if data["success"]:
             return FetchedPackage(self, data["data"])
         raise ValueError("package_id is invalid")
+
+    async def fetch_bundle(self, bundle_id: BundleID, language: Language | None) -> FetchedBundle:
+        (data,) = await self.http.get_bundle(bundle_id, language)
+        return FetchedBundle(self, data)
 
     async def fetch_user_apps(self, user_id64: ID64, include_free: bool) -> list[player.GetOwnedGamesResponseGame]:
         msg: player.GetOwnedGamesResponse = await self.ws.send_um_and_wait(

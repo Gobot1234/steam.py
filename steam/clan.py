@@ -84,37 +84,15 @@ class PartialClan(ID[Literal[Type.Clan]], Commentable):
     def _COMMENTABLE_TYPE(cls: type[Self]) -> _CommentThreadType:  # type: ignore
         return _CommentThreadType.Clan
 
-    async def fetch_members(self) -> list[PartialUser]:
-        """Fetches a clan's member list.
+    async def fetch_members(self) -> AsyncGenerator[PartialUser, None]:
+        """An :term:`async iterator` over a clan's member list.
 
         Note
         ----
         This can be a very slow operation due to the rate limits on this endpoint.
         """
-
-        async def getter(i: int) -> BeautifulSoup:
-            nonlocal ret
-            try:
-                resp = await self._state.http.get(
-                    f"{self.community_url}/members", params={"p": i + 1, "content_only": "true"}
-                )
-            except HTTPException:
-                await asyncio.sleep(20)
-                return await getter(i)
-            else:
-                soup = BeautifulSoup(resp, HTML_PARSER)
-                ret += (
-                    self._state.get_partial_user(user["data-miniprofile"])
-                    for s in soup.find_all("div", id="memberList")
-                    for user in s.find_all("div", class_="member_block")
-                )
-                return soup
-
-        ret: list[PartialUser] = []
-        soup = await getter(0)
-        number_of_pages = int(re.findall(r"\d* - (\d*)", soup.find("div", class_="group_paging").text)[0])
-        await asyncio.gather(*(getter(i) for i in range(1, number_of_pages)))
-        return ret
+        async for member in self._state.http.get_clan_members(self.id64):
+            yield PartialUser(self._state, id=member)
 
     # event/announcement stuff
 
@@ -255,8 +233,7 @@ class PartialClan(ID[Literal[Type.Clan]], Commentable):
         resp = await self._state.http.get(f"{self.community_url}/announcements", params={"content_only": "true"})
         soup = BeautifulSoup(resp, HTML_PARSER)
         for element in soup.find_all("div", class_="announcement"):
-            a = element.a
-            if a is not None and a.text == name:  # this is bad?
+            if (a := element.a) is not None and a.text == name:  # this is bad?
                 _, _, id = a["href"].rpartition("/")
                 announcement = await self.fetch_announcement(int(id))
                 self._state.dispatch("announcement_create", announcement)

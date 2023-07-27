@@ -21,7 +21,7 @@ from . import errors, utils
 from .__metadata__ import __version__
 from ._const import HTML_PARSER, JSON_DUMPS, JSON_LOADS, URL
 from .enums import CurrencyCode, Language, Result, Type
-from .id import CLAN_ID64_FROM_URL_REGEX, parse_id64
+from .id import CLAN_ID64_FROM_URL_REGEX, ID, parse_id64
 from .models import PriceOverviewDict, api_route
 from .types.id import ID32, ID64, AppID, AssetID, BundleID, ChatGroupID, ChatID, PackageID, PostID, TradeOfferID
 
@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from .client import Client
     from .media import Media
     from .types import achievement, app, bundle, clan, guard, trade, user
-    from .types.http import CMList, Coro, EResultSuccess, ResponseDict, StrOrURL
+    from .types.http import AddWalletCode, CMList, Coro, EResultSuccess, ResponseDict, StrOrURL
     from .types.user import IndividualID
     from .user import ClientUser
 
@@ -603,6 +603,24 @@ class HTTPClient:
         )
         return data["result"]
 
+    async def get_clan_members(self, clan_id64: ID64) -> AsyncGenerator[ID32, None]:
+        url = f"{ID(clan_id64).community_url}/members"
+        page = 1
+        number_of_pages = None
+
+        while number_of_pages is None or page <= number_of_pages:
+            resp = await self.get(url, params={"p": page, "content_only": "true"})
+            soup = BeautifulSoup(resp, HTML_PARSER)
+            if not number_of_pages:
+                page_select = soup.find("div", class_="group_paging")
+                assert page_select is not None
+                number_of_pages = int(re.findall(r"\d* - (\d*)", page_select.text)[0])
+
+            for s in soup.find_all("div", id="memberList"):
+                for user in s.find_all("div", class_="member_block"):
+                    yield int(user["data-miniprofile"])  # type: ignore
+            page += 1
+
     async def get_clan_announcement_ids(self, clan_id64: ID64) -> list[int]:
         rss = await self.get(URL.COMMUNITY / f"gid/{clan_id64}/rss")
         soup = BeautifulSoup(rss, HTML_PARSER)
@@ -859,12 +877,25 @@ class HTTPClient:
         )
         return data["game"]
 
-    def get_app_leaderboards(self, app_id: AppID, language: Language | None) -> Coro[str]:
+    async def get_app_leaderboards(self, app_id: AppID, language: Language | None) -> list[app.Leaderboard]:
         params = {
             "xml": 1,
             "l": (language or self.language).api_name,
         }
-        return self.get(URL.COMMUNITY / f"stats/{app_id}/leaderboards", params=params)
+        xml = await self.get(URL.COMMUNITY / f"stats/{app_id}/leaderboards", params=params)
+        soup = BeautifulSoup(xml, HTML_PARSER)
+
+        return [
+            {
+                "id": int(leaderboard.lbid.text),
+                "name": leaderboard.find("name").text,
+                "display_name": str(leaderboard.display_name.text),
+                "entry_count": int(leaderboard.entries.text),
+                "sort_method": int(leaderboard.sortmethod.text),
+                "display_method": int(leaderboard.displaytype.text),
+            }
+            for leaderboard in soup.response.find_all("leaderboard")  # type: ignore
+        ]
 
     async def verify_app_ticket(
         self, app_id: AppID, ticket: str, publisher_key: str | None
@@ -937,7 +968,7 @@ class HTTPClient:
             )
         }
 
-    def add_wallet_code(self, code: str) -> Coro[dict[str, Any]]:
+    def add_wallet_code(self, code: str) -> Coro[AddWalletCode]:
         data = {"wallet_code": code, "sessionid": self.session_id}
         return self.post(URL.STORE / "account/ajaxredeemwalletcode", data=data)
 
