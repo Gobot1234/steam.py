@@ -11,7 +11,7 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING, Any, Generic, Literal, Protocol, TypeAlias, cast, overload, runtime_checkable
 
-from typing_extensions import Self, TypeVar
+from typing_extensions import Self, TypeVar, get_original_bases
 
 from . import utils
 from ._const import UNIX_EPOCH
@@ -374,8 +374,8 @@ class Chat(Channel[ChatMessageT]):
         return chat_group
 
     @utils.classproperty
-    def _type_args(cls: type[Chat[ChatMessageT]]) -> tuple[type[ChatMessageT]]:  # type: ignore
-        return cls.__orig_bases__[0].__args__  # type: ignore
+    def _type_args(cls: type[Self]) -> tuple[type[ChatMessageT]]:  # type: ignore
+        return get_original_bases(cls)[0].__args__
 
     def _send_message(self, content: str) -> Coroutine[Any, Any, ChatMessageT]:
         return self._state.send_chat_message(*self._location, content)  # type: ignore
@@ -612,7 +612,7 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
 
     @utils.classproperty
     def _type_args(cls: type[Self]) -> tuple[type[MemberT], type[ChatT], type[ChatGroupTypeT]]:  # type: ignore
-        return cls.__orig_bases__[0].__args__  # type: ignore
+        return get_original_bases(cls)[0].__args__
 
     async def _add_member(self, member: chat.Member) -> MemberT:
         member_cls, _, _ = self._type_args

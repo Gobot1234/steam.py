@@ -9,7 +9,7 @@ import types
 from collections.abc import Iterator, Sequence
 from typing import TYPE_CHECKING, Any, Generic, cast
 
-from typing_extensions import NamedTuple, TypeVar
+from typing_extensions import NamedTuple, TypeVar, get_original_bases
 
 from . import utils
 from ._const import URL
@@ -237,7 +237,6 @@ class Inventory(Generic[ItemT, OwnerT], Sequence[ItemT]):
         "__orig_class__",  # undocumented typing internals more shim to make extensions work
     )
     __orig_class__: InventoryGenericAlias
-    __orig_bases__: tuple[types.GenericAlias, ...]  # "duck typing"
 
     def __init__(
         self,
@@ -283,7 +282,7 @@ class Inventory(Generic[ItemT, OwnerT], Sequence[ItemT]):
         try:  # ideally one day this will just be ItemT.__value__ or something
             (ItemClass,) = self.__orig_class__.__args__
         except AttributeError:
-            ItemClass = self.__orig_bases__[0].__args__[0].__default__
+            ItemClass = get_original_bases(self.__class__)[0].__args__[0].__default__
         for asset in proto.assets:
             description = utils.get(proto.descriptions, instanceid=asset.instanceid, classid=asset.classid)
             if description is None:

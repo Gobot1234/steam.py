@@ -20,6 +20,8 @@ from typing import (
     runtime_checkable,
 )
 
+from typing_extensions import Never, get_original_bases
+
 from ... import _const, utils
 from ...abc import PartialUser
 from ...app import App, PartialApp
@@ -33,8 +35,6 @@ from .errors import BadArgument
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator, Sequence
-
-    from typing_extensions import Never
 
     from steam.ext import commands
 
@@ -253,7 +253,7 @@ class Converter(ConverterBase[T_co], ABC):
     def __init_subclass__(cls) -> None:
         super().__init_subclass__()
         try:
-            converter_for = get_args(cls.__orig_bases__[-1])[0]  # type: ignore
+            converter_for = get_args(get_original_bases(cls)[-1])[0]
         except IndexError:
             raise TypeError("Converters should subclass commands.Converter using __class_getitem__")
         else:
