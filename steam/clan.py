@@ -91,8 +91,8 @@ class PartialClan(ID[Literal[Type.Clan]], Commentable):
         ----
         This can be a very slow operation due to the rate limits on this endpoint.
         """
-        async for member in self._state.http.get_clan_members(self.id64):
-            yield PartialUser(self._state, id=member)
+        async for id32 in self._state.http.get_clan_members(self.id64):
+            yield PartialUser(self._state, id=id32)
 
     # event/announcement stuff
 
@@ -437,6 +437,10 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
         if self.flags is not None:
             return self.flags & ClanAccountFlags.OGG > 0
         return self._is_app_clan
+
+    async def fetch_members(self) -> AsyncGenerator[ClanMember | PartialMember, None]:
+        async for id32 in self._state.http.get_clan_members(self.id64):
+            yield self._maybe_member(id32)
 
     async def join(self, *, invite_code: str | None = None) -> None:
         """Joins the clan."""

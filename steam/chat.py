@@ -687,9 +687,6 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
         raise NotImplementedError
 
     def _maybe_member(self, id: ID32) -> MemberT | PartialMember:
-        if self.chunked:
-            return self._members[id]
-
         if (member := self._members.get(id)) is not None:
             return member
 
@@ -701,9 +698,6 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
         return self._get_partial_member(id)
 
     def _maybe_members(self, ids: Iterable[ID32]) -> list[MemberT | PartialMember]:
-        if self.chunked:
-            return [self._members[id] for id in ids]
-
         members: list[MemberT | PartialMember] = []
         member_cls, _, _ = self._type_args
         for id in ids:
