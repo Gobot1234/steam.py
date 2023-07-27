@@ -87,7 +87,6 @@ class App(Generic[NameT]):
     __slots__ = (
         "id",
         "name",
-        "context_id",
     )
 
     def __init__(
@@ -95,7 +94,6 @@ class App(Generic[NameT]):
         *,
         id: Intable,
         name: NameT = None,
-        context_id: int | None = None,
     ):
         try:
             id = int(id)
@@ -105,18 +103,13 @@ class App(Generic[NameT]):
         if id < 0:
             raise ValueError("id cannot be negative")
 
-        if name == "Steam" and context_id is None:
-            context_id = 6
-
         self.id: AppID = AppID(id)
         """The app's app ID."""
         self.name = name
         """The app's name."""
-        self.context_id: ContextID = ContextID(2 if context_id is None else context_id)
-        """The context id of the app normally ``2``."""
 
     def __repr__(self) -> str:
-        attrs = ("name", "id", "context_id")
+        attrs = ("name", "id")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"{self.__class__.__name__}({', '.join(resolved)})"
 
@@ -142,7 +135,7 @@ def CUSTOM_APP(
     name: str,
 ) -> App[str]:  # TODO if actually optimising make this return a different class cause it's a u64 cause haha steam
     """Create a custom app instance for :meth:`~steam.Client.change_presence`.
-    The :attr:`App.id` will be set to ``15190414816125648896`` and the :attr:`App.context_id` to ``-1``.
+    The :attr:`App.id` will be set to ``15190414816125648896``.
 
     Example:
 
@@ -155,7 +148,7 @@ def CUSTOM_APP(
     name
         The name of the app to set your playing status to.
     """
-    return App(name=name, id=15190414816125648896, context_id=ContextID(-1))
+    return App(name=name, id=15190414816125648896)
 
 
 class BaseOwnershipTicket:
@@ -518,19 +511,18 @@ class PartialApp(App[NameT]):
 
     if not TYPE_CHECKING and DOCS_BUILDING:
 
-        def __init__(self, name: str, id: AppID, context_id: ContextID):
+        def __init__(self, name: str, id: AppID):
             self.name = name
             self.id = id
-            self.context_id = context_id
 
     else:
 
-        def __init__(self, state: ConnectionState, *, id: Intable, name: NameT = None, context_id: int | None = None):
-            super().__init__(id=id, name=name, context_id=context_id)
+        def __init__(self, state: ConnectionState, *, id: Intable, name: NameT = None):
+            super().__init__(id=id, name=name)
             self._state = state
 
     def __repr__(self) -> str:
-        attrs = ("name", "id", "context_id")
+        attrs = ("name", "id")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
@@ -1217,19 +1209,18 @@ class Apps(PartialApp[str], Enum):
 
     __slots__ = ("_name",)
 
-    def __new__(cls, name: str, *args: Any, value: tuple[str, int, int] | tuple[()] = ()) -> Apps:
+    def __new__(cls, name: str, *args: Any, value: tuple[str, int] | tuple[()] = ()) -> Apps:
         self = object.__new__(cls)
         set_attribute = object.__setattr__
 
         if args:  # being called when docs are building
             name = ""
-            value = (name, args[0], args[1])
+            value = (name, args[0])
 
         assert value
         set_attribute(self, "_name", name)
         set_attribute(self, "name", value[0])
         set_attribute(self, "id", value[1])
-        set_attribute(self, "context_id", value[2])
         return self
 
     if DOCS_BUILDING:
@@ -1244,11 +1235,11 @@ class Apps(PartialApp[str], Enum):
     def value(self) -> int:
         return self.id
 
-    TF2 = "Team Fortress 2", 440, 2
-    LFD2 = "Left 4 Dead 2", 550, 2
-    DOTA2 = "DOTA 2", 570, 2
-    CSGO = "Counter Strike Global-Offensive", 730, 2
-    STEAM = "Steam", 753, 6
+    TF2 = "Team Fortress 2", 440
+    LFD2 = "Left 4 Dead 2", 550
+    DOTA2 = "DOTA 2", 570
+    CSGO = "Counter Strike Global-Offensive", 730
+    STEAM = "Steam", 753
 
     @property
     def _state(self) -> ConnectionState:

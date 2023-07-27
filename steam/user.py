@@ -330,14 +330,16 @@ class ClientUser(_BaseUser):
         id32 = _ID64_TO_ID32(utils.parse_id64(id, type=Type.Individual))
         return self._friends.get(id32)
 
-    async def inventory(self, app: App, *, language: Language | None = None) -> Inventory[Item[Self], Self]:
+    async def inventory(
+        self, app: App, *, context_id: int | None = None, language: Language | None = None
+    ) -> Inventory[Item[Self], Self]:
         try:
             lock = self._inventory_locks[app.id]
         except KeyError:
             lock = self._inventory_locks[app.id] = asyncio.Lock()
 
         async with lock:  # requires a per-app lock to avoid Result.DuplicateRequest
-            return await super().inventory(app, language=language)
+            return await super().inventory(app, context_id=context_id, language=language)
 
     async def setup_profile(self) -> None:
         """Set up your profile if possible."""

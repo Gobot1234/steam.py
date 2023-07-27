@@ -220,7 +220,7 @@ class _IOMixin:
         """
         total = 0
         async with self.open(**kwargs) as file:
-            with open(filename, "wb") as actual_fp:
+            with open(filename, "wb") as actual_fp:  # noqa: PTH123
                 async for chunk in file.iter_chunked(2048):
                     total += actual_fp.write(chunk)
         return total
@@ -393,7 +393,7 @@ class DescriptionMixin(Protocol):
         """The app the item is from."""
         from .app import PartialApp
 
-        return PartialApp(self._state, id=self._app_id, context_id=self._context_id)
+        return PartialApp(self._state, id=self._app_id)
 
     @property
     def market_fee_app(self) -> PartialApp[None]:

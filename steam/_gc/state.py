@@ -15,7 +15,7 @@ from ..protobufs import GCMessage, GCProtobufMessage, friends
 from ..protobufs.emsg import EMsg
 from ..state import ConnectionState, ParserCallback
 from ..trade import Inventory, Item
-from ..types.id import AppID, AssetID
+from ..types.id import AppID, AssetID, ContextID
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -165,8 +165,10 @@ class GCState(ConnectionState, Generic[Inv]):
             lock = self.user._inventory_locks[app.id] = asyncio.Lock()
 
         async with lock:  # requires a per-app lock to avoid Result.DuplicateRequest
-            resp = await self.fetch_user_inventory(self.user.id64, app.id, app.context_id, self.language)
-        backpack = backpack_cls(state=self, data=resp, owner=self.user, app=app, language=self.language)
+            resp = await self.fetch_user_inventory(self.user.id64, app.id, ContextID(2), self.language)
+        backpack = backpack_cls(
+            state=self, proto=resp, owner=self.user, app=app, context_id=ContextID(2), language=self.language
+        )
         self.backpacks[app] = backpack  # type: ignore
         return backpack
 

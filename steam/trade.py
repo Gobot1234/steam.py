@@ -15,7 +15,7 @@ from . import utils
 from ._const import URL
 from .app import App, PartialApp
 from .enums import Language, TradeOfferState
-from .errors import ClientException, ConfirmationError
+from .errors import ClientException
 from .models import DescriptionMixin
 from .protobufs import econ
 from .types.id import AppID, AssetID, ClassID, ContextID, InstanceID, TradeOfferID
@@ -64,13 +64,13 @@ class Asset(Generic[OwnerT]):
         "amount",
         "class_id",
         "instance_id",
+        "context_id",
         # "post_rollback_id",
         "owner",
         "_app_id",
-        "_context_id",
         "_state",
     )
-    REPR_ATTRS = ("id", "class_id", "instance_id", "amount", "owner", "app")  # "post_rollback_id"
+    REPR_ATTRS = ("id", "class_id", "instance_id", "context_id", "amount", "owner", "app")  # "post_rollback_id"
 
     def __init__(self, state: ConnectionState, asset: econ.Asset, owner: OwnerT):
         self.id = AssetID(asset.assetid)
@@ -81,12 +81,12 @@ class Asset(Generic[OwnerT]):
         """The instanceid of the item."""
         self.class_id = ClassID(asset.classid)
         """The classid of the item."""
+        self.context_id = ContextID(asset.contextid)
         # self.post_rollback_id = int(data["rollback_new_assetid"]) if "rollback_new_assetid" in data else None
         """The assetid of the item after a rollback (cancelled, etc.). ``None`` if not rolled back."""
         self.owner = owner
         """The owner of the asset."""
         self._app_id = AppID(asset.appid)
-        self._context_id = ContextID(asset.contextid)
         self._state = state
 
     def __repr__(self) -> str:
@@ -99,18 +99,18 @@ class Asset(Generic[OwnerT]):
             isinstance(other, Asset)
             and self.id == other.id
             and self._app_id == other._app_id
-            and self._context_id == other._context_id
+            and self.context_id == other.context_id
         )
 
     def __hash__(self) -> int:
-        return hash((self.id, self._app_id, self._context_id))
+        return hash((self.id, self._app_id, self.context_id))
 
     def to_dict(self) -> trade.AssetToDict:
         return {
             "assetid": str(self.id),
             "amount": self.amount,
             "appid": str(self._app_id),
-            "contextid": str(self._context_id),
+            "contextid": str(self.context_id),
         }
 
     def to_proto(self) -> econ.Asset:
@@ -120,7 +120,7 @@ class Asset(Generic[OwnerT]):
             instanceid=self.instance_id,
             classid=self.class_id,
             appid=self._app_id,
-            contextid=self._context_id,
+            contextid=self.context_id,
         )
 
     app = DescriptionMixin.app
@@ -131,7 +131,7 @@ class Asset(Generic[OwnerT]):
 
         e.g. https://steamcommunity.com/profiles/76561198248053954/inventory/#440_2_8526584188
         """
-        return f"{self.owner.community_url}/inventory#{self._app_id}_{self._context_id}_{self.id}"
+        return f"{self.owner.community_url}/inventory#{self._app_id}_{self.context_id}_{self.id}"
 
     async def gift_to(
         self: Asset[ClientUser],
@@ -231,6 +231,7 @@ class Inventory(Generic[ItemT, OwnerT], Sequence[ItemT]):
         "app",
         "items",
         "owner",
+        "context_id",
         "_language",
         "_state",
         "__orig_class__",  # undocumented typing internals more shim to make extensions work
@@ -241,18 +242,20 @@ class Inventory(Generic[ItemT, OwnerT], Sequence[ItemT]):
     def __init__(
         self,
         state: ConnectionState,
-        data: econ.GetInventoryItemsWithDescriptionsResponse,
+        proto: econ.GetInventoryItemsWithDescriptionsResponse,
         owner: OwnerT,
         app: App,
+        context_id: ContextID,
         language: Language | None,
     ):
         self._state = state
         self.owner = owner
         """The owner of the inventory."""
-        self.app = PartialApp(state, id=app.id, name=app.name, context_id=app.context_id)
+        self.app = PartialApp(state, id=app.id, name=app.name)
         """The app the inventory belongs to."""
+        self.context_id = context_id
         self._language = language
-        self._update(data)
+        self._update(proto)
 
     def __repr__(self) -> str:
         attrs = ("owner", "app")
@@ -271,18 +274,18 @@ class Inventory(Generic[ItemT, OwnerT], Sequence[ItemT]):
     def __iter__(self) -> Iterator[ItemT]:
         return iter(self.items)
 
-    def __contains__(self, item: Asset) -> bool:
+    def __contains__(self, item: object) -> bool:
         return item in self.items
 
-    def _update(self, data: econ.GetInventoryItemsWithDescriptionsResponse) -> None:
+    def _update(self, proto: econ.GetInventoryItemsWithDescriptionsResponse) -> None:
         items: list[ItemT] = []
         ItemClass: type[ItemT]
         try:  # ideally one day this will just be ItemT.__value__ or something
             (ItemClass,) = self.__orig_class__.__args__
         except AttributeError:
             ItemClass = self.__orig_bases__[0].__args__[0].__default__
-        for asset in data.assets:
-            description = utils.get(data.descriptions, instanceid=asset.instanceid, classid=asset.classid)
+        for asset in proto.assets:
+            description = utils.get(proto.descriptions, instanceid=asset.instanceid, classid=asset.classid)
             if description is None:
                 raise RuntimeError(f"Associated description for {asset} not found")
             items.append(ItemClass(self._state, asset=asset, description=description, owner=self.owner))
@@ -296,10 +299,10 @@ class Inventory(Generic[ItemT, OwnerT], Sequence[ItemT]):
             if self.owner == self._state.user
             else contextlib.nullcontext()
         ):
-            data = await self._state.fetch_user_inventory(
-                self.owner.id64, self.app.id, self.app.context_id, self._language
+            proto = await self._state.fetch_user_inventory(
+                self.owner.id64, self.app.id, self.context_id, self._language
             )
-        self._update(data)
+        self._update(proto)
 
 
 class TradeOfferReceipt(NamedTuple, Generic[OwnerT]):

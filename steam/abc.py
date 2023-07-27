@@ -299,7 +299,7 @@ class UserInventoryInfo(Generic[UserT]):
     async def inventories(self) -> AsyncGenerator[Inventory[Item[UserT], UserT], None]:
         """An :term:`asynchronous iterator` for accessing a user's full inventory in an app."""
         for context in self.contexts:
-            yield await self.user.inventory(App(id=self.app.id, context_id=context.id))
+            yield await self.user.inventory(App(id=self.app.id), context_id=context.id)
 
 
 class PartialUser(ID[Literal[Type.Individual]], Commentable):
@@ -401,13 +401,17 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
             for info in data
         ]
 
-    async def inventory(self, app: App, *, language: Language | None = None) -> Inventory[Item[Self], Self]:
+    async def inventory(
+        self, app: App, *, context_id: int | None = None, language: Language | None = None
+    ) -> Inventory[Item[Self], Self]:
         """Fetch a user's :class:`~steam.Inventory` for trading.
 
         Parameters
         -----------
         app
             The app to fetch the inventory for.
+        context_id
+            The context ID for the inventory normally ``2``.
         language
             The language to fetch the inventory in. If ``None`` will default to the current language.
 
@@ -416,8 +420,11 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
         :exc:`~steam.Forbidden`
             The user's inventory is private.
         """
-        resp = await self._state.fetch_user_inventory(self.id64, app.id, app.context_id, language)
-        return Inventory(state=self._state, data=resp, owner=self, app=app, language=language)
+        if context_id is None:
+            context_id = 6 if app.name == "Steam" and context_id is None else 2
+        context_id = ContextID(context_id)
+        resp = await self._state.fetch_user_inventory(self.id64, app.id, (context_id), language)
+        return Inventory(state=self._state, proto=resp, owner=self, app=app, context_id=context_id, language=language)
 
     async def inventories(self) -> AsyncGenerator[Inventory[Item[Self], Self], None]:
         """Fetches all the inventories a user has."""
