@@ -3,15 +3,12 @@ from __future__ import annotations
 import pathlib
 import re
 import subprocess
-from typing import TYPE_CHECKING
 
 try:
     import tomllib  # type: ignore
 except ImportError:
     import tomli as tomllib
 
-if TYPE_CHECKING:
-    from typing import TypeAlias
 
 ROOT = pathlib.Path()
 PYPROJECT = tomllib.loads((ROOT / "pyproject.toml").read_text())
@@ -49,9 +46,7 @@ else:
 major, minor, micro = VERSION.split(".")
 micro = micro.split(end_char, maxsplit=1)[0]
 file = f"""\
-from typing import NamedTuple
-
-from typing_extensions import Final, Literal
+from typing import Final, Literal, NamedTuple
 
 __all__ = (
     "__title__",
