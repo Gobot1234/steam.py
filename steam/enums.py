@@ -2097,5 +2097,5 @@ class ContentDescriptor(IntEnum):
 
 
 if __debug__:
-    _ENUM_NAMES = {enum.__name__ for enum in Enum.__subclasses__() + IntEnum.__subclasses__()}
+    _ENUM_NAMES = {enum.__name__ for enum in Enum.__subclasses__() + IntEnum.__subclasses__() + Flags.__subclasses__()}
     assert _ENUM_NAMES.issubset(__all__), f"__all__ is not complete, missing {_ENUM_NAMES - set(__all__)}"
