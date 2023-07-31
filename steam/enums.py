@@ -822,6 +822,13 @@ class CurrencyCode(IntEnum):
     RON = 47
     """The Romanian Leu."""
 
+    @classmethod
+    def try_name(cls, name: str) -> Self:
+        try:
+            return cls._member_map_[name]
+        except (KeyError, TypeError):
+            return cls.__new__(cls, name=name, value=-1)
+
 
 class Realm(IntEnum):
     Unknown = 0

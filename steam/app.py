@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import re
+from collections.abc import AsyncGenerator, Mapping, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -32,20 +33,19 @@ from .achievement import AppAchievement, AppStats
 from .badge import AppBadge
 from .enums import *
 from .id import _ID64_TO_ID32, id64_from_url
-from .models import CDNAsset, _IOMixin
+from .models import CDNAsset, DescriptionMixin, _IOMixin
 from .protobufs import client_server, player
-from .types.id import ID32, ID64, AppID, ContextID, DepotID, Intable, LeaderboardID, ManifestID
+from .types.id import *
 from .utils import DateTime
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncGenerator, Mapping, Sequence
-
     from .abc import PartialUser
     from .clan import Clan
     from .friend import Friend
     from .leaderboard import Leaderboard
     from .manifest import AppInfo, Depot, HeadlessDepot, Manifest
     from .package import FetchedAppPackage, License, PartialPackage
+    from .protobufs import econ
     from .protobufs.encrypted_app_ticket import EncryptedAppTicket as EncryptedAppTicketProto
     from .published_file import PublishedFile
     from .review import Review
@@ -394,6 +394,90 @@ async def parse_app_ticket(state: ConnectionState, ticket: utils.StructIO) -> Ow
 class FriendThoughts(NamedTuple):
     recommended: list[Friend]
     not_recommended: list[Friend]
+
+
+@dataclass(slots=True)
+class AppShopItemTag:
+    name: str
+    display_name: str
+    id: int
+
+
+class AppShopItem(DescriptionMixin):
+    __slots__ = (
+        *DescriptionMixin.SLOTS,
+        "_state",
+        "class_id",
+        "def_index",
+        "class_",
+        "prices",
+        "original_prices",
+        "updated_at",
+        "store_tags",
+        "_app_id",
+    )
+
+    def __init__(
+        self,
+        state: ConnectionState,
+        data: app.AssetPricesAsset,
+        description: econ.ItemDescription,
+        tags: Sequence[AppShopItemTag],
+    ):
+        self._state = state
+        self.class_id = ClassID(description.classid)
+        self.def_index = int(data["name"])
+        """The def index of the item in the app's schema"""
+        self.class_ = data["class"]
+        """Extra info about the item."""
+        self.prices = cast(
+            Mapping[CurrencyCode, int],
+            {CurrencyCode.try_name(name): price for name, price in data["prices"].items()},
+        )
+        """The prices of the asset in the store."""
+        self.original_prices = cast(
+            Mapping[CurrencyCode, int] | None,
+            {
+                CurrencyCode.try_name(name): price
+                for name, price in data["original_prices"].items()
+                if data["prices"][name] < price
+            }
+            if "original_prices" in data
+            else None,
+        )
+        """The original prices of any items if the price in ``prices`` is reduced."""
+        try:
+            self.updated_at = DateTime.strptime(
+                data["date"], "%Y/%m/%d"
+            )  # yes this could be just a date but maybe volvo will be nice one day
+            """The time the price was last updated"""
+        except ValueError:
+            self.updated_at = None  # they like to sprinkle in a bit of 1960/00/00 for the funsies
+        self.store_tags = [tag for tag in tags for tag_id in data.get("tag_ids", ()) if tag.id == tag_id]
+        """The tags associated with the item."""
+
+        super().__init__(state, description)
+
+    def __repr__(self) -> str:
+        attrs = ("name", "class_id", "def_index", "store_tags", "app")
+        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
+        return f"<{self.__class__.__name__} {' '.join(resolved)}>"
+
+
+@dataclass(slots=True)
+class AppShopItems(Sequence[AppShopItem]):
+    items: Sequence[AppShopItem]
+    """The items that can be purchased from the shop"""
+    tags: Sequence[AppShopItemTag]
+    """All the possible tags for ``items`` to have."""
+
+    if not TYPE_CHECKING:
+
+        def __len__(self):
+            return len(self.items)
+
+        def __getitem__(self, idx):
+            return self.items[idx]
 
 
 AppT = TypeVar("AppT", bound=App, covariant=True)
@@ -931,6 +1015,38 @@ class PartialApp(App[NameT]):
         """
         info = await self._state.request_free_licenses(self.id)
         return info[self.id]
+
+    async def shop_items(
+        self, *, currency: CurrencyCode | None = None, language: Language | None = None
+    ) -> AppShopItems:
+        """Fetch the items that are purchasable inside of the app's shop.
+
+        Parameters
+        ----------
+        currency
+            If passed only return the prices in this currency otherwise return the prices in all supported currencies.
+        language
+            The language to resolve the descriptions of the items to. If ``None`` uses the current language.
+        """
+        data = await self._state.http.get_app_asset_prices(self.id, currency)
+        tags = (
+            [
+                AppShopItemTag(name, display_name, id)
+                for (display_name, name), id in zip(data["tags"].items(), data["tag_ids"].values())
+            ]
+            if "tags" in data and "tag_ids" in data
+            else []
+        )
+
+        INSTANCE_ID_0 = InstanceID(0)
+        assets = {(ClassID(int(asset["classid"])), INSTANCE_ID_0): asset for asset in data["assets"]}
+        return AppShopItems(
+            [
+                AppShopItem(self._state, assets[class_id, INSTANCE_ID_0], description, tags)
+                for (class_id, _), description in (await self._state.fetch_item_info(self.id, assets, language)).items()
+            ],
+            tags,
+        )
 
     async def community_item_definitions(
         self, *, type: CommunityDefinitionItemType = CommunityDefinitionItemType.NONE, language: Language | None = None

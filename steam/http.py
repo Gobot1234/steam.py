@@ -576,6 +576,20 @@ class HTTPClient:
         }
         return self.get(URL.STORE / "api/dlcforapp", params=params)
 
+    async def get_app_asset_prices(self, app_id: AppID, currency: CurrencyCode | None = None) -> app.AssetPrices:
+        params = {
+            "appid": app_id,
+        }
+        if currency is not None:
+            params |= {
+                "currency": currency.name,
+            }
+
+        data: dict[Literal["result"], app.AssetPrices] = await self.get(
+            api_route("ISteamEconomy/GetAssetPrices"), params=params
+        )
+        return data["result"]
+
     async def get_clan_announcement_ids(self, clan_id64: ID64) -> list[int]:
         rss = await self.get(URL.COMMUNITY / f"gid/{clan_id64}/rss")
         soup = BeautifulSoup(rss, HTML_PARSER)

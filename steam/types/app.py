@@ -152,3 +152,22 @@ class AppListApp(TypedDict):
     name: str
     last_modified: int
     price_change_number: int
+
+
+class AssetPricesAsset(
+    dict[{"class": list[dict[str, Any]]}],  # noqa: F722
+):
+    prices: dict[str, int]  # CurrencyCode.name => price in base denomination (£1.54 == 154)
+    original_prices: NotRequired[dict[str, int]]
+    name: str  # really the def_index?
+    date: str  # the time the item's price was last changed?
+    classid: str
+    tags: NotRequired[list[str]]
+    tag_ids: NotRequired[list[int]]
+
+
+class AssetPrices(TypedDict):
+    success: bool
+    assets: list[AssetPricesAsset]
+    tags: NotRequired[dict[str, str]]
+    tag_ids: NotRequired[dict[int, int]]  # only use .values()

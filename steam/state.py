@@ -1509,21 +1509,23 @@ class ConnectionState:
     async def fetch_item_info(
         self, app_id: AppID, items: Iterable[CacheKey], language: Language | None
     ) -> dict[CacheKey, econ.ItemDescription]:
-        result: dict[CacheKey, econ.ItemDescription] = {}
-
-        for chunk in utils.as_chunks(items, 100):
-            msg: econ.GetAssetClassInfoResponse = await self.ws.send_um_and_wait(
-                econ.GetAssetClassInfoRequest(
-                    language=(language or self.language).api_name,
-                    appid=app_id,
-                    classes=[econ.GetAssetClassInfoRequestClass(*item_info) for item_info in chunk],
+        msgs: list[econ.GetAssetClassInfoResponse] = await asyncio.gather(
+            *(
+                self.ws.send_um_and_wait(
+                    econ.GetAssetClassInfoRequest(
+                        language=(language or self.language).api_name,
+                        appid=app_id,
+                        classes=[econ.GetAssetClassInfoRequestClass(*item_info) for item_info in chunk],
+                    )
                 )
+                for chunk in utils.as_chunks(items, 100)
             )
+        )
 
-            for item in msg.descriptions:
-                result[cast(CacheKey, (item.classid, item.instanceid))] = item
-
-        return result
+        return cast(
+            dict[CacheKey, econ.ItemDescription],
+            {(item.classid, item.instanceid): item for msg in msgs for item in msg.descriptions},
+        )
 
     async def fetch_chat_group_roles(self, chat_group_id: ChatGroupID) -> list[chat.Role]:
         msg: chat.GetRolesResponse = await self.ws.send_um_and_wait(chat.GetRolesRequest(chat_group_id=chat_group_id))
@@ -2158,10 +2160,10 @@ class ConnectionState:
 
     async def fetch_store_info(
         self,
-        app_ids: Iterable[AppID],
-        package_ids: Iterable[PackageID],
-        bundle_ids: Iterable[BundleID],
-        language: Language | None,
+        app_ids: Iterable[AppID] = (),
+        package_ids: Iterable[PackageID] = (),
+        bundle_ids: Iterable[BundleID] = (),
+        language: Language | None = None,
     ) -> list[store.StoreItem]:
         ids = (
             [store.StoreItemId(appid=app_id) for app_id in app_ids]

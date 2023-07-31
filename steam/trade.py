@@ -14,9 +14,9 @@ from typing_extensions import NamedTuple, TypeVar
 from . import utils
 from ._const import URL
 from .app import App, PartialApp
-from .enums import CurrencyCode, Language, TradeOfferState
+from .enums import Language, TradeOfferState
 from .errors import ClientException, ConfirmationError
-from .models import CDNAsset, PriceOverview
+from .models import DescriptionMixin
 from .protobufs import econ
 from .types.id import AppID, AssetID, ClassID, ContextID, InstanceID, TradeOfferID
 from .utils import DateTime
@@ -66,7 +66,6 @@ class Asset(Generic[OwnerT]):
         "instance_id",
         # "post_rollback_id",
         "owner",
-        "_app_cs",
         "_app_id",
         "_context_id",
         "_state",
@@ -124,10 +123,7 @@ class Asset(Generic[OwnerT]):
             contextid=self._context_id,
         )
 
-    @utils.cached_slot_property
-    def app(self) -> PartialApp:
-        """The app the item is from."""
-        return PartialApp(self._state, id=self._app_id, context_id=self._context_id)
+    app = DescriptionMixin.app
 
     @property
     def url(self) -> str:
@@ -171,92 +167,15 @@ class Asset(Generic[OwnerT]):
         )
 
 
-class Item(Asset[OwnerT]):
+class Item(Asset[OwnerT], DescriptionMixin):
     """Represents an item in a User's inventory."""
 
-    __slots__ = (
-        "name",
-        "type",
-        "tags",
-        "colour",
-        "icon",
-        "display_name",
-        "market_hash_name",
-        "descriptions",
-        "owner_descriptions",
-        "fraud_warnings",
-        "actions",
-        "owner_actions",
-        "market_actions",
-        "_market_fee_app_id",
-        "_is_tradable",
-        "_is_marketable",
-    )
+    __slots__ = DescriptionMixin.SLOTS
     REPR_ATTRS = ("name", *Asset.REPR_ATTRS)
 
     def __init__(self, state: ConnectionState, asset: econ.Asset, description: econ.ItemDescription, owner: OwnerT):
         super().__init__(state, asset, owner)
-
-        self.name = description.market_name
-        """The market_name of the item."""
-        self.display_name = description.name or self.name
-        """
-        The displayed name of the item. This could be different to :attr:`Item.name` if the item is user re-nameable.
-        """
-        self.market_hash_name = description.market_hash_name
-        self.colour = int(description.name_color, 16) if description.name_color else None
-        """The colour of the item."""
-        self.descriptions = description.descriptions
-        """The descriptions of the item."""
-        self.owner_descriptions = description.owner_descriptions
-        """The descriptions of the item which are visible only to the owner of the item."""
-        self.type = description.type
-        """The type of the item."""
-        self.tags = description.tags
-        """The tags of the item."""
-        icon_url = description.icon_url_large or description.icon_url
-        self.icon = (
-            CDNAsset(state, f"https://community.cloudflare.steamstatic.com/economy/image/{icon_url}")
-            if icon_url
-            else None
-        )
-        """The icon url of the item. Uses the large image url where possible."""
-        self.fraud_warnings = description.fraudwarnings
-        """The fraud warnings for the item."""
-        self.actions = description.actions
-        """The actions for the item."""
-        self.owner_actions = description.owner_actions
-        """The owner actions for the item."""
-        self.market_actions = description.market_actions
-        """The market actions for the item."""
-        self._market_fee_app_id = AppID(description.market_fee_app)
-        self._is_tradable = description.tradable
-        self._is_marketable = description.marketable
-
-    def is_tradable(self) -> bool:
-        """Whether the item is tradable."""
-        return self._is_tradable
-
-    def is_marketable(self) -> bool:
-        """Whether the item is marketable."""
-        return self._is_marketable
-
-    async def price(self, *, currency: CurrencyCode | None = None) -> PriceOverview:
-        """Fetch the price of this item on the Steam Community Market place.
-
-        Shorthand for:
-
-        .. code:: python
-
-            await client.fetch_price(item.market_hash_name, item.app, currency)
-        """
-        price = await self._state.http.get_price(self._app_id, self.market_hash_name, currency)
-        return PriceOverview(price, currency or CurrencyCode.USD)
-
-    @property
-    def market_fee_app(self) -> PartialApp[None]:
-        """The app for which the Steam Community Market fee percentage is applied."""
-        return PartialApp(self._state, id=self._market_fee_app_id)
+        DescriptionMixin.__init__(self, state, description)
 
 
 class InventoryGenericAlias(types.GenericAlias):
