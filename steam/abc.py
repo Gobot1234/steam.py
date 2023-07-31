@@ -16,7 +16,7 @@ from yarl import URL as URL_
 from . import utils
 from ._const import HTML_PARSER, MISSING, STEAM_EPOCH, UNIX_EPOCH, URL, VDF_BINARY_LOADS
 from .achievement import UserAppAchievement, UserAppStats
-from .app import STEAM, App, PartialApp, UserApp, UserInventoryInfoApp, UserInventoryInfoContext, WishlistApp
+from .app import *
 from .badge import FavouriteBadge, UserBadges
 from .enums import *
 from .errors import ConfirmationError, HTTPException, WSException
@@ -431,6 +431,11 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
         """
         apps = await self._state.fetch_user_apps(self.id64, include_free)
         return [UserApp(self._state, app) for app in apps]
+
+    async def recently_played(self) -> list[UserRecentlyPlayedApp]:
+        """Fetches the apps the user has recently played."""
+        apps = await self._state.http.get_user_recently_played_apps(self.id64)
+        return [UserRecentlyPlayedApp(self._state, app) for app in apps]
 
     async def app_stats(self, app: App, *, language: Language | None = None) -> UserAppStats:
         """Fetch the stats for the user in the app.

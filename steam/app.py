@@ -69,6 +69,7 @@ __all__ = (
     "FriendThoughts",
     "DLC",
     "UserApp",
+    "UserRecentlyPlayedApp",
     "WishlistApp",
     "FetchedApp",
 )
@@ -1282,6 +1283,19 @@ class UserApp(PartialApp[str]):
     def has_leaderboards(self) -> bool:
         """Whether the app has leaderboards."""
         return self._leaderboards
+
+
+class UserRecentlyPlayedApp(PartialApp[str]):
+    def __init__(self, state: ConnectionState, data: app.UserRecentlyPlayedApp):
+        super().__init__(state, id=data["appid"], name=data["name"])
+        self.playtime_forever: timedelta = timedelta(minutes=data["playtime_forever"])
+        """The total time the app has been played for."""
+        self.playtime_two_weeks: timedelta = timedelta(minutes=data["playtime_2weeks"])
+        """The amount of time the user has played the app in the last two weeks."""
+        self.icon = CDNAsset(
+            state, str(URL.CDN / f"steamcommunity/public/images/apps/{self.id}/{data['img_icon_url']}.jpg")
+        )
+        """The icon of the app."""
 
 
 class WishlistApp(PartialApp[str]):

@@ -8,6 +8,14 @@ if TYPE_CHECKING:
     from typing_extensions import NotRequired
 
 
+class UserRecentlyPlayedApp(TypedDict):
+    name: str
+    appid: int
+    playtime_2weeks: int
+    playtime_forever: int
+    img_icon_url: str
+
+
 class WishlistApp(TypedDict):
     name: str
     capsule: str

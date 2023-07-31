@@ -500,6 +500,13 @@ class HTTPClient:
         data: ResponseDict[user.UserBadges] = await self.get(api_route("IPlayerService/GetBadges"), params=params)
         return data["response"]
 
+    async def get_user_recently_played_apps(self, user_id64: ID64) -> list[app.UserRecentlyPlayedApp]:
+        params = {"steamid": user_id64}
+        data: ResponseDict[dict[Literal["games"], list[app.UserRecentlyPlayedApp]]] = await self.get(
+            api_route("IPlayerService/GetRecentlyPlayedGames"), params=params
+        )
+        return data["response"]["games"]
+
     async def get_user_inventory_info(self, user_id64: ID64) -> ValuesView[user.InventoryInfo]:
         resp = await self.get(URL.COMMUNITY / f"profiles/{user_id64}/inventory")
         soup = BeautifulSoup(resp, "html.parser")
