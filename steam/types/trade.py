@@ -89,9 +89,11 @@ class GetTradeOffer(TypedDict):
     descriptions: NotRequired[list[Description]]
 
 
-class TradeOfferReceiptAsset(Asset):
+class TradeOfferReceiptAsset(Asset, total=False):
     new_assetid: str
     new_contextid: str
+    rollback_new_assetid: Required[str]  # not strictly true but I think these are mutually exclusive
+    rollback_new_contextid: Required[str]  # same here
 
 
 class TradeOfferReceiptItem(TradeOfferReceiptAsset, Item):

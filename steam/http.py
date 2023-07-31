@@ -350,12 +350,13 @@ class HTTPClient:
         return first_page
 
     async def get_trade_history(
-        self, limit: int, previous_time: int = 0, language: Language | None = None
+        self, limit: int, include_failed: bool, previous_time: int = 0, language: Language | None = None
     ) -> trade.GetTradeOfferHistory:
         params = {
             "max_trades": limit,
             "get_descriptions": "true",
             "include_total": "true",
+            "include_failed": str(include_failed).lower(),
             "start_after_time": previous_time,
             "language": (language or self.language).api_name,
         }

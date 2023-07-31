@@ -335,10 +335,21 @@ class MovedItem(Item[OwnerT]):
             description=econ.ItemDescription().from_dict(data),
             owner=owner,
         )
-        self.new_id = int(data["new_assetid"])
-        """The new_assetid field, this is the asset ID of the item in the partners inventory."""
-        self.new_context_id = int(data["new_contextid"])
-        """The new_contextid field."""
+        try:
+            self.new_id = AssetID(
+                int(data["new_assetid"]) if "new_assetid" in data else int(data["rollback_new_assetid"])
+            )
+            """The new_assetid field, this is the asset ID of the item in the partners inventory."""
+        except KeyError:
+            self.new_id = AssetID(-1)  # steam broke?
+
+        try:
+            self.new_context_id = ContextID(
+                int(data["new_contextid"]) if "new_contextid" in data else int(data["rollback_new_contextid"])
+            )
+            """The new_contextid field."""
+        except KeyError:
+            self.new_context_id = ContextID(-1)  # steam broke again probably
 
 
 ReceivingAssetT = TypeVar("ReceivingAssetT", bound="Asset[PartialUser]", default="Item[BaseUser]", covariant=True)

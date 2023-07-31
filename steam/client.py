@@ -1125,6 +1125,7 @@ class Client:
         before: datetime.datetime | None = None,
         after: datetime.datetime | None = None,
         language: Language | None = None,
+        include_failed: bool = True,
     ) -> AsyncGenerator[TradeOffer[MovedItem[User], MovedItem[ClientUser], User], None]:
         """An :term:`asynchronous iterator` for accessing a :class:`steam.ClientUser`'s
         :class:`steam.TradeOffer` objects.
@@ -1155,6 +1156,8 @@ class Client:
             A time to search for trades after.
         language
             The language to fetch the trade in. ``None`` uses the current language.
+        include_failed
+            Whether to include trades that failed.
 
         Yields
         ---------
@@ -1172,9 +1175,9 @@ class Client:
 
         async def get_trades(
             page: int = 100,
-        ) -> list[TradeOffer[MovedItem[User], MovedItem[ClientUser], User]]:  # FIXME page param seems wrong
+        ) -> list[TradeOffer[MovedItem[User], MovedItem[ClientUser], User]]:
             nonlocal total, previous_time
-            data = await self._state.http.get_trade_history(page, previous_time, language)
+            data = await self.http.get_trade_history(page, include_failed, previous_time, language)
             if total is None:
                 total = data.get("total_trades", 0)
             if not total:
@@ -1186,7 +1189,9 @@ class Client:
                 for trade in data.get("trades", ())
                 if after_timestamp < trade["time_init"] < before_timestamp
             ]
-            previous_time = trades[-1].created_at.timestamp()  # type: ignore  # its never gonna be None
+            previous_created_at = trades[-1].created_at
+            assert previous_created_at is not None
+            previous_time = previous_created_at.timestamp()
             for trade, partner in zip(trades, await self._state._maybe_users(trade.partner.id64 for trade in trades)):
                 trade.partner = partner
                 for item in trade.receiving:
