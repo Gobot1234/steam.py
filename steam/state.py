@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import collections
+import functools
 import inspect
 import logging
 import random
@@ -160,6 +161,22 @@ def parser(func: F) -> F:
     return func
 
 
+class noop:
+    def __await__(self):
+        yield
+
+
+def requires_intent(intent: Intents) -> Callable[[F], F]:
+    def deco(func: F) -> F:
+        @functools.wraps(func)
+        def inner(self: ConnectionState, *args: Any, **kwargs: Any) -> Any:
+            return func(self, *args, **kwargs) if self.intents & intent > 0 else noop()
+
+        return cast(F, inner)
+
+    return deco
+
+
 class ConnectionState:
     parsers: dict[EMsg, ParserCallback[Self, ProtoMsgs]]
 
@@ -175,6 +192,7 @@ class ConnectionState:
         self.login_complete = asyncio.Event()
         self.handled_licenses = asyncio.Event()
         self.handled_wallet = asyncio.Event()
+        self.intents = kwargs.pop("intents", Intents.safe())
         self.max_messages: int | None = kwargs.pop("max_messages", 1000)
 
         app = kwargs.get("app")
@@ -420,6 +438,7 @@ class ConnectionState:
             ret.append(await self._store_trade(trade))
         return ret
 
+    @requires_intent(Intents.TradeOffers)
     async def poll_trades(self) -> None:
         if self.polling_trades or not await self.http.get_api_key():
             return
@@ -1082,6 +1101,7 @@ class ConnectionState:
             case _:
                 log.debug("Got a UM %r that we don't handle %r", msg.UM_NAME, msg)
 
+    @requires_intent(Intents.Messages & Intents.Users)
     async def handle_user_message(self, msg: friend_messages.IncomingMessageNotification) -> None:
         await self.client.wait_until_ready()
         id64 = msg.steamid_friend
@@ -1094,16 +1114,18 @@ class ConnectionState:
             self._messages.append(message)
             self.dispatch("message", message)
 
-        if msg.chat_entry_type == ChatEntryType.Typing:
+        elif msg.chat_entry_type == ChatEntryType.Typing:
             when = DateTime.from_timestamp(msg.rtime32_server_timestamp)
             self.dispatch("typing", author, when)
 
+    @requires_intent(Intents.Messages & Intents.Users)
     async def handle_user_message_reaction(self, msg: friend_messages.MessageReactionNotification) -> None:
-        participant = await self._maybe_user(msg.steamid_friend)
-        reactor = self.user if msg.reactor == self.user.id else participant
+        id64 = msg.steamid_friend
+        partner = self.user._friends.get(_ID64_TO_ID32(id64)) or await self._maybe_user(id64)
+        reactor = self.user if msg.reactor == self.user.id else partner
         ordinal = msg.ordinal
         created_at = DateTime.from_timestamp(msg.server_timestamp)
-        authors = {participant, self.user}
+        authors = {partner, self.user}
         message = utils.find(
             lambda message: (
                 message.author in authors
@@ -1145,6 +1167,7 @@ class ConnectionState:
                 chat_group._invites[...] = ...
                 self.dispatch(f"{chat_group.__class__.__name__.lower()}_invite", invite)
 
+    @requires_intent(Intents.ChatGroups & Intents.Chat & Intents.Messages & Intents.Users)
     def handle_chat_message(self, msg: chat.IncomingChatMessageNotification) -> None:
         try:
             chat_group = self._chat_groups[ChatGroupID(msg.chat_group_id)]
@@ -1155,7 +1178,7 @@ class ConnectionState:
         channel._update(msg)
         author = chat_group._maybe_member(_ID64_TO_ID32(msg.steamid_sender))
         if msg.server_message:
-            return  # self.handle_chat_server_message(chat_group, author, msg.server_message)
+            return  # self.handle_chat_server_message(chat_group, author, msg.server_message)  # this needs to manually handle intents
 
         (message_cls,) = channel._type_args
         message = message_cls(
@@ -1167,6 +1190,7 @@ class ConnectionState:
         self._messages.append(message)
         self.dispatch("message", message)
 
+    @requires_intent(Intents.ChatGroups & Intents.Chat & Intents.Messages & Intents.Users)
     def handle_chat_message_reaction(self, msg: chat.MessageReactionNotification) -> None:
         try:
             destination = self._chat_groups[ChatGroupID(msg.chat_group_id)]
@@ -1225,6 +1249,7 @@ class ConnectionState:
 
         self.dispatch(f"reaction_{'add' if msg.is_add else 'remove'}", reaction)
 
+    @requires_intent(Intents.ChatGroups)
     def handle_chat_group_update(self, msg: chat.ChatRoomHeaderStateNotification) -> None:
         try:
             chat_group = self._chat_groups[ChatGroupID(msg.header_state.chat_group_id)]
@@ -1236,6 +1261,7 @@ class ConnectionState:
         chat_group._update_header_state(msg.header_state)
         self.dispatch(f"{chat_group.__class__.__name__.lower()}_update", before, chat_group)
 
+    @requires_intent(Intents.ChatGroups)
     async def handle_chat_group_user_action(self, msg: chat.NotifyChatGroupUserStateChangedNotification) -> None:
         if msg.user_action == chat.EChatRoomMemberStateChange.Joined:  # join group
             if msg.group_summary.clanid:
@@ -1262,6 +1288,7 @@ class ConnectionState:
         #     self._groups[group.id] = group
         #     self.dispatch("group_invite", group)
 
+    @requires_intent(Intents.ChatGroups & Intents.Users)
     async def handle_chat_member_update(self, msg: chat.MemberStateChangeNotification) -> None:
         try:
             chat_group = self._chat_groups[ChatGroupID(msg.chat_group_id)]
@@ -1316,6 +1343,7 @@ class ConnectionState:
 
         self.dispatch("member_update", before, member)
 
+    @requires_intent(Intents.ChatGroups & Intents.Chat)
     def handle_chat_update(self, msg: chat.ChatRoomGroupRoomsChangeNotification) -> None:
         try:
             chat_group = self._chat_groups[ChatGroupID(msg.chat_group_id)]
@@ -1327,6 +1355,7 @@ class ConnectionState:
         chat_group._update_channels(msg.chat_rooms)
         self.dispatch(f"{chat_group.__class__.__name__.lower()}_update", before, chat_group)
 
+    @requires_intent(Intents.ChatGroups)
     async def handle_get_my_chat_groups(self, msg: chat.GetMyChatRoomGroupsResponse) -> None:
         for chat_group in msg.chat_room_groups:
             if chat_group.group_summary.clanid:  # received a clan
@@ -1347,13 +1376,9 @@ class ConnectionState:
                 self._groups[group.id] = group
 
         self.handled_chat_groups.set()
-        await self.handled_friends.wait()  # ensure friend cache is ready
-        await self.handled_emoticons.wait()  # ensure emoticon cache is ready
-        await self.handled_licenses.wait()  # ensure licenses are ready
-        await self.handled_wallet.wait()  # ensure wallet is ready
-        await self.client._handle_ready()
 
     @parser
+    @requires_intent(Intents.Users)
     def parse_persona_state_update(self, msg: friends.CMsgClientPersonaState) -> None:
         for friend in msg.friends:
             after = self.get_user(_ID64_TO_ID32(friend.friendid))
@@ -1369,6 +1394,7 @@ class ConnectionState:
         return friend
 
     @parser
+    @requires_intent(Intents.Users)
     async def process_friends(self, msg: friends.CMsgClientFriendsList) -> None:
         await self.login_complete.wait()
         clan_invitees = None
@@ -1825,6 +1851,7 @@ class ConnectionState:
         return msg
 
     @parser
+    @requires_intent(Intents.Users)
     async def parse_account_info(self, msg: login.CMsgClientAccountInfo) -> None:
         await self.login_complete.wait()
         if msg.persona_name != self.user.name:
@@ -1859,6 +1886,7 @@ class ConnectionState:
             raise WSException(msg)
 
     @parser
+    @requires_intent(Intents.ChatGroups)
     async def update_clan(self, msg: client_server.CMsgClientClanState) -> None:
         await self.handled_chat_groups.wait()
         steam_id = ID(msg.steamid_clan)

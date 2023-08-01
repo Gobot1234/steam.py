@@ -292,6 +292,17 @@ Enumerations
     :undoc-members:
 
 
+Intents
+---------------
+Intents allow you to control what data you wish to request from Steam, they are useful for reducing the overhead of the
+library and allow you to chose what features you wish to enable. The should be passed to the :class:`Client`
+constructor.
+
+.. autoclass:: Intents()
+    :members:
+    :undoc-members:
+
+
 Guard
 ---------------
 

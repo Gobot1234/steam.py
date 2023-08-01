@@ -1,6 +1,6 @@
 import pytest
 
-from steam import AppType, Enum, Instance, Language, Result, TypeChar
+from steam import AppType, Enum, Instance, Intents, Language, Result, TypeChar
 
 
 def is_unknown(enum: Enum) -> bool:
@@ -72,6 +72,11 @@ def test_flag_try_value() -> None:
     instance_flag_20 = Instance.try_value(1 << 20)
     assert is_unknown(instance_flag_20)
     assert instance_flag_20.value == 1 << 20
+
+
+def test_intents():
+    assert Intents.Market & Intents.safe() == 0
+    assert Intents.Market | Intents.safe() == Intents.all()
 
 
 def test_language_from_str() -> None:

@@ -19,7 +19,19 @@ import traceback
 from collections.abc import AsyncGenerator, Callable, Collection, Coroutine, Iterable, Sequence
 from contextlib import nullcontext
 from ipaddress import IPv4Address
-from typing import TYPE_CHECKING, Any, Concatenate, Literal, ParamSpec, TypeAlias, TypeVar, cast, final, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Concatenate,
+    Literal,
+    ParamSpec,
+    TypeAlias,
+    TypedDict,
+    TypeVar,
+    cast,
+    final,
+    overload,
+)
 
 from bs4 import BeautifulSoup
 
@@ -27,16 +39,7 @@ from . import errors, utils
 from ._const import DOCS_BUILDING, STATE, UNIX_EPOCH, URL, TaskGroup, timeout
 from .app import App, AppListApp, AuthenticationTicket, FetchedApp, PartialApp
 from .bundle import Bundle, FetchedBundle, PartialBundle
-from .enums import (
-    AuthSessionResponse,
-    CurrencyCode,
-    Language,
-    PersonaState,
-    PersonaStateFlag,
-    PublishedFileRevision,
-    Type,
-    UIMode,
-)
+from .enums import *
 from .game_server import GameServer, Query
 from .gateway import *
 from .guard import get_authentication_code
@@ -55,7 +58,7 @@ if TYPE_CHECKING:
     import datetime
 
     import aiohttp
-    from typing_extensions import Self
+    from typing_extensions import Self, Unpack
 
     import steam
 
@@ -84,6 +87,22 @@ EventDeco: TypeAlias = Callable[[E], E] | E
 P = ParamSpec("P")
 
 
+class ClientKwargs(TypedDict, total=False):
+    proxy: str | None
+    proxy_auth: aiohttp.BasicAuth | None
+    connector: aiohttp.BaseConnector | None
+    intents: Intents
+    max_messages: int | None
+    app: App | None
+    apps: list[App]
+    state: PersonaState | None
+    ui_mode: UIMode | None
+    flags: PersonaStateFlag | None
+    force_kick: bool
+    language: Language
+    auto_chunk_chat_groups: bool
+
+
 class Client:
     """Represents a client connection that connects to Steam. This class is used to interact with the Steam API and CMs.
 
@@ -101,6 +120,8 @@ class Client:
         The proxy authentication to use with requests.
     connector
         The connector to use with the :class:`aiohttp.ClientSession`.
+    intents
+        The intents
     max_messages
         The maximum number of messages to store in the internal cache, default is 1000.
     app
@@ -132,26 +153,7 @@ class Client:
     # Client.create_clan
     # Client.create_group
 
-    @overload
-    def __init__(  # type: ignore
-        self,
-        *,
-        proxy: str | None = None,
-        proxy_auth: aiohttp.BasicAuth | None = None,
-        connector: aiohttp.BaseConnector | None = None,
-        max_messages: int | None = 1000,
-        app: App | None = None,
-        apps: list[App] = [],
-        state: PersonaState | None = PersonaState.Online,
-        ui_mode: UIMode | None = UIMode.Desktop,
-        flags: PersonaStateFlag | None = PersonaStateFlag.NONE,
-        force_kick: bool = False,
-        language: Language = Language.English,
-        auto_chunk_chat_groups: bool = False,
-    ):
-        ...
-
-    def __init__(self, **options: Any):
+    def __init__(self, **options: Unpack[ClientKwargs]):
         self.http = HTTPClient(client=self, **options)
         self._state = self._get_state(**options)
         self.ws: SteamWebSocket | None = None
@@ -457,7 +459,8 @@ class Client:
     ) -> None:
         self.clear()
         async with nullcontext() if self._aentered else self._tg:
-            STATE.set(self._state)
+            state = self._state
+            STATE.set(state)
 
             async def throttle() -> None:
                 now = time.monotonic()
@@ -468,7 +471,18 @@ class Client:
 
             async def poll() -> None:
                 while True:
-                    await self._state.ws.poll_event()
+                    await state.ws.poll_event()
+
+            async def dispatch_ready() -> None:
+                if state.intents & Intents.ChatGroups > 0:
+                    await state.handled_chat_groups.wait()  # ensure group cache is ready
+                if state.intents & Intents.ChatGroups > 0:
+                    await state.handled_friends.wait()  # ensure friend cache is ready
+                await state.handled_emoticons.wait()  # ensure emoticon cache is ready
+                await state.handled_licenses.wait()  # ensure licenses are ready
+                await state.handled_wallet.wait()  # ensure wallet is ready
+
+                await self._handle_ready()
 
             while not self.is_closed():
                 last_connect = time.monotonic()
@@ -480,13 +494,15 @@ class Client:
                     await throttle()
                     continue
 
+                self._tg.create_task(dispatch_ready())
+
                 # this entire thing is a bit of a cluster fuck
                 # but that's what you deserve for having async parsers
 
                 done: asyncio.Future[asyncio.Future[None]] = asyncio.get_running_loop().create_future()
 
                 poll_task = asyncio.create_task(poll())
-                callback_error = self._state._task_error
+                callback_error = state._task_error
 
                 def maybe_set_result(future: asyncio.Future[None]) -> None:
                     if not done.done():
@@ -525,7 +541,7 @@ class Client:
                     self.dispatch("disconnect")
                     if not self.is_closed():
                         await throttle()
-                self._state._task_error = asyncio.get_running_loop().create_future()
+                state._task_error = asyncio.get_running_loop().create_future()
 
     @overload
     async def login(

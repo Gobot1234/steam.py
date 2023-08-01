@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Generator, Mapping
 from enum import Enum as _Enum, EnumMeta as _EnumMeta, IntEnum as _IntEnum
+from functools import reduce
 from types import MappingProxyType, new_class
 from typing import TYPE_CHECKING, Any, Final, Generic, Literal, SupportsInt, TypeVar, cast
 
@@ -16,6 +17,7 @@ __all__ = (
     "Enum",
     "IntEnum",
     "Flags",
+    "Intents",
     "Result",
     "Language",
     "CurrencyCode",
@@ -268,11 +270,59 @@ class Flags(IntEnum):
         except KeyError:
             return cls.__new__(cls, name=f"{self.name} & {getattr(other, 'name', other)}", value=value)
 
+    def __invert__(self) -> Self:
+        member = self.try_value(~-self.value)
+        if member.name.endswith("UnknownValue"):
+            object.__setattr__(member, "name", f"~{self.name}")
+        return member
+
     __ror__ = __or__
     __rand__ = __and__
 
 
 # fmt: off
+class Intents(Flags):
+    """Flags that control what features the client will interact with."""
+    NONE = 0
+    """Very little interaction happens from our end of the connection."""
+    Users = 1 << 0
+    """Users and members are cached."""
+    TradeOffers = 1 << 1
+    """TradeOffers are fetched and processed automatically"""
+    Messages = 1 << 2
+    """Messages are cached, cannot be enabled without :attr:`Chat`."""
+    Chat = 1 << 3
+    """Chats/Channels are cached."""
+    ChatGroups = 1 << 4
+    """Groups/Clans are cached."""
+    Market = 1 << 5
+    """Market interactions are enabled.
+
+    Warning
+    -------
+    Using this comes could lead to your account being banned, much more so than with any other library operations.
+    """
+
+    @classmethod
+    def all(cls) -> Self:
+        """Returns all the intents.
+
+        Warning
+        -------
+        This will return unsafe intents. Use at your own risk!
+
+        See also
+        --------
+        :meth:`safe` as a safe alternative to this function which is less likely to get you banned.
+        """
+        return reduce(cls.__or__, cls._value_map_.values())
+
+    @classmethod
+    def safe(cls) -> Self:
+        """Returns all the intents without the unsafe ones."""
+        return cls.all() & ~cls.Market
+
+
 class Result(IntEnum):
     """The result of a Steam API call. Read more on :works:`steamworks <api/steam_api#EResult>`.
     """

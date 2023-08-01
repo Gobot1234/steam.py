@@ -16,7 +16,7 @@ import traceback
 import warnings
 from pathlib import Path
 from types import MappingProxyType, ModuleType
-from typing import TYPE_CHECKING, Any, Literal, TypeAlias, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Literal, TypeAlias, TypedDict, TypeVar, overload
 
 from ... import _const, utils
 from ...client import Client, E, EventType, log
@@ -32,6 +32,8 @@ from .utils import Shlex
 if TYPE_CHECKING:
     import datetime
     from collections.abc import Callable, Coroutine, Iterable
+
+    from typing_extensions import Required, Unpack
 
     from steam.ext import commands
 
@@ -100,6 +102,14 @@ def resolve_path(path: Path) -> str:
     # resolve cogs relative to where they are loaded as it's probably the most common use case for this
 
 
+class BotKwargs(TypedDict, total=False):
+    command_prefix: Required[CommandPrefixType]
+    help_command: HelpCommand
+    owner_id: int
+    owner_ids: Iterable[int]
+    case_insensitive: bool
+
+
 class Bot(GroupMixin, Client):
     """Represents a Steam bot.
 
@@ -141,14 +151,15 @@ class Bot(GroupMixin, Client):
     """
 
     def __init__(
-        self, *, command_prefix: CommandPrefixType, help_command: HelpCommand = DefaultHelpCommand(), **options: Any
+        self,
+        **options: Unpack[BotKwargs],
     ):
         super().__init__(**options)
         self.__cogs__: dict[str, Cog] = {}
         self.__listeners__: dict[str, list[EventType]] = {}
         self.__extensions__: dict[str, ModuleType] = {}
 
-        self.command_prefix = command_prefix
+        self.command_prefix = options.get("command_prefix")
         self.owner_id = parse_id64(options.get("owner_id", 0))
         self.owner_ids = {parse_id64(owner_id) for owner_id in options.get("owner_ids", ())}
         if self.owner_id and self.owner_ids:
@@ -166,7 +177,7 @@ class Bot(GroupMixin, Client):
                     continue
                 self.add_command(command)
 
-        self.help_command = help_command
+        self.help_command = options.get("help_command", DefaultHelpCommand())
 
         self.checks: list[CheckReturnType] = []
         self._before_hook = None
