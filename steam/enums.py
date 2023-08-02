@@ -20,7 +20,7 @@ __all__ = (
     "Intents",
     "Result",
     "Language",
-    "CurrencyCode",
+    "Currency",
     "Realm",
     "PurchaseResult",
     "Universe",
@@ -780,7 +780,7 @@ _REVERSE_WEB_API_MAP: Final = cast(
     Mapping[str, Language], {value: key for key, value in Language.WEB_API_MAP.items()}
 )
 
-class CurrencyCode(IntEnum):
+class Currency(IntEnum):
     """All currencies currently supported by Steam."""
     USD = 1
     """The United States Dollar."""

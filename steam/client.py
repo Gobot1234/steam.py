@@ -45,7 +45,8 @@ from .gateway import *
 from .guard import get_authentication_code
 from .http import HTTPClient
 from .id import ID, parse_id64
-from .models import PriceOverview, Wallet, return_true
+from .market import Listing, PriceOverview, Wallet
+from .models import return_true
 from .package import FetchedPackage, License, Package, PartialPackage
 from .post import Post
 from .protobufs import store
@@ -83,8 +84,8 @@ __all__ = ("Client",)
 
 log = logging.getLogger(__name__)
 
-EventType: TypeAlias = Callable[..., Coroutine[Any, Any, Any]]
-E = TypeVar("E", bound=EventType)
+CoroFunc: TypeAlias = Callable[..., Coroutine[Any, Any, Any]]
+E = TypeVar("E", bound=CoroFunc)
 EventDeco: TypeAlias = Callable[[E], E] | E
 P = ParamSpec("P")
 
@@ -292,7 +293,7 @@ class Client:
 
         return decorator(coro) if coro is not None else decorator
 
-    async def _run_event(self, coro: EventType, event_name: str, *args: Any, **kwargs: Any) -> None:
+    async def _run_event(self, coro: CoroFunc, event_name: str, *args: Any, **kwargs: Any) -> None:
         try:
             await coro(*args, **kwargs)
         except asyncio.CancelledError:
@@ -303,7 +304,7 @@ class Client:
             except asyncio.CancelledError:
                 pass
 
-    def _schedule_event(self, coro: EventType, event_name: str, *args: Any, **kwargs: Any) -> asyncio.Task[None]:
+    def _schedule_event(self, coro: CoroFunc, event_name: str, *args: Any, **kwargs: Any) -> asyncio.Task[None]:
         return self._tg.create_task(
             self._run_event(coro, event_name, *args, **kwargs), name=f"steam.py task: {event_name}"
         )
@@ -1336,7 +1337,7 @@ class Client:
         """Waits until the client's internal cache is all ready."""
         await self._ready.wait()
 
-    async def fetch_price(self, name: str, app: App, currency: CurrencyCode | None = None) -> PriceOverview:
+    async def fetch_price(self, name: str, app: App, currency: Currency | None = None) -> PriceOverview:
         """Fetch the :class:`PriceOverview` for an item.
 
         Parameters
@@ -1349,7 +1350,12 @@ class Client:
             The currency to fetch the price in.
         """
         price = await self.http.get_price(app.id, name, currency)
-        return PriceOverview(price, currency or CurrencyCode.USD)
+        return PriceOverview(price, currency or Currency.USD)
+
+    # here be dragons
+    async def fetch_listings(self, name: str, app: App) -> list[Listing]:
+        listings = await self.http.get_listings(app.id, name)
+        return [Listing(self._state, listing) for listing in listings]
 
     # events to be subclassed
 

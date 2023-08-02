@@ -19,7 +19,7 @@ from types import MappingProxyType, ModuleType
 from typing import TYPE_CHECKING, Any, Literal, TypeAlias, TypedDict, TypeVar, overload
 
 from ... import _const, utils
-from ...client import Client, E, EventType, log
+from ...client import Client, CoroFunc, E, log
 from ...id import parse_id64
 from .cog import Cog
 from .commands import CHR, CheckReturnType, CheckType, Command, GroupMixin, InvokeT, check
@@ -156,7 +156,7 @@ class Bot(GroupMixin, Client):
     ):
         super().__init__(**options)
         self.__cogs__: dict[str, Cog] = {}
-        self.__listeners__: dict[str, list[EventType]] = {}
+        self.__listeners__: dict[str, list[CoroFunc]] = {}
         self.__extensions__: dict[str, ModuleType] = {}
 
         self.command_prefix = options.get("command_prefix")
@@ -357,7 +357,7 @@ class Bot(GroupMixin, Client):
         cog._eject(self)
         del self.__cogs__[cog.qualified_name]
 
-    def add_listener(self, func: EventType, name: str | None = None) -> None:
+    def add_listener(self, func: CoroFunc, name: str | None = None) -> None:
         """Add a function from the internal listeners list.
 
         Parameters
@@ -377,7 +377,7 @@ class Bot(GroupMixin, Client):
         except KeyError:
             self.__listeners__[name] = [func]
 
-    def remove_listener(self, func: EventType, name: str | None = None) -> None:
+    def remove_listener(self, func: CoroFunc, name: str | None = None) -> None:
         """Remove a function from the internal listeners list.
 
         Parameters

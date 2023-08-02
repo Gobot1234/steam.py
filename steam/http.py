@@ -9,20 +9,20 @@ import urllib.parse
 from datetime import date, datetime
 from http.cookies import SimpleCookie
 from random import randbytes
-from sys import version_info
 from time import time
 from typing import TYPE_CHECKING, Any, Literal, TypeVar, cast
 
 import aiohttp
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 from yarl import URL as URL_
 
 from . import errors, utils
 from .__metadata__ import __version__
 from ._const import HTML_PARSER, JSON_DUMPS, JSON_LOADS, URL
-from .enums import CurrencyCode, Language, Result, Type
+from .enums import Currency, Language, Result, Type
 from .id import CLAN_ID64_FROM_URL_REGEX, ID, parse_id64
-from .models import PriceOverviewDict, api_route
+from .models import api_route
+from .types import market
 from .types.id import ID32, ID64, AppID, AssetID, BundleID, ChatGroupID, ChatID, PackageID, PostID, TradeOfferID
 
 if TYPE_CHECKING:
@@ -50,6 +50,19 @@ async def json_or_text(r: aiohttp.ClientResponse, *, loads: Callable[[str], Any]
     return text
 
 
+def extract_js_variables(script: str, *names: str, loads: Callable[[str], Any] = JSON_LOADS) -> list[Any]:
+    values: list[Any] = []
+    for name in names:
+        if match := re.search(
+            rf"""var\s+{name}\s*=\s*(?P<value>{{.*?}}|\[.*?\]|['"]?.*?['"]|\d+(?:\.\d+)?|null|true|false)\s*;?""",
+            script,
+        ):
+            values.append(loads(match["value"]))
+        else:
+            raise NameError(name)
+    return values
+
+
 class HTTPClient:
     """The HTTP Client that interacts with the Steam web API."""
 
@@ -71,8 +84,8 @@ class HTTPClient:
 
         self.logged_in = False
         self.user_agent = (
-            f"steam.py/{__version__} client (https://github.com/Gobot1234/steam.py), "
-            f"Python/{version_info.major}.{version_info.minor}, aiohttp/{aiohttp.__version__}"
+            "Mozilla/5.0 (Windows; U; Windows NT 10.0; en-US; Valve Steam Client/default/0; ) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.117 Safari/537.36"
         )
 
         self.proxy: str | None = options.get("proxy")
@@ -522,14 +535,14 @@ class HTTPClient:
 
     async def get_user_inventory_info(self, user_id64: ID64) -> ValuesView[user.InventoryInfo]:
         resp = await self.get(URL.COMMUNITY / f"profiles/{user_id64}/inventory")
-        soup = BeautifulSoup(resp, "html.parser")
+        soup = BeautifulSoup(resp, HTML_PARSER)
         for script in soup.find_all("script", type="text/javascript"):
-            if match := re.search(r"var\s+g_rgAppContextData\s*=\s*(?P<json>{.*?});\s*", script.text):
-                break
-        else:
-            raise ValueError("Could not find inventory info")
-
-        return JSON_LOADS(match["json"]).values()
+            try:
+                (info,) = extract_js_variables(script.text, "g_rgAppContextData")
+                return info.values()
+            except NameError:
+                pass
+        raise ValueError("Could not find inventory info")
 
     async def send_user_gift(
         self, user_id: ID32, asset_id: AssetID, name: str, message: str, closing_note: str, signature: str
@@ -552,16 +565,6 @@ class HTTPClient:
     def clear_nickname_history(self) -> Coro[None]:
         payload = {"sessionid": self.session_id}
         return self.post(URL.COMMUNITY / "my/ajaxclearaliashistory", data=payload)
-
-    def get_price(self, app_id: AppID, item_name: str, currency: CurrencyCode | None) -> Coro[PriceOverviewDict]:
-        payload = {
-            "appid": app_id,
-            "market_hash_name": item_name,
-        }
-        if currency is not None:
-            payload |= {"currency": currency}
-
-        return self.post(URL.COMMUNITY / "market/priceoverview", data=payload)
 
     async def get_user_wishlist(self, user_id64: ID64) -> AsyncGenerator[tuple[AppID, app.WishlistApp], None]:
         params = {"p": 0}
@@ -589,7 +592,7 @@ class HTTPClient:
         }
         return self.get(URL.STORE / "api/dlcforapp", params=params)
 
-    async def get_app_asset_prices(self, app_id: AppID, currency: CurrencyCode | None = None) -> app.AssetPrices:
+    async def get_app_asset_prices(self, app_id: AppID, currency: Currency | None = None) -> app.AssetPrices:
         params = {
             "appid": app_id,
         }
@@ -981,6 +984,62 @@ class HTTPClient:
             "sessionid": self.session_id,
         }
         return self.post(URL.COMMUNITY / "steamguard/phoneajax", data=data)
+
+    def get_price(self, app_id: AppID, item_name: str, currency: Currency | None) -> Coro[market.PriceOverview]:
+        data = {
+            "appid": app_id,
+            "market_hash_name": item_name,
+        }
+        if currency is not None:
+            data |= {"currency": currency}
+
+        return self.post(URL.COMMUNITY / "market/priceoverview", data=data)
+
+    async def get_listings(self, app_id: AppID, item_name: str) -> list[market.Listing]:
+        headers = {"Referer": URL.COMMUNITY / "market/search" % {"appid": app_id}}
+        resp = await self.get(URL.COMMUNITY / f"market/listings/{app_id}/{item_name}", headers=headers)
+        soup = BeautifulSoup(resp, HTML_PARSER)
+        tag = soup.find("div", class_="responsive_page_template_content", id="responsive_page_template_content")
+        assert isinstance(tag, Tag)
+        for script in tag.find_all("script", type="text/javascript"):
+            if match := re.search(r"Market_LoadOrderSpread\s+\(\s+(?P<name_id>\d+)\s+\);\s*", script.text):
+                listings: list[market.Listing] = []
+                name_id = int(match["name_id"])
+                assets, listings_ = cast(
+                    tuple[
+                        dict[str, dict[str, dict[str, market.ListingAsset]]],
+                        dict[str, market._Listing],
+                    ],
+                    extract_js_variables(script.text, "g_rgAssets", "g_rgListingInfo"),
+                )
+                for idx, listing in enumerate(listings_.values(), start=1):
+                    asset = listing["asset"]
+                    history: list[market.ListingPriceHistory] = []
+                    for snapshot_info, avg_price, quantity in cast(
+                        list[market._ListingPriceHistory], *extract_js_variables(script.text, f"line{idx}")
+                    ):
+                        month, day, year, snapshot_number, tz = snapshot_info.split()
+                        date = datetime.strptime(f"{month} {day} {year} {tz.rjust(5, '0')}", "%b %d %Y %z")
+                        history.append((date, int(snapshot_number), avg_price, int(quantity)))
+
+                    listings.append(
+                        {
+                            "id": int(listing["listingid"]),
+                            "currency_id": listing["currencyid"],
+                            "price": listing["price"],
+                            "fee": listing["fee"],
+                            "publisher_fee_app": listing["publisher_fee_app"],
+                            "publisher_fee_percent": round(float(listing["publisher_fee_percent"]), 4),
+                            "item": {
+                                **assets[str(asset["appid"])][asset["contextid"]][asset["id"]],
+                                "name_id": name_id,
+                            },
+                            "price_history": history,
+                        }
+                    )
+
+                return listings
+        raise RuntimeError("unreachable")
 
     # async def
 

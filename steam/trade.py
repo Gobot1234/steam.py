@@ -26,6 +26,7 @@ if TYPE_CHECKING:
 
     from .abc import BaseUser, PartialUser
     from .friend import Friend
+    from .market import Listing
     from .state import ConnectionState
     from .types import trade
     from .user import ClientUser, User
@@ -41,7 +42,7 @@ __all__ = (
 )
 
 
-OwnerT = TypeVar("OwnerT", bound="PartialUser", default="BaseUser", covariant=True)
+OwnerT = TypeVar("OwnerT", bound="PartialUser | None", default="BaseUser", covariant=True)
 
 
 class Asset(Generic[OwnerT]):
@@ -126,7 +127,7 @@ class Asset(Generic[OwnerT]):
     app = DescriptionMixin.app
 
     @property
-    def url(self) -> str:
+    def url(self: Asset[PartialUser]) -> str:
         """The URL for the asset in the owner's inventory.
 
         e.g. https://steamcommunity.com/profiles/76561198248053954/inventory/#440_2_8526584188
@@ -165,6 +166,16 @@ class Asset(Generic[OwnerT]):
             closing_note=closing_note,
             signature=signature,
         )
+
+    async def sell(self: Asset[ClientUser], price: int) -> Listing:
+        """List this item for sale on the Steam Community Market.
+
+        Warning
+        -------
+        Automating this process increases the likelihood of your account getting banned.
+
+        """
+        self.to_dict() | {"price": price} | {"sessionid": self.session_id}
 
 
 class Item(Asset[OwnerT], DescriptionMixin):

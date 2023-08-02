@@ -11,7 +11,7 @@ from typing_extensions import TypeVar
 from . import utils
 from .abc import Commentable, PartialUser, _CommentableKwargs
 from .app import App, PartialApp
-from .enums import EventType
+from .enums import CoroFunc
 from .id import ID_ZERO
 from .utils import DateTime
 
@@ -32,7 +32,7 @@ __all__ = (
 )
 
 
-EventTypeT = TypeVar("EventTypeT", bound=EventType, default=EventType, covariant=True)
+EventTypeT = TypeVar("EventTypeT", bound=CoroFunc, default=CoroFunc, covariant=True)
 ClanT = TypeVar("ClanT", bound="PartialClan", default="Clan", covariant=True)
 
 
@@ -77,7 +77,7 @@ class BaseEvent(Commentable, utils.AsyncInit, Generic[EventTypeT, ClanT], metacl
         """The event's description."""
         self.app = PartialApp(state, id=data["appid"]) if data["appid"] else None
         """The app that the event is going to be played in."""
-        self.type = cast(EventTypeT, EventType.try_value(data["event_type"]))
+        self.type = cast(EventTypeT, CoroFunc.try_value(data["event_type"]))
         """The event's type."""
         self.clan = clan
         """The event's clan."""
@@ -179,7 +179,7 @@ class Event(BaseEvent[EventTypeT, ClanT]):
 
     @overload
     async def edit(
-        self: Event[Literal[EventType.Game]],
+        self: Event[Literal[CoroFunc.Game]],
         name: str,
         description: str,
         *,
@@ -207,7 +207,7 @@ class Event(BaseEvent[EventTypeT, ClanT]):
         name: str,
         description: str,
         *,
-        type: Literal[EventType.Game] = ...,
+        type: Literal[CoroFunc.Game] = ...,
         starts_at: datetime | None = ...,
         app: App,
         server_address: IPAdress | str | None = ...,
@@ -283,7 +283,7 @@ class Event(BaseEvent[EventTypeT, ClanT]):
         await self._state.http.delete_clan_event(self.clan.id64, self.id)
 
 
-class Announcement(BaseEvent[EventType, ClanT]):
+class Announcement(BaseEvent[CoroFunc, ClanT]):
     """Represents an announcement in a clan."""
 
     __slots__ = (

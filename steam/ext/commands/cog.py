@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
     from steam.ext import commands
 
-    from ...client import E, EventType
+    from ...client import CoroFunc, E
     from .bot import Bot
 
 __all__ = ("Cog",)
@@ -58,7 +58,7 @@ class Cog:
     """
 
     __commands__: Final[dict[str, Command]] = ...
-    __listeners__: Final[dict[str, list[EventType]]] = ...
+    __listeners__: Final[dict[str, list[CoroFunc]]] = ...
     command_attrs: Final[dict[str, Any]] = ...
     qualified_name: Final[str] = ...
     description: Final[str | None] = ...
@@ -109,7 +109,7 @@ class Cog:
         return set(self.__commands__.values())
 
     @property
-    def listeners(self) -> list[tuple[str, EventType]]:
+    def listeners(self) -> list[tuple[str, CoroFunc]]:
         """A list of tuples of the events registered with the format (name, listener)"""
         return [(listener.__name__, listener) for listeners in self.__listeners__.values() for listener in listeners]
 

@@ -37,9 +37,9 @@ from .guard import *
 from .id import _ID64_TO_ID32, ID, parse_id64
 from .invite import ClanInvite, UserInvite
 from .manifest import AppInfo, ContentServer, Manifest, PackageInfo
+from .market import Wallet
 from .message import *
 from .message import ClanMessage
-from .models import Wallet
 from .package import FetchedPackage, License
 from .protobufs import (
     SERVICE_EMSGS,
@@ -2097,7 +2097,7 @@ class ConnectionState:
     @parser
     def handle_wallet(self, msg: client_server.CMsgClientWalletInfoUpdate) -> None:
         self.wallet = Wallet(
-            self, msg.balance64, CurrencyCode.try_value(msg.currency), msg.balance64_delayed, Realm.try_value(msg.realm)
+            self, msg.balance64, Currency.try_value(msg.currency), msg.balance64_delayed, Realm.try_value(msg.realm)
         )
         self.handled_wallet.set()
 

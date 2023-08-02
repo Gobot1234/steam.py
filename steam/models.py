@@ -2,17 +2,16 @@
 
 from __future__ import annotations
 
-import re
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import timedelta
 from io import BytesIO
-from typing import TYPE_CHECKING, Any, Literal, ParamSpec, TypedDict, TypeVar, cast, runtime_checkable
+from typing import TYPE_CHECKING, Any, Literal, ParamSpec, TypeVar, cast, runtime_checkable
 
 from typing_extensions import Protocol
 
 from ._const import DEFAULT_AVATAR, URL
-from .enums import CurrencyCode, PurchaseResult, Realm, Result
+from .enums import PurchaseResult, Realm, Result
 from .media import Media
 from .types.id import AppID, ClassID
 
@@ -24,16 +23,16 @@ if TYPE_CHECKING:
     from yarl import URL as _URL
 
     from .app import PartialApp
+    from .enums import Currency
+    from .market import PriceOverview
     from .protobufs import econ
     from .state import ConnectionState
     from .types import user
 
 
 __all__ = (
-    "PriceOverview",
     "Ban",
     "Avatar",
-    "Wallet",
 )
 
 F = TypeVar("F", bound="Callable[..., Any]")
@@ -55,50 +54,6 @@ class _ReturnTrue:
 
 
 return_true = _ReturnTrue()
-
-
-PRICE_RE = re.compile(r"(^\D*(?P<price>[\d,.]*)\D*$)")
-
-
-class PriceOverviewDict(TypedDict):
-    success: bool
-    lowest_price: str
-    median_price: str
-    volume: str
-
-
-class PriceOverview:
-    """Represents the data received from the Steam Community Market."""
-
-    __slots__ = ("currency", "volume", "lowest_price", "median_price")
-
-    lowest_price: float | str
-    """The lowest price observed by the market."""
-    median_price: float | str
-    """The median price observed by the market."""
-
-    def __init__(self, data: PriceOverviewDict, currency: CurrencyCode) -> None:
-        lowest_price_ = PRICE_RE.search(data["lowest_price"])
-        median_price_ = PRICE_RE.search(data["median_price"])
-        assert lowest_price_ is not None
-        assert median_price_ is not None
-        lowest_price = lowest_price_["price"]
-        median_price = median_price_["price"]
-
-        try:
-            self.lowest_price = float(lowest_price.replace(",", "."))
-            self.median_price = float(median_price.replace(",", "."))
-        except ValueError:
-            self.lowest_price = lowest_price
-            self.median_price = median_price
-
-        self.volume: int = int(data["volume"].replace(",", ""))
-        """The number of items sold in the last 24 hours."""
-        self.currency = currency
-
-    def __repr__(self) -> str:
-        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in self.__slots__]
-        return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
 
 class Ban:
@@ -376,7 +331,7 @@ class DescriptionMixin(Protocol):
         """Whether the item is marketable."""
         return self._is_marketable
 
-    async def price(self, *, currency: CurrencyCode | None = None) -> PriceOverview:
+    async def price(self, *, currency: Currency | None = None) -> PriceOverview:
         """Fetch the price of this item on the Steam Community Market place.
 
         Shorthand for:
@@ -385,8 +340,17 @@ class DescriptionMixin(Protocol):
 
             await client.fetch_price(item.market_hash_name, item.app, currency)
         """
-        price = await self._state.http.get_price(self._app_id, self.market_hash_name, currency)
-        return PriceOverview(price, currency or CurrencyCode.USD)
+        return await self._state.client.fetch_price(self.market_hash_name, self.app, currency)
+
+    async def name_id(self) -> int:
+        listing = await self.listing()
+        return listing.item.name_id
+
+    async def listings(self):
+        return await self._state.client.fetch_listings(self.market_hash_name, self.app)
+
+    async def histogram(self, name_id: int | None = None):
+        ...
 
     @property
     def app(self) -> PartialApp[None]:
