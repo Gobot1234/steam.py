@@ -54,10 +54,44 @@ def extract_js_variables(script: str, *names: str, loads: Callable[[str], Any] =
     values: list[Any] = []
     for name in names:
         if match := re.search(
-            rf"""var\s+{name}\s*=\s*(?P<value>{{.*?}}|\[.*?\]|['"].*?['"]|\d+(?:\.\d+)?|null|true|false)\s*;?""",
-            script,
-        ):
-            values.append(loads(match["value"]))
+            rf"(?:var|let|const)\s+{name}\s*=\s*", script
+        ):  # found decl rest may be on following lines
+            rest = script[match.end() :]
+            match looking_for := rest[0]:
+                case "{" | "[":
+                    # strings have to start and end on the same line so ensuring something is the last closing bracket
+                    # isn't too bad
+                    inverse = {"{": "}", "[": "]"}[looking_for]
+                    level = 0
+                    lines_to_load: list[str] = []
+                    done = False
+                    for line in rest.splitlines():
+                        if done:
+                            break  # named break one day
+                        in_str = False
+                        str_start = None
+                        for idx, char in enumerate(line):
+                            if char in {"'", '"'}:
+                                if not str_start:
+                                    str_start = char
+                                    in_str = True
+                                elif char == str_start and not (idx and line[idx - 1] == "\\"):
+                                    str_start = None
+                                    in_str = False
+
+                            elif char == looking_for and not in_str:
+                                level += 1
+                            elif char == inverse and not in_str:
+                                level -= 1
+                                if level == 0:
+                                    most = "\n".join(lines_to_load)
+                                    values.append(JSON_LOADS(f"{most}\n{line[:idx+1]}"))
+                                    done = True
+                                    break
+                        lines_to_load.append(line)
+
+                case _:  # could be string, number, bool, or null, all of which cannot be over multiple lines
+                    values.append(JSON_LOADS(*re.findall(r"""(['"].*?['"]|\d+(?:\.\d+)?|null|true|false)""", rest)))
         else:
             raise NameError(name)
     return values
@@ -1002,7 +1036,7 @@ class HTTPClient:
         tag = soup.find("div", class_="responsive_page_template_content", id="responsive_page_template_content")
         assert isinstance(tag, Tag)
         for script in tag.find_all("script", type="text/javascript"):
-            if match := re.search(r"Market_LoadOrderSpread\s+\(\s+(?P<name_id>\d+)\s+\);\s*", script.text):
+            if match := re.search(r"Market_LoadOrderSpread\s*\(\s*(?P<name_id>\d+)\s*\);?", script.text):
                 listings: list[market.Listing] = []
                 name_id = int(match["name_id"])
                 assets, listings_ = cast(
@@ -1019,8 +1053,8 @@ class HTTPClient:
                         list[market._ListingPriceHistory], *extract_js_variables(script.text, f"line{idx}")
                     ):
                         month, day, year, snapshot_number, tz = snapshot_info.split()
-                        date = datetime.strptime(f"{month} {day} {year} {tz.rjust(5, '0')}", "%b %d %Y %z")
-                        history.append((date, int(snapshot_number), avg_price, int(quantity)))
+                        date = datetime.strptime(f"{month} {day} {year} {tz.ljust(5, '0')}", "%b %d %Y %z")
+                        history.append((date, int(snapshot_number.rstrip(":")), avg_price, int(quantity)))
 
                     listings.append(
                         {
@@ -1034,7 +1068,7 @@ class HTTPClient:
                                 **assets[str(asset["appid"])][asset["contextid"]][asset["id"]],
                                 "name_id": name_id,
                             },
-                            "price_history": history,
+                            "price_history": history[:10],
                         }
                     )
 
