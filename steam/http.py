@@ -54,7 +54,7 @@ def extract_js_variables(script: str, *names: str, loads: Callable[[str], Any] =
     values: list[Any] = []
     for name in names:
         if match := re.search(
-            rf"""var\s+{name}\s*=\s*(?P<value>{{.*?}}|\[.*?\]|['"]?.*?['"]|\d+(?:\.\d+)?|null|true|false)\s*;?""",
+            rf"""var\s+{name}\s*=\s*(?P<value>{{.*?}}|\[.*?\]|['"].*?['"]|\d+(?:\.\d+)?|null|true|false)\s*;?""",
             script,
         ):
             values.append(loads(match["value"]))
@@ -535,7 +535,7 @@ class HTTPClient:
 
     async def get_user_inventory_info(self, user_id64: ID64) -> ValuesView[user.InventoryInfo]:
         resp = await self.get(URL.COMMUNITY / f"profiles/{user_id64}/inventory")
-        soup = BeautifulSoup(resp, HTML_PARSER)
+        soup = BeautifulSoup(resp, "html.parser")  # needs to be html
         for script in soup.find_all("script", type="text/javascript"):
             try:
                 (info,) = extract_js_variables(script.text, "g_rgAppContextData")
@@ -998,7 +998,7 @@ class HTTPClient:
     async def get_listings(self, app_id: AppID, item_name: str) -> list[market.Listing]:
         headers = {"Referer": URL.COMMUNITY / "market/search" % {"appid": app_id}}
         resp = await self.get(URL.COMMUNITY / f"market/listings/{app_id}/{item_name}", headers=headers)
-        soup = BeautifulSoup(resp, HTML_PARSER)
+        soup = BeautifulSoup(resp, "html.parser")  # needs to be html.parser
         tag = soup.find("div", class_="responsive_page_template_content", id="responsive_page_template_content")
         assert isinstance(tag, Tag)
         for script in tag.find_all("script", type="text/javascript"):
