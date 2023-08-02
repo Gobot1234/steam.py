@@ -344,7 +344,7 @@ class DescriptionMixin(Protocol):
 
     async def name_id(self) -> int:
         listing = await self.listing()
-        return listing.item.name_id
+        return listing.item._name_id
 
     async def listings(self):
         return await self._state.client.fetch_listings(self.market_hash_name, self.app)

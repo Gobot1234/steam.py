@@ -1,3 +1,5 @@
+"""Licensed under The MIT License (MIT) - Copyright (c) 2020-present James H-B. See LICENSE"""
+
 from __future__ import annotations
 
 import re
@@ -13,6 +15,7 @@ if TYPE_CHECKING:
 
     from .state import ConnectionState
     from .types import market
+    from .user import ClientUser
 
 PRICE_RE = re.compile(r"(^\D*(?P<price>[\d,.]*)\D*$)")
 
@@ -96,20 +99,27 @@ class MarketItem(Asset[OwnerT], DescriptionMixin):
         "class_id",
         "instance_id",
         "_app_id",
+        "_name_id",
     )
 
     def cancel_sell_order():
         ...
 
+    async def histogram(self, name_id: int | None = None):
+        pass
+
 
 class Listing:
+    item: MarketItem[None]
+
     def __init__(self, state: ConnectionState, data: market.Listing):
         self.id = data["id"]
 
 
-class MyListing:
+class MyListing(Listing):
     id: int
     created_at: datetime
+    item: MarketItem[ClientUser]  # type: ignore[reportIncompatibleVariableOverride]  # practicality beats purity here
 
 
 # Client.currency

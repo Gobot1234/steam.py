@@ -167,7 +167,15 @@ class Asset(Generic[OwnerT]):
             signature=signature,
         )
 
-    async def sell(self: Asset[ClientUser], price: int) -> Listing:
+    @overload
+    async def sell(self: Asset[ClientUser], user_pays: int) -> Listing:
+        ...
+
+    @overload
+    async def sell(self: Asset[ClientUser], you_receive: int) -> Listing:
+        ...
+
+    async def sell(self: Asset[ClientUser]) -> Listing:
         """List this item for sale on the Steam Community Market.
 
         Warning
@@ -175,7 +183,7 @@ class Asset(Generic[OwnerT]):
         Automating this process increases the likelihood of your account getting banned.
 
         """
-        self.to_dict() | {"price": price} | {"sessionid": self.session_id}
+        self.to_dict() | {"price": 0.9} | {"sessionid": self.session_id}
 
 
 class Item(Asset[OwnerT], DescriptionMixin):
