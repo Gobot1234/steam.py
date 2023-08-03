@@ -20,8 +20,10 @@ class AppInfo(TypedVDFDict):
     config: VDFDict
     depots: Depot | VDFDict
     ufs: MultiDict[VDFInt]
+    install: MultiDict[Any]
     sysreqs: MultiDict[MultiDict[Any]]
     localization: MultiDict[MultiDict[VDFDict]]
+    albummetadata: MultiDict[Any]
 
 
 class Common(TypedVDFDict, total=False):
@@ -43,7 +45,68 @@ class Common(TypedVDFDict, total=False):
     oslist: str
     icon: str
     logo: str
-    parent: int
+    parent: VDFInt
+    clienticns: str
+    clienticon: str
+    clienttga: str
+    gameid: str
+    genres: VDFList[VDFInt]
+    header_image: MultiDict[str]
+    library_assets: CommonLibraryAssets
+    linuxclienticon: str
+    logo_small: str
+    metacritic_fullurl: str
+    metacritic_name: str
+    metacritic_score: str
+    metacritic_url: str
+    primary_genre: str
+    review_percentage: str
+    review_score: str
+    small_capsule: MultiDict[str]
+    steam_deck_compatibility: CommonSteamDeckCompatibility
+    steam_release_date: str
+    store_asset_mtime: str
+    store_tags: VDFList[VDFInt]
+    supported_languages: MultiDict[MultiDict[str]]
+    sortas: str
+    name_localized: Any
+    releasestate: str
+    original_release_date: str
+    exfgls: str
+    eulas: VDFList[MultiDict[Any]]
+    osarch: str
+    osextended: str
+    releasestatesteamchina: str
+    requireskbmouse: str
+    steamchinaapproved: str
+    name_linux: str
+    controllervr: MultiDict[VDFBool]
+    playareavr: MultiDict[Any]
+    review_percentage_bombs: str
+    review_score_bombs: str
+    freeondemand: VDFBool
+    visibleonlyonavailableplatforms: str
+    app_retired_publisher_request: str
+    has_adult_content_sex: str
+    mastersubs_granting_app: str
+    driverversion: str
+    openvrsupport: str
+    othervrsupport: str
+    othervrsupport_rift_13: str
+    section_type: str
+    kbmousegame: str
+    openvr_action_manifest_path: str
+    hideinfriendslist: str
+    systemprofile: str
+    steam_deck_blog_url: str
+    onquitdemomsg: str
+    onlyvrsupport: str
+    openvr_controller_bindings: VDFList[MultiDict[Any]]
+    osvrsupport: str
+    releasestateoverride: str
+    releasestateoverridecountries: str
+    releasestateoverrideinverse: str
+    restricted_countries: str
 
 
 class CommonAssociations(TypedVDFDict):
@@ -51,13 +114,162 @@ class CommonAssociations(TypedVDFDict):
     type: str
 
 
+class CommonLibraryAssets(TypedVDFDict):
+    library_capsule: str
+    library_hero: str
+    library_logo: str
+    logo_position: CommonLogoPosition
+
+
+class CommonLogoPosition(TypedVDFDict):
+    height_pct: str
+    pinned_position: str
+    width_pct: str
+
+
+class CommonSteamDeckCompatibility(TypedVDFDict):
+    category: str
+    configuration: CommonConfiguration
+    test_timestamp: str
+    tested_build_id: str
+    tests: VDFList[MultiDict[Any]]
+
+
+class CommonConfiguration(TypedVDFDict):
+    gamescope_frame_limiter_not_supported: str
+    non_deck_display_glyphs: str
+    primary_player_is_controller_slot_0: str
+    recommended_runtime: str
+    requires_h264: str
+    requires_internet_for_setup: str
+    requires_internet_for_singleplayer: str
+    requires_manual_keyboard_invoke: str
+    requires_non_controller_launcher_nav: str
+    small_text: str
+    supported_input: str
+
+
 class Extended(TypedVDFDict, total=False):
     isfreeapp: VDFBool
-    listofdlc: str
     homepage: str
     demoofappid: VDFInt
     developer: str
     publisher: str
+    dependantonapp: str
+    developer_url: str
+    gamedir: str
+    icon: str
+    icon2: str
+    minclientversion: str
+    order: str
+    primarycache: str
+    serverbrowsername: str
+    vacmacmodulecache: str
+    vacmodulecache: str
+    vacmodulefilename: str
+    gamemanualurl: str
+    hdaddon: str
+    listofdlc: str
+    initialsellpage: str
+    no_revenue_accumulation: str
+    preloadsellpage: str
+    releasedpage: str
+    sellpage: str
+    state: str
+    checkpkgstate: str
+    noservers: str
+    sourcegame: str
+    visibleonlywhensubscribed: str
+    disableoverlay: str
+    installscript: str
+    validoslist: str
+    disableshaderreporting: str
+    deckresolutionoverride: str
+    directx_minver: str
+    supports64bit: str
+    dedicatedserverfolder: str
+    video: str
+    languages: str
+    languages_macos: str
+    preloadunlocktime: str
+    requiressse: str
+    dependantonapppreventrecurseholes: str
+    aliases: str
+    loadallbeforelaunch: str
+    primarycache_linux: str
+    visibleonlywheninstalled: str
+    dlcavailableonstore: str
+    guideappid: str
+    installscript_macos: str
+    otten: str
+    installscriptosx: str
+    languages_mac: str
+    thirdpartycdkey: str
+    minclientversion_pw_csgo: str
+    primarycache_macos: str
+    preloadcountdowntext1: str
+    preloadcountdowntext2: str
+    preloadcountdowntext3: str
+    preloadcountdowntexttime: str
+    preloadcountdownurl: str
+    primarycache_mac: str
+    legacykeydisklocation: str
+    legacykeyregistrationmethod: str
+    legacykeyregistrylocation: str
+    showcdkeyonlaunch: str
+    supportscdkeycopytoclipboard: str
+    cpu_min: str
+    cpu_min_amd: str
+    ram_min: str
+    os_min: str
+    dlcpurchasefromingame: str
+    hasexternalregistrationurl: str
+    legacykeylinkedexternally: str
+    showcdkeyinmenu: str
+    externalsubscriptionurl2: str
+    existingretail: str
+    launcheula: str
+    cwdoverride: str
+    mustownapptopurchase: str
+    hadthirdpartycdkey: str
+    inhibitautoversionroll: str
+    retailautostart: str
+    suppressims: str
+    g4w_gdf: str
+    g4w_type: str
+    requirentfspartition: str
+    existingretail1: str
+    requiredappid: str
+    onquitdemomsg: str
+    nodefaultenglishcontent: str
+    launchredirect: str
+    disableoverlay_macos: str
+    isconverteddlc: str
+    musicalbumavailableonstore: str
+    musicalbumforappid: str
+    sdk_notownedbydefault: str
+    canskipinstallappchooser: str
+    allowelevation: str
+    dlcforappid: str
+    ismediafile: str
+    mediafiletype: str
+    launcheula_macos: str
+    vrheadsetstreaming: str
+    absolutemousecoordinates: str
+    additional_dependencies: VDFList[VDFBool]
+    installscript_linux: str
+    allowmicrotxnfromrestrictedcountries: str
+    microtxnrestrictedcountries: str
+    disablestreaming: str
+    foo: str
+    anti_cheat_support_url: str
+    demoforappid: str
+    remoteplaytogethertestingbranches: str
+    disableosxdrmloader: str
+    overlaywindowblacklist: str
+    disableoverlayinjection: str
+    disableoverlayinjection_linux: str
+    betaforappid: str
 
 
 class Manifest(TypedVDFDict, total=False):
