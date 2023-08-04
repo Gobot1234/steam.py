@@ -52,7 +52,7 @@ from .protobufs import (
     clan,
     client_server,
     client_server_2,
-    comments,
+    community,
     content_server,
     econ,
     encrypted_app_ticket,
@@ -1740,9 +1740,9 @@ class ConnectionState:
     async def unblock_user(self, user_id64: ID64) -> None:
         await self._block_user(user_id64, False)
 
-    async def fetch_comment(self, owner: Commentable, id: int) -> comments.GetCommentThreadResponse.Comment:
-        msg: comments.GetCommentThreadResponse = await self.ws.send_um_and_wait(
-            comments.GetCommentThreadRequest(**owner._commentable_kwargs, type=owner._COMMENTABLE_TYPE, id=id)
+    async def fetch_comment(self, owner: Commentable, id: int) -> community.GetCommentThreadResponse.Comment:
+        msg: community.GetCommentThreadResponse = await self.ws.send_um_and_wait(
+            community.GetCommentThreadRequest(**owner._commentable_kwargs, type=owner._COMMENTABLE_TYPE, id=id)
         )
         if msg.result != Result.OK:
             raise WSException(msg)
@@ -1750,9 +1750,9 @@ class ConnectionState:
 
     async def fetch_comments(
         self, owner: Commentable, count: int, starting_from: int, oldest_first: bool
-    ) -> comments.GetCommentThreadResponse:
-        msg: comments.GetCommentThreadResponse = await self.ws.send_um_and_wait(
-            comments.GetCommentThreadRequest(
+    ) -> community.GetCommentThreadResponse:
+        msg: community.GetCommentThreadResponse = await self.ws.send_um_and_wait(
+            community.GetCommentThreadRequest(
                 **owner._commentable_kwargs,
                 type=owner._COMMENTABLE_TYPE,
                 count=count,
@@ -1766,8 +1766,8 @@ class ConnectionState:
         return msg
 
     async def post_comment(self, owner: OwnerT, content: str, subscribe: bool) -> Comment[OwnerT, ClientUser]:
-        msg: comments.PostCommentToThreadResponse = await self.ws.send_um_and_wait(
-            comments.PostCommentToThreadRequest(
+        msg: community.PostCommentToThreadResponse = await self.ws.send_um_and_wait(
+            community.PostCommentToThreadRequest(
                 **owner._commentable_kwargs,
                 type=owner._COMMENTABLE_TYPE,
                 content=content,
@@ -1790,8 +1790,8 @@ class ConnectionState:
         return comment
 
     async def delete_comment(self, owner: Commentable, comment_id: CommentID) -> None:
-        msg: comments.DeleteCommentFromThreadResponse = await self.ws.send_um_and_wait(
-            comments.DeleteCommentFromThreadRequest(
+        msg: community.DeleteCommentFromThreadResponse = await self.ws.send_um_and_wait(
+            community.DeleteCommentFromThreadRequest(
                 **owner._commentable_kwargs,
                 type=owner._COMMENTABLE_TYPE,
                 id=comment_id,
@@ -1801,8 +1801,8 @@ class ConnectionState:
             raise WSException(msg)
 
     async def report_comment(self, owner: Commentable, comment_id: CommentID) -> None:
-        msg: comments.PostCommentToThreadResponse = await self.ws.send_um_and_wait(
-            comments.PostCommentToThreadRequest(  # some odd api here
+        msg: community.PostCommentToThreadResponse = await self.ws.send_um_and_wait(
+            community.PostCommentToThreadRequest(  # some odd api here
                 **owner._commentable_kwargs,
                 type=owner._COMMENTABLE_TYPE,
                 is_report=True,
@@ -2025,7 +2025,7 @@ class ConnectionState:
 
     async def rate_clan_announcement(self, clan_id: ID32, announcement_id: int, upvoted: bool) -> None:
         msg = await self.ws.send_um_and_wait(
-            comments.RateClanAnnouncementRequest(
+            community.RateClanAnnouncementRequest(
                 announcementid=announcement_id,
                 clan_accountid=clan_id,
                 vote_up=upvoted,

@@ -142,3 +142,18 @@ class RateClanAnnouncementRequest(UnifiedMessage, um_name="Community.RateClanAnn
 
 class RateClanAnnouncementResponse(UnifiedMessage, um_name="Community.RateClanAnnouncement"):
     pass
+
+
+class GetAvatarHistoryRequest(UnifiedMessage, um_name="Community.GetAvatarHistory"):
+    steamid: int = betterproto.fixed64_field(1)
+    filter_user_uploaded_only: bool = betterproto.bool_field(2)
+
+
+class GetAvatarHistoryResponse(UnifiedMessage, um_name="Community.GetAvatarHistory"):
+    @dataclass(eq=False, repr=False)
+    class AvatarData(betterproto.Message):
+        avatar_sha1: str = betterproto.string_field(1)
+        user_uploaded: bool = betterproto.bool_field(2)
+        timestamp: int = betterproto.uint32_field(3)
+
+    avatars: list[AvatarData] = betterproto.message_field(1)

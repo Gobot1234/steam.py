@@ -49,7 +49,7 @@ from . import (
     client_server as client_server,
     client_server_2 as client_server_2,
     cloud as cloud,
-    comments as comments,
+    community as community,
     content_manifest as content_manifest,
     content_server as content_server,
     econ as econ,
