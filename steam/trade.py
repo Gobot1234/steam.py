@@ -7,7 +7,7 @@ import contextlib
 import itertools
 import types
 from collections.abc import Iterator, Sequence
-from typing import TYPE_CHECKING, Any, Generic, cast
+from typing import TYPE_CHECKING, Any, Generic, cast, overload
 
 from typing_extensions import NamedTuple, TypeVar, get_original_bases
 
