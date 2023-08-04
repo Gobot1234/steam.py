@@ -1258,7 +1258,7 @@ class ConnectionState:
             case _:
                 log.debug("Got a UM %r that we don't handle %r", msg.UM_NAME, msg)
 
-    @requires_intent(Intents.Messages & Intents.Users)
+    @requires_intent(Intents.Messages | Intents.Users)
     async def handle_user_message(self, msg: friend_messages.IncomingMessageNotification) -> None:
         await self.client.wait_until_ready()
         id64 = msg.steamid_friend
@@ -1275,7 +1275,7 @@ class ConnectionState:
             when = DateTime.from_timestamp(msg.rtime32_server_timestamp)
             self.dispatch("typing", author, when)
 
-    @requires_intent(Intents.Messages & Intents.Users)
+    @requires_intent(Intents.Messages | Intents.Users)
     async def handle_user_message_reaction(self, msg: friend_messages.MessageReactionNotification) -> None:
         id64 = msg.steamid_friend
         partner = self.user._friends.get(_ID64_TO_ID32(id64)) or await self._maybe_user(id64)
@@ -1324,7 +1324,7 @@ class ConnectionState:
                 chat_group._invites[...] = ...
                 self.dispatch(f"{chat_group.__class__.__name__.lower()}_invite", invite)
 
-    @requires_intent(Intents.ChatGroups & Intents.Chat & Intents.Messages & Intents.Users)
+    @requires_intent(Intents.ChatGroups | Intents.Chat | Intents.Messages | Intents.Users)
     def handle_chat_message(self, msg: chat.IncomingChatMessageNotification) -> None:
         try:
             chat_group = self._chat_groups[ChatGroupID(msg.chat_group_id)]
@@ -1347,7 +1347,7 @@ class ConnectionState:
         self._messages.append(message)
         self.dispatch("message", message)
 
-    @requires_intent(Intents.ChatGroups & Intents.Chat & Intents.Messages & Intents.Users)
+    @requires_intent(Intents.ChatGroups | Intents.Chat | Intents.Messages | Intents.Users)
     def handle_chat_message_reaction(self, msg: chat.MessageReactionNotification) -> None:
         try:
             destination = self._chat_groups[ChatGroupID(msg.chat_group_id)]
@@ -1445,7 +1445,7 @@ class ConnectionState:
         #     self._groups[group.id] = group
         #     self.dispatch("group_invite", group)
 
-    @requires_intent(Intents.ChatGroups & Intents.Users)
+    @requires_intent(Intents.ChatGroups | Intents.Users)
     async def handle_chat_member_update(self, msg: chat.MemberStateChangeNotification) -> None:
         try:
             chat_group = self._chat_groups[ChatGroupID(msg.chat_group_id)]
@@ -1500,7 +1500,7 @@ class ConnectionState:
 
         self.dispatch("member_update", before, member)
 
-    @requires_intent(Intents.ChatGroups & Intents.Chat)
+    @requires_intent(Intents.ChatGroups | Intents.Chat)
     def handle_chat_update(self, msg: chat.ChatRoomGroupRoomsChangeNotification) -> None:
         try:
             chat_group = self._chat_groups[ChatGroupID(msg.chat_group_id)]
