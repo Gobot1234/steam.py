@@ -25,7 +25,7 @@ from .models import Avatar, Ban
 from .profile import *
 from .reaction import Award, AwardReaction, Emoticon, MessageReaction, PartialMessageReaction, Sticker
 from .trade import Asset, Inventory, Item, TradeOffer
-from .types.id import ID64, AppID, AssetID, CommentID, ContextID, Intable, PostID
+from .types.id import ID64, AppID, AssetID, CommentID, ContextID, Intable, PostID, PublishedFileID
 from .types.user import UserT
 from .utils import DateTime, classproperty, parse_bb_code
 
@@ -689,6 +689,27 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
 
         reviews = await self._state.fetch_user_reviews(self.id64, (app.id for app in apps))
         return [Review._from_proto(self._state, review, self) for review in reviews]
+
+    async def fetch_published_file(
+        self,
+        id: int,
+        *,
+        revision: PublishedFileRevision = PublishedFileRevision.Default,
+        language: Language | None = None,
+    ) -> PublishedFile[Self] | None:
+        """Fetch a published file by its id.
+
+        Parameters
+        ----------
+        id
+            The id of the published file to fetch.
+        revision
+            The desired revision of the published file to fetch.
+        language
+            The language to fetch the published file in. If ``None``, the current language is used.
+        """
+        (file,) = await self._state.fetch_published_files_with_author((PublishedFileID(id),), self, revision, language)
+        return file
 
     async def published_files(
         self,

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Generic, Protocol
+from typing import TYPE_CHECKING, Generic, Protocol, cast
 
 from typing_extensions import TypeVar
 
@@ -246,7 +246,9 @@ class ProfileShowcaseSlot(Generic[UserT]):
         """
         if self.published_file_id is None:
             raise ValueError
-        (file,) = await self._state.fetch_published_files((self.published_file_id,), revision, language)
+        (file,) = await self._state.fetch_published_files_with_author(
+            (self.published_file_id,), self.owner, revision, language
+        )
         assert file
         return file
 
@@ -320,8 +322,8 @@ class ProfileShowcase(Generic[UserT]):
         language
             The language to fetch the file in. If ``None``, the current language is used.
         """
-        published_files = await self._state.fetch_published_files(
-            (slot.published_file_id for slot in self.slots if slot.published_file_id), revision, language
+        published_files = await self._state.fetch_published_files_with_author(
+            (slot.published_file_id for slot in self.slots if slot.published_file_id), self.owner, revision, language
         )
         assert all(published_files)
         return published_files  # type: ignore  # needs HKT to be fixed

@@ -98,7 +98,7 @@ if TYPE_CHECKING:
     from .media import Media
     from .types import manifest, trade
     from .types.http import Coro
-    from .types.user import Author
+    from .types.user import Author, AuthorT
 
 
 log = logging.getLogger(__name__)
@@ -2386,6 +2386,42 @@ class ConnectionState:
 
     async def fetch_app_tag(self, *tag_ids: int, language: Language | None = None) -> list[store.StoreItem]:
         return await self._fetch_store_info([store.StoreItemId(tagid=tag_id) for tag_id in tag_ids], language)
+
+    async def fetch_published_files_with_author(
+        self,
+        published_file_ids: Iterable[PublishedFileID],
+        user: AuthorT,  # type: ignore  # I cba making an invariant version of this
+        revision: PublishedFileRevision,
+        language: Language | None,
+    ) -> list[PublishedFile[AuthorT] | None]:
+        msg: published_file.GetDetailsResponse = await self.ws.send_um_and_wait(
+            published_file.GetDetailsRequest(
+                publishedfileids=list(published_file_ids),
+                language=(language or self.language).value,
+                includetags=True,
+                includeadditionalpreviews=True,
+                includechildren=True,
+                includekvtags=True,
+                includevotes=True,
+                includeforsaledata=True,
+                includemetadata=True,
+                strip_description_bbcode=True,
+                includereactions=True,
+                return_playtime_stats=True,
+                desired_revision=revision,  # type: ignore
+            )
+        )
+
+        if msg.result != Result.OK:
+            raise WSException(msg)
+
+        if any(proto.creator != user.id64 for proto in msg.publishedfiledetails):
+            raise ValueError("An id passed was not published by this author")
+
+        return [
+            PublishedFile(self, proto, user) if proto.result == Result.OK else None
+            for proto in msg.publishedfiledetails
+        ]
 
     async def fetch_published_files(
         self,
