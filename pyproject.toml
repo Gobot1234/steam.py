@@ -6,7 +6,7 @@ authors = ["Gobot1234 <gobot1234yt@gmail.com>"]
 license = "MIT"
 readme = "README.md"
 keywords = ["steam.py", "steam", "steamio", "steam-api"]
-classifiers=[
+classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Framework :: AsyncIO",
     "Intended Audience :: Developers",
@@ -16,15 +16,8 @@ classifiers=[
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Typing :: Typed",
 ]
-include = [
-    "LICENSE",
-    "steam/__metadata__.py",
-    "steam/py.typed",
-    "steam/ext/__init__.pyi",
-]
-packages = [
-    {include = "steam"},
-]
+include = ["LICENSE", "steam/__metadata__.py", "steam/py.typed"]
+packages = [{ include = "steam" }]
 
 [tool.poetry.build]
 script = "poetry_build.py"
@@ -43,12 +36,12 @@ cryptography = ">=40,<42"
 betterproto = "2.0.0b6"
 typing-extensions = "4.7.1"
 vdf = "^3.4"
-taskgroup = {git = "https://github.com/Gobot1234/taskgroup", rev = "default", python = "<3.11"}
+taskgroup = { git = "https://github.com/Gobot1234/taskgroup", rev = "default", python = "<3.11" }
 
 [tool.poetry.group.speedups]
 optional = true
 [tool.poetry.group.speedups.dependencies]
-aiohttp = {version = "^3.8", extras = ["speedups"]}
+aiohttp = { version = "^3.8", extras = ["speedups"] }
 lxml = "^4.8.0"
 # orvdf = "^1.0.0"
 orjson = "^3.6.8"
@@ -78,18 +71,18 @@ pre-commit = "^3.1"
 poethepoet = ">=0.19,<0.22"
 blacken-docs = "^1.12"
 ruff = ">=0.0.261,<0.0.283"
-tomli = {version = "~2", python = "<3.11"}
+tomli = { version = "~2", python = "<3.11" }
 hypothesis = "^6.82.0"
 
 [tool.poe.tasks]
-fmt = {sequence = [
-    {script = "scripts.blacken_docs_correctly:main"},
-    {cmd = "black ."},
-    {cmd = "ruff . --select=I --fix"}
-], ignore_fail = true, help = "Format the code"}
-doc = {cmd = "sphinx-build -b html -T -W --keep-going docs/ docs/_build", help = "Build the documentation"}  # TODO -n
+fmt = { sequence = [
+    { script = "scripts.blacken_docs_correctly:main" },
+    { cmd = "black ." },
+    { cmd = "ruff . --select=I --fix" },
+], ignore_fail = true, help = "Format the code" }
+doc = { cmd = "sphinx-build -b html -T -W --keep-going docs/ docs/_build", help = "Build the documentation" } # TODO -n
 # Along with https://github.com/python/cpython/blob/main/Doc/tools/check-warnings.py
-add-cms = {script = "scripts.add_cms:main", help = "Add a default list of CMs for when the API is down"}
+add-cms = { script = "scripts.add_cms:main", help = "Add a default list of CMs for when the API is down" }
 
 [tool.poe.tasks.test]
 help = "Run the tests"
@@ -97,18 +90,18 @@ control.expr = "type"
 [tool.poe.tasks.test.args.type]
 required = true
 positional = true
-help = "Which types of tests to run can be one of 'full', 'unit' or 'integration'"
-    [[tool.poe.tasks.test.switch]]
-    case = ["full", "all"]
-    cmd = "pytest tests"
+help = "Which types of tests to run can be one of 'full', 'all', 'unit' or 'integration'"
+[[tool.poe.tasks.test.switch]]
+case = ["full", "all"]
+cmd = "pytest tests"
 
-    [[tool.poe.tasks.test.switch]]
-    case = "unit"
-    cmd  = "pytest tests/unit"
+[[tool.poe.tasks.test.switch]]
+case = "unit"
+cmd = "pytest tests/unit"
 
-    [[tool.poe.tasks.test.switch]]
-    case = "integration"
-    cmd  = "pytests tests/integration"
+[[tool.poe.tasks.test.switch]]
+case = "integration"
+cmd = "pytests tests/integration"
 
 [tool.poe.tasks.decode]
 script = "scripts.decode:main"
@@ -128,31 +121,8 @@ target-version = ["py310"]
 
 [tool.ruff]
 line-length = 120
-select = [
-    "C4",
-    "F",
-    "G",
-    "I",
-    "PTH",
-    "RUF",
-    "SIM",
-    "TCH",
-    "UP",
-    "W",
-    "PERF",
-]
-ignore = [
-    "F401",
-    "F402",
-    "F403",
-    "F405",
-    "PERF203",
-    "RUF001",
-    "RUF009",
-    "SIM105",
-    "UP034",
-    "UP038",
-]
+select = ["C4", "F", "G", "I", "PTH", "RUF", "SIM", "TCH", "UP", "W", "PERF"]
+ignore = ["F401", "F402", "F403", "F405", "PERF203", "RUF001", "RUF009", "SIM105", "UP034", "UP038"]
 [tool.ruff.isort]
 split-on-trailing-comma = true
 combine-as-imports = true
