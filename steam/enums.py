@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Generator, Mapping
-from enum import Enum as _Enum, EnumMeta as _EnumMeta, IntEnum as _IntEnum
+from enum import Enum as _Enum, EnumMeta as _EnumMeta
 from functools import reduce
-from types import MappingProxyType, new_class
+from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Final, Generic, Literal, SupportsInt, TypeVar, cast
 
 from ._const import DOCS_BUILDING
@@ -234,15 +234,6 @@ class IntEnum(Enum, int):
         @classmethod
         def try_value(cls, value: int) -> Self:
             ...
-
-
-if not TYPE_CHECKING and DOCS_BUILDING:
-    enum_dict = Enum.__dict__.copy()
-    for key in ("__new__",):
-        del enum_dict[key]
-
-    Enum = new_class("Enum", (_Enum,), {}, lambda ns: dict.update(ns, enum_dict))
-    IntEnum = new_class("IntEnum", (Enum, _IntEnum))  # noqa: F811
 
 
 class Flags(IntEnum):

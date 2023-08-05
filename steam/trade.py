@@ -178,9 +178,7 @@ class Asset(Generic[OwnerT]):
     async def sell(self: Asset[ClientUser]) -> Listing:
         """List this item for sale on the Steam Community Market.
 
-        Warning
-        -------
-        Automating this process increases the likelihood of your account getting banned.
+        |market_warning|
 
         """
         self.to_dict() | {"price": 0.9} | {"sessionid": self.session_id}

@@ -215,49 +215,6 @@ class CDNAsset(_IOMixin):
     """The URL of the asset."""
 
 
-@dataclass(slots=True)
-class Wallet:
-    _state: ConnectionState
-    balance: int
-    """The balance of your wallet in its base most currency denomination.
-
-    E.g. $3.45 -> 345
-    """
-    currency: CurrencyCode
-    """The currency the balance is in."""
-    balance_delayed: int
-    """Your delayed balance if Steam is refunding something?"""
-    realm: Realm
-    """The realm this wallet is for."""
-
-    async def add(self, code: str) -> int:
-        """Add a wallet code to your wallet.
-
-        Parameters
-        ----------
-        code
-            The wallet code to redeem.
-
-        Raises
-        ------
-        ValueError
-            The code was invalid.
-
-        Returns
-        -------
-        The balance added to your account.
-        """
-        self._state.handled_wallet.clear()
-        resp = await self._state.http.add_wallet_code(code)
-        result = Result.try_value(resp["success"])
-        if result != Result.OK:
-            raise ValueError(
-                f"Activation of code failed with result {result} {PurchaseResult.try_value(resp['detail'])!r}"
-            )
-        await self._state.handled_wallet.wait()
-        return resp["amount"]
-
-
 @runtime_checkable
 class DescriptionMixin(Protocol):
     __slots__ = SLOTS = (
@@ -284,10 +241,12 @@ class DescriptionMixin(Protocol):
     _state: ConnectionState
     _app_id: AppID
     class_id: ClassID
+    """The classid of the item."""
 
     def __init__(self, state: ConnectionState, description: econ.ItemDescription):
         self.name = description.market_name
         """The market_name of the item."""
+        self.class_id = ClassID(description.classid)
         self.display_name = description.name or self.name
         """
         The displayed name of the item. This could be different to :attr:`Item.name` if the item is user re-nameable.

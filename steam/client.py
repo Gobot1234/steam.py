@@ -76,6 +76,7 @@ if TYPE_CHECKING:
     from .published_file import PublishedFile
     from .reaction import ClientEmoticon, ClientSticker, MessageReaction
     from .trade import Item, MovedItem, TradeOffer
+    from .types import market
     from .types.http import IPAdress
     from .user import ClientUser, User
 
@@ -1356,6 +1357,22 @@ class Client:
     async def fetch_listings(self, name: str, app: App) -> list[Listing]:
         listings = await self.http.get_listings(app.id, name)
         return [Listing(self._state, listing) for listing in listings]
+
+    async def search_market(
+        self,
+        query: str = "",
+        *,
+        limit: int | None = 100,
+        search_description: bool = True,
+        sort_column: market.SortColumn = "popular",
+        sort_descending: bool = True,
+    ) -> AsyncGenerator[MarketSearch, None]:
+        "https://steamcommunity.com/market/search?q=&descriptions=1&category_570_Hero[]=any&category_570_Slot[]=any&category_570_Type[]=any&category_570_Quality[]=tag_unique&appid=570"
+        "https://steamcommunity.com/market/search?q=&category_614910_collection%5B%5D=any&category_614910_color%5B%5D=tag_carrot&appid=614910"
+        async for search in self.http.search_market(
+            query=query,
+        ):
+            yield
 
     # events to be subclassed
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 import re
 import urllib.parse
 from datetime import date, datetime
@@ -28,7 +29,9 @@ from .types.id import ID32, ID64, AppID, AssetID, BundleID, ChatGroupID, ChatID,
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Callable, Sequence, ValuesView
 
-    from .client import Client
+    from typing_extensions import Unpack
+
+    from .client import Client, ClientKwargs
     from .media import Media
     from .types import achievement, app, bundle, clan, guard, trade, user
     from .types.http import AddWalletCode, CMList, Coro, EResultSuccess, ResponseDict, StrOrURL
@@ -61,7 +64,7 @@ def extract_js_variables(script: str, *names: str, loads: Callable[[str], Any] =
                 case "{" | "[":
                     # strings have to start and end on the same line so ensuring something is the last closing bracket
                     # isn't too bad
-                    inverse = {"{": "}", "[": "]"}[looking_for]
+                    inverse = "}" if looking_for == "{" else "]"
                     level = 0
                     lines_to_load: list[str] = []
                     done = False
@@ -100,7 +103,7 @@ def extract_js_variables(script: str, *names: str, loads: Callable[[str], Any] =
 class HTTPClient:
     """The HTTP Client that interacts with the Steam web API."""
 
-    def __init__(self, client: Client, **options: Any):
+    def __init__(self, client: Client, **options: Unpack[ClientKwargs]):
         self._session: aiohttp.ClientSession = None  # type: ignore  # filled in login
         self.user: ClientUser = None  # type: ignore
         self._client = client
@@ -1075,7 +1078,80 @@ class HTTPClient:
                 return listings
         raise RuntimeError("unreachable")
 
-    # async def
+    async def get_market_filters(self, app_id: AppID) -> list[market.Filter]:
+        data: market.AppFilters = await self.get(URL.COMMUNITY / f"market/appfilters/{app_id}")
+        if not data["success"]:
+            raise ValueError("app_id does not have filters")
+        return [
+            {
+                "name": filter["name"],
+                "display_name": filter["localized_name"],
+                "tags": [
+                    {
+                        "name": name,
+                        "display_name": tag["localized_name"],
+                        "matches": int(tag["matches"].replace(",", "")),
+                    }
+                    for name, tag in filter["tags"].items()
+                ],
+            }
+            for filter in data["facets"]
+        ]
+
+    async def search_market(
+        self,
+        app_id: AppID | None = None,
+        query: str = "",
+        *,
+        limit: int | None = None,
+        search_descriptions: bool = False,
+        sort_column: market.SortColumn = "popular",
+        sort_descending: bool = True,
+        tags: Sequence[int] = (),
+    ) -> AsyncGenerator[market.SearchResult, None]:
+        "https://steamcommunity.com/market/search/render?q=&category_614910_collection%5B%5D=any&category_614910_color%5B%5D=tag_carrot&appid=0&norender=1"
+        params = {
+            "query": query,
+            "start": 0,
+            "count": limit or 100,
+            "search_descriptions": int(search_descriptions),
+            "sort_column": sort_column,
+            "sort_dir": "desc" if sort_descending else "asc",
+            "appid": app_id if app_id is not None else 0,
+            "norender": 1,
+            # TODO filters??
+        }
+
+        data: market._Search = await self.get(URL.COMMUNITY / "market/search/render", params=params)
+
+        for result in data["results"]:
+            yield {
+                "app_name": result["app_name"],
+                "sell_price": result["sell_price"],
+                "sell_listings": result["sell_listings"],
+                "sale_price_text": result["sale_price_text"],
+                **result["asset_description"],
+            }
+            if limit is not None:
+                limit -= 1
+                if limit == 0:
+                    return
+
+        for start in range(100, math.ceil((data["total_count"] + 100) / 100) * 100, 100):
+            params["start"] = start
+            data = await self.get(URL.COMMUNITY / "market/search/render", params=params)
+            for result in data["results"]:
+                yield {
+                    "app_name": result["app_name"],
+                    "sell_price": result["sell_price"],
+                    "sell_listings": result["sell_listings"],
+                    "sale_price_text": result["sale_price_text"],
+                    **result["asset_description"],
+                }
+                if limit is not None:
+                    limit -= 1
+                    if limit == 0:
+                        return
 
     async def edit_profile_info(
         self,

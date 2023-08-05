@@ -28,6 +28,7 @@ from .id import *
 from .invite import *
 from .leaderboard import *
 from .manifest import *
+from .market import *
 from .media import *
 from .message import *
 from .models import *

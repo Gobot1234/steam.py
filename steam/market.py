@@ -17,6 +17,11 @@ if TYPE_CHECKING:
     from .types import market
     from .user import ClientUser
 
+__all__ = (
+    "PriceOverview",
+    "Wallet",
+)
+
 PRICE_RE = re.compile(r"(^\D*(?P<price>[\d,.]*)\D*$)")
 
 
@@ -124,6 +129,4 @@ class MyListing(Listing):
 
 # Client.currency
 # Client.get_histogram
-# Client.search_for_listings  https://steamcommunity.com/market/search/render/?query=&start=0&count=10&search_descriptions=0&sort_column=popular&sort_dir=desc&appid=730&norender=1
-# App.search_for_listings
 # Listing -> {id: int, item: MarketItem, buy}

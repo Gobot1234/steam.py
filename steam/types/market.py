@@ -1,7 +1,11 @@
-from datetime import datetime
-from typing import TypedDict
+"""Licensed under The MIT License (MIT) - Copyright (c) 2020-present James H-B. See LICENSE"""
+from __future__ import annotations
 
-from .trade import AssetToDict, ItemAction, ItemDescriptionLine
+from datetime import datetime
+from typing import TYPE_CHECKING, Any, Literal, TypedDict
+
+if TYPE_CHECKING:
+    from .trade import ItemAction, ItemDescriptionLine
 
 
 class PriceOverview(TypedDict):
@@ -11,7 +15,7 @@ class PriceOverview(TypedDict):
     volume: str
 
 
-class ListingAsset(TypedDict):
+class ListingAsset(TypedDict, total=False):
     currency: int
     id: str
     amount: str
@@ -39,6 +43,16 @@ class ListingAsset(TypedDict):
     commodity: bool
     marketable: bool
     owner: bool
+    owner_descriptions: list[ItemDescriptionLine]
+    owner_actions: list[ItemAction]
+    market_fee: int
+    market_fee_app: int
+    market_actions: list[ItemAction]
+    market_tradable_restriction: int
+    rollback_new_id: str
+    rollback_new_contextid: str
+    new_id: str
+    new_contextid: str
 
 
 class _Listing(TypedDict):
@@ -48,7 +62,7 @@ class _Listing(TypedDict):
     publisher_fee_app: int
     publisher_fee_percent: str
     currencyid: int
-    asset: dict[{"currency": int, "appid": int, "contextid": str, "id": str, "amount": str}]  # noqa: F821
+    asset: dict[{currency: int, appid: int, contextid: str, id: str, amount: str}]  # noqa: F821
 
 
 _ListingPriceHistory = tuple[str, float, str]  # date (%b %d %Y (snapshot number): %z), avg price, quantity
@@ -69,3 +83,89 @@ class Listing(TypedDict):
     currency_id: int
     price_history: list[ListingPriceHistory]
     item: ListingItem
+
+
+class _Filter(TypedDict):
+    appid: int
+    name: str
+    localized_name: str
+    tags: dict[str, dict[{"localized_name": str, "matches": str}]]  # noqa: F821, UP037
+
+
+class Filter(TypedDict):
+    name: str
+    display_name: str
+    tags: list[dict[{"name": str, "display_name": str, "matches": int}]]  # noqa: F821, UP037
+
+
+class AppFilters(TypedDict):
+    success: bool
+    facets: list[_Filter]
+
+
+SortColumn = Literal["popular", "name", "quantity", "price"]
+
+
+class _Search(TypedDict):
+    success: bool
+    start: int
+    pagesize: int
+    total_count: int
+    searchdata: _SearchData
+    results: list[_SearchResult]
+
+
+class _SearchData(TypedDict):
+    query: str
+    search_descriptions: bool
+    total_count: int
+    pagesize: int
+    prefix: str
+    class_prefix: str
+
+
+class _SearchResult(TypedDict):
+    name: str
+    hash_name: str
+    sell_listings: int
+    sell_price: int
+    sell_price_text: str
+    app_icon: str
+    app_name: str
+    asset_description: _SearchAssetDescription
+    sale_price_text: str
+
+
+class _SearchAssetDescription(TypedDict):
+    appid: int
+    classid: str
+    instanceid: str
+    background_color: str
+    icon_url: str
+    name: str
+    name_color: str
+    type: str
+    market_name: str
+    market_hash_name: str
+    tradable: bool
+    commodity: bool
+
+
+class SearchResult(TypedDict):
+    name: str
+    sell_listings: int
+    sell_price: int
+    app_name: str
+    sale_price_text: str
+    appid: int
+    classid: str
+    instanceid: str
+    background_color: str
+    icon_url: str
+    name: str
+    name_color: str
+    type: str
+    market_name: str
+    market_hash_name: str
+    tradable: bool
+    commodity: bool
