@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Literal, TypedDict
+from typing import TYPE_CHECKING, Any, Literal, Required, TypedDict
+
+from .trade import Item
 
 if TYPE_CHECKING:
     from .trade import ItemAction, ItemDescriptionLine
@@ -18,15 +20,11 @@ class PriceOverview(TypedDict):
 class ListingAsset(TypedDict, total=False):
     currency: int
     id: str
-    amount: str
-    appid: str
-    contextid: str
-    instanceid: str
-    classid: str
-    status: str
-    original_amount: str
-    unowned_id: str
-    unowned_contextid: str
+    amount: Required[int]
+    appid: Required[str]
+    contextid: Required[str]
+    instanceid: Required[str]
+    classid: Required[str]
     background_color: str
     icon_url: str
     icon_url_large: str
@@ -37,18 +35,23 @@ class ListingAsset(TypedDict, total=False):
     name_color: str
     type: str
     market_name: str
-    market_hash_name: str
+    market_hash_name: Required[str]
     market_tradeable_restriction: int
     market_marketable_restriction: int
     commodity: bool
     marketable: bool
-    owner: bool
     owner_descriptions: list[ItemDescriptionLine]
     owner_actions: list[ItemAction]
     market_fee: int
     market_fee_app: int
     market_actions: list[ItemAction]
     market_tradable_restriction: int
+    # extra fields
+    status: Required[str]
+    original_amount: str
+    unowned_id: str
+    unowned_contextid: str
+    owner: bool
     rollback_new_id: str
     rollback_new_contextid: str
     new_id: str
@@ -62,7 +65,7 @@ class _Listing(TypedDict):
     publisher_fee_app: int
     publisher_fee_percent: str
     currencyid: int
-    asset: dict[{currency: int, appid: int, contextid: str, id: str, amount: str}]  # noqa: F821
+    asset: dict[{"currency": int, "appid": int, "contextid": str, "id": str, "amount": str}]  # noqa: F821, UP037
 
 
 _ListingPriceHistory = tuple[str, float, str]  # date (%b %d %Y (snapshot number): %z), avg price, quantity
@@ -70,8 +73,17 @@ _ListingPriceHistory = tuple[str, float, str]  # date (%b %d %Y (snapshot number
 ListingPriceHistory = tuple[datetime, int, float, int]
 
 
-class ListingItem(ListingAsset):
+class ListingItem(Item, total=False):
     name_id: int
+    status: str
+    original_amount: str
+    unowned_id: str
+    unowned_contextid: str
+    owner: bool
+    rollback_new_id: str
+    rollback_new_contextid: str
+    new_id: str
+    new_contextid: str
 
 
 class Listing(TypedDict):
@@ -100,7 +112,7 @@ class Filter(TypedDict):
 
 class AppFilters(TypedDict):
     success: bool
-    facets: list[_Filter]
+    facets: dict[str, _Filter]
 
 
 SortColumn = Literal["popular", "name", "quantity", "price"]

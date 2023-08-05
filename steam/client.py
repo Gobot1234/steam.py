@@ -45,7 +45,7 @@ from .gateway import *
 from .guard import get_authentication_code
 from .http import HTTPClient
 from .id import ID, parse_id64
-from .market import Listing, PriceOverview, Wallet
+from .market import Listing, PriceHistory, PriceOverview, Wallet
 from .models import return_true
 from .package import FetchedPackage, License, Package, PartialPackage
 from .post import Post
@@ -104,6 +104,7 @@ class ClientKwargs(TypedDict, total=False):
     flags: PersonaStateFlag
     force_kick: bool
     language: Language
+    currency: Currency
     auto_chunk_chat_groups: bool
 
 
@@ -1338,6 +1339,8 @@ class Client:
         """Waits until the client's internal cache is all ready."""
         await self._ready.wait()
 
+    # here be dragons
+
     async def fetch_price(self, name: str, app: App, currency: Currency | None = None) -> PriceOverview:
         """Fetch the :class:`PriceOverview` for an item.
 
@@ -1351,10 +1354,33 @@ class Client:
             The currency to fetch the price in.
         """
         price = await self.http.get_price(app.id, name, currency)
-        return PriceOverview(price, currency or Currency.USD)
+        return PriceOverview(price, currency or self.http.currency)
 
-    # here be dragons
+    async def fetch_price_history(self, name: str, app: App, currency: Currency | None = None) -> list[PriceHistory]:
+        """Fetch the price history for an item.
+
+        Parameters
+        ----------
+        name
+            The name of the item.
+        app
+            The app the item is from.
+        currency
+            The currency to fetch the price in.
+        """
+        prices = await self.http.get_price_history(app.id, name, currency)
+        return [PriceHistory(*price) for price in prices]
+
     async def fetch_listings(self, name: str, app: App) -> list[Listing]:
+        """Fetch the listings for an item.
+
+        Parameters
+        ----------
+        name
+            The name of the item.
+        app
+            The app the item is from.
+        """
         listings = await self.http.get_listings(app.id, name)
         return [Listing(self._state, listing) for listing in listings]
 

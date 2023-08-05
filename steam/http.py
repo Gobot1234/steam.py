@@ -112,6 +112,7 @@ class HTTPClient:
         self.login_event = asyncio.Event()
         self._logging_in = False
         self.language: Language = options.get("language", Language.English)
+        self.currency = options.get("currency", Currency.USD)
 
         self._one_time_code = ""
         self._email_code = ""
@@ -630,13 +631,7 @@ class HTTPClient:
         return self.get(URL.STORE / "api/dlcforapp", params=params)
 
     async def get_app_asset_prices(self, app_id: AppID, currency: Currency | None = None) -> app.AssetPrices:
-        params = {
-            "appid": app_id,
-        }
-        if currency is not None:
-            params |= {
-                "currency": currency.name,
-            }
+        params = {"appid": app_id, "currency": (currency or self.currency).name}
 
         data: dict[Literal["result"], app.AssetPrices] = await self.get(
             api_route("ISteamEconomy/GetAssetPrices"), params=params
@@ -1026,15 +1021,21 @@ class HTTPClient:
         data = {
             "appid": app_id,
             "market_hash_name": item_name,
+            "currency": currency or self.currency,
         }
-        if currency is not None:
-            data |= {"currency": currency}
 
-        return self.post(URL.COMMUNITY / "market/priceoverview", data=data)
+        return self.post(URL.MARKET / "priceoverview", data=data)
+
+    def _convert_price_history(
+        self, snapshot_info: str, avg_price: float, quantity: str
+    ) -> tuple[datetime, int, float, int]:
+        month, day, year, snapshot_number, tz = snapshot_info.split()
+        date = datetime.strptime(f"{month} {day} {year} {tz.ljust(5, '0')}", "%b %d %Y %z")
+        return (date, int(snapshot_number.rstrip(":")), avg_price, int(quantity))
 
     async def get_listings(self, app_id: AppID, item_name: str) -> list[market.Listing]:
-        headers = {"Referer": URL.COMMUNITY / "market/search" % {"appid": app_id}}
-        resp = await self.get(URL.COMMUNITY / f"market/listings/{app_id}/{item_name}", headers=headers)
+        headers = {"Referer": URL.MARKET / "search" % {"appid": app_id}}
+        resp = await self.get(URL.MARKET / f"listings/{app_id}/{item_name}", headers=headers)
         soup = BeautifulSoup(resp, "html.parser")  # needs to be html.parser
         tag = soup.find("div", class_="responsive_page_template_content", id="responsive_page_template_content")
         assert isinstance(tag, Tag)
@@ -1051,13 +1052,12 @@ class HTTPClient:
                 )
                 for idx, listing in enumerate(listings_.values(), start=1):
                     asset = listing["asset"]
-                    history: list[market.ListingPriceHistory] = []
-                    for snapshot_info, avg_price, quantity in cast(
-                        list[market._ListingPriceHistory], *extract_js_variables(script.text, f"line{idx}")
-                    ):
-                        month, day, year, snapshot_number, tz = snapshot_info.split()
-                        date = datetime.strptime(f"{month} {day} {year} {tz.ljust(5, '0')}", "%b %d %Y %z")
-                        history.append((date, int(snapshot_number.rstrip(":")), avg_price, int(quantity)))
+                    history: list[market.ListingPriceHistory] = [
+                        self._convert_price_history(*price_history)
+                        for price_history in cast(
+                            list[market._ListingPriceHistory], *extract_js_variables(script.text, f"line{idx}")
+                        )
+                    ]
 
                     listings.append(
                         {
@@ -1068,10 +1068,12 @@ class HTTPClient:
                             "publisher_fee_app": listing["publisher_fee_app"],
                             "publisher_fee_percent": round(float(listing["publisher_fee_percent"]), 4),
                             "item": {
+                                "assetid": asset["id"],
                                 **assets[str(asset["appid"])][asset["contextid"]][asset["id"]],
                                 "name_id": name_id,
+                                "missing": False,
                             },
-                            "price_history": history[:10],
+                            "price_history": history,
                         }
                     )
 
@@ -1079,7 +1081,7 @@ class HTTPClient:
         raise RuntimeError("unreachable")
 
     async def get_market_filters(self, app_id: AppID) -> list[market.Filter]:
-        data: market.AppFilters = await self.get(URL.COMMUNITY / f"market/appfilters/{app_id}")
+        data: market.AppFilters = await self.get(URL.MARKET / f"appfilters/{app_id}")
         if not data["success"]:
             raise ValueError("app_id does not have filters")
         return [
@@ -1095,7 +1097,7 @@ class HTTPClient:
                     for name, tag in filter["tags"].items()
                 ],
             }
-            for filter in data["facets"]
+            for filter in data["facets"].values()
         ]
 
     async def search_market(
@@ -1121,8 +1123,16 @@ class HTTPClient:
             "norender": 1,
             # TODO filters??
         }
+        if app_id is not None:
+            headers = {
+                "Referer": URL.MARKET / "search" % {"appid": app_id},
+            }
+        else:
+            headers = {
+                "Referer": URL.MARKET / "search?",
+            }
 
-        data: market._Search = await self.get(URL.COMMUNITY / "market/search/render", params=params)
+        data: market._Search = await self.get(URL.MARKET / "search/render", params=params, headers=headers)
 
         for result in data["results"]:
             yield {
@@ -1139,7 +1149,7 @@ class HTTPClient:
 
         for start in range(100, math.ceil((data["total_count"] + 100) / 100) * 100, 100):
             params["start"] = start
-            data = await self.get(URL.COMMUNITY / "market/search/render", params=params)
+            data = await self.get(URL.MARKET / "search/render", params=params)
             for result in data["results"]:
                 yield {
                     "app_name": result["app_name"],
@@ -1152,6 +1162,39 @@ class HTTPClient:
                     limit -= 1
                     if limit == 0:
                         return
+
+    async def get_item_histogram(
+        self,
+        app_id: AppID,
+        item_name: str,
+        name_id: int,
+        currency: Currency | None,
+    ) -> tuple[list[tuple[float, int]], list[tuple[float, int]]]:
+        params = {
+            "country": "US",
+            "language": "english",
+            "currency": currency or self.currency,
+            "item_nameid": name_id,
+            "two_factor": 0,
+            "norender": 1,
+        }
+        data = await self.get(
+            URL.MARKET / "itemordershistogram",
+            params=params,
+            headers={"Referer": URL.MARKET / f"listings/{app_id}/{item_name}"},
+        )
+        return [order[:2] for order in data["buy_order_graph"]], [order[:2] for order in data["sell_order_graph"]]
+
+    async def get_price_history(
+        self, app_id: AppID, item_name: str, currency: Currency | None
+    ) -> list[tuple[datetime, int, float, int]]:
+        params = {
+            "appid": app_id,
+            "market_hash_name": item_name,
+            "currency": currency or self.currency,
+        }
+        data = await self.get(URL.MARKET / "pricehistory", params=params)
+        return [self._convert_price_history(*snapshot) for snapshot in data["prices"]]
 
     async def edit_profile_info(
         self,

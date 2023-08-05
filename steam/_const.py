@@ -166,6 +166,7 @@ class URL:
     LOGIN: Final = _URL("https://login.steampowered.com")
     CDN: Final = _URL("https://cdn.cloudflare.steamstatic.com")
     PUBLISHER_API: Final = _URL("https://partner.steam-api.com")
+    MARKET: Final = COMMUNITY / "market"
 
 
 DEFAULT_AVATAR: Final = b"\xfe\xf4\x9e\x7f\xa7\xe1\x99s\x10\xd7\x05\xb2\xa6\x15\x8f\xf8\xdc\x1c\xdf\xeb"

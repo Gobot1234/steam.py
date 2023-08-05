@@ -4,15 +4,19 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
+
+from typing_extensions import TypeVar
 
 from .enums import Currency, PurchaseResult, Realm, Result
 from .models import DescriptionMixin
-from .trade import Asset, OwnerT
+from .protobufs import econ
+from .trade import Asset
 
 if TYPE_CHECKING:
     from datetime import datetime
 
+    from .abc import PartialUser
     from .state import ConnectionState
     from .types import market
     from .user import ClientUser
@@ -97,21 +101,33 @@ class Wallet:
         return resp["amount"]
 
 
+class PriceHistory(NamedTuple):
+    date: datetime
+    snapshot_number: int
+    average_price: float
+    quantity: int
+
+
+OwnerT = TypeVar("OwnerT", bound="PartialUser | None", default=None, covariant=True)
+
+
 class MarketItem(Asset[OwnerT], DescriptionMixin):
     __slots__ = (
         *DescriptionMixin.SLOTS,
         "_state",
-        "class_id",
-        "instance_id",
-        "_app_id",
         "_name_id",
     )
 
-    def cancel_sell_order():
-        ...
+    def __init__(self, state: ConnectionState, data: market.ListingItem, owner: OwnerT = None):
+        super().__init__(state, econ.Asset().from_dict(data), owner)
+        DescriptionMixin.__init__(self, state, econ.ItemDescription().from_dict(data))
+        self._name_id = int(data["name_id"]) if "name_id" in data else None
+
+    async def name_id(self) -> int:
+        return self._name_id
 
     async def histogram(self, name_id: int | None = None):
-        pass
+        return await self._state.client.fetch_histogram(self.app_id, name_id or self._name_id)
 
 
 class Listing:

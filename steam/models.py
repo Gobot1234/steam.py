@@ -11,7 +11,6 @@ from typing import TYPE_CHECKING, Any, Literal, ParamSpec, TypeVar, cast, runtim
 from typing_extensions import Protocol
 
 from ._const import DEFAULT_AVATAR, URL
-from .enums import PurchaseResult, Realm, Result
 from .media import Media
 from .types.id import AppID, ClassID
 
@@ -24,7 +23,7 @@ if TYPE_CHECKING:
 
     from .app import PartialApp
     from .enums import Currency
-    from .market import PriceOverview
+    from .market import Listing, PriceHistory, PriceOverview
     from .protobufs import econ
     from .state import ConnectionState
     from .types import user
@@ -301,15 +300,28 @@ class DescriptionMixin(Protocol):
         """
         return await self._state.client.fetch_price(self.market_hash_name, self.app, currency)
 
+    async def price_history(self, *, currency: Currency | None = None) -> list[PriceHistory]:
+        """Fetch the price history of this item on the Steam Community Market place.
+
+        Shorthand for:
+
+        .. code:: python
+
+            await client.fetch_price_history(item.market_hash_name, item.app, currency)
+        """
+        return await self._state.client.fetch_price_history(self.market_hash_name, self.app, currency)
+
     async def name_id(self) -> int:
-        listing = await self.listing()
+        """Fetch the item_nameid of this item on the Steam Community Market place."""
+        listing, *_ = await self.listings()
         return listing.item._name_id
 
-    async def listings(self):
+    async def listings(self) -> list[Listing]:
+        """Fetch the listings of this item on the Steam Community Market place."""
         return await self._state.client.fetch_listings(self.market_hash_name, self.app)
 
     async def histogram(self, name_id: int | None = None):
-        ...
+        return await self._state.client.fetch_histogram(self.market_hash_name, self.app, name_id)
 
     @property
     def app(self) -> PartialApp[None]:
