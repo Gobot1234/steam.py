@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 
 @dataclass(slots=True)
 class PartialCategory:
+    _state: ConnectionState
     id: int
 
     async def fetch(self) -> StoreCategory:

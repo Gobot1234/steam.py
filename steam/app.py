@@ -1560,7 +1560,8 @@ class FetchedApp(PartialApp[str]):
         """The type of the app."""
 
         self.categories = [
-            FetchedAppCategory(id=category["id"], name=category["description"]) for category in data["categories"]
+            FetchedAppCategory(state, id=category["id"], name=category["description"])
+            for category in data["categories"]
         ]
 
         try:
