@@ -27,4 +27,4 @@ async def on_trade_accept(trade: steam.TradeOffer) -> None:
     print(f"Crafted {refined_crafted} Refined Metal")
 
 
-# bot.run("username", "password")
+bot.run("username", "password")
