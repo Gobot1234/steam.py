@@ -228,6 +228,7 @@ class ConnectionState:
         self._confirmations: dict[TradeOfferID, Confirmation] = {}
         self.confirmation_generation_locks = defaultdict[Tags, asyncio.Lock](asyncio.Lock)
         self.polling_trades = False
+        self.polling_trades_lock = asyncio.Lock()
         self.trade_queue = Queue[TradeOffer[Item[User], Item[ClientUser], User]]()
         self._trades_to_watch: set[TradeOfferID] = set()
         self.polling_confirmations = False
@@ -324,8 +325,8 @@ class ConnectionState:
         return user
 
     async def fetch_users(self, user_id64s: Iterable[ID64]) -> Sequence[User]:
-        friends = await self.ws.fetch_users(user_id64s)
-        return [self._store_user(user) for user in friends]
+        users = await self.ws.fetch_users(user_id64s)
+        return [self._store_user(user) for user in users]
 
     async def _maybe_user(self, id: Intable) -> User:
         steam_id = ID(id, type=Type.Individual)
@@ -409,6 +410,7 @@ class ConnectionState:
         self, trades_: Iterable[trade.TradeOffer], descriptions: dict[tuple[str, str], econ.ItemDescription]
     ) -> list[TradeOffer[Item[User], Item[ClientUser], User]]:
         trades: list[TradeOffer[Item[User], Item[ClientUser], User]] = []
+        dispatch: list[tuple[Any, ...]] = []  # my brain doesn't have the power to type this correctly
         for trade_ in trades_:
             id = TradeOfferID(int(trade_["tradeofferid"]))
             user = trade_["accountid_other"]
@@ -417,34 +419,38 @@ class ConnectionState:
                     (econ.Asset().from_dict(asset), descriptions[asset["classid"], asset["instanceid"]])
                     for asset in trade_.get("items_to_receive", ())
                 ]
-                sending: list[tuple[econ.Asset, econ.ItemDescription]] = [
+                sending = [
                     (econ.Asset().from_dict(asset), descriptions[asset["classid"], asset["instanceid"]])
                     for asset in trade_.get("items_to_give", ())
                 ]
             except KeyError:
-                receiving = []
-                sending = []
+                receiving = [econ.Asset().from_dict(asset) for asset in trade_.get("items_to_receive", ())]
+                sending = [econ.Asset().from_dict(asset) for asset in trade_.get("items_to_give", ())]
 
             try:
                 trade = self._trades[id]
             except KeyError:
                 log.info("Received trade #%d", id)
                 trade = TradeOffer._from_api(
-                    state=self, data=trade_, user=cast(User, ID(user)), sending=sending, receiving=receiving
+                    state=self,
+                    data=trade_,
+                    user=cast(User, ID(user)),
+                    sending=cast("list[tuple[econ.Asset, econ.ItemDescription]]", sending),
+                    receiving=cast("list[tuple[econ.Asset, econ.ItemDescription]]", receiving),
                 )
                 self._trades[id] = trade
                 if trade.state in (TradeOfferState.Active, TradeOfferState.ConfirmationNeed) and (
                     trade.sending or trade.receiving
                 ):  # could be glitched
-                    self.dispatch("trade", trade)
+                    dispatch.append(("trade", trade))
                     self._trades_to_watch.add(trade.id)
             else:
                 before = copy(trade)
-                trade._update(trade_, sending=sending, receiving=receiving)
+                trade._update(trade_, sending=sending, receiving=receiving)  # type: ignore  # I cba fixing this
                 if trade.state != before.state:
                     log.info("Trade #%d has updated its trade state to %r", id, trade.state)
                     if trade.sending or trade.receiving:
-                        self.dispatch("trade_update", before, trade)
+                        dispatch.append(("trade_update", before, trade))
                         self._trades_to_watch.discard(trade.id)
             trades.append(trade)
 
@@ -454,20 +460,26 @@ class ConnectionState:
                     item.owner = user
             trade.user = user
 
+        for args in dispatch:
+            self.dispatch(*args)
+
         return trades
 
     @requires_intent(Intents.TradeOffers)
     async def poll_trades(self) -> None:
-        if self.polling_trades or not await self.http.get_api_key():  # TODO can this be changed safely?
-            return
+        async with self.polling_trades_lock:
+            if self.polling_trades or not await self.http.get_api_key():  # TODO can this be changed safely?
+                return
 
-        self.polling_trades = True
+            self.polling_trades = True
+
         try:
             await self.fill_trades()
+            await asyncio.sleep(5)  # preventative measure against notification spam making us excessively poll
 
             while self._trades_to_watch:  # watch trades for changes
-                await asyncio.sleep(10)
                 await self.fill_trades()
+                await asyncio.sleep(10)
         finally:
             self.polling_trades = False
 

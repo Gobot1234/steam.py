@@ -7,7 +7,7 @@ import contextlib
 import itertools
 import types
 from collections.abc import Iterator, Sequence
-from typing import TYPE_CHECKING, Any, Generic, cast
+from typing import TYPE_CHECKING, Any, Generic, cast, overload
 
 from typing_extensions import NamedTuple, TypeVar, get_original_bases
 
@@ -487,12 +487,30 @@ class TradeOffer(Generic[ReceivingAssetT, SendingAssetT, UserT]):
         resolved = [f"{attr}={getattr(self, attr, None)!r}" for attr in attrs]
         return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
+    @overload
     def _update(
         self: TradeOffer[Asset[UserT], Asset[ClientUser], UserT],
         data: trade.TradeOffer,
         sending: list[tuple[econ.Asset, econ.ItemDescription]],
         receiving: list[tuple[econ.Asset, econ.ItemDescription]],
     ) -> TradeOffer[Item[UserT], Item[ClientUser], UserT]:
+        ...
+
+    @overload
+    def _update(
+        self: TradeOffer[Asset[UserT], Asset[ClientUser], UserT],
+        data: trade.TradeOffer,
+        sending: list[econ.Asset],
+        receiving: list[econ.Asset],
+    ) -> TradeOffer[Asset[UserT], Asset[ClientUser], UserT]:
+        ...
+
+    def _update(
+        self: TradeOffer[Asset[UserT], Asset[ClientUser], UserT],
+        data: trade.TradeOffer,
+        sending: list[tuple[econ.Asset, econ.ItemDescription]] | list[econ.Asset],
+        receiving: list[tuple[econ.Asset, econ.ItemDescription]] | list[econ.Asset],
+    ) -> TradeOffer[Item[UserT], Item[ClientUser], UserT] | TradeOffer[Asset[UserT], Asset[ClientUser], UserT]:
         self.message = data.get("message") or None
         self.id = TradeOfferID(int(data["tradeofferid"]))
         self._id = int(data["tradeid"]) if "tradeid" in data else None
@@ -505,29 +523,29 @@ class TradeOffer(Generic[ReceivingAssetT, SendingAssetT, UserT]):
         self.updated_at = DateTime.from_timestamp(updated_at) if updated_at else None
         self.created_at = DateTime.from_timestamp(created_at) if created_at else None
         self.state = TradeOfferState.try_value(data.get("trade_offer_state", 1))
-        if (self.state != TradeOfferState.Accepted) or (
-            sending and receiving
-        ):  # steam doesn't really send the item data if the offer just got accepted
-            self.sending = [
-                Item(
-                    self._state,
-                    asset=asset,
-                    description=description,
-                    owner=self._state.user,
-                )
-                for asset, description in sending
-            ]
-            self.receiving = [
-                Item(
-                    self._state,
-                    asset=asset,
-                    description=description,
-                    owner=self.user,
-                )
-                for asset, description in sending
-            ]
         self._is_our_offer = data.get("is_our_offer", False)
-        return cast("TradeOffer[Item[UserT], Item[ClientUser], UserT]", self)
+        if (self.state != TradeOfferState.Accepted) and (
+            sending or receiving
+        ):  # steam doesn't really send the item data if the offer just got accepted
+            try:
+                self.sending = [
+                    Item(self._state, asset=asset, description=description, owner=self._state.user)
+                    for asset, description in cast("list[tuple[econ.Asset, econ.ItemDescription]]", sending)
+                ]
+                self.receiving = [
+                    Item(self._state, asset=asset, description=description, owner=self.user)
+                    for asset, description in cast("list[tuple[econ.Asset, econ.ItemDescription]]", receiving)
+                ]
+                return cast("TradeOffer[Item[UserT], Item[ClientUser], UserT]", self)
+            except ValueError:
+                self.sending = [
+                    Asset(self._state, asset=asset, owner=self._state.user)
+                    for asset in cast("list[econ.Asset]", sending)
+                ]
+                self.receiving = [
+                    Asset(self._state, asset=asset, owner=self.user) for asset in cast("list[econ.Asset]", receiving)
+                ]
+        return self
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, TradeOffer):

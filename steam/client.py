@@ -74,7 +74,7 @@ if TYPE_CHECKING:
     from .manifest import AppInfo, PackageInfo
     from .published_file import PublishedFile
     from .reaction import ClientEmoticon, ClientSticker, MessageReaction
-    from .trade import Item, MovedItem, TradeOffer
+    from .trade import Asset, Item, MovedItem, TradeOffer
     from .types.http import IPAdress
     from .user import ClientUser, User
 
@@ -184,7 +184,9 @@ class Client:
         return self._state.users
 
     @property
-    def trades(self) -> Sequence[TradeOffer]:
+    def trades(
+        self,
+    ) -> Sequence[TradeOffer[Asset[User], Asset[ClientUser], User]]:
         """A read-only list of all the trades the connected client can see."""
         return self._state.trades
 
