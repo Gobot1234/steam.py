@@ -175,6 +175,10 @@ class HTTPClient:
 
         self._logging_in = True
 
+        jar = self._session.cookie_jar
+        for url in (URL.COMMUNITY, URL.STORE, URL.HELP):
+            jar.update_cookies(SimpleCookie[str](f"sessionid={self.session_id}"), url)
+
         resp = await self.post(
             URL.LOGIN / "jwt/finalizelogin",
             data={
@@ -207,14 +211,8 @@ class HTTPClient:
         else:
             raise errors.LoginError("Failed to login")
 
-        jar = self._session.cookie_jar
-        for cookie in resp.headers.getall("Set-Cookie", ()):
-            cookie = SimpleCookie[str](cookie)
-            for url in (URL.COMMUNITY, URL.STORE, URL.HELP):
-                jar.update_cookies(cookie.copy(), url)
-
         for url in (URL.COMMUNITY, URL.STORE, URL.HELP):
-            jar.update_cookies(SimpleCookie[str](f"sessionid={self.session_id}"), url)
+            jar.update_cookies(resp.cookies, url)
 
         self.logged_in = True
         self.login_event.set()
