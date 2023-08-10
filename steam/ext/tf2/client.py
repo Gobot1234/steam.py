@@ -48,9 +48,6 @@ class Client(Client_):
     user: cached_property[Self, ClientUser]
     _state: GCState
 
-    def _get_gc_message(self) -> Any:
-        return False  # for now this isn't required
-
     @property
     def schema(self) -> Schema:
         """TF2's item schema. ``None`` if the user isn't ready."""
