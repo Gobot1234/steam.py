@@ -184,9 +184,7 @@ class Client:
         return self._state.users
 
     @property
-    def trades(
-        self,
-    ) -> Sequence[TradeOffer[Asset[User], Asset[ClientUser], User]]:
+    def trades(self) -> Sequence[TradeOffer[Asset[User], Asset[ClientUser], User]]:
         """A read-only list of all the trades the connected client can see."""
         return self._state.trades
 

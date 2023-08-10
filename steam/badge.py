@@ -264,5 +264,5 @@ class UserBadges(Sequence[UserBadge[UserT]]):
 
     if not TYPE_CHECKING:
 
-        def __getitem__(self, idx: Any) -> Any:
+        def __getitem__(self, idx):
             return self.badges[idx]

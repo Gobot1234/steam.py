@@ -746,7 +746,7 @@ class PartialApp(App[NameT]):
         after = after or UNIX_EPOCH
         before = before or DateTime.now()
         cursor = "*"
-        app = self
+        app = None
 
         yielded = 0
 
@@ -754,7 +754,7 @@ class PartialApp(App[NameT]):
             data = await self._state.http.get_reviews(self.id, "all", "all", "all", cursor)
             if cursor == "*":
                 app = ReviewApp(self._state, self.id, data["query_summary"]["review_score"])
-            assert isinstance(app, ReviewApp)
+            assert app
             cursor = data["cursor"]
             reviews = data["reviews"]
 

@@ -19,7 +19,6 @@ from .app import App, PartialApp
 from .channel import ClanChannel
 from .chat import ChatGroup, Member, PartialMember
 from .enums import ClanAccountFlags, EventType, Language, Type
-from .errors import HTTPException
 from .event import Announcement, Event
 from .id import ID, parse_id64
 from .types.id import ID32, ID64, Intable
