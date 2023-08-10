@@ -83,8 +83,8 @@ __all__ = ("Client",)
 
 log = logging.getLogger(__name__)
 
-EventType: TypeAlias = Callable[..., Coroutine[Any, Any, Any]]
-E = TypeVar("E", bound=EventType)
+CoroFunc: TypeAlias = Callable[..., Coroutine[Any, Any, Any]]
+E = TypeVar("E", bound=CoroFunc)
 EventDeco: TypeAlias = Callable[[E], E] | E
 P = ParamSpec("P")
 
@@ -294,7 +294,7 @@ class Client:
 
         return decorator(coro) if coro is not None else decorator
 
-    async def _run_event(self, coro: EventType, event_name: str, *args: Any, **kwargs: Any) -> None:
+    async def _run_event(self, coro: CoroFunc, event_name: str, *args: Any, **kwargs: Any) -> None:
         try:
             await coro(*args, **kwargs)
         except asyncio.CancelledError:
@@ -305,7 +305,7 @@ class Client:
             except asyncio.CancelledError:
                 pass
 
-    def _schedule_event(self, coro: EventType, event_name: str, *args: Any, **kwargs: Any) -> asyncio.Task[None]:
+    def _schedule_event(self, coro: CoroFunc, event_name: str, *args: Any, **kwargs: Any) -> asyncio.Task[None]:
         return self._tg.create_task(
             self._run_event(coro, event_name, *args, **kwargs), name=f"steam.py task: {event_name}"
         )

@@ -8,6 +8,7 @@ from hypothesis import given, strategies as st
 from steam.ext import tf2
 
 client = tf2.Client()
+bot = tf2.Bot(command_prefix="!")
 
 
 def test_metal_initializations():
