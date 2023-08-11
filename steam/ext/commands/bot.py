@@ -161,12 +161,17 @@ class Bot(GroupMixin, Client):
         if self.owner_id and self.owner_ids:
             raise ValueError("You cannot have both owner_id and owner_ids")
 
-        for _, command in inspect.getmembers_static(self, predicate=lambda x: isinstance(x, Command)):
-            command.cog = self
-
-            if isinstance(command, GroupMixin):
+        # for _, command in inspect.getmembers_static(self, predicate=lambda x: isinstance(x, Command)):  # 3.11
+        for member in dir(self):
+            try:
+                command = inspect.getattr_static(self, member)
+            except AttributeError:
                 continue
-            self.add_command(command)
+            if isinstance(command, Command):
+                command.cog = self
+                if isinstance(command, GroupMixin):
+                    continue
+                self.add_command(command)
 
         self.help_command = options.get("help_command", DefaultHelpCommand())
 
