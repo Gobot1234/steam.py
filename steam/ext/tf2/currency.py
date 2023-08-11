@@ -6,10 +6,16 @@ from __future__ import annotations
 import math
 from decimal import Decimal
 from fractions import Fraction
+from functools import reduce
 from typing import TYPE_CHECKING, TypeAlias, overload
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from typing_extensions import Self
+
+    from ...trade import Item
+
 
 __all__ = ("Metal",)
 
@@ -115,7 +121,34 @@ class Metal(Fraction):
         return Metal(super().__neg__())
 
     def __str__(self) -> str:
-        return f"{self.numerator // self.denominator}.{f'{(self.numerator % self.denominator) * 9 // self.denominator}' * 2}"
+        return (
+            f"{self.numerator // self.denominator}"
+            "."
+            f"{f'{(self.numerator % self.denominator) * 9 // self.denominator}' * 2}"
+        )
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({str(self)!r})"
+
+    @classmethod
+    def from_items(cls, items: Iterable[Item]) -> Self:
+        """The amount of metal in the items.
+
+        Example
+        -------
+
+        .. code:: py
+
+            their_inventory = await user.inventory(steam.TF2)
+            their_metal = Metal.from_items(inventory)
+            our_inventory = await client.user.inventory(steam.TF2)
+            await user.send(f"I have {'more' if our_inventory.metal > their_metal else 'less'} metal than you")
+        """
+        return reduce(cls.__add__, (ITEM_VALUES[item.name] for item in items))
+
+
+ITEM_VALUES = {
+    "Refined Metal": Metal(1.00),
+    "Reclaimed Metal": Metal(0.33),
+    "Scrap Metal": Metal(0.11),
+}
