@@ -270,7 +270,10 @@ class HTTPClient:
     async def logout(self) -> None:
         log.debug("Logging out of session")
         payload = {"sessionid": self.session_id}
-        await self.post(URL.COMMUNITY / "login/logout", data=payload)
+        try:
+            await self.post(URL.COMMUNITY / "login/logout", data=payload)
+        except asyncio.CancelledError:
+            pass
         self.logged_in = False
         self.user = None  # type: ignore
         self._client.dispatch("logout")
