@@ -8,9 +8,9 @@ The appropriate license is in LICENSE
 
 from __future__ import annotations
 
-import importlib
+import importlib.machinery
+import importlib.util
 import inspect
-import os
 import sys
 import traceback
 import warnings
@@ -31,6 +31,7 @@ from .utils import Shlex
 
 if TYPE_CHECKING:
     import datetime
+    import os
     from collections.abc import Callable, Coroutine, Iterable
 
     from typing_extensions import Required, Unpack
@@ -97,11 +98,6 @@ def when_mentioned_or(*prefixes: str) -> Callable[[Bot, Message], list[str]]:
     return inner
 
 
-def resolve_path(path: Path) -> str:
-    return path.resolve().relative_to(Path.cwd()).with_suffix("").as_posix().replace("/", ".")
-    # resolve cogs relative to where they are loaded as it's probably the most common use case for this
-
-
 class BotKwargs(TypedDict, total=False):
     command_prefix: Required[CommandPrefixType]
     help_command: HelpCommand
@@ -159,7 +155,7 @@ class Bot(GroupMixin, Client):
         self.__listeners__: dict[str, list[CoroFunc]] = {}
         self.__extensions__: dict[str, ModuleType] = {}
 
-        self.command_prefix = options.get("command_prefix")
+        self.command_prefix = options["command_prefix"]
         self.owner_id = parse_id64(options.get("owner_id", 0))
         self.owner_ids = {parse_id64(owner_id) for owner_id in options.get("owner_ids", ())}
         if self.owner_id and self.owner_ids:
@@ -233,6 +229,13 @@ class Bot(GroupMixin, Client):
 
         await super().close()
 
+    def _spec_from_extension(self, extension: str | os.PathLike[str]) -> importlib.machinery.ModuleSpec:
+        path = Path(extension)
+        spec = importlib.util.spec_from_file_location(path.name, path)
+        if spec is None:
+            raise ModuleNotFoundError(f"{extension!r} not found")
+        return spec
+
     def load_extension(self, extension: str | os.PathLike[str]) -> None:
         """Load an extension.
 
@@ -246,20 +249,25 @@ class Bot(GroupMixin, Client):
         :exc:`ImportError`
             The ``extension`` is missing a setup function.
         """
-        name = extension
-        if isinstance(extension, Path):
-            name = resolve_path(extension)
-        name = os.fspath(name)
-        if name in self.__extensions__:
+        spec = self._spec_from_extension(extension)
+        if spec.origin in self.__extensions__:
             return
 
-        module = importlib.import_module(name)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[module.__name__] = module
+        try:
+            spec.loader.exec_module(module)
+        except:
+            del sys.modules[module.__name__]
+            raise
         if not hasattr(module, "setup"):
-            del sys.modules[name]
-            raise ImportError(f"{extension!r} is missing a setup function", name=name, path=extension)
+            del sys.modules[module.__name__]
+            raise ImportError(
+                f"{module.__name__!r} is missing a setup function", name=module.__name__, path=module.__file__
+            )
 
         module.setup(self)
-        self.__extensions__[name] = module
+        self.__extensions__[module.__file__] = module
 
     def unload_extension(self, extension: str | os.PathLike[str]) -> None:
         """Unload an extension.
@@ -274,15 +282,14 @@ class Bot(GroupMixin, Client):
         :exc:`ModuleNotFoundError`
             The ``extension`` wasn't found in the loaded extensions.
         """
-        name = extension
-        if isinstance(extension, Path):
-            name = resolve_path(extension)
-        name = os.fspath(name)
+        spec = self._spec_from_extension(extension)
 
         try:
-            module = self.__extensions__[name]
+            module = self.__extensions__[spec.origin]
         except KeyError:
-            raise ModuleNotFoundError(f"The extension {extension!r} was not found", name=name, path=extension) from None
+            raise ModuleNotFoundError(
+                f"The extension {extension!r} is not loaded", name=spec.name, path=spec.origin
+            ) from None
 
         for cog in tuple(self.cogs.values()):
             if cog.__module__ == module.__name__:
@@ -291,8 +298,8 @@ class Bot(GroupMixin, Client):
         if hasattr(module, "teardown"):
             module.teardown(self)
 
-        del sys.modules[name]
-        del self.__extensions__[name]
+        del sys.modules[module.__name__]
+        del self.__extensions__[module.__file__]
 
     def reload_extension(self, extension: str | os.PathLike[str]) -> None:
         """Atomically reload an extension. If any error occurs during the reload the extension will be reverted to its
@@ -308,23 +315,22 @@ class Bot(GroupMixin, Client):
         :exc:`ModuleNotFoundError`
             The ``extension`` wasn't found in the loaded extensions.
         """
-        name = extension
-        if isinstance(extension, Path):
-            name = resolve_path(extension)
-        name = os.fspath(name)
+        spec = self._spec_from_extension(extension)
 
         try:
-            previous = self.__extensions__[name]
+            previous = self.__extensions__[spec.origin]
         except KeyError:
-            raise ModuleNotFoundError(f"The extension {extension!r} was not found", name=name, path=extension) from None
+            raise ModuleNotFoundError(
+                f"The extension {extension!r} is not loaded", name=spec.name, path=spec.origin
+            ) from None
 
         try:
             self.unload_extension(extension)
             self.load_extension(extension)
         except:
-            previous.setup(self)  # type: ignore
-            self.__extensions__[name] = previous
-            sys.modules[name] = previous
+            previous.setup(self)
+            self.__extensions__[previous.__file__] = previous
+            sys.modules[previous.__name__] = previous
             raise
 
     def add_cog(self, cog: Cog) -> None:
