@@ -21,7 +21,7 @@ class CraftRequest(GCMessage, msg=EMsg.Craft):
     def __bytes__(self) -> bytes:
         with StructIO() as io:
             io.write_struct("<hh", self.recipe, len(self.items))
-            io.write_struct(f"<{len(self.items)}Q", self.items)
+            io.write_struct(f"<{len(self.items)}Q", *self.items)
 
             return io.buffer
 
