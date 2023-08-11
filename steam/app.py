@@ -57,6 +57,7 @@ if TYPE_CHECKING:
 
 __all__ = (
     "App",
+    "PartialApp",
     "TF2",
     "LFD2",
     "DOTA2",
@@ -73,6 +74,8 @@ __all__ = (
     "UserRecentlyPlayedApp",
     "WishlistApp",
     "FetchedApp",
+    "UserInventoryInfoApp",
+    "UserInventoryInfoContext",
 )
 
 T = TypeVar("T")

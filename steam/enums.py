@@ -103,7 +103,7 @@ class EnumDict(dict[str, Any]):
 
 class EnumType(_EnumMeta if TYPE_CHECKING else type):
     _value_map_: Mapping[Any, Enum]
-    _member_map_: Mapping[str, Enum]
+    _member_map_: Mapping[str, Enum]  # type: ignore
 
     @classmethod
     def __prepare__(mcs, name: str, bases: tuple[type, ...]) -> EnumDict:  # type: ignore

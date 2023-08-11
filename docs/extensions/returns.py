@@ -6,7 +6,6 @@ import re
 from collections.abc import AsyncIterable
 from typing import TYPE_CHECKING, Any, get_args
 
-from sphinx.ext import napoleon
 from sphinx.util.typing import restify
 
 if TYPE_CHECKING:
@@ -46,33 +45,6 @@ def add_return_type(app: Sphinx, what: str, fullname: str, object: Any, options:
         # append the info to the return type
         info = match["info"].replace("\n", " ").strip()
         docs.append(f"     {info}")
-
-
-def _parse_returns_section(self: napoleon.NumpyDocstring, section: str) -> list[str]:
-    fields = self._consume_returns_section()
-    multi = len(fields) > 1
-    use_rtype = False if multi else self._config.napoleon_use_rtype
-    lines = []
-
-    for _name, _type, _desc in fields:
-        field = self._format_field(_name, "", _desc) if use_rtype else self._format_field(_name, _type, _desc)
-
-        if multi:
-            if lines:
-                lines.extend(self._format_block("          * ", field))
-            else:
-                lines.extend(self._format_block(":returns: * ", field))
-        else:
-            if any(field):  # only add :returns: if there's something to say
-                lines.extend(self._format_block(":returns: ", field))
-            if _type and use_rtype:
-                lines.extend([f":rtype: {_type}", ""])
-    if lines and lines[-1]:
-        lines.append("")
-    return lines
-
-
-napoleon.NumpyDocstring._parse_returns_section = _parse_returns_section  # TODO pr this
 
 
 def setup(app: Sphinx) -> dict[str, bool]:

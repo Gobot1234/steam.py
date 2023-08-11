@@ -73,6 +73,7 @@ blacken-docs = "^1.12"
 ruff = ">=0.0.261,<0.0.285"
 tomli = { version = "~2", python = "<3.11" }
 hypothesis = "^6.82.0"
+types-docutils = "^0.20.0.1"
 
 [tool.poe.tasks]
 fmt = { sequence = [

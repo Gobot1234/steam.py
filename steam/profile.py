@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Generic, Protocol, cast
+from typing import TYPE_CHECKING, Generic, Protocol
 
 from typing_extensions import TypeVar
 

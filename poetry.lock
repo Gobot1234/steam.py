@@ -2030,6 +2030,17 @@ files = [
 ]
 
 [[package]]
+name = "types-docutils"
+version = "0.20.0.1"
+description = "Typing stubs for docutils"
+optional = false
+python-versions = "*"
+files = [
+    {file = "types-docutils-0.20.0.1.tar.gz", hash = "sha256:f682b5459a1e6e28208742adb0be8573d1ecbddd442f00d202b0278c1c4418a2"},
+    {file = "types_docutils-0.20.0.1-py3-none-any.whl", hash = "sha256:6b17cbe57cb282158feb41d154cddaeabc16f1d6cff3c7308bd3056f42aa7cd2"},
+]
+
+[[package]]
 name = "typing-extensions"
 version = "4.7.1"
 description = "Backported and Experimental Type Hints for Python 3.7+"
@@ -2178,4 +2189,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "a5faf061f8b92e6833a0bf0bd1ec7c50d5f5294d243a69d31ec5ec3afb0340d5"
+content-hash = "3e514cd0f5c1572ee81fa45b2915d208166a533299fe8108716ba1af88d0a4e2"

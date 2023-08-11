@@ -7,9 +7,10 @@ import itertools
 import re
 from datetime import date, datetime, timezone
 from ipaddress import IPv4Address
-from typing import TYPE_CHECKING, Literal, TypeVar, overload
+from typing import TYPE_CHECKING, Literal, TypeVar, cast, overload
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
+from typing_extensions import Self
 from yarl import URL
 
 from . import utils
@@ -26,8 +27,6 @@ from .utils import BBCodeStr, DateTime, parse_bb_code
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Sequence
-
-    from typing_extensions import Self
 
     from .protobufs import chat
     from .state import ConnectionState
@@ -50,13 +49,9 @@ BoringEvents = Literal[
     EventType.Trip,
     # EventType.Broadcast,  # TODO need to wait until implementing stream support for this
 ]
-CreateableEvents = Literal[BoringEvents, EventType.Game]
+CreateableEvents = BoringEvents | Literal[EventType.Game]
 
-BoringEventT = TypeVar(
-    "BoringEventT",
-    bound=BoringEvents,
-    covariant=True,
-)
+BoringEventT = TypeVar("BoringEventT", bound=BoringEvents)
 
 
 class ClanMember(Member):
@@ -204,7 +199,7 @@ class PartialClan(ID[Literal[Type.Clan]], Commentable):
                 _, _, id = a["href"].rpartition("/")
                 event = await self.fetch_event(int(id))
                 self._state.dispatch("event_create", event)
-                return event
+                return cast(Event[CreateableEvents, Self], event)
         raise ValueError
 
     async def create_announcement(
@@ -274,7 +269,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
     # V1
     # Clan.headline
 
-    summary: BBCodeStr
+    summary: BBCodeStr | None
     """The summary of the clan."""
     created_at: datetime | None
     """The time the clan was created at."""
@@ -305,14 +300,15 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
             self._is_app_clan = "games" in resp.url.parts
 
         if not from_proto:
+            assert soup.title is not None
             _, _, self.name = soup.title.text.rpartition(" :: ")
             icon_url = soup.find("link", rel="image_src")
-            url = URL(icon_url["href"]) if icon_url else None
+            url = URL(cast(str, icon_url["href"])) if isinstance(icon_url, Tag) else None
             if url:
                 self._avatar_sha = bytes.fromhex(url.path.removesuffix("/").removesuffix("_full.jpg"))
 
         content = soup.find("meta", property="og:description")
-        self.summary = parse_bb_code(content["content"]) if content is not None else None
+        self.summary = parse_bb_code(cast(str, content["content"])) if isinstance(content, Tag) else None
 
         if self._is_app_clan:
             for entry in soup.find_all("div", class_="actionItem"):
@@ -323,7 +319,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
         stats = soup.find("div", class_="grouppage_resp_stats")
         if stats is None:
             return self
-
+        assert isinstance(stats, Tag)
         for stat in stats.find_all("div", class_="groupstat"):
             if "Founded" in stat.text:
                 text = stat.text.split("Founded")[1].strip()
