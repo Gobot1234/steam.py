@@ -99,7 +99,7 @@ class BaseEvent(Commentable, utils.AsyncInit, Generic[EventTypeT, ClanT], metacl
         """The time the event was last edited at."""
         edited_by = data.get("last_update_steamid")
         self.last_edited_by: User | PartialUser | None = (
-            PartialUser(state, edited_by) if edited_by is not None else None
+            state.get_partial_user(edited_by) if edited_by is not None else None
         )
         """The user last edited the event."""
 

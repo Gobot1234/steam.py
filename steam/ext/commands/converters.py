@@ -274,7 +274,7 @@ class Converter(ConverterBase[T_co], ABC):
 class PartialUserConverter(Converter[PartialUser]):
     async def convert(self, ctx: Context, argument: str) -> PartialUser:
         try:
-            return PartialUser(ctx._state, argument)
+            return ctx._state.get_partial_user(argument)
         except InvalidID:
             if (
                 argument.startswith("@")
@@ -291,11 +291,11 @@ class PartialUserConverter(Converter[PartialUser]):
                 )
                 is not None
             ):
-                return PartialUser(ctx._state, mention.attributes[""])
+                return ctx._state.get_partial_user(mention.attributes[""])
             if (user := utils.get(ctx.bot.users, name=argument)) is not None:
-                return PartialUser(ctx._state, user.id64)
+                return ctx._state.get_partial_user(user.id64)
             if (id64 := await utils.id64_from_url(argument, session=ctx._state.http._session)) is not None:
-                return PartialUser(ctx._state, id64)
+                return ctx._state.get_partial_user(id64)
 
         raise BadArgument(f'Failed to convert "{argument}" to a Steam user')
 

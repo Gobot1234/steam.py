@@ -174,7 +174,6 @@ class BaseOwnershipTicket:
     )
 
     def __init__(self, state: ConnectionState, ticket: utils.StructIO) -> None:
-        from .abc import PartialUser
         from .package import PartialPackage
 
         self._state = state
@@ -186,7 +185,7 @@ class BaseOwnershipTicket:
 
         self.version = ticket.read_u32()
         """The version of the ticket."""
-        self.user = PartialUser(state, ticket.read_u64())
+        self.user = state.get_partial_user(ticket.read_u64())
         """The user who owns the ticket."""
         self.app = PartialApp(state, id=ticket.read_u32())
         """The app the ticket is for."""

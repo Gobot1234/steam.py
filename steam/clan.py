@@ -86,7 +86,7 @@ class PartialClan(ID[Literal[Type.Clan]], Commentable):
         This can be a very slow operation due to the rate limits on this endpoint.
         """
         async for id32 in self._state.http.get_clan_members(self.id64):
-            yield PartialUser(self._state, id=id32)
+            yield self._state.get_partial_user(id32)
 
     # event/announcement stuff
 

@@ -449,9 +449,7 @@ class TradeOffer(Generic[ReceivingAssetT, SendingAssetT, UserT]):
         data: trade.TradeOfferHistoryTrade,
         descriptions: Sequence[trade.Description],
     ) -> TradeOffer[MovedItem[UserT], MovedItem[ClientUser], UserT]:
-        from .abc import PartialUser
-
-        user = cast("UserT", PartialUser(state, data["steamid_other"]))
+        user = cast("UserT", state.get_partial_user(data["steamid_other"]))
         trade = cls(
             receiving=[
                 MovedItem(state, description | asset, user)
