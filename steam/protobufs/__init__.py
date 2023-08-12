@@ -40,6 +40,7 @@ __all__ = (
     "SERVICE_EMSGS",
 )
 
+# NOTE all modules need to be included here otherwise messages won't be parsed correctly
 from . import (
     app_info as app_info,
     auth as auth,
@@ -69,6 +70,7 @@ from . import (
     store as store,
     two_factor as two_factor,
     ucm as ucm,
+    user_news as user_news,
     user_stats as user_stats,
 )
 

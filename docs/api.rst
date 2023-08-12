@@ -278,6 +278,14 @@ Enumerations
     :members:
     :undoc-members:
 
+.. autoclass:: ContentDescriptor()
+    :members:
+    :undoc-members:
+
+.. autoclass:: UserNewsType()
+    :members:
+    :undoc-members:
+
 
 Intents
 ---------------
@@ -889,6 +897,15 @@ Roles
 
 .. autoclass:: RolePermissions()
     :members:
+
+User News
+~~~~~~~~~~~~~~~
+
+.. attributetable:: UserNews
+
+.. autoclass:: UserNews
+    :members:
+    :undoc-members:
 
 Users
 ~~~~~~~~~~~~~~~

@@ -68,6 +68,7 @@ from .protobufs import (
     quest,
     reviews,
     store,
+    user_news,
     user_stats,
 )
 from .published_file import PublishedFile
@@ -366,6 +367,9 @@ class ConnectionState:
 
     def get_friend(self, id: ID32) -> Friend:
         return self.user._friends[id]
+
+    def _maybe_friend(self, id: ID32) -> Friend | PartialUser:
+        return self.user._friends.get(id) or self.get_partial_user(id)
 
     def _store_friend(self, user: User) -> Friend:
         self.user._friends[user.id] = friend = Friend(self, user)
@@ -855,6 +859,28 @@ class ConnectionState:
                 break
         assert original_msg is not None
         return original_msg
+
+    async def fetch_user_news(
+        self,
+        flags: UserNewsType,
+        app_id: AppID | None,
+        before: datetime,
+        after: datetime,
+        language: Language | None,
+    ) -> user_news.GetUserNewsResponse:
+        msg: user_news.GetUserNewsResponse = await self.ws.send_um_and_wait(
+            user_news.GetUserNewsRequest(
+                100,
+                int(after.timestamp()),
+                int(before.timestamp()),
+                language=(language or self.language).api_name,
+                filterflags=flags.flag,
+                filterappid=app_id or 0,
+            )
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg
 
     @parser
     @requires_intent(Intents.Users)

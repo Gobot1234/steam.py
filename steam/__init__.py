@@ -41,6 +41,7 @@ from .role import *
 from .store import *
 from .trade import *
 from .user import *
+from .user_news import *
 
 __import__("logging").getLogger(__name__).addHandler(__import__("logging").NullHandler())  # don't leak scope
 __import__("warnings").filterwarnings("always", ".*", module=rf"(?:{__name__}\.|{__name__}$)", append=False)

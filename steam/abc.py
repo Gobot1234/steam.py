@@ -792,7 +792,13 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
         from .post import Post
 
         post = await self._state.fetch_user_post(self.id64, PostID(id))
-        return Post(self._state, PostID(post.postid), post.status_text, self, PartialApp(self._state, id=post.appid))
+        return Post(
+            self._state,
+            PostID(post.postid),
+            post.status_text,
+            self,
+            PartialApp(self._state, id=post.appid) if post.appid else None,
+        )
 
     async def invite_to(self, app: App) -> AppInvite:
         ...

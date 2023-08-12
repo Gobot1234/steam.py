@@ -92,6 +92,22 @@ class AppAchievement(Achievement):
 
 
 @dataclass(slots=True)
+class UserNewsAchievement(Achievement):
+    """Represents an achievement for an app."""
+
+    localised_name: str
+    """The display name of the achievement."""
+    description: str
+    """The description of the achievement."""
+    icon: CDNAsset
+    """The icon of the achievement."""
+    hidden: bool
+    """Whether the achievement is hidden from the app's achievement list."""
+    percent_unlocked: float
+    """The percentage of the players that have this achievement."""
+
+
+@dataclass(slots=True)
 class AppStatAchievement(Achievement):
     """Represents an achievement for an app."""
 
