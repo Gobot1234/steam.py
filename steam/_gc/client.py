@@ -79,6 +79,9 @@ class Client(Client_):
                     await self._state.ws.send_gc_message(msg)
             await asyncio.sleep(self._GC_HEART_BEAT)
 
+    def is_gc_ready(self) -> bool:
+        return self._state._gc_ready.is_set()
+
     @overload
     async def login(
         self,

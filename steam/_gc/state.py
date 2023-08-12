@@ -93,8 +93,11 @@ class GCState(ConnectionState, Generic[Inv]):
             cls.gc_parsers[msg] = func
 
     @property
-    def backpack(self) -> Inv:
-        return cast(Inv, self.backpacks[APP.get().id])
+    def backpack(self) -> Inv | None:
+        try:
+            return cast(Inv, self.backpacks[APP.get().id])
+        except KeyError:
+            return None
 
     @backpack.setter
     def backpack(self, value: Inv):
