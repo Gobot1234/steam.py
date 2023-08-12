@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Final, Literal, cast, overload
+from typing import TYPE_CHECKING, Final, Literal, cast, overload
 
 from typing_extensions import Self  # noqa: TCH002
 
@@ -74,7 +74,7 @@ class Client(Client_):
 
     async def craft(
         self, items: Collection[BackpackItem[ClientUser]], recipe: int = -2
-    ) -> list[BackpackItem[ClientUser]] | None:
+    ) -> list[BackpackItem[ClientUser]]:
         """Craft a set of items together with an optional recipe.
 
         Parameters
@@ -107,11 +107,10 @@ class Client(Client_):
             async with timeout(60):
                 resp = await future
         except asyncio.TimeoutError:
-            return
+            raise ValueError("crafting failed")
         else:
-            recipe_id = resp.recipe_id
-            if recipe_id == -1:  # error occurred
-                return
+            if resp.recipe_id == -1:  # error occurred
+                raise ValueError("crafting failed")
 
         return cast("list[BackpackItem[ClientUser]]", await asyncio.gather(*map(self._state.wait_for_item, resp.ids)))
 
