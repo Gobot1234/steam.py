@@ -144,7 +144,7 @@ class Metal(Fraction):
             our_inventory = await client.user.inventory(steam.TF2)
             await user.send(f"I have {'more' if our_inventory.metal > their_metal else 'less'} metal than you")
         """
-        return reduce(cls.__add__, (ITEM_VALUES[item.name] for item in items))
+        return reduce(cls.__add__, (ITEM_VALUES[item.name] for item in items if item.name in ITEM_VALUES))
 
 
 ITEM_VALUES = {

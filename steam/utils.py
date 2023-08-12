@@ -217,6 +217,9 @@ class CachedSlotProperty(Generic[_SelfT, _T_co]):
             setattr(instance, self.name, value)
             return value
 
+    def __set__(self, instance: _SelfT, value: _T_co) -> None:  # type: ignore
+        setattr(instance, self.name, value)
+
 
 async def ainput(prompt: object = MISSING, /) -> str:
     if prompt is not MISSING:

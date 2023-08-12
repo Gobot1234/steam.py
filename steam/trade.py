@@ -259,7 +259,11 @@ class Inventory(Generic[ItemT, OwnerT], Sequence[ItemT]):
     def __repr__(self) -> str:
         attrs = ("owner", "app")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
-        return f"<{getattr(self, '__orig_class__', self.__class__.__name__)} {' '.join(resolved)}>"
+        try:
+            name = type(self).__name__
+        except AttributeError:
+            name = self.__orig_class__.__name__
+        return f"<{name} {' '.join(resolved)}>"
 
     def __len__(self) -> int:
         return len(self.items)
@@ -280,7 +284,7 @@ class Inventory(Generic[ItemT, OwnerT], Sequence[ItemT]):
         items: list[ItemT] = []
         ItemClass: type[ItemT]
         try:  # ideally one day this will just be ItemT.__value__ or something
-            (ItemClass,) = self.__orig_class__.__args__
+            ItemClass, *_ = self.__orig_class__.__args__
         except AttributeError:
             ItemClass = get_original_bases(self.__class__)[0].__args__[0].__default__
         for asset in proto.assets:
