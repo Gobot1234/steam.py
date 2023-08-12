@@ -92,6 +92,8 @@ class GCState(GCState_[Backpack]):
             self.dispatch("gc_disconnect")
             self._gc_connected.clear()
             self._gc_ready.clear()
+        if msg is not None:
+            self.dispatch("gc_status_change", msg.status)
 
     @parser
     async def parse_gc_client_connect(self, msg: sdk.ClientWelcome) -> None:
