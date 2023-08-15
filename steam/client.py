@@ -1132,7 +1132,8 @@ class Client:
         limit: int | None = None,
         before: datetime.datetime | None = None,
         after: datetime.datetime | None = None,
-        flags: UserNewsType = UserNewsType.Friend,
+        app: App | None = None,
+        flags: UserNewsType | None = None,
         language: Language | None = None,
     ) -> AsyncGenerator[UserNews, None]:
         """Fetch news for the user.
@@ -1145,6 +1146,8 @@ class Client:
             The date to fetch news before.
         after
             The date to fetch news after.
+        app
+            The app to fetch news entries related to.
         flags
             The type of news to fetch.
         language
@@ -1152,9 +1155,11 @@ class Client:
         """
         before = before or DateTime.now()
         after = after or UNIX_EPOCH
+        if flags is None:
+            flags = UserNewsType.Friend if app is None else UserNewsType.App
 
         while True:
-            msg = await self._state.fetch_user_news(flags, None, before, after, language)
+            msg = await self._state.fetch_user_news(flags, app.id if app is not None else None, before, after, language)
 
             achievements = {
                 achievements.appid: {
