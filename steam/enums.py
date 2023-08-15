@@ -131,7 +131,7 @@ class EnumType(_EnumMeta if TYPE_CHECKING else type):
 
         for name, value in members.items():
             if (member := value_map.get(value)) is None or member.name not in namespace.aliases:
-                member = cls.__new__(cls, name=name, value=value)
+                member = cls.__new__(cls, name=name, value=value)  # type: ignore  # this method doesn't exist at type time.
                 value_map[value] = member
 
             member_map[name] = member
@@ -189,18 +189,20 @@ class Enum(_Enum if TYPE_CHECKING else object, metaclass=EnumType):
     _member_map_: Mapping[str, Self]
     _value_map_: Mapping[Any, Self]
 
-    def __new__(cls, *, name: str, value: Any) -> Self:
-        # N.B. this method is not ever called after enum creation as it is shadowed by EnumMeta.__call__ and is just
-        # for creating Enum members
-        self = (
-            super().__new__(cls, value)
-            if any(not issubclass(base, Enum) for base in cls.__mro__[:-1])  # is it is a mixin enum
-            else super().__new__(cls)  # type: ignore
-        )
-        super().__setattr__(self, "name", name)
-        super().__setattr__(self, "value", value)
+    if not TYPE_CHECKING:
 
-        return self
+        def __new__(cls, *, name: str, value: Any) -> Self:
+            # N.B. this method is not ever called after enum creation as it is shadowed by EnumMeta.__call__ and is just
+            # for creating Enum members
+            self = (
+                super().__new__(cls, value)
+                if any(not issubclass(base, Enum) for base in cls.__mro__[:-1])  # is it is a mixin enum
+                else super().__new__(cls)  # type: ignore
+            )
+            super().__setattr__(self, "name", name)
+            super().__setattr__(self, "value", value)
+
+            return self
 
     if not DOCS_BUILDING:
 
