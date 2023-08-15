@@ -86,7 +86,7 @@ from .role import Role, RolePermissions
 from .trade import Item, TradeOffer
 from .types.id import *
 from .user import ClientUser, User
-from .utils import DateTime, cached_property
+from .utils import DateTime, cached_property, call_once
 
 if TYPE_CHECKING:
     from types import CoroutineType
@@ -228,8 +228,6 @@ class ConnectionState:
         self._trades: dict[TradeOfferID, TradeOffer[Item[User], Item[ClientUser], User]] = {}
         self._confirmations: dict[TradeOfferID, Confirmation] = {}
         self.confirmation_generation_locks = defaultdict[Tags, asyncio.Lock](asyncio.Lock)
-        self.polling_trades = False
-        self.polling_trades_lock = asyncio.Lock()
         self.trade_queue = Queue[TradeOffer[Item[User], Item[ClientUser], User]]()
         self._trades_to_watch: set[TradeOfferID] = set()
         self.polling_confirmations = False
@@ -1692,22 +1690,14 @@ class ConnectionState:
         return trades
 
     @requires_intent(Intents.TradeOffers)
+    @call_once
     async def poll_trades(self) -> None:
-        async with self.polling_trades_lock:
-            if self.polling_trades or not await self.http.get_api_key():  # TODO can this be changed safely?
-                return
+        await self.fill_trades()
+        await asyncio.sleep(5)  # preventative measure against notification spam making us excessively poll
 
-            self.polling_trades = True
-
-        try:
+        while self._trades_to_watch:  # watch trades for changes
             await self.fill_trades()
-            await asyncio.sleep(5)  # preventative measure against notification spam making us excessively poll
-
-            while self._trades_to_watch:  # watch trades for changes
-                await self.fill_trades()
-                await asyncio.sleep(10)
-        finally:
-            self.polling_trades = False
+            await asyncio.sleep(10)
 
     async def fill_trades(self) -> None:
         try:

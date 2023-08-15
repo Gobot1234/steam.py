@@ -12,6 +12,7 @@ import abc
 import asyncio
 import base64
 import collections
+import functools
 import html
 import itertools
 import re
@@ -19,6 +20,7 @@ import struct
 import sys
 import textwrap
 import threading
+import weakref
 from collections.abc import (
     AsyncGenerator,
     AsyncIterable,
@@ -37,7 +39,19 @@ from io import BytesIO
 from itertools import zip_longest
 from operator import attrgetter
 from types import MemberDescriptorType
-from typing import TYPE_CHECKING, Any, Final, Generic, Literal, ParamSpec, TypeAlias, TypedDict, TypeVar, cast, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Final,
+    Generic,
+    Literal,
+    ParamSpec,
+    TypeAlias,
+    TypedDict,
+    TypeVar,
+    cast,
+    overload,
+)
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes
@@ -219,6 +233,32 @@ class CachedSlotProperty(Generic[_SelfT, _T_co]):
 
     def __set__(self, instance: _SelfT, value: _T_co) -> None:  # type: ignore
         setattr(instance, self.name, value)
+
+
+F = TypeVar("F", bound=Callable[..., Awaitable[None]])
+
+
+def call_once(func: F) -> F:
+    locks = weakref.WeakKeyDictionary[object, asyncio.Lock]()
+    being_called = weakref.WeakKeyDictionary[object, bool]()
+
+    @functools.wraps(func)
+    async def inner(self: Any, *args: Any, **kwargs: Any) -> None:
+        try:
+            lock = locks[self]
+        except KeyError:
+            lock = locks[self] = asyncio.Lock()
+
+        async with lock:
+            if being_called.setdefault(self, True):
+                return
+
+        try:
+            await func(self, *args, **kwargs)
+        finally:
+            being_called[self] = False
+
+    return cast(F, inner)
 
 
 async def ainput(prompt: object = MISSING, /) -> str:

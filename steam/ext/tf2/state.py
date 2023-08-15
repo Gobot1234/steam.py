@@ -149,18 +149,12 @@ class GCState(GCState_[Backpack]):
             return
         self.dispatch("item_receive", item)
 
+    @utils.call_once
     async def restart_tf2(self) -> None:
-        if self.restarting_tf2:
-            return
+        async with self.temporarily_play(*self._original_apps):
+            self.parse_client_goodbye()
 
-        self.restarting_tf2 = True
-        try:
-            async with self.temporarily_play(*self._original_apps):
-                self.parse_client_goodbye()
-
-            await self._gc_connected.wait()
-        finally:
-            self.restarting_tf2 = False
+        await self._gc_connected.wait()
 
     @parser
     async def handle_so_update(self, msg: sdk.SOUpdate) -> None:
