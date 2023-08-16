@@ -508,7 +508,15 @@ class SteamWebSocket:
         for allowed_confirmation in begin_resp.allowed_confirmations:
             match allowed_confirmation.confirmation_type:
                 case auth.EAuthSessionGuardType.NONE:
-                    raise NotImplementedError()  # no guard
+                    poll_resp: auth.PollAuthSessionStatusResponse = await self.send_um_and_wait(
+                        auth.PollAuthSessionStatusRequest(
+                            client_id=begin_resp.client_id,
+                            request_id=begin_resp.request_id,
+                        )
+                    )
+                    if poll_resp.result != Result.OK:
+                        raise WSException(poll_resp)
+                    break
                 case auth.EAuthSessionGuardType.EmailCode | auth.EAuthSessionGuardType.DeviceCode:
                     code = await client.code()
                     code_msg: auth.UpdateAuthSessionWithSteamGuardCodeResponse = await self.send_proto_and_wait(
