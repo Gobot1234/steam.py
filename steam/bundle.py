@@ -92,6 +92,10 @@ class PartialBundle(Bundle[NameT]):
         fetched = await self.fetch()
         return fetched._packages
 
+    async def redeem(self) -> None:
+        """Redeem this bundle if it's a free-on-demand bundle."""
+        await self._state.http.redeem_bundle(self.id)
+
 
 class FetchedBundle(PartialBundle[str]):
     """Represents a bundle of games and packages."""

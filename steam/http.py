@@ -893,7 +893,7 @@ class HTTPClient:
             "ajax": "true",
             "sessionid": self.session_id,
         }
-        return self.post(URL.STORE / f"checkout/addfreelicense/{package_id}", data=data)
+        return self.post(URL.STORE / f"freelicense/addfreelicense/{package_id}", data=data)
 
     def remove_license(self, license_id: PackageID) -> Coro[None]:
         data = {
@@ -909,6 +909,13 @@ class HTTPClient:
             "cc": "en",
         }
         return self.get(URL.STORE / "actions/ajaxresolvebundles", params=params)
+
+    def redeem_bundle(self, bundle_id: BundleID) -> Coro[dict[str, Any]]:
+        data = {
+            "ajax": "true",
+            "sessionid": self.session_id,
+        }
+        return self.post(URL.STORE / f"freelicense/addfreebundle/{bundle_id}", data=data)
 
     def add_wallet_code(self, code: str) -> Coro[AddWalletCode]:
         data = {"wallet_code": code, "sessionid": self.session_id}
