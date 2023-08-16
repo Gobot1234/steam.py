@@ -26,7 +26,7 @@ from .models import PriceOverviewDict, api_route
 from .types.id import ID32, ID64, AppID, AssetID, BundleID, ChatGroupID, ChatID, PackageID, PostID, TradeOfferID
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncGenerator, Callable, Sequence, ValuesView
+    from collections.abc import AsyncGenerator, Callable, Iterable, Sequence, ValuesView
 
     from .client import Client
     from .media import Media
@@ -59,15 +59,7 @@ class HTTPClient:
         self._client = client
 
         self.api_key: str | None = None
-        self.login_event = asyncio.Event()
-        self._logging_in = False
         self.language: Language = options.get("language", Language.English)
-
-        self._one_time_code = ""
-        self._email_code = ""
-        self._captcha_id = "-1"
-        self._captcha_text = ""
-        self._steam_id = ""
 
         self.logged_in = False
         self.user_agent = (
@@ -102,7 +94,7 @@ class HTTPClient:
                     {"key": await self.get_api_key()}
                 )
 
-        elif url.host in (URL.COMMUNITY.host, URL.STORE.host, URL.HELP.host) and not self.logged_in:
+        elif url.host in (URL.COMMUNITY.host, URL.STORE.host, URL.HELP.host):
             await self.ensure_logged_in()
 
         for tries in range(5):
@@ -178,60 +170,22 @@ class HTTPClient:
             f"wss://{cm}/cmsocket/", headers=headers, proxy=self.proxy, proxy_auth=self.proxy_auth
         )
 
-    async def login(self, refresh_token: str) -> None:
-        if self._logging_in:
-            await self.login_event.wait()
-            return
-
-        self._logging_in = True
-
+    @utils.call_once(wait=True)
+    async def login(self) -> None:
         jar = self._session.cookie_jar
+        steam_login_secure = urllib.parse.quote(f"{self.user.id64}||{await self._client._state.ws.access_token()}")
         for url in (URL.COMMUNITY, URL.STORE, URL.HELP):
+            jar.update_cookies(SimpleCookie[str](f"steamLoginSecure={steam_login_secure}"), url)
             jar.update_cookies(SimpleCookie[str](f"sessionid={self.session_id}"), url)
-
-        resp = await self.post(
-            URL.LOGIN / "jwt/finalizelogin",
-            data={
-                "nonce": refresh_token,
-                "sessionid": self.session_id,
-                "redir": URL.COMMUNITY / "login/home",
-            },
-        )
-
-        for fut in asyncio.as_completed(
-            [
-                self._session.post(
-                    info["url"],
-                    headers={
-                        "Origin": str(URL.COMMUNITY),
-                        "Referer": str(URL.COMMUNITY),
-                        "Accept": "application/json, text/plain, */*",
-                    },
-                    data=info["params"] | {"steamID": self.user.id64},
-                )
-                for info in resp["transfer_info"]
-            ]
-        ):
-            try:
-                resp = await fut
-            except Exception:
-                continue
-            else:
-                break
-        else:
-            raise errors.LoginError("Failed to login")
-
-        for url in (URL.COMMUNITY, URL.STORE, URL.HELP):
-            jar.update_cookies(resp.cookies, url)
-
         self.logged_in = True
-        self.login_event.set()
 
     async def ensure_logged_in(self) -> None:
-        if self._client.ws is None:
-            raise RuntimeError("Not logged in and not connected to CM")
-        await self.login(self._client.ws.refresh_token)
+        if self.logged_in:
+            return
+        await self._client._state.login_complete.wait()
+        await self.login()
 
+    @utils.call_once(wait=True)
     async def get_api_key(self) -> str | None:
         if self.api_key is not None:
             return self.api_key
@@ -263,20 +217,7 @@ class HTTPClient:
         return randbytes(16).hex()
 
     async def close(self) -> None:
-        if self.logged_in:
-            await self.logout()
         await self._session.close()
-
-    async def logout(self) -> None:
-        log.debug("Logging out of session")
-        payload = {"sessionid": self.session_id}
-        try:
-            await self.post(URL.COMMUNITY / "login/logout", data=payload)
-        except asyncio.CancelledError:
-            pass
-        self.logged_in = False
-        self.user = None  # type: ignore
-        self._client.dispatch("logout")
 
     async def get_user(self, user_id64: ID64) -> user.User | None:
         return await anext(self.get_users(user_id64), None)
@@ -995,8 +936,7 @@ class HTTPClient:
     ) -> None:
         info = await self.user.profile_info()
 
-        if not self.logged_in:
-            await self.ensure_logged_in()
+        await self.ensure_logged_in()
 
         async with self._session.get(URL.COMMUNITY / "my") as r:
             current_url = r.url

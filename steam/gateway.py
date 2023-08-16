@@ -557,6 +557,7 @@ class SteamWebSocket:
         self._access_token = poll_resp.access_token
         return poll_resp.refresh_token
 
+    @utils.call_once(wait=True)
     async def access_token(self) -> str:
         try:
             return self._access_token

@@ -42,6 +42,7 @@ from types import MemberDescriptorType
 from typing import (
     TYPE_CHECKING,
     Any,
+    Concatenate,
     Final,
     Generic,
     Literal,
@@ -235,30 +236,75 @@ class CachedSlotProperty(Generic[_SelfT, _T_co]):
         setattr(instance, self.name, value)
 
 
-F = TypeVar("F", bound=Callable[..., Awaitable[None]])
+F_no_wait = TypeVar("F_no_wait", bound=Callable[Concatenate[Any, ...], Awaitable[None]])
+F_wait = TypeVar("F_wait", bound=Callable[Concatenate[Any, ...], Awaitable[Any]])
 
 
-def call_once(func: F) -> F:
-    locks = weakref.WeakKeyDictionary[object, asyncio.Lock]()
-    being_called = weakref.WeakKeyDictionary[object, bool]()
+@overload
+def call_once(func: F_no_wait) -> F_no_wait:
+    ...
 
-    @functools.wraps(func)
-    async def inner(self: Any, *args: Any, **kwargs: Any) -> None:
-        try:
-            lock = locks[self]
-        except KeyError:
-            lock = locks[self] = asyncio.Lock()
 
-        async with lock:
-            if being_called.setdefault(self, True):
-                return
+@overload
+def call_once(*, wait: Literal[False]) -> Callable[[F_no_wait], F_no_wait]:
+    ...
 
-        try:
-            await func(self, *args, **kwargs)
-        finally:
-            being_called[self] = False
 
-    return cast(F, inner)
+@overload
+def call_once(*, wait: Literal[True] = ...) -> Callable[[F_wait], F_wait]:
+    ...
+
+
+def call_once(func: F_wait | None = None, *, wait: bool = False) -> F_wait | Callable[[F_wait], F_wait]:
+    def get_inner(func: F_wait) -> F_wait:
+        locks = weakref.WeakKeyDictionary[object, asyncio.Lock]()
+        being_called = weakref.WeakKeyDictionary[object, bool]()
+
+        if wait:
+            futures = dict[object, asyncio.Future[Any]]()
+
+            async def inner(self: Any, *args: Any, **kwargs: Any) -> None:
+                try:
+                    lock = locks[self]
+                except KeyError:
+                    lock = locks[self] = asyncio.Lock()
+
+                async with lock:
+                    if being_called.setdefault(self, True):
+                        return await futures[self]
+
+                    futures[self] = future = asyncio.get_running_loop().create_future()
+
+                try:
+                    res = await func(self, *args, **kwargs)
+                except Exception as exc:
+                    future.set_exception(exc)
+                else:
+                    future.set_result(res)
+                finally:
+                    being_called[self] = False
+                    del futures[self]
+
+        else:
+
+            async def inner(self: Any, *args: Any, **kwargs: Any) -> None:
+                try:
+                    lock = locks[self]
+                except KeyError:
+                    lock = locks[self] = asyncio.Lock()
+
+                async with lock:
+                    if being_called.setdefault(self, True):
+                        return
+
+                try:
+                    await func(self, *args, **kwargs)
+                finally:
+                    being_called[self] = False
+
+        return cast(F_wait, functools.wraps(inner))
+
+    return get_inner if func is None else get_inner(func)
 
 
 async def ainput(prompt: object = MISSING, /) -> str:
