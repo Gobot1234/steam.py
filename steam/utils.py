@@ -236,8 +236,8 @@ class CachedSlotProperty(Generic[_SelfT, _T_co]):
         setattr(instance, self.name, value)
 
 
-F_no_wait = TypeVar("F_no_wait", bound=Callable[Concatenate[Any, ...], Awaitable[None]])
-F_wait = TypeVar("F_wait", bound=Callable[Concatenate[Any, ...], Awaitable[Any]])
+F_no_wait = TypeVar("F_no_wait", bound="Callable[Concatenate[Any, ...], Awaitable[None]]")
+F_wait = TypeVar("F_wait", bound="Callable[Concatenate[Any, ...], Awaitable[Any]]")
 
 
 @overload
