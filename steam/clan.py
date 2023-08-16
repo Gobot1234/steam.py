@@ -19,7 +19,7 @@ from .abc import Commentable, PartialUser, _CommentableKwargs, _CommentThreadTyp
 from .app import App, PartialApp
 from .channel import ClanChannel
 from .chat import ChatGroup, Member, PartialMember
-from .enums import ClanAccountFlags, EventType, Language, Type
+from .enums import ClanAccountFlags, EventType, Language, Type, UserNewsType
 from .event import Announcement, Event
 from .id import ID, parse_id64
 from .types.id import ID32, ID64, Intable
@@ -198,6 +198,8 @@ class PartialClan(ID[Literal[Type.Clan]], Commentable):
             if a is not None and a.text == name:  # this is bad?
                 _, _, id = a["href"].rpartition("/")
                 event = await self.fetch_event(int(id))
+                if event.name != name or event.content != content:
+                    continue
                 self._state.dispatch("event_create", event)
                 return cast(Event[CreateableEvents, Self], event)
         raise ValueError
@@ -224,12 +226,11 @@ class PartialClan(ID[Literal[Type.Clan]], Commentable):
         The created announcement.
         """
         await self._state.http.create_clan_announcement(self.id64, name, content, hidden)
-        resp = await self._state.http.get(f"{self.community_url}/announcements", params={"content_only": "true"})
-        soup = BeautifulSoup(resp, HTML_PARSER)
-        for element in soup.find_all("div", class_="announcement"):
-            if (a := element.a) is not None and a.text == name:  # this is bad?
-                _, _, id = a["href"].rpartition("/")
-                announcement = await self.fetch_announcement(int(id))
+        async for entry in self._state.client.user_news(flags=UserNewsType.PostedAnnouncement):
+            if entry.target == self._state.user and entry.actor == self:
+                announcement = await entry.announcement()
+                if announcement.name != name or announcement.content != content:
+                    continue
                 self._state.dispatch("announcement_create", announcement)
                 return announcement
 

@@ -42,7 +42,7 @@ class BaseEvent(Commentable, utils.AsyncInit, Generic[EventTypeT, ClanT], metacl
         "id",
         "author",
         "name",
-        "description",
+        "content",
         "app",
         "starts_at",
         "becomes_visible",
@@ -73,7 +73,7 @@ class BaseEvent(Commentable, utils.AsyncInit, Generic[EventTypeT, ClanT], metacl
         """The event's name."""
         self.author: User | PartialUser = PartialUser(state, data["creator_steamid"])
         """The event's author."""
-        self.description: str = data["event_notes"]
+        self.content: str = data["event_notes"]
         """The event's description."""
         self.app = PartialApp(state, id=data["appid"]) if data["appid"] else None
         """The app that the event is going to be played in."""
@@ -181,7 +181,7 @@ class Event(BaseEvent[EventTypeT, ClanT]):
     async def edit(
         self: Event[Literal[EventType.Game]],
         name: str,
-        description: str,
+        content: str,
         *,
         app: App | None = None,
         starts_at: datetime | None = ...,
@@ -194,7 +194,7 @@ class Event(BaseEvent[EventTypeT, ClanT]):
     async def edit(
         self,
         name: str,
-        description: str,
+        content: str,
         *,
         type: BoringEvents | None = None,
         starts_at: datetime | None = None,
@@ -205,7 +205,7 @@ class Event(BaseEvent[EventTypeT, ClanT]):
     async def edit(
         self,
         name: str,
-        description: str,
+        content: str,
         *,
         type: Literal[EventType.Game] = ...,
         starts_at: datetime | None = ...,
@@ -218,7 +218,7 @@ class Event(BaseEvent[EventTypeT, ClanT]):
     async def edit(
         self,
         name: str,
-        description: str,
+        content: str,
         *,
         type: CreateableEvents | None = None,
         app: App | None = None,
@@ -236,7 +236,7 @@ class Event(BaseEvent[EventTypeT, ClanT]):
         ----------
         name
             The event's name.
-        description
+        content
             The event's description.
         type
             The event's type.
@@ -261,7 +261,7 @@ class Event(BaseEvent[EventTypeT, ClanT]):
         await self._state.http.edit_clan_event(
             self.clan.id64,
             name or self.name,
-            description or self.description,
+            content or self.content,
             f"{type_.name}Event",
             app_id or "",
             str(server_address),
@@ -270,7 +270,7 @@ class Event(BaseEvent[EventTypeT, ClanT]):
             event_id=self.id,
         )
         self.name = name or self.name
-        self.description = description or self.description
+        self.content = content or self.content
         self.type = type_
         self.server_address = server_address or None
         self.server_password = server_password or self.server_password
@@ -309,7 +309,7 @@ class Announcement(BaseEvent[EventType, ClanT]):
         """The time at which the announcement was last updated_at."""
         self.approved_at = DateTime.from_timestamp(data["rtime_mod_reviewed"]) if data["rtime_mod_reviewed"] else None
         """The time at which the announcement was approved by a moderator."""
-        self.description: str = body["body"]
+        self.content: str = body["body"]
         self.tags: Sequence[str] = body["tags"]
         """The announcement's tags."""
 
@@ -324,7 +324,7 @@ class Announcement(BaseEvent[EventType, ClanT]):
             "forum_id": self._feature,
         }
 
-    async def edit(self, name: str | None = None, description: str | None = None) -> None:
+    async def edit(self, name: str | None = None, content: str | None = None) -> None:
         """Edit the announcement's details.
 
         Note
@@ -335,14 +335,14 @@ class Announcement(BaseEvent[EventType, ClanT]):
         ----------
         name
             The announcement's name.
-        description
-            The announcement's description.
+        content
+            The announcement's content.
         """
         name = name or self.name
-        description = description or self.description
-        await self._state.http.edit_clan_announcement(self.clan.id64, self.id, name, description)
+        content = content or self.content
+        await self._state.http.edit_clan_announcement(self.clan.id64, self.id, name, content)
         self.name = name
-        self.description = description
+        self.content = content
         self.last_edited_at = DateTime.now()
         self.last_edited_by = self._state.user
 
