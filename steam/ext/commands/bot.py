@@ -237,7 +237,7 @@ class Bot(GroupMixin, Client):
     def _spec_from_extension(self, extension: str | os.PathLike[str]) -> importlib.machinery.ModuleSpec:
         if isinstance(extension, os.PathLike):
             path = Path(extension)
-            spec = importlib.util.spec_from_file_location(path, path)
+            spec = importlib.util.spec_from_file_location(path.name, path)
         else:
             spec = importlib.util.find_spec(extension)
         if spec is None:
