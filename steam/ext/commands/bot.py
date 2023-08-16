@@ -11,6 +11,7 @@ from __future__ import annotations
 import importlib.machinery
 import importlib.util
 import inspect
+import os
 import sys
 import traceback
 import warnings
@@ -31,7 +32,6 @@ from .utils import Shlex
 
 if TYPE_CHECKING:
     import datetime
-    import os
     from collections.abc import Callable, Coroutine, Iterable
 
     from typing_extensions import Required, Unpack
@@ -235,8 +235,11 @@ class Bot(GroupMixin, Client):
         await super().close()
 
     def _spec_from_extension(self, extension: str | os.PathLike[str]) -> importlib.machinery.ModuleSpec:
-        path = Path(extension)
-        spec = importlib.util.spec_from_file_location(path.name, path)
+        if isinstance(extension, os.PathLike):
+            path = Path(extension)
+            spec = importlib.util.spec_from_file_location(path, path)
+        else:
+            spec = importlib.util.find_spec(extension)
         if spec is None:
             raise ModuleNotFoundError(f"{extension!r} not found")
         return spec
