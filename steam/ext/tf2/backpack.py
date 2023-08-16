@@ -328,7 +328,7 @@ class BackpackItem(Item[OwnerT]):
         data = SKU_RE.match(value)
         if data is None:
             raise ValueError(f"Invalid SKU: {value!r}")
-        self._def_index_cs = int(data["def_index"])
+        self.def_index = int(data["def_index"])
 
         return self
 
