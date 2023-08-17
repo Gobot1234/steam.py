@@ -1049,7 +1049,7 @@ class Message(Generic[UserT], metaclass=abc.ABCMeta):
         """The group the message was sent in. ``None`` if the message wasn't sent in a :class:`~steam.Group`."""
         self.clan = channel.clan
         """The clan the message was sent in. ``None`` if the message wasn't sent in a :class:`~steam.Clan`."""
-        self.content = parse_bb_code(_clean_up_content(proto.message))
+        self.content = parse_bb_code(proto.message)
         """The message's content.
 
         Note
@@ -1058,7 +1058,7 @@ class Message(Generic[UserT], metaclass=abc.ABCMeta):
         """
         self.ordinal: int = proto.ordinal
         """A per-channel incremented integer up to ``1000`` for every message sent in a second window."""
-        self.clean_content: str = getattr(proto, "message_no_bbcode", "") or str(self.content)
+        self.clean_content: str = getattr(proto, "message_no_bbcode", "") or _clean_up_content(self.content)
         """The message's clean content without BBCode."""
         self.reactions: list[MessageReaction] = []
         """The message's reactions."""

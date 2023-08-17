@@ -603,10 +603,12 @@ class BBCodeStr(str):
 
 BB_CODE_RE: Final = re.compile(
     r"""
+    (?<!\\)
     \[(?P<name>[\w]+)\s*
     (?P<attributes>(?:\s*\w*=[^]]+)*)
     \]
     (?P<inner>.*?)
+    (?<!\\)
     \[/(?P=name)\]
     """,
     re.VERBOSE,
