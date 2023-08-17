@@ -465,6 +465,7 @@ class Client:
         async with nullcontext() if self._aentered else self._tg:
             state = self._state
             STATE.set(state)
+            cm_list = None
 
             async def throttle() -> None:
                 now = time.monotonic()
@@ -494,8 +495,10 @@ class Client:
 
                 try:
                     async with timeout(60):
-                        self.ws = await login_func(self, *args, **kwargs)
+                        self.ws = cast(SteamWebSocket, await login_func(self, *args, **kwargs, cm_list=cm_list))  # type: ignore
                 except RAISED_EXCEPTIONS:
+                    if self.ws:
+                        cm_list = self.ws.cm_list
                     await throttle()
                     continue
 

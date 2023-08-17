@@ -406,9 +406,11 @@ class SteamWebSocket:
             pass
 
     @classmethod
-    async def from_client(cls, client: Client, refresh_token: str | None = None) -> SteamWebSocket:
+    async def from_client(
+        cls, client: Client, refresh_token: str | None = None, cm_list: AsyncGenerator[CMServer, None] | None = None
+    ) -> SteamWebSocket:
         state = client._state
-        cm_list = fetch_cm_list(state)
+        cm_list = cm_list or fetch_cm_list(state)
         async for cm in cm_list:
             log.info("Attempting to create a websocket connection to %s (load: %f)", cm.url, cm.weighted_load)
             socket = await cm.connect()
@@ -571,9 +573,11 @@ class SteamWebSocket:
             return msg.access_token
 
     @classmethod
-    async def anonymous_login_from_client(cls, client: Client) -> SteamWebSocket:
+    async def anonymous_login_from_client(
+        cls, client: Client, cm_list: AsyncGenerator[CMServer, None] | None = None
+    ) -> SteamWebSocket:
         state = client._state
-        cm_list = fetch_cm_list(state)
+        cm_list = cm_list or fetch_cm_list(state)
         async for cm in cm_list:
             log.info("Attempting to create a websocket connection to %s (load: %f)", cm.url, cm.weighted_load)
             socket = await cm.connect()
