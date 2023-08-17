@@ -6,8 +6,6 @@ from dataclasses import dataclass
 
 import betterproto
 
-from steam._const import MISSING
-
 from .msg import UnifiedMessage
 
 
