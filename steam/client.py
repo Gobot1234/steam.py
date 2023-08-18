@@ -244,7 +244,6 @@ class Client:
         """
         if self.shared_secret:
             return get_authentication_code(self.shared_secret)
-        print("Please enter a Steam guard code")
         code = await utils.ainput(">>> ")
         return code.strip()
 
@@ -606,7 +605,7 @@ class Client:
         if identity_secret is None:
             log.info("Trades will not be automatically accepted when sent as no identity_secret was passed.")
 
-        await self._login(SteamWebSocket.from_client, refresh_token=refresh_token)
+        await self._login(SteamWebSocket.from_client, refresh_token=refresh_token or self.refresh_token)
 
     async def anonymous_login(self) -> None:
         """Initialize a connection to a Steam CM and login anonymously."""
