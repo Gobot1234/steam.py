@@ -7,21 +7,18 @@ import hashlib
 import re
 from collections.abc import AsyncGenerator, Mapping, Sequence
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from ipaddress import IPv4Address
 from typing import TYPE_CHECKING, Any, Final, Generic, NamedTuple, cast
 from zlib import crc32
 
-from bs4 import BeautifulSoup
 from typing_extensions import Self, TypeVar
 
 from . import utils
 from ._const import (
     DOCS_BUILDING,
-    HTML_PARSER,
     JSON_LOADS,
-    MISSING,
     STATE,
     STEAM_BADGES,
     UNIX_EPOCH,
@@ -69,6 +66,11 @@ __all__ = (
     "AuthenticationTicket",
     "EncryptedTicket",
     "FriendThoughts",
+    "AppShopItem",
+    "AppShopItemTag",
+    "AppShopItems",
+    "CommunityItem",
+    "RewardItem",
     "DLC",
     "UserApp",
     "UserRecentlyPlayedApp",
@@ -400,6 +402,8 @@ class AppShopItemTag:
 
 
 class AppShopItem(DescriptionMixin):
+    """Represents an item that can be purchased from the shop."""
+
     __slots__ = (
         *DescriptionMixin.SLOTS,
         "_state",
@@ -462,6 +466,23 @@ class AppShopItem(DescriptionMixin):
 
 @dataclass(slots=True)
 class AppShopItems(Sequence[AppShopItem]):
+    """Represents the items that can be purchased from the shop.
+
+    .. container:: operations
+
+        .. describe:: x == y
+
+            Checks if two app shop items are equal.
+
+        .. describe:: len(x)
+
+            Returns the number of items in the shop.
+
+        .. describe:: x[i]
+
+            Returns the item at index ``i``.
+    """
+
     items: Sequence[AppShopItem]
     """The items that can be purchased from the shop"""
     tags: Sequence[AppShopItemTag]
@@ -476,34 +497,144 @@ class AppShopItems(Sequence[AppShopItem]):
             return self.items[idx]
 
 
-AppT = TypeVar("AppT", bound=App, covariant=True)
+AppT = TypeVar("AppT", bound="PartialApp", covariant=True)
 
 
 @dataclass(slots=True)
-class CommunityItemDefinition(Generic[AppT]):
+class CommunityItem(Generic[AppT]):
+    """Represents a community item.
+
+    .. container:: operations
+
+        .. describe:: x == y
+
+            Checks if two community items are equal.
+
+        .. describe:: hash(x)
+
+            Returns the community item's hash.
+    """
+
+    _state: ConnectionState = field(repr=False, compare=False)
     type: int
+    """The type of the community item."""
     app: AppT
+    """The app the community item is from."""
     name: str
+    """The name of the community item."""
     title: str
+    """The title of the community item."""
     description: str
+    """The description of the community item."""
     image: CDNAsset | None
-    data: Mapping[str, Any] | None
-    series: int
-    class_: CommunityItemClass
-    editor: Author | None
-    active: bool
-    image_composed: CDNAsset | None
-    image_composed_foil: CDNAsset | None
-    deleted: bool
-    edited_at: datetime | None
-    # broadcast_channel_id: int = betterproto.uint64_field(17)
+    """The image of the community item. Attempts to use the larger image if possible."""
     movie: CDNAsset | None
+    """The movie of the community item. Uses the ``.mp4`` version."""
+    data: Mapping[str, Any] | None
+    """Data associated with the community item."""
+    series: int
+    """The series of the community item."""
+    class_: CommunityItemClass
+    """The class of the community item."""
+    editor: Author | None
+    """The last editor of the community item."""
+    active: bool
+    """Whether the community item is active."""
+    image_composed: CDNAsset | None
+    """The composed image of the community item."""
+    image_composed_foil: CDNAsset | None
+    """The composed foil image of the community item."""
+    deleted: bool
+    """Whether the community item is deleted."""
+    edited_at: datetime | None
+    """When the community item was last edited."""
+    # broadcast_channel_id: int = betterproto.uint64_field(17)
 
     def __hash__(self) -> int:
         hashable_slots = set(self.__slots__) - {"data"}
         return hash(
             (*tuple(getattr(self, attr) for attr in hashable_slots), tuple(self.data.items()) if self.data else None)
         )
+
+    @property
+    def badges(self) -> list[AppBadge[AppT]]:
+        """The badges for the item."""
+        if self.class_ is not CommunityItemClass.Badge:
+            return []
+        if not self.data:
+            return []
+
+        badges: list[AppBadge[AppT]] = []
+        previous_name = ""
+        for id, (name, image) in enumerate(
+            zip(self.data["level_names"].values(), self.data["level_images"].values()), start=1
+        ):
+            if not name:
+                name = previous_name
+            badge = AppBadge(
+                self._state,
+                id,
+                name,
+                self.app,
+                CDNAsset(self._state, f"{URL.CDN}/steamcommunity/public/images/items/{self.app.id}/{image}"),
+            )
+            previous_name = name
+            badges.append(badge)
+        return badges
+
+
+@dataclass(slots=True)
+class RewardItem(Generic[AppT]):
+    """Represents a reward item in the Steam Points Shop."""
+
+    type: int
+    """The type of the reward item."""
+    app: AppT
+    """The app the reward item is from."""
+    name: str
+    """The name of the reward item."""
+    title: str
+    """The title of the reward item."""
+    description: str
+    """The description of the reward item."""
+    display_description: str
+    """The displayed description of the reward item."""
+    image: CDNAsset | None
+    """The image of the reward item. Attempts to use the larger image if possible."""
+    movie: CDNAsset | None
+    """The movie of the reward item. Uses the ``.mp4`` version."""
+    animated: bool
+    """Whether the reward item is animated."""
+    badges: list[AppBadge[AppT]]
+    """The badges for the item."""
+    def_index: int
+    """The def index of the reward item."""
+    quantity: int
+    """The quantity of the reward item."""
+    class_: CommunityItemClass
+    """The class of the reward item."""
+    item_type: int  # 6 is bundle, 1 is normal?
+    """The type of the reward item."""
+    point_cost: int
+    """The cost of the reward item in Steam Points."""
+    created_at: datetime
+    """When the reward item was created."""
+    updated_at: datetime
+    """When the reward item was last updated."""
+    available_at: datetime
+    """When the reward item was made available."""
+    availability_ends: datetime
+    """When the reward item is no longer available."""
+    active: bool
+    """Whether the reward item is active."""
+    profile_theme_id: str
+    """The profile theme ID of the reward item."""
+    usable_duration: timedelta
+    """How long the reward item is usable for."""
+    bundle_discount: int
+    """The discount of the reward item if it is a bundle."""
+    bundles: Sequence[Self] = field(init=False)
+    """The bundles the reward contains."""
 
 
 class PartialApp(App[NameT]):
@@ -1042,9 +1173,9 @@ class PartialApp(App[NameT]):
             tags,
         )
 
-    async def community_item_definitions(
+    async def community_items(
         self, *, type: CommunityDefinitionItemType = CommunityDefinitionItemType.NONE, language: Language | None = None
-    ) -> list[CommunityItemDefinition[Self]]:
+    ) -> list[CommunityItem[Self]]:
         """Fetch the app's community item definitions.
 
         Parameters
@@ -1056,7 +1187,8 @@ class PartialApp(App[NameT]):
         """
         defs = await self._state.fetch_community_item_definitions(self.id, type, language)
         return [
-            CommunityItemDefinition(
+            CommunityItem(
+                self._state,
                 def_.item_type,
                 self,
                 def_.item_name,
@@ -1068,6 +1200,14 @@ class PartialApp(App[NameT]):
                         f"{URL.CDN}/steamcommunity/public/images/items/{def_.item_image_large or def_.item_image_small}",
                     )
                     if def_.item_image_large or def_.item_image_small
+                    else None
+                ),
+                (
+                    CDNAsset(
+                        self._state,
+                        f"{URL.CDN}/steamcommunity/public/images/items/{def_.item_movie_mp4 or def_.item_movie_mp4_small}",
+                    )
+                    if def_.item_movie_mp4 or def_.item_movie_mp4_small
                     else None
                 ),
                 JSON_LOADS(def_.item_key_values) if def_.item_key_values else None,
@@ -1092,19 +1232,86 @@ class PartialApp(App[NameT]):
                 ),
                 def_.deleted,
                 DateTime.from_timestamp(def_.item_last_changed) if def_.item_last_changed else None,
-                (
-                    CDNAsset(
-                        self._state,
-                        f"{URL.CDN}/steamcommunity/public/images/items/{def_.item_movie_mp4 or def_.item_movie_mp4_small}",
-                    )
-                    if def_.item_movie_mp4 or def_.item_movie_mp4_small
-                    else None
-                ),
             )
             for def_ in defs
         ]
 
-    async def badges(self, *, language: Language | None = None) -> list[AppBadge[Self]]:
+    async def reward_items(self, *, language: Language | None = None) -> list[RewardItem[Self]]:
+        """Fetch the app's reward item definitions.
+
+        Parameters
+        ----------
+        language
+            The language to fetch the reward item definitions in. If ``None``, the current language will be used.
+        """
+        defs = await self._state.fetch_reward_items(self.id, language)
+        items = [
+            RewardItem(
+                def_.type,
+                self,
+                def_.community_item_data.item_name,
+                def_.community_item_data.item_title,
+                def_.community_item_data.item_description,
+                def_.internal_description,  # really seems to be the name?
+                (
+                    CDNAsset(
+                        self._state,
+                        (
+                            f"{URL.CDN}/steamcommunity/public/images/items/"
+                            f"{def_.community_item_data.item_image_large or def_.community_item_data.item_image_small}"
+                        ),
+                    )
+                    if def_.community_item_data.item_image_large or def_.community_item_data.item_image_small
+                    else None
+                ),
+                (
+                    CDNAsset(
+                        self._state,
+                        (
+                            f"{URL.CDN}/steamcommunity/public/images/items/"
+                            f"{def_.community_item_data.item_movie_mp4 or def_.community_item_data.item_movie_mp4_small}"
+                        ),
+                    )
+                    if def_.community_item_data.item_movie_mp4 or def_.community_item_data.item_movie_mp4_small
+                    else None
+                ),
+                def_.community_item_data.animated,
+                [
+                    AppBadge(
+                        self._state,
+                        idx,
+                        f"{def_.community_item_data.item_name.removesuffix(' Point Shop Badge')} - Level {badge.level}",
+                        self,
+                        CDNAsset(self._state, f"{URL.CDN}/steamcommunity/public/images/items/{self.id}/{badge.image}"),
+                        badge.level,
+                    )
+                    for idx, badge in enumerate(def_.community_item_data.badge_data, start=1)
+                ],
+                def_.defid,
+                def_.quantity,
+                CommunityItemClass.try_value(def_.community_item_class),
+                def_.community_item_type,
+                def_.point_cost,
+                DateTime.from_timestamp(def_.timestamp_created),
+                DateTime.from_timestamp(def_.timestamp_updated),
+                DateTime.from_timestamp(def_.timestamp_available),
+                DateTime.from_timestamp(def_.timestamp_available_end),
+                def_.active,
+                def_.community_item_data.profile_theme_id,
+                timedelta(seconds=def_.usable_duration),
+                def_.bundle_discount,
+            )
+            for def_ in defs
+        ]
+        for item, def_ in zip(items, defs):
+            if def_.bundle_defids:
+                item.bundles = cast(
+                    "list[RewardItem[Self]]", [utils.get(items, def_index=id) for id in def_.bundle_defids]
+                )
+
+        return items
+
+    async def badges(self, *, language: Language | None = None) -> Sequence[AppBadge[Self]]:
         """Fetch this app's badges.
 
         Parameters
@@ -1119,30 +1326,15 @@ class PartialApp(App[NameT]):
                 for badge in STEAM_BADGES
             ]
 
-        badge_def = utils.get(await self.community_item_definitions(language=language), class_=CommunityItemClass.Badge)
-        if badge_def is None or not badge_def.data:
-            return []
+        community_items, rewards = await asyncio.gather(
+            self.community_items(language=language), self.reward_items(language=language)
+        )
 
-        badges: list[AppBadge[Self]] = []
-        previous_name = ""
-        for id, (name, image) in enumerate(
-            zip(badge_def.data["level_names"].values(), badge_def.data["level_images"].values()), start=1
-        ):
-            if not name:
-                name = previous_name
-            badge = AppBadge(
-                self._state,
-                id,
-                name,
-                self,
-                CDNAsset(
-                    self._state,
-                    f"{URL.CDN}/steamcommunity/public/images/items/{self.id}/{image}",
-                ),
-            )
-            previous_name = name
-            badges.append(badge)
-        return badges
+        badge_def = utils.get(community_items, class_=CommunityItemClass.Badge)
+        badge_rewards = utils.get(rewards, class_=CommunityItemClass.Badge)
+        assert badge_def
+        assert badge_rewards
+        return badge_def.badges + badge_rewards.badges
 
     async def legacy_cd_key(self) -> str:
         """Fetch the legacy CD key for this app."""

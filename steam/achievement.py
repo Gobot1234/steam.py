@@ -41,7 +41,7 @@ class StatType:  # https://partner.steamgames.com/doc/api/steam_api#ESteamUserSt
 class Stat:
     name: str
     """The name of the stat."""
-    localised_name: str
+    display_name: str
     """The display name of the stat."""
     app: PartialApp
     """The app this stat is for."""
@@ -77,7 +77,7 @@ class Achievement:
 class AppAchievement(Achievement):
     """Represents an achievement for an app."""
 
-    localised_name: str
+    display_name: str
     """The display name of the achievement."""
     description: str
     """The description of the achievement."""
@@ -95,7 +95,7 @@ class AppAchievement(Achievement):
 class UserNewsAchievement(Achievement):
     """Represents an achievement for an app."""
 
-    localised_name: str
+    display_name: str
     """The display name of the achievement."""
     description: str
     """The description of the achievement."""
@@ -111,7 +111,7 @@ class UserNewsAchievement(Achievement):
 class AppStatAchievement(Achievement):
     """Represents an achievement for an app."""
 
-    localised_name: str
+    display_name: str
     """The localised name of the achievement."""
     description: str
     """The description of the achievement."""
@@ -129,7 +129,7 @@ class AppStatAchievement(Achievement):
 class UserAppAchievement(Achievement):
     """Represents an achievement for a user in an app."""
 
-    localised_name: str
+    display_name: str
     """The localised name of the achievement."""
     min: int | None
     """The minimum value of the stat."""

@@ -984,6 +984,55 @@ Apps can be manually constructed using their app ID eg:
 
 .. autofunction:: CUSTOM_APP
 
+.. attributetable:: OwnershipTicket
+
+.. autoclass:: OwnershipTicket()
+    :inherited-members:
+    :members:
+
+.. attributetable:: AuthenticationTicket
+
+.. autoclass:: AuthenticationTicket()
+    :inherited-members:
+    :members:
+
+.. attributetable:: EncryptedTicket
+
+.. autoclass:: EncryptedTicket()
+    :inherited-members:
+    :members:
+
+.. attributetable:: AppShopItem
+
+.. autoclass:: AppShopItem
+    :inherited-members:
+    :members:
+
+.. attributetable:: AppShopItemTag
+
+.. autoclass:: AppShopItemTag
+    :inherited-members:
+    :members:
+
+.. attributetable:: AppShopItems
+
+.. autoclass:: AppShopItems
+    :inherited-members:
+    :members:
+
+.. attributetable:: CommunityItem
+
+.. autoclass:: CommunityItem
+    :inherited-members:
+    :members:
+
+.. attributetable:: RewardItem
+
+.. autoclass:: RewardItem
+    :inherited-members:
+    :members:
+
+
 .. attributetable:: steam.app.PartialApp
 
 .. autoclass:: steam.app.PartialApp()
@@ -1011,24 +1060,6 @@ Apps can be manually constructed using their app ID eg:
 .. attributetable:: DLC
 
 .. autoclass:: DLC()
-    :inherited-members:
-    :members:
-
-.. attributetable:: OwnershipTicket
-
-.. autoclass:: OwnershipTicket()
-    :inherited-members:
-    :members:
-
-.. attributetable:: AuthenticationTicket
-
-.. autoclass:: AuthenticationTicket()
-    :inherited-members:
-    :members:
-
-.. attributetable:: EncryptedTicket
-
-.. autoclass:: EncryptedTicket()
     :inherited-members:
     :members:
 

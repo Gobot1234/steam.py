@@ -1952,6 +1952,14 @@ class ConnectionState:
             raise WSException(msg)
         return msg.item_definitions
 
+    async def fetch_reward_items(self, app_id: AppID, language: Language | None) -> list[loyalty_rewards.Definition]:
+        msg: loyalty_rewards.QueryRewardItemsResponse = await self.ws.send_um_and_wait(
+            loyalty_rewards.QueryRewardItemsRequest(appids=[app_id], language=(language or self.language).name)
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg.definitions
+
     async def fetch_friend_thoughts(self, app_id: AppID) -> reviews.GetFriendsRecommendedAppResponse:
         msg: reviews.GetFriendsRecommendedAppResponse = await self.ws.send_um_and_wait(
             reviews.GetFriendsRecommendedAppRequest(appid=app_id)

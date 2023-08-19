@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Literal, NamedTuple, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Literal, NamedTuple, Protocol, runtime_checkable
 
 from typing_extensions import TypeVar
 
