@@ -125,5 +125,5 @@ class Client(Client_):
         """
         await self._state._gc_ready.wait()
 
-    # async def buy_item(self, def_id: int, price: int, def_ids: list[int], prices: int) -> None:
+    # async def buy_item(self, def_index: int, price: int, def_indexes: list[int], prices: int) -> None:
     #     ...
