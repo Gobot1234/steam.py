@@ -79,6 +79,9 @@ class Client(Client_):
                     await self._state.ws.send_gc_message(msg)
             await asyncio.sleep(self._GC_HEART_BEAT)
 
+    def is_gc_ready(self) -> bool:
+        return self._state._gc_ready.is_set()
+
     @overload
     async def login(
         self,
@@ -122,5 +125,5 @@ class Client(Client_):
         """
         await self._state._gc_ready.wait()
 
-    # async def buy_item(self, def_id: int, price: int, def_ids: list[int], prices: int) -> None:
+    # async def buy_item(self, def_index: int, price: int, def_indexes: list[int], prices: int) -> None:
     #     ...

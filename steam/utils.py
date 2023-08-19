@@ -12,6 +12,7 @@ import abc
 import asyncio
 import base64
 import collections
+import functools
 import html
 import itertools
 import re
@@ -19,6 +20,7 @@ import struct
 import sys
 import textwrap
 import threading
+import weakref
 from collections.abc import (
     AsyncGenerator,
     AsyncIterable,
@@ -37,7 +39,20 @@ from io import BytesIO
 from itertools import zip_longest
 from operator import attrgetter
 from types import MemberDescriptorType
-from typing import TYPE_CHECKING, Any, Final, Generic, Literal, ParamSpec, TypeAlias, TypedDict, TypeVar, cast, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Concatenate,
+    Final,
+    Generic,
+    Literal,
+    ParamSpec,
+    TypeAlias,
+    TypedDict,
+    TypeVar,
+    cast,
+    overload,
+)
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes
@@ -216,6 +231,85 @@ class CachedSlotProperty(Generic[_SelfT, _T_co]):
             value = self.function(instance)
             setattr(instance, self.name, value)
             return value
+
+    def __set__(self, instance: _SelfT, value: _T_co) -> None:  # type: ignore
+        setattr(instance, self.name, value)
+
+
+F_no_wait = TypeVar("F_no_wait", bound="Callable[Concatenate[Any, ...], Awaitable[None]]")
+F_wait = TypeVar("F_wait", bound="Callable[Concatenate[Any, ...], Awaitable[Any]]")
+
+
+@overload
+def call_once(func: F_no_wait) -> F_no_wait:
+    ...
+
+
+@overload
+def call_once(*, wait: Literal[False]) -> Callable[[F_no_wait], F_no_wait]:
+    ...
+
+
+@overload
+def call_once(*, wait: Literal[True] = ...) -> Callable[[F_wait], F_wait]:
+    ...
+
+
+def call_once(func: F_wait | None = None, *, wait: bool = False) -> F_wait | Callable[[F_wait], F_wait]:
+    def get_inner(func: F_wait) -> F_wait:
+        locks = weakref.WeakKeyDictionary[object, asyncio.Lock]()
+        being_called = weakref.WeakSet[object]()
+
+        if wait:
+            futures = dict[object, asyncio.Future[Any]]()
+
+            async def inner(self: Any, *args: Any, **kwargs: Any) -> None:
+                try:
+                    lock = locks[self]
+                except KeyError:
+                    lock = locks[self] = asyncio.Lock()
+
+                async with lock:
+                    if self in being_called:
+                        return await futures[self]
+
+                    being_called.add(self)
+                    futures[self] = future = asyncio.get_running_loop().create_future()
+
+                try:
+                    res = await func(self, *args, **kwargs)
+                except Exception as exc:
+                    future.set_exception(exc)
+                    raise exc
+                else:
+                    future.set_result(res)
+                    return res
+                finally:
+                    being_called.remove(self)
+                    del futures[self]
+
+        else:
+
+            async def inner(self: Any, *args: Any, **kwargs: Any) -> None:
+                try:
+                    lock = locks[self]
+                except KeyError:
+                    lock = locks[self] = asyncio.Lock()
+
+                async with lock:
+                    if self in being_called:
+                        return
+
+                    being_called.add(self)
+
+                try:
+                    await func(self, *args, **kwargs)
+                finally:
+                    being_called.remove(self)
+
+        return cast(F_wait, functools.wraps(func)(inner))
+
+    return get_inner if func is None else get_inner(func)
 
 
 async def ainput(prompt: object = MISSING, /) -> str:
@@ -514,10 +608,12 @@ class BBCodeStr(str):
 
 BB_CODE_RE: Final = re.compile(
     r"""
+    (?<!\\)
     \[(?P<name>[\w]+)\s*
     (?P<attributes>(?:\s*\w*=[^]]+)*)
     \]
     (?P<inner>.*?)
+    (?<!\\)
     \[/(?P=name)\]
     """,
     re.VERBOSE,

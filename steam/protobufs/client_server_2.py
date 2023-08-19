@@ -39,7 +39,7 @@ class ClientGetLegacyGameKeyResponse(Message, msg=EMsg.ClientGetLegacyGameKeyRes
     app_id: AppID
     eresult: int
 
-    def parse(self, data: bytes) -> Self:
+    def parse(self, data: bytes) -> Self:  # type: ignore
         with StructIO(data) as io:
             self.app_id = AppID(io.read_u32())
             self.eresult = io.read_i32()

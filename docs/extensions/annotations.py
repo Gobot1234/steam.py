@@ -81,7 +81,7 @@ class TypeEvalVisitor(TypeVisitor[Any]):
         return Any
 
     def visit_overloaded(self, t: types.Overloaded) -> GenericAlias:
-        return Union[self.collect_types(t.items)]  # noqa: UP007
+        return Union[self.collect_types(t.items)]
 
     def visit_callable_type(self, t: types.CallableType) -> GenericAlias:
         return Callable[list(self.collect_types(t.arg_types)), self.collect_types([t.ret_type])[0]]
@@ -117,7 +117,7 @@ class TypeEvalVisitor(TypeVisitor[Any]):
             return t.items[0]
         if all(isinstance(arg, LiteralGenericAlias) for arg in t.items):
             return Literal[tuple(t.__args__[0] for t in self.collect_types(t.items))]
-        return Union[self.collect_types(t.items)]  # noqa: UP007
+        return Union[self.collect_types(t.items)]
 
     def visit_type_alias_type(self, t: types.TypeAliasType) -> Any:
         return t.expand_all_if_possible().accept(self) if not t.is_recursive else self.get(t.alias.fullname)

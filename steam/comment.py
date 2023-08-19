@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Generic, overload
+from typing import TYPE_CHECKING, Generic
 
 from typing_extensions import Never, TypeVar
 
@@ -14,7 +14,6 @@ from .types.user import AuthorT
 if TYPE_CHECKING:
     from datetime import datetime
 
-    from .forum import Topic
     from .reaction import Award, AwardReaction
     from .state import ConnectionState
     from .types.id import CommentID

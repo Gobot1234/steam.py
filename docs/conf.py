@@ -12,8 +12,10 @@ import os
 import sys
 from pathlib import Path
 
-builtins.__sphinx__ = True
-from steam import __version__ as release, __version__ as version, version_info
+import sphinx.util.inspect
+
+builtins.__sphinx__ = True  # type: ignore
+from steam import Enum, __version__ as release, __version__ as version, version_info
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -110,7 +112,7 @@ html_context = {
 
 extlinks = {
     "issue": (f"{html_context['repository']}/%s", "GH-"),
-    "works": ("https://partner.steamgames.com/doc/", None),
+    "works": ("https://partner.steamgames.com/doc/%s", None),
 }
 
 resource_links = {
@@ -134,3 +136,15 @@ html_static_path = ["_static"]
 # html_search_scorer = "_static/scorer.js"
 
 html_js_files = ["custom.js", "settings.js", "copy.js", "sidebar.js"]
+
+
+def isenumclass(x: object) -> bool:
+    return isinstance(x, type) and issubclass(x, Enum)
+
+
+def isenumattribute(x: object) -> bool:
+    return isinstance(x, Enum)
+
+
+sphinx.util.inspect.isenumclass = isenumclass
+sphinx.util.inspect.isenumattribute = isenumattribute

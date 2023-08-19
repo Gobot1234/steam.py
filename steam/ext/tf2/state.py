@@ -39,6 +39,9 @@ class GCState(GCState_[Backpack]):
         # if language is not None:
         #     client.set_language(language)
 
+    def _get_gc_message(self) -> Any:
+        return False  # for now this isn't required
+
     @parser
     def parse_gc_client_connect(self, _: base.ClientWelcome | None = None) -> None:
         if not self._gc_connected.is_set():
@@ -146,18 +149,12 @@ class GCState(GCState_[Backpack]):
             return
         self.dispatch("item_receive", item)
 
+    @utils.call_once
     async def restart_tf2(self) -> None:
-        if self.restarting_tf2:
-            return
+        async with self.temporarily_play(*self._original_apps):
+            self.parse_client_goodbye()
 
-        self.restarting_tf2 = True
-        try:
-            async with self.temporarily_play(*self._original_apps):
-                self.parse_client_goodbye()
-
-            await self._gc_connected.wait()
-        finally:
-            self.restarting_tf2 = False
+        await self._gc_connected.wait()
 
     @parser
     async def handle_so_update(self, msg: sdk.SOUpdate) -> None:

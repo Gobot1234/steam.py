@@ -7,9 +7,10 @@ import itertools
 import re
 from datetime import date, datetime, timezone
 from ipaddress import IPv4Address
-from typing import TYPE_CHECKING, Literal, TypeVar, overload
+from typing import TYPE_CHECKING, Literal, TypeVar, cast, overload
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
+from typing_extensions import Self
 from yarl import URL
 
 from . import utils
@@ -18,8 +19,7 @@ from .abc import Commentable, PartialUser, _CommentableKwargs, _CommentThreadTyp
 from .app import App, PartialApp
 from .channel import ClanChannel
 from .chat import ChatGroup, Member, PartialMember
-from .enums import ClanAccountFlags, EventType, Language, Type
-from .errors import HTTPException
+from .enums import ClanAccountFlags, EventType, Language, Type, UserNewsType
 from .event import Announcement, Event
 from .id import ID, parse_id64
 from .types.id import ID32, ID64, Intable
@@ -27,8 +27,6 @@ from .utils import BBCodeStr, DateTime, parse_bb_code
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Sequence
-
-    from typing_extensions import Self
 
     from .protobufs import chat
     from .state import ConnectionState
@@ -51,13 +49,9 @@ BoringEvents = Literal[
     EventType.Trip,
     # EventType.Broadcast,  # TODO need to wait until implementing stream support for this
 ]
-CreateableEvents = Literal[BoringEvents, EventType.Game]
+CreateableEvents = BoringEvents | Literal[EventType.Game]
 
-BoringEventT = TypeVar(
-    "BoringEventT",
-    bound=BoringEvents,
-    covariant=True,
-)
+BoringEventT = TypeVar("BoringEventT", bound=BoringEvents)
 
 
 class ClanMember(Member):
@@ -92,7 +86,7 @@ class PartialClan(ID[Literal[Type.Clan]], Commentable):
         This can be a very slow operation due to the rate limits on this endpoint.
         """
         async for id32 in self._state.http.get_clan_members(self.id64):
-            yield PartialUser(self._state, id=id32)
+            yield self._state.get_partial_user(id32)
 
     # event/announcement stuff
 
@@ -204,8 +198,10 @@ class PartialClan(ID[Literal[Type.Clan]], Commentable):
             if a is not None and a.text == name:  # this is bad?
                 _, _, id = a["href"].rpartition("/")
                 event = await self.fetch_event(int(id))
+                if event.name != name or event.content != content:
+                    continue
                 self._state.dispatch("event_create", event)
-                return event
+                return cast(Event[CreateableEvents, Self], event)
         raise ValueError
 
     async def create_announcement(
@@ -230,12 +226,11 @@ class PartialClan(ID[Literal[Type.Clan]], Commentable):
         The created announcement.
         """
         await self._state.http.create_clan_announcement(self.id64, name, content, hidden)
-        resp = await self._state.http.get(f"{self.community_url}/announcements", params={"content_only": "true"})
-        soup = BeautifulSoup(resp, HTML_PARSER)
-        for element in soup.find_all("div", class_="announcement"):
-            if (a := element.a) is not None and a.text == name:  # this is bad?
-                _, _, id = a["href"].rpartition("/")
-                announcement = await self.fetch_announcement(int(id))
+        async for entry in self._state.client.user_news(flags=UserNewsType.PostedAnnouncement):
+            if entry.target == self._state.user and entry.actor == self:
+                announcement = await entry.announcement()
+                if announcement.name != name or announcement.content != content:
+                    continue
                 self._state.dispatch("announcement_create", announcement)
                 return announcement
 
@@ -275,7 +270,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
     # V1
     # Clan.headline
 
-    summary: BBCodeStr
+    summary: BBCodeStr | None
     """The summary of the clan."""
     created_at: datetime | None
     """The time the clan was created at."""
@@ -306,14 +301,15 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
             self._is_app_clan = "games" in resp.url.parts
 
         if not from_proto:
+            assert soup.title is not None
             _, _, self.name = soup.title.text.rpartition(" :: ")
             icon_url = soup.find("link", rel="image_src")
-            url = URL(icon_url["href"]) if icon_url else None
+            url = URL(cast(str, icon_url["href"])) if isinstance(icon_url, Tag) else None
             if url:
                 self._avatar_sha = bytes.fromhex(url.path.removesuffix("/").removesuffix("_full.jpg"))
 
         content = soup.find("meta", property="og:description")
-        self.summary = parse_bb_code(content["content"]) if content is not None else None
+        self.summary = parse_bb_code(cast(str, content["content"])) if isinstance(content, Tag) else None
 
         if self._is_app_clan:
             for entry in soup.find_all("div", class_="actionItem"):
@@ -324,7 +320,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
         stats = soup.find("div", class_="grouppage_resp_stats")
         if stats is None:
             return self
-
+        assert isinstance(stats, Tag)
         for stat in stats.find_all("div", class_="groupstat"):
             if "Founded" in stat.text:
                 text = stat.text.split("Founded")[1].strip()

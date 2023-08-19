@@ -62,6 +62,7 @@ __all__ = (
     "CommunityDefinitionItemType",
     "AuthSessionResponse",
     "ContentDescriptor",
+    "UserNewsType",
 )
 
 T = TypeVar("T")
@@ -103,7 +104,7 @@ class EnumDict(dict[str, Any]):
 
 class EnumType(_EnumMeta if TYPE_CHECKING else type):
     _value_map_: Mapping[Any, Enum]
-    _member_map_: Mapping[str, Enum]
+    _member_map_: Mapping[str, Enum]  # type: ignore
 
     @classmethod
     def __prepare__(mcs, name: str, bases: tuple[type, ...]) -> EnumDict:  # type: ignore
@@ -130,7 +131,7 @@ class EnumType(_EnumMeta if TYPE_CHECKING else type):
 
         for name, value in members.items():
             if (member := value_map.get(value)) is None or member.name not in namespace.aliases:
-                member = cls.__new__(cls, name=name, value=value)
+                member = cls.__new__(cls, name=name, value=value)  # type: ignore  # this method doesn't exist at type time.
                 value_map[value] = member
 
             member_map[name] = member
@@ -188,18 +189,20 @@ class Enum(_Enum if TYPE_CHECKING else object, metaclass=EnumType):
     _member_map_: Mapping[str, Self]
     _value_map_: Mapping[Any, Self]
 
-    def __new__(cls, *, name: str, value: Any) -> Self:
-        # N.B. this method is not ever called after enum creation as it is shadowed by EnumMeta.__call__ and is just
-        # for creating Enum members
-        self = (
-            super().__new__(cls, value)
-            if any(not issubclass(base, Enum) for base in cls.__mro__[:-1])  # is it is a mixin enum
-            else super().__new__(cls)  # type: ignore
-        )
-        super().__setattr__(self, "name", name)
-        super().__setattr__(self, "value", value)
+    if not TYPE_CHECKING:
 
-        return self
+        def __new__(cls, *, name: str, value: Any) -> Self:
+            # N.B. this method is not ever called after enum creation as it is shadowed by EnumMeta.__call__ and is just
+            # for creating Enum members
+            self = (
+                super().__new__(cls, value)
+                if any(not issubclass(base, Enum) for base in cls.__mro__[:-1])  # is it is a mixin enum
+                else super().__new__(cls)  # type: ignore
+            )
+            super().__setattr__(self, "name", name)
+            super().__setattr__(self, "value", value)
+
+            return self
 
     if not DOCS_BUILDING:
 
@@ -2084,6 +2087,85 @@ class ContentDescriptor(IntEnum):
     FrequentViolenceOrGore = 2
     StrongSexualContent = 3
     AnyMatureContent = 5
+
+class has_associated_flag(int):
+    flag: int
+    def __new__(cls, value: int, flag: int) -> Self:
+        self = super().__new__(cls, value)
+        super().__setattr__(self, "flag", flag)
+        return self
+
+
+class UserNewsType(IntEnum):
+    FriendAdded                       = has_associated_flag(1,    1 << 0)
+    AchievementUnlocked               = has_associated_flag(2,    1 << 1)
+    ReceivedNewGame                   = has_associated_flag(3,    1 << 2)
+    JoinedGroup                       = has_associated_flag(4,    1 << 3)
+    CommentByMe                       = has_associated_flag(5,    0)
+    FriendRemoved                     = has_associated_flag(6,    0)
+    GroupCreated                      = has_associated_flag(7,    0)
+    CommentOnMe                       = has_associated_flag(8,    0)
+    AddedGameToWishlist               = has_associated_flag(9,    1 << 7)
+    Review                            = has_associated_flag(10,   1 << 8)
+    FilePublishedScreenshot           = has_associated_flag(13,   1 << 9)
+    FilePublishedVideo                = has_associated_flag(14,   1 << 10)
+    FilePublishedWorkshopItem         = has_associated_flag(15,   1 << 11)
+    Post                              = has_associated_flag(16,   1 << 12)
+    FilePublishedCollection           = has_associated_flag(17,   1 << 13)
+    FilePublishedGreenlightGame       = has_associated_flag(18,   0)
+    FilePublishedWorkshopAnnouncement = has_associated_flag(19,   0)
+    FilePublishedWebGuide             = has_associated_flag(20,   1 << 13)
+    FilePublishedScreenshotTagged     = has_associated_flag(21,   0)
+    FilePublishedArt                  = has_associated_flag(22,   1 << 13)
+    FileFavourited                    = has_associated_flag(23,   1 << 14)
+    PlayedGameFirstTime               = has_associated_flag(30,   1 << 2)
+
+    ClanAchievement                   = has_associated_flag(1001, 1 << 16)
+    PostedAnnouncement                = has_associated_flag(1002, 1 << 17)
+    ScheduledEvent                    = has_associated_flag(1003, 1 << 18)
+    SelectedNewPOTW                   = has_associated_flag(1004, 1 << 19)
+    PromotedNewAdmin                  = has_associated_flag(1005, 1 << 20)
+    MessageOnClanPage                 = has_associated_flag(1006, 1 << 21)
+    CuratorReview                     = has_associated_flag(1007, 1 << 22)
+
+    @property
+    def flag(self) -> int:
+        return self.value.flag
+
+    def __or__(self, other: SupportsInt) -> Self:
+        cls = self.__class__
+        value = self.flag | int(other) if not isinstance(other, cls) else self.flag | other.flag
+        return cls.__new__(cls, name=f"{self.name} | {getattr(other, 'name', other)}", value=has_associated_flag(-1, value))
+
+    def __and__(self, other: SupportsInt) -> Self:
+        cls = self.__class__
+        value = self.flag & int(other) if not isinstance(other, cls) else self.flag & other.flag
+        return cls.__new__(cls, name=f"{self.name} & {getattr(other, 'name', other)}", value=has_associated_flag(-1, value))
+
+    @classproperty
+    def App(cls: type[Self]) -> Self: # type: ignore
+        """Mimics the Steam Client's feed when an app is selected."""
+        return (
+            cls.AchievementUnlocked
+            | cls.FilePublishedScreenshot
+            | cls.FilePublishedVideo
+            | cls.Post
+            | cls.Review
+            | cls.CuratorReview
+            | cls.AddedGameToWishlist
+            | cls.PlayedGameFirstTime
+        )
+
+    @classproperty
+    def Friend(cls: type[Self]) -> Self: # type: ignore
+        """Mimics the Steam Client's feed when in the friend activity tab."""
+        return cls.FriendAdded | cls.App
+
+    @classproperty
+    def All(cls: type[Self]) -> Self: # type: ignore
+        """Returns a member with every flag set."""
+        return reduce(cls.__or__, (member for member in cls if member.flag != 0))
+
 # fmt: on
 
 

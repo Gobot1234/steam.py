@@ -147,7 +147,14 @@ class GCMessageHeader:
         self.header_version = 1
         self.job_id_target = -1
         self.job_id_source = 0
-        super().__init__()
+
+    def __repr__(self) -> str:
+        attrs = (
+            "header_version",
+            "job_id_target",
+            "job_id_source",
+        )
+        return f"<{self.__class__.__name__} {' '.join(f'{attr}={getattr(self, attr)!r}' for attr in attrs)}>"
 
     # special cases
     def __bytes__(self) -> bytes:

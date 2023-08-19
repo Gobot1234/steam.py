@@ -16,7 +16,7 @@ from .enums import AppType, ContentDescriptor, Currency, Language, PaymentMethod
 from .models import CDNAsset
 from .package import PartialPackage
 from .protobufs import store
-from .tag import PartialTag
+from .tag import PartialCategory, PartialTag
 from .utils import DateTime
 
 if TYPE_CHECKING:
@@ -113,6 +113,14 @@ class StoreItemPurchaseOption:
         self.should_suppress_discount_percentage: bool = proto.should_suppress_discount_pct
 
 
+@dataclass(slots=True)
+class LanguageSupport:
+    langauge: Language
+    supported: bool
+    audio: bool
+    subtitles: bool
+
+
 class StoreItem:
     __slots__ = SLOTS = (  # done to avoid "multiple bases have instance lay-out conflict"
         "_language",
@@ -149,11 +157,10 @@ class StoreItem:
         "best_purchase_option",
         "purchase_options",
         "accessories",
-        # "all_ages_screenshots",
-        # "mature_screenshots",
+        "all_ages_screenshots",
+        "mature_screenshots",
         "trailers",
         "supported_languages",
-        # self.store_url_path_override
         "free_weekend",
         "content_descriptors",
         "_free",
@@ -187,7 +194,7 @@ class StoreItem:
 
         self.related_parent_app = PartialApp(state, id=proto.related_items.parent_appid)
         self.tags = [StoreItemTag(state, tag.tagid, tag.weight) for tag in proto.tags]
-        self.categories = proto.categories
+        self.categories = [PartialCategory(state, id) for id in proto.categories.feature_categoryids]
         self.review_score = ReviewType.try_value(proto.reviews.summary_unfiltered.review_score)
         self.review_count = proto.reviews.summary_unfiltered.review_count
         self.review_percent_positive = proto.reviews.summary_unfiltered.percent_positive
@@ -249,11 +256,17 @@ class StoreItem:
             StoreItemPurchaseOption(state, purchase_option) for purchase_option in proto.purchase_options
         ]
         self.accessories = [StoreItemPurchaseOption(state, purchase_option) for purchase_option in proto.accessories]
-        # self.all_ages_screenshots = proto.screenshots.all_ages_screenshots  # TODO: figure out how these are used
-        # self.mature_screenshots = proto.screenshots.mature_content_screenshots
+        self.all_ages_screenshots = [
+            CDNAsset(state, str(URL.CDN / proto.filename)) for proto in proto.screenshots.all_ages_screenshots
+        ]
+        self.mature_screenshots = [
+            CDNAsset(state, str(URL.CDN / proto.filename)) for proto in proto.screenshots.mature_content_screenshots
+        ]
         self.trailers = proto.trailers
-        self.supported_languages = [Language.try_value(l) for l in proto.supported_languages]
-        # self.store_url_path_override
+        self.supported_languages = [
+            LanguageSupport(Language.try_value(proto.elanguage), proto.supported, proto.full_audio, proto.subtitles)
+            for proto in proto.supported_languages
+        ]
         self.free_weekend = proto.free_weekend or None
 
         self.content_descriptors = [ContentDescriptor.try_value(d) for d in proto.content_descriptorids]

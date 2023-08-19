@@ -406,9 +406,11 @@ class SteamWebSocket:
             pass
 
     @classmethod
-    async def from_client(cls, client: Client, refresh_token: str | None = None) -> SteamWebSocket:
+    async def from_client(
+        cls, client: Client, refresh_token: str | None = None, cm_list: AsyncGenerator[CMServer, None] | None = None
+    ) -> SteamWebSocket:
         state = client._state
-        cm_list = fetch_cm_list(state)
+        cm_list = cm_list or fetch_cm_list(state)
         async for cm in cm_list:
             log.info("Attempting to create a websocket connection to %s (load: %f)", cm.url, cm.weighted_load)
             socket = await cm.connect()
@@ -422,8 +424,9 @@ class SteamWebSocket:
                 await self.send_proto(login.CMsgClientHello(PROTOCOL_VERSION))
 
                 if refresh_token is None:
-                    self.refresh_token = await self.fetch_refresh_token()
+                    self.refresh_token = refresh_token = await self.fetch_refresh_token()
                     # id64 is set in fetch_refresh_token
+                    continue  # steam doesn't seem to like when I login in straight away
                 else:
                     self.refresh_token = refresh_token
                     self.id64 = parse_id64(utils.decode_jwt(refresh_token)["sub"])
@@ -489,6 +492,8 @@ class SteamWebSocket:
         rsa_msg: auth.GetPasswordRsaPublicKeyResponse = await self.send_um_and_wait(
             auth.GetPasswordRsaPublicKeyRequest(client.username)
         )
+        if rsa_msg.result != Result.OK:
+            raise WSException(rsa_msg)
 
         begin_resp: auth.BeginAuthSessionViaCredentialsResponse = await self.send_um_and_wait(
             auth.BeginAuthSessionViaCredentialsRequest(
@@ -505,37 +510,30 @@ class SteamWebSocket:
             )
         )
 
+        if not begin_resp.allowed_confirmations:
+            raise ValueError("No valid auth session guard type was found")
+
+        code_task = email_code_task = asyncio.create_task(asyncio.sleep(float("inf")))
+        schedule_poll = False
+
         for allowed_confirmation in begin_resp.allowed_confirmations:
             match allowed_confirmation.confirmation_type:
                 case auth.EAuthSessionGuardType.NONE:
-                    raise NotImplementedError()  # no guard
-                case auth.EAuthSessionGuardType.EmailCode | auth.EAuthSessionGuardType.DeviceCode:
-                    code = await client.code()
-                    code_msg: auth.UpdateAuthSessionWithSteamGuardCodeResponse = await self.send_proto_and_wait(
-                        auth.UpdateAuthSessionWithSteamGuardCodeRequest(
-                            client_id=begin_resp.client_id,
-                            steamid=begin_resp.steamid,
-                            code=code,
-                            code_type=allowed_confirmation.confirmation_type,
-                        )
-                    )
-                    if (
-                        code_msg.result == Result.DuplicateRequest
-                    ):  # not actually sure how to deal with this properly currently, but this works
-                        log.debug("Duplicate request, may have been confirmed by login request")
-                    elif code_msg.result != Result.OK:  # TODO handle Result.InvalidLoginAuthCode
-                        raise WSException(code_msg)
-                    poll_resp: auth.PollAuthSessionStatusResponse = await self.send_um_and_wait(
-                        auth.PollAuthSessionStatusRequest(
-                            client_id=begin_resp.client_id,
-                            request_id=begin_resp.request_id,
-                        )
-                    )
-                    if poll_resp.result != Result.OK:
-                        raise WSException(poll_resp)
+                    poll_resp = await self.try_poll_auth_status(begin_resp)
                     break
-                case auth.EAuthSessionGuardType.EmailConfirmation | auth.EAuthSessionGuardType.DeviceConfirmation:
-                    raise NotImplementedError("Email and Device confirmation support is not implemented yet")
+                case auth.EAuthSessionGuardType.DeviceCode:
+                    if not client.shared_secret:
+                        print("Please enter a Steam guard code")
+                    code_task = asyncio.create_task(self.update_auth_with_code(begin_resp, allowed_confirmation))
+                case auth.EAuthSessionGuardType.EmailCode:
+                    print("Please enter a confirmation code from your email")
+                    email_code_task = asyncio.create_task(self.update_auth_with_code(begin_resp, allowed_confirmation))
+                case auth.EAuthSessionGuardType.DeviceConfirmation:
+                    schedule_poll = True
+                    print("Confirm login this on your device")
+                case auth.EAuthSessionGuardType.EmailConfirmation:
+                    schedule_poll = True
+                    print("Confirm login this via your email")
                 case auth.EAuthSessionGuardType.MachineToken:
                     raise NotImplementedError("Machine tokens are not supported yet")
                 case _:
@@ -543,12 +541,75 @@ class SteamWebSocket:
                         f"Unknown auth session guard type: {allowed_confirmation.confirmation_type}"
                     )
         else:
-            raise ValueError("No valid auth session guard type was found")
+            (done,), pending = await asyncio.wait(
+                (
+                    code_task,
+                    email_code_task,
+                    asyncio.create_task(
+                        self.poll_auth_status(begin_resp) if schedule_poll else asyncio.sleep(float("inf"))
+                    ),
+                ),
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+            for task in pending:
+                task.cancel()
+            await asyncio.gather(*pending, return_exceptions=True)
+
+            poll_resp = await done
+            assert poll_resp is not None
 
         self.client_id = poll_resp.new_client_id or begin_resp.client_id
         self._access_token = poll_resp.access_token
         return poll_resp.refresh_token
 
+    async def update_auth_with_code(
+        self,
+        begin_resp: auth.BeginAuthSessionViaCredentialsResponse,
+        allowed_confirmation: auth.AllowedConfirmation,
+    ) -> auth.PollAuthSessionStatusResponse:
+        type = allowed_confirmation.confirmation_type
+        while True:
+            code = await self._state.client.code()
+            try:
+                code_msg: auth.UpdateAuthSessionWithSteamGuardCodeResponse = await self.send_proto_and_wait(
+                    auth.UpdateAuthSessionWithSteamGuardCodeRequest(
+                        client_id=begin_resp.client_id,
+                        steamid=begin_resp.steamid,
+                        code=code,
+                        code_type=type,
+                    )
+                )
+            except ConnectionClosed:
+                continue
+            if code_msg.result == Result.TwoFactorCodeMismatch:
+                continue
+            elif code_msg.result != Result.OK:
+                raise WSException(code_msg)
+            return await self.poll_auth_status(begin_resp)
+
+    async def poll_auth_status(
+        self, begin_resp: auth.BeginAuthSessionViaCredentialsResponse
+    ) -> auth.PollAuthSessionStatusResponse:
+        while True:
+            resp = await self.try_poll_auth_status(begin_resp)
+            if resp.refresh_token:
+                return resp
+            await asyncio.sleep(begin_resp.interval)
+
+    async def try_poll_auth_status(
+        self, begin_resp: auth.BeginAuthSessionViaCredentialsResponse
+    ) -> auth.PollAuthSessionStatusResponse:
+        poll_resp: auth.PollAuthSessionStatusResponse = await self.send_um_and_wait(
+            auth.PollAuthSessionStatusRequest(
+                client_id=begin_resp.client_id,
+                request_id=begin_resp.request_id,
+            )
+        )
+        if poll_resp.result != Result.OK:
+            raise WSException(poll_resp)
+        return poll_resp
+
+    @utils.call_once(wait=True)
     async def access_token(self) -> str:
         try:
             return self._access_token
@@ -562,9 +623,11 @@ class SteamWebSocket:
             return msg.access_token
 
     @classmethod
-    async def anonymous_login_from_client(cls, client: Client) -> SteamWebSocket:
+    async def anonymous_login_from_client(
+        cls, client: Client, cm_list: AsyncGenerator[CMServer, None] | None = None
+    ) -> SteamWebSocket:
         state = client._state
-        cm_list = fetch_cm_list(state)
+        cm_list = cm_list or fetch_cm_list(state)
         async for cm in cm_list:
             log.info("Attempting to create a websocket connection to %s (load: %f)", cm.url, cm.weighted_load)
             socket = await cm.connect()

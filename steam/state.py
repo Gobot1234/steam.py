@@ -68,6 +68,7 @@ from .protobufs import (
     quest,
     reviews,
     store,
+    user_news,
     user_stats,
 )
 from .published_file import PublishedFile
@@ -85,7 +86,7 @@ from .role import Role, RolePermissions
 from .trade import Item, TradeOffer
 from .types.id import *
 from .user import ClientUser, User
-from .utils import DateTime, cached_property
+from .utils import DateTime, cached_property, call_once
 
 if TYPE_CHECKING:
     from types import CoroutineType
@@ -227,7 +228,6 @@ class ConnectionState:
         self._trades: dict[TradeOfferID, TradeOffer[Item[User], Item[ClientUser], User]] = {}
         self._confirmations: dict[TradeOfferID, Confirmation] = {}
         self.confirmation_generation_locks = defaultdict[Tags, asyncio.Lock](asyncio.Lock)
-        self.polling_trades = False
         self.trade_queue = Queue[TradeOffer[Item[User], Item[ClientUser], User]]()
         self._trades_to_watch: set[TradeOfferID] = set()
         self.polling_confirmations = False
@@ -324,8 +324,8 @@ class ConnectionState:
         return user
 
     async def fetch_users(self, user_id64s: Iterable[ID64]) -> Sequence[User]:
-        friends = await self.ws.fetch_users(user_id64s)
-        return [self._store_user(user) for user in friends]
+        users = await self.ws.fetch_users(user_id64s)
+        return [self._store_user(user) for user in users]
 
     async def _maybe_user(self, id: Intable) -> User:
         steam_id = ID(id, type=Type.Individual)
@@ -366,226 +366,125 @@ class ConnectionState:
     def get_friend(self, id: ID32) -> Friend:
         return self.user._friends[id]
 
-    def get_group(self, id: ChatGroupID) -> Group | None:
-        return self._groups.get(id)
+    def _maybe_friend(self, id: ID32) -> Friend | PartialUser:
+        return self.user._friends.get(id) or self.get_partial_user(id)
 
-    def get_clan(self, id: ID32) -> Clan | None:
-        return self._clans.get(id)
+    def _store_friend(self, user: User) -> Friend:
+        self.user._friends[user.id] = friend = Friend(self, user)
+        return friend
 
-    async def fetch_clan(self, id64: ID64, *, maybe_chunk: bool = True) -> Clan:
-        msg: chat.GetClanChatRoomInfoResponse = await self.ws.send_um_and_wait(
-            chat.GetClanChatRoomInfoRequest(steamid=id64)
-        )
-        if msg.result == Result.Busy:
-            raise WSNotFound(msg)
-        if msg.result != Result.OK:
-            raise WSException(msg)
+    @parser
+    @requires_intent(Intents.Users)
+    def parse_persona_state_update(self, msg: friends.CMsgClientPersonaState) -> None:
+        for friend in msg.friends:
+            after = self.get_user(_ID64_TO_ID32(friend.friendid))
+            if after is None:
+                continue
 
-        clan = await Clan._from_proto(self, msg.chat_group_summary, maybe_chunk=maybe_chunk)
-        self._clans[clan.id] = clan
-        return clan
+            before = copy(after)
+            after._update(friend)
+            self.dispatch("user_update", before, after)
 
-    def get_trade(self, id: TradeOfferID) -> TradeOffer | None:
-        return self._trades.get(id)
+    @parser
+    @requires_intent(Intents.Users)
+    async def process_friends(self, msg: friends.CMsgClientFriendsList) -> None:
+        await self.login_complete.wait()
+        clan_invitees = None
+        client_user_friends: list[ID64] = []
+        is_load = not msg.bincremental
+        for friend in msg.friends:
+            id = ID(friend.ulfriendid)
+            match relationship := FriendRelationship.try_value(friend.efriendrelationship):
+                case FriendRelationship.Friend:
+                    try:
+                        invite = self.invites.pop(id.id64)
+                    except KeyError:
+                        if id.type == Type.Individual:
+                            if is_load:
+                                client_user_friends.append(id.id64)
+                            else:
+                                user = await self.fetch_user(id.id64)
+                                assert user is not None
+                                self._store_friend(user)
+                    else:
+                        self.dispatch("invite_accept", invite)
+                        if isinstance(invite, UserInvite):
+                            if isinstance(invite.author, User):
+                                friend = self._store_friend(invite.author)
+                                self.dispatch("friend_add", friend)
+                        else:
+                            if isinstance(invite.clan, Clan):
+                                self._clans[invite.clan.id] = invite.clan
 
-    async def fetch_trade(
-        self, id: TradeOfferID, language: Language | None
-    ) -> TradeOffer[Item[User], Item[ClientUser], User] | None:
-        try:
-            data = await self.http.get_trade(id, language)
-        except KeyError:
-            pass
-        else:
-            (trade,) = await self._process_trades(
-                (data["offer"],),
-                {
-                    (description["classid"], description["instanceid"]): econ.ItemDescription().from_dict(description)
-                    for description in data.get("descriptions", ())
-                },
-            )
-            return trade
+                case FriendRelationship.RequestInitiator | FriendRelationship.RequestRecipient:  # TODO this needs checking for clans
+                    match id.type:
+                        case Type.Individual:
+                            invitee = await self._maybe_user(id.id64)
+                            self.invites[invitee.id64] = invite = UserInvite(
+                                self, self.user, author=invitee, relationship=relationship
+                            )
+                        case Type.Clan:
+                            if clan_invitees is None:
+                                clan_invitees = await self.http.get_clan_invitees()
 
-    async def _process_trades(
-        self, trades_: Iterable[trade.TradeOffer], descriptions: dict[tuple[str, str], econ.ItemDescription]
-    ) -> list[TradeOffer[Item[User], Item[ClientUser], User]]:
-        trades: list[TradeOffer[Item[User], Item[ClientUser], User]] = []
-        for trade_ in trades_:
-            id = TradeOfferID(int(trade_["tradeofferid"]))
-            user = trade_["accountid_other"]
-            try:
-                receiving = [
-                    (econ.Asset().from_dict(asset), descriptions[asset["classid"], asset["instanceid"]])
-                    for asset in trade_.get("items_to_receive", ())
-                ]
-                sending: list[tuple[econ.Asset, econ.ItemDescription]] = [
-                    (econ.Asset().from_dict(asset), descriptions[asset["classid"], asset["instanceid"]])
-                    for asset in trade_.get("items_to_give", ())
-                ]
-            except KeyError:
-                receiving = []
-                sending = []
+                            invitee = await self._maybe_user(clan_invitees[id.id64])
+                            try:
+                                clan = await self.fetch_clan(id.id64)
+                            except WSException:
+                                clan = PartialClan(self, id.id64)
+                            self.invites[clan.id64] = invite = ClanInvite(
+                                self, self.user, author=invitee, clan=clan, relationship=relationship
+                            )
+                        case _:
+                            continue
+                    self.dispatch("invite", invite)
 
-            try:
-                trade = self._trades[id]
-            except KeyError:
-                log.info("Received trade #%d", id)
-                trade = TradeOffer._from_api(
-                    state=self, data=trade_, user=cast(User, ID(user)), sending=sending, receiving=receiving
-                )
-                self._trades[id] = trade
-                if trade.state in (TradeOfferState.Active, TradeOfferState.ConfirmationNeed) and (
-                    trade.sending or trade.receiving
-                ):  # could be glitched
-                    self.dispatch("trade", trade)
-                    self._trades_to_watch.add(trade.id)
-            else:
-                before = copy(trade)
-                trade._update(trade_, sending=sending, receiving=receiving)
-                if trade.state != before.state:
-                    log.info("Trade #%d has updated its trade state to %r", id, trade.state)
-                    if trade.sending or trade.receiving:
-                        self.dispatch("trade_update", before, trade)
-                        self._trades_to_watch.discard(trade.id)
-            trades.append(trade)
+                case FriendRelationship.NONE:
+                    match id.type:
+                        case Type.Individual:
+                            try:
+                                invite = self.invites.pop(id.id64)
+                            except KeyError:
+                                friend = self.user._friends.pop(id.id, None)
+                                if friend is None:
+                                    return log.debug("Unknown friend %s removed", id)
+                                self.dispatch("friend_remove", friend)
+                                continue
 
-        for trade, user in zip(trades, await self._maybe_users(trade.user.id64 for trade in trades)):
-            if trade.user is not user:  # should only have been fetched if _from_api
-                for item in trade.receiving:
-                    item.owner = user
-            trade.user = user
+                        case Type.Clan:
+                            try:
+                                invite = self.invites.pop(id.id64)
+                            except KeyError:
+                                clan = self._clans.pop(id.id, None)
+                                if clan is None:
+                                    return log.debug("Unknown clan %s removed", id)
+                                self.dispatch("clan_leave", clan)
+                                continue
+                        case _:
+                            continue
 
-        return trades
+                    self.dispatch("invite_decline", invite)
 
-    @requires_intent(Intents.TradeOffers)
-    async def poll_trades(self) -> None:
-        if self.polling_trades or not await self.http.get_api_key():  # TODO can this be changed safely?
-            return
+        if is_load:
+            self.user._friends = {user.id: Friend(self, user) for user in await self.fetch_users(client_user_friends)}
+            self.handled_friends.set()
 
-        self.polling_trades = True
-        try:
-            await self.fill_trades()
+    @requires_intent(Intents.Messages | Intents.Users)
+    async def handle_user_message(self, msg: friend_messages.IncomingMessageNotification) -> None:
+        await self.client.wait_until_ready()
+        id64 = msg.steamid_friend
+        partner = self.user._friends.get(_ID64_TO_ID32(id64)) or await self._maybe_user(id64)
+        author = self.user if msg.local_echo else partner  # local_echo is always us
 
-            while self._trades_to_watch:  # watch trades for changes
-                await asyncio.sleep(10)
-                await self.fill_trades()
-        finally:
-            self.polling_trades = False
+        if msg.chat_entry_type == ChatEntryType.Text:
+            message = UserMessage(msg, partner._channel, author)
+            partner._channel.last_message = message
+            self._messages.append(message)
+            self.dispatch("message", message)
 
-    async def fill_trades(self) -> None:
-        try:
-            trades = await self.http.get_trade_offers()
-        except HTTPException as e:
-            if e.status == 429:
-                await asyncio.sleep(300)
-                return await self.fill_trades()
-            raise
-        descriptions = {
-            (description["classid"], description["instanceid"]): econ.ItemDescription().from_dict(description)
-            for description in trades.get("descriptions", ())
-        }
-        self.trade_queue += await self._process_trades(trades.get("trade_offers_received", ()), descriptions)
-        self.trade_queue += await self._process_trades(trades.get("trade_offers_sent", ()), descriptions)
-
-    async def wait_for_trade(self, id: TradeOfferID) -> TradeOffer[Item[User], Item[ClientUser], User]:
-        self._trades_to_watch.add(id)
-        self._tg.create_task(self.poll_trades())  # start re-polling trades
-        return await self.trade_queue.wait_for(id=id)
-
-    # confirmations
-
-    def get_confirmation(self, id: TradeOfferID) -> Confirmation | None:
-        return self._confirmations.get(id)
-
-    async def fill_confirmations(self) -> None:
-        key, timestamp = await self._get_confirmation_code("list")
-        try:
-            data = await self.http.get(
-                URL.COMMUNITY / "mobileconf/getlist",
-                params={
-                    "p": self._device_id,
-                    "a": self.user.id64,
-                    "k": key,
-                    "t": timestamp,
-                    "m": "react",
-                    "tag": "list",
-                },
-            )
-        except HTTPException as e:
-            if e.status == 429:
-                await asyncio.sleep(300)
-                return await self.fill_confirmations()
-            raise
-        if not data.get("success", False):
-            raise ConfirmationError(f"{data.get('message', 'Unknown error')}\n{data.get('detail', '')}".strip())
-
-        confirmations: list[Confirmation] = []
-        for confirmation in data["conf"]:
-            confirmation_ = Confirmation(
-                self, int(confirmation["id"]), int(confirmation["nonce"]), TradeOfferID(int(confirmation["creator_id"]))
-            )
-            self._confirmations[confirmation_.creator_id] = confirmation_
-            confirmations.append(confirmation_)
-        self.confirmation_queue += confirmations
-
-    @cached_property
-    def identity_secret(self) -> str:
-        if (secret := self.client.identity_secret) is None:
-            raise ValueError("Cannot generate confirmation codes without passing an identity_secret")
-        return secret
-
-    async def _get_confirmation_code(self, tag: Tags) -> tuple[str, int]:
-        # generate a confirmation code for a given tag at this instant.
-        # this can wait x amount of time (<1s) for the code to be generated if codes would collide as they can only be
-        # used once.
-        lock = self.confirmation_generation_locks[tag]
-        await lock.acquire()
-
-        steam_time = self.steam_time
-        timestamp = int(steam_time.timestamp())
-        try:
-            return get_confirmation_code(self.identity_secret, tag, timestamp), timestamp
-        finally:
-            # wait for the next second whole before allowing generation of a new confirmation code
-            next_code_valid_at = steam_time.replace(microsecond=0) + timedelta(seconds=1)  # ceiling + 1 second
-            asyncio.get_running_loop().call_later((next_code_valid_at - steam_time).total_seconds(), lock.release)
-
-    async def poll_confirmations(self) -> None:
-        if self.polling_confirmations:
-            return
-
-        self.polling_confirmations = True
-        try:
-            await self.fill_confirmations()
-
-            while self.confirmation_queue.queue:
-                await asyncio.sleep(20)
-                await self.fill_confirmations()
-        finally:
-            self.polling_confirmations = False
-
-    async def wait_for_confirmation(self, id: TradeOfferID) -> Confirmation:
-        self._tg.create_task(self.poll_confirmations())
-        return await self.confirmation_queue.wait_for(id=id)
-
-    @asynccontextmanager
-    async def temporarily_play(self, *apps: App) -> AsyncGenerator[None, None]:
-        old_apps = self._apps
-        to_proto_apps = [app.to_proto() for app in apps]
-        if all(app in old_apps for app in to_proto_apps):
-            yield
-            return
-
-        try:
-            await self.ws.change_presence(apps=[*self._apps, *to_proto_apps])
-            yield
-        finally:
-            await self.ws.change_presence(apps=old_apps)
-
-    # ws stuff
-
-    @cached_property
-    def _chat_groups(self) -> utils.ChainMap[ChatGroupID, Group | Clan]:
-        return utils.ChainMap(self._clans_by_chat_id, self._groups)  # type: ignore  # needs HKT
+        elif msg.chat_entry_type == ChatEntryType.Typing:
+            when = DateTime.from_timestamp(msg.rtime32_server_timestamp)
+            self.dispatch("typing", author, when)
 
     async def send_user_message(self, user_id64: ID64, content: str) -> UserMessage:
         msg: friend_messages.SendMessageResponse = await self.ws.send_um_and_wait(
@@ -628,6 +527,9 @@ class ConnectionState:
         if msg.result != Result.OK:
             raise WSException(msg)
         self.dispatch("typing", self.user, DateTime.from_timestamp(msg.server_timestamp))
+
+    async def ack_user_message(self, user_id64: ID64, timestamp: int) -> None:
+        await self.ws.send_proto(friend_messages.AckMessageNotification(steamid_partner=user_id64, timestamp=timestamp))
 
     async def fetch_user_history(
         self,
@@ -675,433 +577,45 @@ class ConnectionState:
         if msg.result != Result.OK:
             raise WSException(msg)
 
-    async def ack_user_message(self, user_id64: ID64, timestamp: int) -> None:
-        await self.ws.send_proto(friend_messages.AckMessageNotification(steamid_partner=user_id64, timestamp=timestamp))
-
-    async def send_chat_message(
-        self, chat_group_id: ChatGroupID, chat_id: ChatID, content: str
-    ) -> ClanMessage | GroupMessage:
-        msg: chat.SendChatMessageResponse = await self.ws.send_um_and_wait(
-            chat.SendChatMessageRequest(
-                chat_id=chat_id,
-                chat_group_id=chat_group_id,
-                message=content.replace("\\", "\\\\"),
-            )
-        )
-
-        if msg.result == Result.LimitExceeded:
-            raise WSForbidden(msg)
-        if msg.result == Result.InvalidParameter:
-            raise WSNotFound(msg)
-        if msg.result != Result.OK:
-            raise WSException(msg)
-
-        proto = chat.IncomingChatMessageNotification(
-            chat_id=chat_id,
-            chat_group_id=chat_group_id,
-            message=msg.modified_message,
-            ordinal=msg.ordinal,
-            message_no_bbcode=msg.message_without_bb_code,
-            timestamp=msg.server_timestamp,
-        )
-        group = self._chat_groups[chat_group_id]
-        channel = group._channels[chat_id]
-        channel._update(proto)
-        (message_cls,) = channel._type_args
-        message = message_cls(
-            proto=proto,
-            channel=channel,  # type: ignore  # type checkers can't figure out this is ok
-            author=group.me,
-        )
-        channel.last_message = message  # type: ignore  # same as above
-        self._messages.append(message)
-        self.dispatch("message", message)
-
-        return message
-
-    async def delete_chat_messages(
-        self, chat_group_id: ChatGroupID, chat_id: ChatID, *messages: tuple[int, int]
-    ) -> None:
-        msg = await self.ws.send_um_and_wait(
-            chat.DeleteChatMessagesRequest(
-                chat_id=chat_id,
-                chat_group_id=chat_group_id,
-                messages=[
-                    chat.DeleteChatMessagesRequestMessage(server_timestamp=timestamp, ordinal=ordinal)
-                    for timestamp, ordinal in messages
-                ],
-            )
-        )
-        if msg.result != Result.OK:
-            raise WSException(msg)
-
-    async def react_to_chat_message(
-        self,
-        chat_group_id: ChatGroupID,
-        chat_id: ChatID,
-        server_timestamp: int,
-        ordinal: int,
-        reaction_name: str,
-        reaction_type: chat.EChatRoomMessageReactionType,
-        is_add: bool,
-    ) -> None:
-        msg = await self.ws.send_um_and_wait(
-            chat.UpdateMessageReactionRequest(
-                chat_group_id=chat_group_id,
-                chat_id=chat_id,
-                server_timestamp=server_timestamp,
-                ordinal=ordinal,
-                reaction=reaction_name,
-                reaction_type=reaction_type,
-                is_add=is_add,
-            )
-        )
-
-        if msg.result != Result.OK:
-            raise WSException(msg)
-
-    async def ack_chat_message(self, chat_group_id: ChatGroupID, chat_id: ChatID, timestamp: int) -> None:
-        await self.ws.send_proto(
-            chat.AckChatMessageNotification(chat_group_id=chat_group_id, chat_id=chat_id, timestamp=timestamp)
-        )
-
-    async def join_chat_group(self, chat_group_id: ChatGroupID, invite_code: str | None = None) -> None:
-        msg = await self.ws.send_um_and_wait(
-            chat.JoinChatRoomGroupRequest(chat_group_id=chat_group_id, invite_code=invite_code or "")
-        )
-
-        if msg.result == Result.InvalidParameter:
-            raise WSNotFound(msg)
-        elif msg.result != Result.OK:
-            raise WSException(msg)
-
-    async def leave_chat_group(self, chat_group_id: ChatGroupID) -> None:
-        msg = await self.ws.send_um_and_wait(chat.LeaveChatRoomGroupRequest(chat_group_id=chat_group_id))
-
-        if msg.result == Result.InvalidParameter:
-            raise WSNotFound(msg)
-        elif msg.result != Result.OK:
-            raise WSException(msg)
-
-    async def invite_user_to_chat_group(self, user_id64: ID64, chat_group_id: ChatGroupID) -> None:
-        msg = await self.ws.send_um_and_wait(
-            chat.InviteFriendToChatRoomGroupRequest(chat_group_id=chat_group_id, steamid=user_id64)
-        )
-
-        if msg.result == Result.InvalidParameter:
-            raise WSNotFound(msg)
-        elif msg.result != Result.OK:
-            raise WSException(msg)
-
-    async def fetch_chat_group_members(
-        self,
-        chat_group_id: ChatGroupID,
-        view_id: int,
-        client_change_number: int,
-        start: int,
-        stop: int,
-    ) -> list[User]:
-        fut = self.ws.wait_for(
-            chat.MemberListViewUpdatedNotification,
-            check=lambda msg: (
-                isinstance(msg, chat.MemberListViewUpdatedNotification)
-                and msg.view_id == view_id
-                and msg.view.client_changenumber == client_change_number
+    @requires_intent(Intents.Messages | Intents.Users)
+    async def handle_user_message_reaction(self, msg: friend_messages.MessageReactionNotification) -> None:
+        id64 = msg.steamid_friend
+        partner = self.user._friends.get(_ID64_TO_ID32(id64)) or await self._maybe_user(id64)
+        reactor = self.user if msg.reactor == self.user.id else partner
+        ordinal = msg.ordinal
+        created_at = DateTime.from_timestamp(msg.server_timestamp)
+        authors = {partner, self.user}
+        message = utils.find(
+            lambda message: (
+                message.author in authors
+                and message.created_at == created_at
+                and message.ordinal == ordinal
+                and message.group is None
+                and message.clan is None
             ),
+            reversed(self._messages),
         )
-        await self.ws.send_proto(  # send_um isn't used as job_id doesn't do anything
-            chat.UpdateMemberListViewNotification(
-                chat_group_id=chat_group_id,
-                view_id=view_id,
-                start=start,
-                end=stop,
-                client_changenumber=client_change_number,
-            )
-        )
-        msg = await fut
-        return [self._store_user(member.persona) for member in msg.members]
-
-    # TODO before pushing reorder everything
-    async def edit_chat_group(
-        self, chat_group_id: ChatGroupID, name: str | None, tagline: str | None, avatar: Media | None
-    ):
-        if name is not None:
-            msg = await self.ws.send_um_and_wait(
-                chat.RenameChatRoomGroupRequest(
-                    chat_group_id=chat_group_id,
-                    name=name,
+        if message is None:
+            return log.debug("Got a reaction to an unknown message %s %s", created_at, ordinal)
+        match msg.reaction_type:
+            case Emoticon._TYPE:
+                reaction = MessageReaction(
+                    self, message, Emoticon(self, msg.reaction), None, reactor, created_at, ordinal
                 )
-            )
-            if msg.result == Result.InvalidParameter:
-                raise WSNotFound(msg)
-            elif msg.result != Result.OK:
-                raise WSException(msg)
-        if avatar is not None:
-            sha = await self.http.upload_chat_icon(avatar)
-            msg = await self.ws.send_um_and_wait(
-                chat.SetChatRoomGroupAvatarRequest(
-                    chat_group_id=chat_group_id,
-                    avatar_sha=sha.encode(),  # TODO not sure if this is right
+            case Sticker._TYPE:
+                reaction = MessageReaction(
+                    self, message, None, Sticker(self, msg.reaction), reactor, created_at, ordinal
                 )
-            )
-            if msg.result == Result.InvalidParameter:
-                raise WSNotFound(msg)
-            elif msg.result != Result.OK:
-                raise WSException(msg)
-        if tagline is not None:
-            msg = await self.ws.send_um_and_wait(
-                chat.SetChatRoomGroupTaglineRequest(
-                    chat_group_id=chat_group_id,
-                    tagline=tagline,
+            case _:
+                return log.debug(
+                    "Got an unknown reaction_type %s on message %s %s", msg.reaction_type, created_at, ordinal
                 )
-            )
-            if msg.result == Result.InvalidParameter:
-                raise WSNotFound(msg)
-            elif msg.result != Result.OK:
-                raise WSException(msg)
+        if msg.is_add:
+            message.reactions.append(reaction)
+        else:
+            message.reactions.remove(reaction)
 
-    async def mute_chat_group_member(self, chat_group_id: ChatGroupID, user_id64: ID64, expires_at: datetime) -> None:
-        msg = await self.ws.send_um_and_wait(
-            chat.MuteUserRequest(
-                chat_group_id=chat_group_id,
-                steamid=user_id64,
-                expiration=int(expires_at.timestamp()),
-            )
-        )
-        if msg.result == Result.InvalidParameter:
-            raise WSNotFound(msg)
-        elif msg.result != Result.OK:
-            raise WSException(msg)
-
-    async def kick_chat_group_member(self, chat_group_id: ChatGroupID, user_id64: ID64, expires_at: datetime) -> None:
-        msg = await self.ws.send_um_and_wait(
-            chat.KickUserRequest(
-                chat_group_id=chat_group_id,
-                steamid=user_id64,
-                expiration=int(expires_at.timestamp()),
-            )
-        )
-        if msg.result == Result.InvalidParameter:
-            raise WSNotFound(msg)
-        elif msg.result != Result.OK:
-            raise WSException(msg)
-
-    async def set_chat_group_ban_state(self, chat_group_id: ChatGroupID, user_id64: ID64, banned: bool) -> None:
-        msg = await self.ws.send_um_and_wait(
-            chat.SetUserBanStateRequest(
-                chat_group_id=chat_group_id,
-                steamid=user_id64,
-                ban_state=banned,
-            )
-        )
-        if msg.result == Result.InvalidParameter:
-            raise WSNotFound(msg)
-        elif msg.result != Result.OK:
-            raise WSException(msg)
-
-    async def create_chat(self, chat_group_id: ChatGroupID, name: str) -> chat.State:
-        msg: chat.CreateChatRoomResponse = await self.ws.send_um_and_wait(
-            chat.CreateChatRoomRequest(chat_group_id=chat_group_id, name=name)
-        )
-        if msg.result == Result.InvalidParameter:
-            raise WSNotFound(msg)
-        elif msg.result != Result.OK:
-            raise WSException(msg)
-        return msg.chat_room
-
-    async def edit_chat(
-        self,
-        chat_group_id: ChatGroupID,
-        chat_id: ChatID,
-        name: str | None,
-        after_chat_id: ChatID | None,
-    ) -> None:
-        if name is not None:
-            msg = await self.ws.send_um_and_wait(
-                chat.RenameChatRoomRequest(chat_group_id=chat_group_id, chat_id=chat_id, name=name)
-            )
-            if msg.result == Result.InvalidParameter:
-                raise WSNotFound(msg)
-            elif msg.result != Result.OK:
-                raise WSException(msg)
-        if after_chat_id is not None:
-            msg = await self.ws.send_um_and_wait(
-                chat.ReorderChatRoomRequest(
-                    chat_group_id=chat_group_id, chat_id=chat_id, move_after_chat_id=after_chat_id
-                )
-            )
-            if msg.result == Result.InvalidParameter:
-                raise WSNotFound(msg)
-            elif msg.result != Result.OK:
-                raise WSException(msg)
-
-    async def delete_chat(self, chat_group_id: ChatGroupID, chat_id: ChatID) -> None:
-        msg = await self.ws.send_um_and_wait(chat.DeleteChatRoomRequest(chat_group_id=chat_group_id, chat_id=chat_id))
-        if msg.result == Result.InvalidParameter:
-            raise WSNotFound(msg)
-        elif msg.result != Result.OK:
-            raise WSException(msg)
-
-    async def fetch_chat_history(
-        self, chat_group_id: ChatGroupID, chat_id: ChatID, start: int, last: int, last_ordinal: int
-    ) -> chat.GetMessageHistoryResponse:
-        msg: chat.GetMessageHistoryResponse = await self.ws.send_um_and_wait(
-            chat.GetMessageHistoryRequest(
-                chat_group_id=chat_group_id,
-                chat_id=chat_id,
-                last_time=last,
-                start_time=start,
-                last_ordinal=last_ordinal,
-                max_count=100,
-            )
-        )
-
-        if msg.result != Result.OK:
-            raise WSException(msg)
-
-        return msg
-
-    async def fetch_message_reactors(
-        self,
-        chat_group_id: ChatGroupID,
-        chat_id: ChatID,
-        server_timestamp: int,
-        ordinal: int,
-        reaction_name: str,
-        reaction_type: chat.EChatRoomMessageReactionType,
-    ) -> list[ID32]:
-        msg: chat.GetMessageReactionReactorsResponse = await self.ws.send_um_and_wait(
-            chat.GetMessageReactionReactorsRequest(
-                chat_group_id=chat_group_id,
-                chat_id=chat_id,
-                server_timestamp=server_timestamp,
-                ordinal=ordinal,
-                reaction=reaction_name,
-                reaction_type=reaction_type,
-            )
-        )
-
-        if msg.result != Result.OK:
-            raise WSException(msg)
-
-        return cast("list[ID32]", msg.reactors)
-
-    async def create_role(self, chat_group_id: ChatGroupID, name: str) -> Role:
-        msg: chat.CreateRoleResponse = await self.ws.send_um_and_wait(
-            chat.CreateRoleRequest(
-                chat_group_id=chat_group_id,
-                name=name,
-            )
-        )
-        if msg.result == Result.InvalidParameter:
-            raise WSNotFound(msg)
-        elif msg.result != Result.OK:
-            raise WSException(msg)
-        roles = await self.fetch_chat_group_roles(chat_group_id)
-        role = utils.get(roles, id=msg.actions.role_id)
-        assert role is not None
-        return Role(self, self._chat_groups[chat_group_id], role, msg.actions)
-
-    async def edit_role(
-        self, chat_group_id: ChatGroupID, role_id: RoleID, name: str | None, permissions: RolePermissions | None
-    ) -> None:
-        if name is not None:
-            msg = await self.ws.send_um_and_wait(
-                chat.RenameRoleRequest(chat_group_id=chat_group_id, role_id=role_id, name=name)
-            )
-            if msg.result == Result.InvalidParameter:
-                raise WSNotFound(msg)
-            elif msg.result != Result.OK:
-                raise WSException(msg)
-        if permissions is not None:
-            msg = await self.ws.send_um_and_wait(
-                chat.ReplaceRoleActionsRequest(
-                    chat_group_id=chat_group_id,
-                    role_id=role_id,
-                    actions=permissions.to_proto(),
-                )
-            )
-            if msg.result == Result.InvalidParameter:
-                raise WSNotFound(msg)
-            elif msg.result != Result.OK:
-                raise WSException(msg)
-
-    # TODO no idea what this does
-    # async def edit_role_position(self, chat_group_id: ChatGroupID, role_id: RoleID, ordinal: int) -> None:
-    #     chat.ReorderRoleRequest(chat_group_id=chat_group_id, role_id=role_id, ordinal=ordinal)
-
-    async def delete_role(self, chat_group_id: ChatGroupID, role_id: RoleID) -> None:
-        msg = await self.ws.send_um_and_wait(chat.DeleteRoleRequest(chat_group_id=chat_group_id, role_id=role_id))
-        if msg.result == Result.InvalidParameter:
-            raise WSNotFound(msg)
-        elif msg.result != Result.OK:
-            raise WSException(msg)
-
-    async def fetch_servers(self, query: str, limit: int) -> list[game_servers.GetServerListResponseServer]:
-        msg: game_servers.GetServerListResponse = await self.ws.send_um_and_wait(
-            game_servers.GetServerListRequest(
-                filter=query,
-                limit=limit,
-            )
-        )
-
-        if msg.result != Result.OK:
-            raise WSException(msg)
-
-        return msg.servers
-
-    async def fetch_server_ip_from_steam_id(self, *ids: ID64) -> list[game_servers.IPsWithSteamIDsResponseServer]:
-        msg: game_servers.IPsWithSteamIDsResponse = await self.ws.send_um_and_wait(
-            game_servers.GetServerIPsBySteamIdRequest(
-                server_steamids=list(ids),
-            )
-        )
-
-        if msg.result != Result.OK:
-            raise WSException(msg)
-
-        return msg.servers
-
-    async def query_server(
-        self, ip: int, port: int, app_id: AppID, type: game_servers.EQueryType
-    ) -> game_servers.QueryResponse:
-        msg: game_servers.QueryResponse = await self.ws.send_um_and_wait(
-            game_servers.QueryRequest(
-                query_type=type,
-                fake_ip=ip,  # why these are "fake" I'm not really sure
-                fake_port=port,
-                app_id=app_id,
-            )
-        )
-        if msg.result != Result.OK:
-            raise WSException(msg)
-        return msg
-
-    async def fetch_app(self, app_id: AppID, language: Language | None) -> FetchedApp:
-        resp = await self.http.get_app(app_id, language)
-        data = resp[str(app_id)]
-        if data["success"]:
-            return FetchedApp(self, data["data"], language or self.language)
-        raise ValueError("app_id is invalid")
-
-    async def fetch_app_player_count(self, app_id: AppID) -> int:
-        msg: client_server_2.CMsgDpGetNumberOfCurrentPlayersResponse = await self.ws.send_proto_and_wait(
-            client_server_2.CMsgDpGetNumberOfCurrentPlayers(appid=app_id)
-        )
-        if msg.result != Result.OK:
-            raise WSException(msg)
-        return msg.player_count
-
-    async def fetch_package(self, package_id: PackageID, language: Language | None) -> FetchedPackage:
-        resp = await self.http.get_package(package_id, language)
-        data = resp[str(package_id)]
-        if data["success"]:
-            return FetchedPackage(self, data["data"])
-        raise ValueError("package_id is invalid")
-
-    async def fetch_bundle(self, bundle_id: BundleID, language: Language | None) -> FetchedBundle:
-        (data,) = await self.http.get_bundle(bundle_id, language)
-        return FetchedBundle(self, data)
+        self.dispatch(f"reaction_{'add' if msg.is_add else 'remove'}", reaction)
 
     async def fetch_user_apps(self, user_id64: ID64, include_free: bool) -> list[player.GetOwnedGamesResponseGame]:
         msg: player.GetOwnedGamesResponse = await self.ws.send_um_and_wait(
@@ -1117,15 +631,6 @@ class ConnectionState:
             raise WSException(msg)
 
         return msg.games
-
-    async def fetch_friend_profile_info(self, user_id64: ID64) -> friends.CMsgClientFriendProfileInfoResponse:
-        msg: friends.CMsgClientFriendProfileInfoResponse = await self.ws.send_proto_and_wait(
-            friends.CMsgClientFriendProfileInfo(steamid_friend=user_id64)
-        )
-        if msg.result != Result.OK:
-            raise WSException(msg)
-
-        return msg
 
     async def fetch_user_equipped_profile_items(
         self,
@@ -1190,221 +695,423 @@ class ConnectionState:
 
         return msg
 
-    async def fetch_trade_url(self, generate_new: bool) -> str:
-        msg: econ.GetTradeOfferAccessTokenResponse = await self.ws.send_um_and_wait(
-            econ.GetTradeOfferAccessTokenRequest(generate_new_token=generate_new)
+    async def fetch_friend_profile_info(self, user_id64: ID64) -> friends.CMsgClientFriendProfileInfoResponse:
+        msg: friends.CMsgClientFriendProfileInfoResponse = await self.ws.send_proto_and_wait(
+            friends.CMsgClientFriendProfileInfo(steamid_friend=user_id64)
         )
         if msg.result != Result.OK:
             raise WSException(msg)
-        return str(URL.COMMUNITY / "tradeoffer/new" % {"partner": self.user.id, "token": msg.trade_offer_access_token})
 
-    # parsers
+        return msg
 
-    @parser
-    async def handle_close(self, _: login.CMsgClientLogOff | Any = None) -> Never:
-        if not self.ws.socket.closed:
-            await self.ws.close()
-        if hasattr(self.ws, "_keep_alive"):
-            self.ws._keep_alive.stop()
-            del self.ws._keep_alive
-        log.info("Websocket closed, cannot reconnect.")
-        self.ws.closed = True
-        raise ConnectionClosed(self.ws.cm)
-
-    @parser
-    def ack_heartbeat(self, msg: login.CMsgClientHeartBeat) -> None:
-        self.ws._keep_alive.ack()
-
-    @parser
-    def set_steam_time(self, msg: login.CMsgClientServerTimestampResponse) -> None:
-        self.server_offset = timedelta(milliseconds=msg.server_timestamp_ms - msg.client_request_timestamp)
-
-    @parser
-    def handle_multi(self, msg: base.CMsgMulti) -> None:
-        data: bytearray = unpack_multi(msg) if msg.size_unzipped else msg.message_body  # type: ignore
-
-        while data:
-            size = READ_U32(data)
-            self.ws.receive(data[4 : 4 + size])
-            data = data[4 + size :]
-
-    @parser
-    async def handle_logoff(self, msg: login.CMsgClientLoggedOff) -> Never:
-        await self.handle_close()
-
-    @parser
-    async def parse_um(self, msg: UnifiedMessage) -> None:
-        match msg:
-            case chat.IncomingChatMessageNotification():
-                self.handle_chat_message(msg)
-            case chat.MessageReactionNotification():
-                self.handle_chat_message_reaction(msg)
-            case chat.ChatRoomHeaderStateNotification():
-                self.handle_chat_group_update(msg)
-            case chat.NotifyChatGroupUserStateChangedNotification():
-                await self.handle_chat_group_user_action(msg)
-            case chat.MemberStateChangeNotification():
-                await self.handle_chat_member_update(msg)
-            case chat.ChatRoomGroupRoomsChangeNotification():
-                self.handle_chat_update(msg)
-            case friend_messages.IncomingMessageNotification():
-                await self.handle_user_message(msg)
-            case friend_messages.MessageReactionNotification():
-                await self.handle_user_message_reaction(msg)
-            case chat.GetMyChatRoomGroupsResponse():
-                await self.handle_get_my_chat_groups(msg)
-            case notifications.GetSteamNotificationsResponse():
-                await self.handle_notifications(msg)
-            case _:
-                log.debug("Got a UM %r that we don't handle %r", msg.UM_NAME, msg)
-
-    @requires_intent(Intents.Messages | Intents.Users)
-    async def handle_user_message(self, msg: friend_messages.IncomingMessageNotification) -> None:
-        await self.client.wait_until_ready()
-        id64 = msg.steamid_friend
-        partner = self.user._friends.get(_ID64_TO_ID32(id64)) or await self._maybe_user(id64)
-        author = self.user if msg.local_echo else partner  # local_echo is always us
-
-        if msg.chat_entry_type == ChatEntryType.Text:
-            message = UserMessage(msg, partner._channel, author)
-            partner._channel.last_message = message
-            self._messages.append(message)
-            self.dispatch("message", message)
-
-        elif msg.chat_entry_type == ChatEntryType.Typing:
-            when = DateTime.from_timestamp(msg.rtime32_server_timestamp)
-            self.dispatch("typing", author, when)
-
-    @requires_intent(Intents.Messages | Intents.Users)
-    async def handle_user_message_reaction(self, msg: friend_messages.MessageReactionNotification) -> None:
-        id64 = msg.steamid_friend
-        partner = self.user._friends.get(_ID64_TO_ID32(id64)) or await self._maybe_user(id64)
-        reactor = self.user if msg.reactor == self.user.id else partner
-        ordinal = msg.ordinal
-        created_at = DateTime.from_timestamp(msg.server_timestamp)
-        authors = {partner, self.user}
-        message = utils.find(
-            lambda message: (
-                message.author in authors
-                and message.created_at == created_at
-                and message.ordinal == ordinal
-                and message.group is None
-                and message.clan is None
-            ),
-            reversed(self._messages),
+    async def fetch_user_app_stats(self, user_id64: ID64, app_id: AppID) -> user_stats.CMsgClientGetUserStatsResponse:
+        msg: user_stats.CMsgClientGetUserStatsResponse = await self.ws.send_proto_and_wait(
+            user_stats.CMsgClientGetUserStats(steam_id_for_user=user_id64, game_id=app_id),
         )
-        if message is None:
-            return log.debug("Got a reaction to an unknown message %s %s", created_at, ordinal)
-        match msg.reaction_type:
-            case Emoticon._TYPE:
-                reaction = MessageReaction(
-                    self, message, Emoticon(self, msg.reaction), None, reactor, created_at, ordinal
-                )
-            case Sticker._TYPE:
-                reaction = MessageReaction(
-                    self, message, None, Sticker(self, msg.reaction), reactor, created_at, ordinal
-                )
-            case _:
-                return log.debug(
-                    "Got an unknown reaction_type %s on message %s %s", msg.reaction_type, created_at, ordinal
-                )
-        if msg.is_add:
-            message.reactions.append(reaction)
-        else:
-            message.reactions.remove(reaction)
 
-        self.dispatch(f"reaction_{'add' if msg.is_add else 'remove'}", reaction)
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg
 
-    def handle_chat_server_message(
-        self, chat_group: Clan | Group, author: ClanMember | GroupMember | PartialMember, msg: chat.ServerMessage
-    ):
-        match msg.message:
-            case chat.EChatRoomServerMessage.Invited:
-                invite = ...
-                chat_group._invites[...] = ...
-                self.dispatch(f"{chat_group.__class__.__name__.lower()}_invite", invite)
-
-    @requires_intent(Intents.ChatGroups | Intents.Chat | Intents.Messages | Intents.Users)
-    def handle_chat_message(self, msg: chat.IncomingChatMessageNotification) -> None:
-        try:
-            chat_group = self._chat_groups[ChatGroupID(msg.chat_group_id)]
-        except KeyError:
-            return log.debug("Got a message for a chat we aren't in %s", msg.chat_group_id)
-
-        channel = chat_group._channels[ChatID(msg.chat_id)]
-        channel._update(msg)
-        author = chat_group._maybe_member(_ID64_TO_ID32(msg.steamid_sender))
-        if msg.server_message:
-            return  # self.handle_chat_server_message(chat_group, author, msg.server_message)  # this needs to manually handle intents
-
-        (message_cls,) = channel._type_args
-        message = message_cls(
-            proto=msg,
-            channel=channel,  # type: ignore  # type checkers aren't able to figure out this is ok
-            author=author,
-        )
-        channel.last_message = message  # type: ignore  # same as above
-        self._messages.append(message)
-        self.dispatch("message", message)
-
-    @requires_intent(Intents.ChatGroups | Intents.Chat | Intents.Messages | Intents.Users)
-    def handle_chat_message_reaction(self, msg: chat.MessageReactionNotification) -> None:
-        try:
-            destination = self._chat_groups[ChatGroupID(msg.chat_group_id)]
-        except KeyError:
-            return log.debug("Got a message reaction for a chat we aren't in %s", msg.chat_group_id)
-        ordinal = msg.ordinal
-        created_at = DateTime.from_timestamp(msg.server_timestamp)
-        location = (destination._id, msg.chat_id)
-        message = utils.find(
-            lambda message: (
-                isinstance(message, (ClanMessage, GroupMessage))
-                and message.channel._location == location
-                and message.created_at == created_at
-                and message.ordinal == ordinal
-            ),
-            reversed(self._messages),
-        )
-        if message is None:
-            return log.debug(
-                "Got a reaction to an unknown message %s %s (location %s)",
-                created_at,
-                ordinal,
-                location,
+    async def fetch_user_achievements(
+        self, user_id64: ID64, *app_ids: AppID, language: Language | None
+    ) -> list[player.GetAchievementsProgressResponseAchievementProgress]:
+        msg: player.GetAchievementsProgressResponse = await self.ws.send_proto_and_wait(
+            player.GetAchievementsProgressRequest(
+                steamid=user_id64,
+                appids=cast(list[int], list(app_ids)),
+                language=(language or self.language).api_name,
             )
-        match msg.reaction_type:
-            case Emoticon._TYPE:
-                reaction = MessageReaction(
-                    self,
-                    message,
-                    Emoticon(self, msg.reaction),
-                    None,
-                    destination._maybe_member(_ID64_TO_ID32(msg.reactor)),
-                    created_at,
-                    ordinal,
-                )
-            case Sticker._TYPE:
-                reaction = MessageReaction(
-                    self,
-                    message,
-                    None,
-                    Sticker(self, msg.reaction),
-                    destination._maybe_member(_ID64_TO_ID32(msg.reactor)),
-                    created_at,
-                    ordinal,
-                )
-            case _:
-                return log.debug("Got an unknown reaction_type %s", msg.reaction_type)
+        )
 
-        if msg.is_add:
-            message.reactions.append(reaction)
-        else:
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg.achievement_progress
+
+    async def fetch_user_post(self, user_id64: ID64, post_id: PostID) -> player.GetPostedStatusResponse:
+        msg: player.GetPostedStatusResponse = await self.ws.send_um_and_wait(
+            player.GetPostedStatusRequest(
+                steamid=user_id64,
+                postid=post_id,
+            )
+        )
+        if msg.result == Result.InvalidParameter:
+            raise WSNotFound(msg)
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg
+
+    async def create_user_post(self, content: str, app_id: AppID) -> None:
+        msg: player.PostStatusToFriendsResponse = await self.ws.send_um_and_wait(
+            player.PostStatusToFriendsRequest(appid=app_id, status_text=content)
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+
+    async def delete_user_post(self, post_id: PostID) -> None:
+        msg: player.DeletePostedStatusResponse = await self.ws.send_um_and_wait(
+            player.DeletePostedStatusRequest(
+                postid=post_id,
+            )
+        )
+        if msg.result == Result.InvalidParameter:
+            raise WSNotFound(msg)
+        if msg.result != Result.OK:
+            raise WSException(msg)
+
+    async def fetch_user_reviews(
+        self, user_id64: ID64, app_ids: Iterable[AppID]
+    ) -> list[reviews.RecommendationDetails]:
+        msg: reviews.GetIndividualRecommendationsResponse = await self.ws.send_um_and_wait(
+            reviews.GetIndividualRecommendationsRequest(
+                [
+                    reviews.GetIndividualRecommendationsRequestRecommendationRequest(steamid=user_id64, appid=app_id)
+                    for app_id in app_ids
+                ]
+            )
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+
+        return msg.recommendations
+
+    async def edit_review(
+        self,
+        review_id: int,
+        content: str,
+        public: bool,
+        commentable: bool,
+        language: str,
+        is_in_early_access: bool,
+        received_compensation: bool,
+    ) -> None:
+        msg = await self.ws.send_um_and_wait(
+            reviews.UpdateRequest(
+                recommendationid=review_id,
+                review_text=content,
+                is_public=public,
+                language=language,
+                is_in_early_access=is_in_early_access,
+                received_compensation=received_compensation,
+                comments_disabled=not commentable,
+            )
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+
+    async def add_user(self, user_id64: ID64) -> None:
+        msg: player.AddFriendResponse = await self.ws.send_proto_and_wait(player.AddFriendRequest(steamid=user_id64))
+        if msg.result != Result.OK:
+            raise WSException(msg)
+
+    async def remove_user(self, user_id64: ID64) -> None:
+        msg: player.RemoveFriendResponse = await self.ws.send_um_and_wait(player.RemoveFriendRequest(steamid=user_id64))
+        if msg.result != Result.OK:
+            raise WSException(msg)
+
+    async def _block_user(self, user_id64: ID64, block: bool) -> None:
+        msg: player.IgnoreFriendResponse = await self.ws.send_um_and_wait(
+            player.IgnoreFriendRequest(steamid=user_id64, unignore=block)
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+
+    async def block_user(self, user_id64: ID64) -> None:
+        await self._block_user(user_id64, True)
+
+    async def unblock_user(self, user_id64: ID64) -> None:
+        await self._block_user(user_id64, False)
+
+    async def fetch_user_inventory(
+        self, user_id64: ID64, app_id: AppID, context_id: ContextID, language: Language | None
+    ) -> econ.GetInventoryItemsWithDescriptionsResponse:
+        more_items = True
+        original_msg = None
+        start_asset_id = 0
+        while more_items:
+            msg: econ.GetInventoryItemsWithDescriptionsResponse = await self.ws.send_um_and_wait(
+                econ.GetInventoryItemsWithDescriptionsRequest(
+                    steamid=user_id64,
+                    appid=app_id,
+                    contextid=context_id,
+                    get_descriptions=True,
+                    language=(language or self.language).api_name,
+                    count=2000,
+                    start_assetid=start_asset_id,
+                )
+            )
+            if msg.result == Result.AccessDenied:
+                raise WSForbidden(msg)
+            if msg.result != Result.OK:
+                raise WSException(msg)
+
+            if original_msg is None:
+                original_msg = msg
+            else:
+                original_msg.assets += msg.assets
+                original_msg.descriptions += msg.descriptions
+            more_items = msg.more_items
             try:
-                message.reactions.remove(reaction)
-            except ValueError:
-                log.debug("Got a reaction remove for a reaction that wasn't added")
+                start_asset_id = msg.assets[-1].assetid
+            except IndexError:
+                break
+        assert original_msg is not None
+        return original_msg
 
-        self.dispatch(f"reaction_{'add' if msg.is_add else 'remove'}", reaction)
+    async def fetch_user_news(
+        self,
+        flags: UserNewsType,
+        app_id: AppID | None,
+        before: datetime,
+        after: datetime,
+        language: Language | None,
+    ) -> user_news.GetUserNewsResponse:
+        msg: user_news.GetUserNewsResponse = await self.ws.send_um_and_wait(
+            user_news.GetUserNewsRequest(
+                100,
+                int(after.timestamp()),
+                int(before.timestamp()),
+                language=(language or self.language).api_name,
+                filterflags=flags.flag,
+                filterappid=app_id or 0,
+            )
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg
+
+    @parser
+    @requires_intent(Intents.Users)
+    async def parse_account_info(self, msg: login.CMsgClientAccountInfo) -> None:
+        await self.login_complete.wait()
+        if msg.persona_name != self.user.name:
+            before = copy(self.user)
+            self.user.name = msg.persona_name or self.user.name
+            self.dispatch("user_update", before, self.user)
+
+    async def fetch_servers(self, query: str, limit: int) -> list[game_servers.GetServerListResponseServer]:
+        msg: game_servers.GetServerListResponse = await self.ws.send_um_and_wait(
+            game_servers.GetServerListRequest(
+                filter=query,
+                limit=limit,
+            )
+        )
+
+        if msg.result != Result.OK:
+            raise WSException(msg)
+
+        return msg.servers
+
+    async def fetch_server_ip_from_steam_id(self, *ids: ID64) -> list[game_servers.IPsWithSteamIDsResponseServer]:
+        msg: game_servers.IPsWithSteamIDsResponse = await self.ws.send_um_and_wait(
+            game_servers.GetServerIPsBySteamIdRequest(
+                server_steamids=list(ids),
+            )
+        )
+
+        if msg.result != Result.OK:
+            raise WSException(msg)
+
+        return msg.servers
+
+    async def query_server(
+        self, ip: int, port: int, app_id: AppID, type: game_servers.EQueryType
+    ) -> game_servers.QueryResponse:
+        msg: game_servers.QueryResponse = await self.ws.send_um_and_wait(
+            game_servers.QueryRequest(
+                query_type=type,
+                fake_ip=ip,  # why these are "fake" I'm not really sure
+                fake_port=port,
+                app_id=app_id,
+            )
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg
+
+    def get_group(self, id: ChatGroupID) -> Group | None:
+        return self._groups.get(id)
+
+    def get_clan(self, id: ID32) -> Clan | None:
+        return self._clans.get(id)
+
+    async def fetch_clan(self, id64: ID64, *, maybe_chunk: bool = True) -> Clan:
+        msg: chat.GetClanChatRoomInfoResponse = await self.ws.send_um_and_wait(
+            chat.GetClanChatRoomInfoRequest(steamid=id64)
+        )
+        if msg.result == Result.Busy:
+            raise WSNotFound(msg)
+        if msg.result != Result.OK:
+            raise WSException(msg)
+
+        clan = await Clan._from_proto(self, msg.chat_group_summary, maybe_chunk=maybe_chunk)
+        self._clans[clan.id] = clan
+        return clan
+
+    @cached_property
+    def _chat_groups(self) -> utils.ChainMap[ChatGroupID, Group | Clan]:
+        return utils.ChainMap(self._clans_by_chat_id, self._groups)  # type: ignore  # needs HKT
+
+    async def join_chat_group(self, chat_group_id: ChatGroupID, invite_code: str | None = None) -> None:
+        msg = await self.ws.send_um_and_wait(
+            chat.JoinChatRoomGroupRequest(chat_group_id=chat_group_id, invite_code=invite_code or "")
+        )
+
+        if msg.result == Result.InvalidParameter:
+            raise WSNotFound(msg)
+        elif msg.result != Result.OK:
+            raise WSException(msg)
+
+    async def leave_chat_group(self, chat_group_id: ChatGroupID) -> None:
+        msg = await self.ws.send_um_and_wait(chat.LeaveChatRoomGroupRequest(chat_group_id=chat_group_id))
+
+        if msg.result == Result.InvalidParameter:
+            raise WSNotFound(msg)
+        elif msg.result != Result.OK:
+            raise WSException(msg)
+
+    async def invite_user_to_chat_group(self, user_id64: ID64, chat_group_id: ChatGroupID) -> None:
+        msg = await self.ws.send_um_and_wait(
+            chat.InviteFriendToChatRoomGroupRequest(chat_group_id=chat_group_id, steamid=user_id64)
+        )
+
+        if msg.result == Result.InvalidParameter:
+            raise WSNotFound(msg)
+        elif msg.result != Result.OK:
+            raise WSException(msg)
+
+    async def respond_to_clan_invite(self, clan_id64: ID64, accept: bool) -> None:
+        msg: clan.RespondToClanInviteResponse = await self.ws.send_um_and_wait(
+            clan.RespondToClanInviteRequest(steamid=clan_id64, accept=accept)
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+
+    async def rate_clan_announcement(self, clan_id: ID32, announcement_id: int, upvoted: bool) -> None:
+        msg = await self.ws.send_um_and_wait(
+            community.RateClanAnnouncementRequest(
+                announcementid=announcement_id,
+                clan_accountid=clan_id,
+                vote_up=upvoted,
+            )
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+
+    @parser
+    @requires_intent(Intents.ChatGroups)
+    async def update_clan(self, msg: client_server.CMsgClientClanState) -> None:
+        await self.handled_chat_groups.wait()
+        steam_id = ID(msg.steamid_clan)
+        clan = self.get_clan(steam_id.id) or await self.fetch_clan(steam_id.id64, maybe_chunk=False)
+
+        for event in msg.events:
+            if event.just_posted:
+                event = await clan.fetch_event(event.gid)
+                self.dispatch("event_create", event)
+        for announcement in msg.announcements:
+            if announcement.just_posted:
+                announcement = await clan.fetch_announcement(announcement.gid)
+                self.dispatch("announcement_create", announcement)
+
+        user_counts = msg.user_counts
+        name_info = msg.name_info
+        flags_changed = clan.flags != msg.clan_account_flags
+        dispatch_update = user_counts or name_info or flags_changed
+
+        if dispatch_update:
+            before = copy(clan)
+        if user_counts:
+            clan.member_count = user_counts.members
+            clan.in_game_count = user_counts.in_game
+            clan.online_count = user_counts.online
+            clan.active_member_count = user_counts.chatting
+        if name_info:
+            clan.name = name_info.clan_name
+            clan._avatar_sha = name_info.sha_avatar
+        if flags_changed:
+            clan.flags = ClanAccountFlags.try_value(msg.clan_account_flags)
+
+        if dispatch_update:
+            self.dispatch("clan_update", before, clan)
+
+    @requires_intent(Intents.ChatGroups)
+    async def handle_get_my_chat_groups(self, msg: chat.GetMyChatRoomGroupsResponse) -> None:
+        for chat_group in msg.chat_room_groups:
+            if chat_group.group_summary.clanid:  # received a clan
+                clan = await Clan._from_proto(self, chat_group.group_summary)
+                clan._update_channels(
+                    chat_group.user_chat_group_state.user_chat_room_state,
+                    default_channel_id=chat_group.group_summary.default_chat_id,
+                )
+                self._clans[clan.id] = clan
+                assert clan._id is not None
+                self._clans_by_chat_id[clan._id] = clan
+            else:  # else it's a group
+                group = await Group._from_proto(self, chat_group.group_summary)
+                group._update_channels(
+                    chat_group.user_chat_group_state.user_chat_room_state,
+                    default_channel_id=chat_group.group_summary.default_chat_id,
+                )
+                self._groups[group.id] = group
+
+        self.handled_chat_groups.set()
+
+    async def set_chat_group_active(self, chat_group_id: ChatGroupID) -> chat.GroupState:
+        self.active_chat_groups.add(chat_group_id)
+        proto: chat.SetSessionActiveChatRoomGroupsResponse = await self.ws.send_um_and_wait(
+            chat.SetSessionActiveChatRoomGroupsRequest(
+                chat_group_ids=list(self.active_chat_groups),
+                chat_groups_data_requested=[chat_group_id],
+            )
+        )
+
+        try:
+            (state,) = proto.chat_states
+        except ValueError:
+            raise WSForbidden(proto) from None
+        if proto.result != Result.OK:
+            raise WSException(proto)
+
+        return state
+
+    async def edit_chat_group(
+        self, chat_group_id: ChatGroupID, name: str | None, tagline: str | None, avatar: Media | None
+    ) -> None:
+        if name is not None:
+            msg = await self.ws.send_um_and_wait(
+                chat.RenameChatRoomGroupRequest(
+                    chat_group_id=chat_group_id,
+                    name=name,
+                )
+            )
+            if msg.result == Result.InvalidParameter:
+                raise WSNotFound(msg)
+            elif msg.result != Result.OK:
+                raise WSException(msg)
+        if avatar is not None:
+            sha = await self.http.upload_chat_icon(avatar)
+            msg = await self.ws.send_um_and_wait(
+                chat.SetChatRoomGroupAvatarRequest(
+                    chat_group_id=chat_group_id,
+                    avatar_sha=sha.encode(),  # TODO not sure if this is right
+                )
+            )
+            if msg.result == Result.InvalidParameter:
+                raise WSNotFound(msg)
+            elif msg.result != Result.OK:
+                raise WSException(msg)
+        if tagline is not None:
+            msg = await self.ws.send_um_and_wait(
+                chat.SetChatRoomGroupTaglineRequest(
+                    chat_group_id=chat_group_id,
+                    tagline=tagline,
+                )
+            )
+            if msg.result == Result.InvalidParameter:
+                raise WSNotFound(msg)
+            elif msg.result != Result.OK:
+                raise WSException(msg)
 
     @requires_intent(Intents.ChatGroups)
     def handle_chat_group_update(self, msg: chat.ChatRoomHeaderStateNotification) -> None:
@@ -1500,6 +1207,134 @@ class ConnectionState:
 
         self.dispatch("member_update", before, member)
 
+    async def fetch_chat_group_members(
+        self,
+        chat_group_id: ChatGroupID,
+        view_id: int,
+        client_change_number: int,
+        start: int,
+        stop: int,
+    ) -> list[User]:
+        fut = self.ws.wait_for(
+            chat.MemberListViewUpdatedNotification,
+            check=lambda msg: (
+                isinstance(msg, chat.MemberListViewUpdatedNotification)
+                and msg.view_id == view_id
+                and msg.view.client_changenumber == client_change_number
+            ),
+        )
+        await self.ws.send_proto(  # send_um isn't used as job_id doesn't do anything
+            chat.UpdateMemberListViewNotification(
+                chat_group_id=chat_group_id,
+                view_id=view_id,
+                start=start,
+                end=stop,
+                client_changenumber=client_change_number,
+            )
+        )
+        msg = await fut
+        return [self._store_user(member.persona) for member in msg.members]
+
+    async def mute_chat_group_member(self, chat_group_id: ChatGroupID, user_id64: ID64, expires_at: datetime) -> None:
+        msg = await self.ws.send_um_and_wait(
+            chat.MuteUserRequest(
+                chat_group_id=chat_group_id,
+                steamid=user_id64,
+                expiration=int(expires_at.timestamp()),
+            )
+        )
+        if msg.result == Result.InvalidParameter:
+            raise WSNotFound(msg)
+        elif msg.result != Result.OK:
+            raise WSException(msg)
+
+    async def kick_chat_group_member(self, chat_group_id: ChatGroupID, user_id64: ID64, expires_at: datetime) -> None:
+        msg = await self.ws.send_um_and_wait(
+            chat.KickUserRequest(
+                chat_group_id=chat_group_id,
+                steamid=user_id64,
+                expiration=int(expires_at.timestamp()),
+            )
+        )
+        if msg.result == Result.InvalidParameter:
+            raise WSNotFound(msg)
+        elif msg.result != Result.OK:
+            raise WSException(msg)
+
+    async def set_chat_group_ban_state(self, chat_group_id: ChatGroupID, user_id64: ID64, banned: bool) -> None:
+        msg = await self.ws.send_um_and_wait(
+            chat.SetUserBanStateRequest(
+                chat_group_id=chat_group_id,
+                steamid=user_id64,
+                ban_state=banned,
+            )
+        )
+        if msg.result == Result.InvalidParameter:
+            raise WSNotFound(msg)
+        elif msg.result != Result.OK:
+            raise WSException(msg)
+
+    async def create_role(self, chat_group_id: ChatGroupID, name: str) -> Role:
+        msg: chat.CreateRoleResponse = await self.ws.send_um_and_wait(
+            chat.CreateRoleRequest(
+                chat_group_id=chat_group_id,
+                name=name,
+            )
+        )
+        if msg.result == Result.InvalidParameter:
+            raise WSNotFound(msg)
+        elif msg.result != Result.OK:
+            raise WSException(msg)
+        roles = await self.fetch_chat_group_roles(chat_group_id)
+        role = utils.get(roles, id=msg.actions.role_id)
+        assert role is not None
+        return Role(self, self._chat_groups[chat_group_id], role, msg.actions)
+
+    async def edit_role(
+        self, chat_group_id: ChatGroupID, role_id: RoleID, name: str | None, permissions: RolePermissions | None
+    ) -> None:
+        if name is not None:
+            msg = await self.ws.send_um_and_wait(
+                chat.RenameRoleRequest(chat_group_id=chat_group_id, role_id=role_id, name=name)
+            )
+            if msg.result == Result.InvalidParameter:
+                raise WSNotFound(msg)
+            elif msg.result != Result.OK:
+                raise WSException(msg)
+        if permissions is not None:
+            msg = await self.ws.send_um_and_wait(
+                chat.ReplaceRoleActionsRequest(
+                    chat_group_id=chat_group_id,
+                    role_id=role_id,
+                    actions=permissions.to_proto(),
+                )
+            )
+            if msg.result == Result.InvalidParameter:
+                raise WSNotFound(msg)
+            elif msg.result != Result.OK:
+                raise WSException(msg)
+
+    # TODO no idea what this does
+    # async def edit_role_position(self, chat_group_id: ChatGroupID, role_id: RoleID, ordinal: int) -> None:
+    #     chat.ReorderRoleRequest(chat_group_id=chat_group_id, role_id=role_id, ordinal=ordinal)
+
+    async def delete_role(self, chat_group_id: ChatGroupID, role_id: RoleID) -> None:
+        msg = await self.ws.send_um_and_wait(chat.DeleteRoleRequest(chat_group_id=chat_group_id, role_id=role_id))
+        if msg.result == Result.InvalidParameter:
+            raise WSNotFound(msg)
+        elif msg.result != Result.OK:
+            raise WSException(msg)
+
+    async def create_chat(self, chat_group_id: ChatGroupID, name: str) -> chat.State:
+        msg: chat.CreateChatRoomResponse = await self.ws.send_um_and_wait(
+            chat.CreateChatRoomRequest(chat_group_id=chat_group_id, name=name)
+        )
+        if msg.result == Result.InvalidParameter:
+            raise WSNotFound(msg)
+        elif msg.result != Result.OK:
+            raise WSException(msg)
+        return msg.chat_room
+
     @requires_intent(Intents.ChatGroups | Intents.Chat)
     def handle_chat_update(self, msg: chat.ChatRoomGroupRoomsChangeNotification) -> None:
         try:
@@ -1512,181 +1347,827 @@ class ConnectionState:
         chat_group._update_channels(msg.chat_rooms)
         self.dispatch(f"{chat_group.__class__.__name__.lower()}_update", before, chat_group)
 
-    @requires_intent(Intents.ChatGroups)
-    async def handle_get_my_chat_groups(self, msg: chat.GetMyChatRoomGroupsResponse) -> None:
-        for chat_group in msg.chat_room_groups:
-            if chat_group.group_summary.clanid:  # received a clan
-                clan = await Clan._from_proto(self, chat_group.group_summary)
-                clan._update_channels(
-                    chat_group.user_chat_group_state.user_chat_room_state,
-                    default_channel_id=chat_group.group_summary.default_chat_id,
+    async def edit_chat(
+        self,
+        chat_group_id: ChatGroupID,
+        chat_id: ChatID,
+        name: str | None,
+        after_chat_id: ChatID | None,
+    ) -> None:
+        if name is not None:
+            msg = await self.ws.send_um_and_wait(
+                chat.RenameChatRoomRequest(chat_group_id=chat_group_id, chat_id=chat_id, name=name)
+            )
+            if msg.result == Result.InvalidParameter:
+                raise WSNotFound(msg)
+            elif msg.result != Result.OK:
+                raise WSException(msg)
+        if after_chat_id is not None:
+            msg = await self.ws.send_um_and_wait(
+                chat.ReorderChatRoomRequest(
+                    chat_group_id=chat_group_id, chat_id=chat_id, move_after_chat_id=after_chat_id
                 )
-                self._clans[clan.id] = clan
-                assert clan._id is not None
-                self._clans_by_chat_id[clan._id] = clan
-            else:  # else it's a group
-                group = await Group._from_proto(self, chat_group.group_summary)
-                group._update_channels(
-                    chat_group.user_chat_group_state.user_chat_room_state,
-                    default_channel_id=chat_group.group_summary.default_chat_id,
-                )
-                self._groups[group.id] = group
+            )
+            if msg.result == Result.InvalidParameter:
+                raise WSNotFound(msg)
+            elif msg.result != Result.OK:
+                raise WSException(msg)
 
-        self.handled_chat_groups.set()
+    async def delete_chat(self, chat_group_id: ChatGroupID, chat_id: ChatID) -> None:
+        msg = await self.ws.send_um_and_wait(chat.DeleteChatRoomRequest(chat_group_id=chat_group_id, chat_id=chat_id))
+        if msg.result == Result.InvalidParameter:
+            raise WSNotFound(msg)
+        elif msg.result != Result.OK:
+            raise WSException(msg)
 
-    @parser
-    @requires_intent(Intents.Users)
-    def parse_persona_state_update(self, msg: friends.CMsgClientPersonaState) -> None:
-        for friend in msg.friends:
-            after = self.get_user(_ID64_TO_ID32(friend.friendid))
-            if after is None:
-                continue
+    def handle_chat_server_message(
+        self, chat_group: Clan | Group, author: ClanMember | GroupMember | PartialMember, msg: chat.ServerMessage
+    ):
+        match msg.message:
+            case chat.EChatRoomServerMessage.Invited:
+                invite = ...
+                chat_group._invites[...] = ...
+                self.dispatch(f"{chat_group.__class__.__name__.lower()}_invite", invite)
 
-            before = copy(after)
-            after._update(friend)
-            self.dispatch("user_update", before, after)
+    @requires_intent(Intents.ChatGroups | Intents.Chat | Intents.Messages | Intents.Users)
+    def handle_chat_message(self, msg: chat.IncomingChatMessageNotification) -> None:
+        try:
+            chat_group = self._chat_groups[ChatGroupID(msg.chat_group_id)]
+        except KeyError:
+            return log.debug("Got a message for a chat we aren't in %s", msg.chat_group_id)
 
-    def _add_friend(self, user: User) -> Friend:
-        self.user._friends[user.id] = friend = Friend(self, user)
-        return friend
+        channel = chat_group._channels[ChatID(msg.chat_id)]
+        channel._update(msg)
+        author = chat_group._maybe_member(_ID64_TO_ID32(msg.steamid_sender))
+        if msg.server_message:
+            return  # self.handle_chat_server_message(chat_group, author, msg.server_message)  # this needs to manually handle intents
 
-    @parser
-    @requires_intent(Intents.Users)
-    async def process_friends(self, msg: friends.CMsgClientFriendsList) -> None:
-        await self.login_complete.wait()
-        clan_invitees = None
-        client_user_friends: list[ID64] = []
-        is_load = not msg.bincremental
-        for friend in msg.friends:
-            id = ID(friend.ulfriendid)
-            match relationship := FriendRelationship.try_value(friend.efriendrelationship):
-                case FriendRelationship.Friend:
-                    try:
-                        invite = self.invites.pop(id.id64)
-                    except KeyError:
-                        if id.type == Type.Individual:
-                            if is_load:
-                                client_user_friends.append(id.id64)
-                            else:
-                                user = await self.fetch_user(id.id64)
-                                assert user is not None
-                                self._add_friend(user)
-                    else:
-                        self.dispatch("invite_accept", invite)
-                        if isinstance(invite, UserInvite):
-                            if isinstance(invite.author, User):
-                                friend = self._add_friend(invite.author)
-                                self.dispatch("friend_add", friend)
-                        else:
-                            if isinstance(invite.clan, Clan):
-                                self._clans[invite.clan.id] = invite.clan
+        (message_cls,) = channel._type_args
+        message = message_cls(
+            proto=msg,
+            channel=channel,  # type: ignore  # type checkers aren't able to figure out this is ok
+            author=author,
+        )
+        channel.last_message = message  # type: ignore  # same as above
+        self._messages.append(message)
+        self.dispatch("message", message)
 
-                case FriendRelationship.RequestInitiator | FriendRelationship.RequestRecipient:  # TODO this needs checking for clans
-                    match id.type:
-                        case Type.Individual:
-                            invitee = await self._maybe_user(id.id64)
-                            self.invites[invitee.id64] = invite = UserInvite(
-                                self, self.user, author=invitee, relationship=relationship
-                            )
-                        case Type.Clan:
-                            if clan_invitees is None:
-                                clan_invitees = await self.http.get_clan_invitees()
-
-                            invitee = await self._maybe_user(clan_invitees[id.id64])
-                            try:
-                                clan = await self.fetch_clan(id.id64)
-                            except WSException:
-                                clan = PartialClan(self, id.id64)
-                            self.invites[clan.id64] = invite = ClanInvite(
-                                self, self.user, author=invitee, clan=clan, relationship=relationship
-                            )
-                        case _:
-                            continue
-                    self.dispatch("invite", invite)
-
-                case FriendRelationship.NONE:
-                    match id.type:
-                        case Type.Individual:
-                            try:
-                                invite = self.invites.pop(id.id64)
-                            except KeyError:
-                                friend = self.user._friends.pop(id.id, None)
-                                if friend is None:
-                                    return log.debug("Unknown friend %s removed", id)
-                                self.dispatch("friend_remove", friend)
-                                continue
-
-                        case Type.Clan:
-                            try:
-                                invite = self.invites.pop(id.id64)
-                            except KeyError:
-                                clan = self._clans.pop(id.id, None)
-                                if clan is None:
-                                    return log.debug("Unknown clan %s removed", id)
-                                self.dispatch("clan_leave", clan)
-                                continue
-                        case _:
-                            continue
-
-                    self.dispatch("invite_decline", invite)
-
-        if is_load:
-            self.user._friends = {user.id: Friend(self, user) for user in await self.fetch_users(client_user_friends)}
-            self.handled_friends.set()
-
-    async def set_chat_group_active(self, chat_group_id: ChatGroupID) -> chat.GroupState:
-        self.active_chat_groups.add(chat_group_id)
-        proto: chat.SetSessionActiveChatRoomGroupsResponse = await self.ws.send_um_and_wait(
-            chat.SetSessionActiveChatRoomGroupsRequest(
-                chat_group_ids=list(self.active_chat_groups),
-                chat_groups_data_requested=[chat_group_id],
+    async def send_chat_message(
+        self, chat_group_id: ChatGroupID, chat_id: ChatID, content: str
+    ) -> ClanMessage | GroupMessage:
+        msg: chat.SendChatMessageResponse = await self.ws.send_um_and_wait(
+            chat.SendChatMessageRequest(
+                chat_id=chat_id,
+                chat_group_id=chat_group_id,
+                message=content.replace("\\", "\\\\"),
             )
         )
 
-        try:
-            (state,) = proto.chat_states
-        except ValueError:
-            raise WSForbidden(proto) from None
-        if proto.result != Result.OK:
-            raise WSException(proto)
+        if msg.result == Result.LimitExceeded:
+            raise WSForbidden(msg)
+        if msg.result == Result.InvalidParameter:
+            raise WSNotFound(msg)
+        if msg.result != Result.OK:
+            raise WSException(msg)
 
-        return state
+        proto = chat.IncomingChatMessageNotification(
+            chat_id=chat_id,
+            chat_group_id=chat_group_id,
+            message=msg.modified_message,
+            ordinal=msg.ordinal,
+            message_no_bbcode=msg.message_without_bb_code,
+            timestamp=msg.server_timestamp,
+        )
+        group = self._chat_groups[chat_group_id]
+        channel = group._channels[chat_id]
+        channel._update(proto)
+        (message_cls,) = channel._type_args
+        message = message_cls(
+            proto=proto,
+            channel=channel,  # type: ignore  # type checkers can't figure out this is ok
+            author=group.me,
+        )
+        channel.last_message = message  # type: ignore  # same as above
+        self._messages.append(message)
+        self.dispatch("message", message)
 
-    async def fetch_user_inventory(
-        self, user_id64: ID64, app_id: AppID, context_id: ContextID, language: Language | None
-    ) -> econ.GetInventoryItemsWithDescriptionsResponse:
-        more_items = True
-        original_msg = None
-        start_asset_id = 0
-        while more_items:
-            msg: econ.GetInventoryItemsWithDescriptionsResponse = await self.ws.send_um_and_wait(
-                econ.GetInventoryItemsWithDescriptionsRequest(
-                    steamid=user_id64,
-                    appid=app_id,
-                    contextid=context_id,
-                    get_descriptions=True,
-                    language=(language or self.language).api_name,
-                    count=2000,
-                    start_assetid=start_asset_id,
-                )
+        return message
+
+    async def delete_chat_messages(
+        self, chat_group_id: ChatGroupID, chat_id: ChatID, *messages: tuple[int, int]
+    ) -> None:
+        msg = await self.ws.send_um_and_wait(
+            chat.DeleteChatMessagesRequest(
+                chat_id=chat_id,
+                chat_group_id=chat_group_id,
+                messages=[
+                    chat.DeleteChatMessagesRequestMessage(server_timestamp=timestamp, ordinal=ordinal)
+                    for timestamp, ordinal in messages
+                ],
             )
-            if msg.result == Result.AccessDenied:
-                raise WSForbidden(msg)
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+
+    async def ack_chat_message(self, chat_group_id: ChatGroupID, chat_id: ChatID, timestamp: int) -> None:
+        await self.ws.send_proto(
+            chat.AckChatMessageNotification(chat_group_id=chat_group_id, chat_id=chat_id, timestamp=timestamp)
+        )
+
+    async def fetch_chat_history(
+        self, chat_group_id: ChatGroupID, chat_id: ChatID, start: int, last: int, last_ordinal: int
+    ) -> chat.GetMessageHistoryResponse:
+        msg: chat.GetMessageHistoryResponse = await self.ws.send_um_and_wait(
+            chat.GetMessageHistoryRequest(
+                chat_group_id=chat_group_id,
+                chat_id=chat_id,
+                last_time=last,
+                start_time=start,
+                last_ordinal=last_ordinal,
+                max_count=100,
+            )
+        )
+
+        if msg.result != Result.OK:
+            raise WSException(msg)
+
+        return msg
+
+    @requires_intent(Intents.ChatGroups | Intents.Chat | Intents.Messages | Intents.Users)
+    def handle_chat_message_reaction(self, msg: chat.MessageReactionNotification) -> None:
+        try:
+            destination = self._chat_groups[ChatGroupID(msg.chat_group_id)]
+        except KeyError:
+            return log.debug("Got a message reaction for a chat we aren't in %s", msg.chat_group_id)
+        ordinal = msg.ordinal
+        created_at = DateTime.from_timestamp(msg.server_timestamp)
+        location = (destination._id, msg.chat_id)
+        message = utils.find(
+            lambda message: (
+                isinstance(message, (ClanMessage, GroupMessage))
+                and message.channel._location == location
+                and message.created_at == created_at
+                and message.ordinal == ordinal
+            ),
+            reversed(self._messages),
+        )
+        if message is None:
+            return log.debug(
+                "Got a reaction to an unknown message %s %s (location %s)",
+                created_at,
+                ordinal,
+                location,
+            )
+        match msg.reaction_type:
+            case Emoticon._TYPE:
+                reaction = MessageReaction(
+                    self,
+                    message,
+                    Emoticon(self, msg.reaction),
+                    None,
+                    destination._maybe_member(_ID64_TO_ID32(msg.reactor)),
+                    created_at,
+                    ordinal,
+                )
+            case Sticker._TYPE:
+                reaction = MessageReaction(
+                    self,
+                    message,
+                    None,
+                    Sticker(self, msg.reaction),
+                    destination._maybe_member(_ID64_TO_ID32(msg.reactor)),
+                    created_at,
+                    ordinal,
+                )
+            case _:
+                return log.debug("Got an unknown reaction_type %s", msg.reaction_type)
+
+        if msg.is_add:
+            message.reactions.append(reaction)
+        else:
+            try:
+                message.reactions.remove(reaction)
+            except ValueError:
+                log.debug("Got a reaction remove for a reaction that wasn't added")
+
+        self.dispatch(f"reaction_{'add' if msg.is_add else 'remove'}", reaction)
+
+    async def react_to_chat_message(
+        self,
+        chat_group_id: ChatGroupID,
+        chat_id: ChatID,
+        server_timestamp: int,
+        ordinal: int,
+        reaction_name: str,
+        reaction_type: chat.EChatRoomMessageReactionType,
+        is_add: bool,
+    ) -> None:
+        msg = await self.ws.send_um_and_wait(
+            chat.UpdateMessageReactionRequest(
+                chat_group_id=chat_group_id,
+                chat_id=chat_id,
+                server_timestamp=server_timestamp,
+                ordinal=ordinal,
+                reaction=reaction_name,
+                reaction_type=reaction_type,
+                is_add=is_add,
+            )
+        )
+
+        if msg.result != Result.OK:
+            raise WSException(msg)
+
+    async def fetch_message_reactors(
+        self,
+        chat_group_id: ChatGroupID,
+        chat_id: ChatID,
+        server_timestamp: int,
+        ordinal: int,
+        reaction_name: str,
+        reaction_type: chat.EChatRoomMessageReactionType,
+    ) -> list[ID32]:
+        msg: chat.GetMessageReactionReactorsResponse = await self.ws.send_um_and_wait(
+            chat.GetMessageReactionReactorsRequest(
+                chat_group_id=chat_group_id,
+                chat_id=chat_id,
+                server_timestamp=server_timestamp,
+                ordinal=ordinal,
+                reaction=reaction_name,
+                reaction_type=reaction_type,
+            )
+        )
+
+        if msg.result != Result.OK:
+            raise WSException(msg)
+
+        return cast("list[ID32]", msg.reactors)
+
+    async def fetch_trade_url(self, generate_new: bool) -> str:
+        msg: econ.GetTradeOfferAccessTokenResponse = await self.ws.send_um_and_wait(
+            econ.GetTradeOfferAccessTokenRequest(generate_new_token=generate_new)
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return str(URL.COMMUNITY / "tradeoffer/new" % {"partner": self.user.id, "token": msg.trade_offer_access_token})
+
+    def get_trade(self, id: TradeOfferID) -> TradeOffer | None:
+        return self._trades.get(id)
+
+    async def fetch_trade(
+        self, id: TradeOfferID, language: Language | None
+    ) -> TradeOffer[Item[User], Item[ClientUser], User] | None:
+        try:
+            data = await self.http.get_trade(id, language)
+        except KeyError:
+            pass
+        else:
+            (trade,) = await self._process_trades(
+                (data["offer"],),
+                {
+                    (description["classid"], description["instanceid"]): econ.ItemDescription().from_dict(description)
+                    for description in data.get("descriptions", ())
+                },
+            )
+            return trade
+
+    async def _process_trades(
+        self, trades_: Iterable[trade.TradeOffer], descriptions: dict[tuple[str, str], econ.ItemDescription]
+    ) -> list[TradeOffer[Item[User], Item[ClientUser], User]]:
+        trades: list[TradeOffer[Item[User], Item[ClientUser], User]] = []
+        dispatch: list[tuple[Any, ...]] = []  # my brain doesn't have the power to type this correctly
+        for trade_ in trades_:
+            id = TradeOfferID(int(trade_["tradeofferid"]))
+            user = trade_["accountid_other"]
+            try:
+                receiving = [
+                    (econ.Asset().from_dict(asset), descriptions[asset["classid"], asset["instanceid"]])
+                    for asset in trade_.get("items_to_receive", ())
+                ]
+                sending = [
+                    (econ.Asset().from_dict(asset), descriptions[asset["classid"], asset["instanceid"]])
+                    for asset in trade_.get("items_to_give", ())
+                ]
+            except KeyError:
+                receiving = [econ.Asset().from_dict(asset) for asset in trade_.get("items_to_receive", ())]
+                sending = [econ.Asset().from_dict(asset) for asset in trade_.get("items_to_give", ())]
+
+            try:
+                trade = self._trades[id]
+            except KeyError:
+                log.info("Received trade #%d", id)
+                trade = TradeOffer._from_api(
+                    state=self,
+                    data=trade_,
+                    user=cast(User, ID(user)),
+                    sending=cast("list[tuple[econ.Asset, econ.ItemDescription]]", sending),
+                    receiving=cast("list[tuple[econ.Asset, econ.ItemDescription]]", receiving),
+                )
+                self._trades[id] = trade
+                if trade.state in (TradeOfferState.Active, TradeOfferState.ConfirmationNeed) and (
+                    trade.sending or trade.receiving
+                ):  # could be glitched
+                    dispatch.append(("trade", trade))
+                    self._trades_to_watch.add(trade.id)
+            else:
+                before = copy(trade)
+                trade._update(trade_, sending=sending, receiving=receiving)  # type: ignore  # I cba fixing this
+                if trade.state != before.state:
+                    log.info("Trade #%d has updated its trade state to %r", id, trade.state)
+                    if trade.sending or trade.receiving:
+                        dispatch.append(("trade_update", before, trade))
+                        self._trades_to_watch.discard(trade.id)
+            trades.append(trade)
+
+        for trade, user in zip(trades, await self._maybe_users(trade.user.id64 for trade in trades)):
+            if trade.user is not user:  # should only have been fetched if _from_api
+                for item in trade.receiving:
+                    item.owner = user
+            trade.user = user
+
+        for args in dispatch:
+            self.dispatch(*args)
+
+        return trades
+
+    @requires_intent(Intents.TradeOffers)
+    @call_once
+    async def poll_trades(self) -> None:
+        await self.fill_trades()
+        await asyncio.sleep(5)  # preventative measure against notification spam making us excessively poll
+
+        while self._trades_to_watch:  # watch trades for changes
+            await self.fill_trades()
+            await asyncio.sleep(10)
+
+    async def fill_trades(self) -> None:
+        try:
+            trades = await self.http.get_trade_offers()
+        except HTTPException as e:
+            if e.status == 429:
+                await asyncio.sleep(300)
+                return await self.fill_trades()
+            raise
+        descriptions = {
+            (description["classid"], description["instanceid"]): econ.ItemDescription().from_dict(description)
+            for description in trades.get("descriptions", ())
+        }
+        self.trade_queue += await self._process_trades(trades.get("trade_offers_received", ()), descriptions)
+        self.trade_queue += await self._process_trades(trades.get("trade_offers_sent", ()), descriptions)
+
+    async def wait_for_trade(self, id: TradeOfferID) -> TradeOffer[Item[User], Item[ClientUser], User]:
+        self._trades_to_watch.add(id)
+        self._tg.create_task(self.poll_trades())  # start re-polling trades
+        return await self.trade_queue.wait_for(id=id)
+
+    @parser
+    async def parse_new_items(self, msg: client_server_2.CMsgClientItemAnnouncements) -> None:
+        if msg.count_new_items:
+            await self.poll_trades()
+
+    def get_confirmation(self, id: TradeOfferID) -> Confirmation | None:
+        return self._confirmations.get(id)
+
+    async def fill_confirmations(self) -> None:
+        key, timestamp = await self._get_confirmation_code("list")
+        try:
+            data = await self.http.get(
+                URL.COMMUNITY / "mobileconf/getlist",
+                params={
+                    "p": self._device_id,
+                    "a": self.user.id64,
+                    "k": key,
+                    "t": timestamp,
+                    "m": "react",
+                    "tag": "list",
+                },
+            )
+        except HTTPException as e:
+            if e.status == 429:
+                await asyncio.sleep(300)
+                return await self.fill_confirmations()
+            raise
+        if not data.get("success", False):
+            raise ConfirmationError(f"{data.get('message', 'Unknown error')}\n{data.get('detail', '')}".strip())
+
+        confirmations: list[Confirmation] = []
+        for confirmation in data["conf"]:
+            confirmation_ = Confirmation(
+                self, int(confirmation["id"]), int(confirmation["nonce"]), TradeOfferID(int(confirmation["creator_id"]))
+            )
+            self._confirmations[confirmation_.creator_id] = confirmation_
+            confirmations.append(confirmation_)
+        self.confirmation_queue += confirmations
+
+    @cached_property
+    def identity_secret(self) -> str:
+        if (secret := self.client.identity_secret) is None:
+            raise ValueError("Cannot generate confirmation codes without passing an identity_secret")
+        return secret
+
+    async def _get_confirmation_code(self, tag: Tags) -> tuple[str, int]:
+        # generate a confirmation code for a given tag at this instant.
+        # this can wait x amount of time (<1s) for the code to be generated if codes would collide as they can only be
+        # used once.
+        lock = self.confirmation_generation_locks[tag]
+        await lock.acquire()
+
+        steam_time = self.steam_time
+        timestamp = int(steam_time.timestamp())
+        try:
+            return get_confirmation_code(self.identity_secret, tag, timestamp), timestamp
+        finally:
+            # wait for the next second whole before allowing generation of a new confirmation code
+            next_code_valid_at = steam_time.replace(microsecond=0) + timedelta(seconds=1)  # ceiling + 1 second
+            asyncio.get_running_loop().call_later((next_code_valid_at - steam_time).total_seconds(), lock.release)
+
+    async def poll_confirmations(self) -> None:
+        if self.polling_confirmations:
+            return
+
+        self.polling_confirmations = True
+        try:
+            await self.fill_confirmations()
+
+            while self.confirmation_queue.queue:
+                await asyncio.sleep(20)
+                await self.fill_confirmations()
+        finally:
+            self.polling_confirmations = False
+
+    async def wait_for_confirmation(self, id: TradeOfferID) -> Confirmation:
+        self._tg.create_task(self.poll_confirmations())
+        return await self.confirmation_queue.wait_for(id=id)
+
+    async def _fetch_store_info(
+        self, ids: list[store.StoreItemId], language: Language | None = None
+    ) -> list[store.StoreItem]:
+        msg: store.GetItemsResponse = await self.ws.send_proto_and_wait(
+            store.GetItemsRequest(
+                ids=ids,
+                context=store.StoreBrowseContext(
+                    country_code=(language or self.language).web_api_name,
+                ),
+                data_request=store.StoreBrowseItemDataRequest(
+                    include_assets=True,
+                    include_release=True,
+                    include_platforms=True,
+                    include_all_purchase_options=True,
+                    include_screenshots=True,
+                    include_trailers=True,
+                    include_ratings=True,
+                    include_tag_count=True,
+                    include_reviews=True,
+                    include_basic_info=True,
+                    include_supported_languages=True,
+                ),
+            )
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg.store_items
+
+    async def fetch_store_info(
+        self,
+        app_ids: Iterable[AppID] = (),
+        package_ids: Iterable[PackageID] = (),
+        bundle_ids: Iterable[BundleID] = (),
+        language: Language | None = None,
+    ) -> list[store.StoreItem]:
+        ids = (
+            [store.StoreItemId(appid=app_id) for app_id in app_ids]
+            + [store.StoreItemId(packageid=package_id) for package_id in package_ids]
+            + [store.StoreItemId(bundleid=bundle_id) for bundle_id in bundle_ids]
+        )
+        return await self._fetch_store_info(ids, language)
+
+    async def fetch_app_tag(self, *tag_ids: int, language: Language | None = None) -> list[store.StoreItem]:
+        return await self._fetch_store_info([store.StoreItemId(tagid=tag_id) for tag_id in tag_ids], language)
+
+    async def fetch_app(self, app_id: AppID, language: Language | None) -> FetchedApp:
+        resp = await self.http.get_app(app_id, language)
+        data = resp[str(app_id)]
+        if data["success"]:
+            return FetchedApp(self, data["data"], language or self.language)
+        raise ValueError("app_id is invalid")
+
+    async def fetch_app_player_count(self, app_id: AppID) -> int:
+        msg: client_server_2.CMsgDpGetNumberOfCurrentPlayersResponse = await self.ws.send_proto_and_wait(
+            client_server_2.CMsgDpGetNumberOfCurrentPlayers(appid=app_id)
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg.player_count
+
+    async def fetch_app_achievements(
+        self, app_id: AppID, language: Language | None
+    ) -> list[player.GetGameAchievementsResponseAchievement]:
+        msg: player.GetGameAchievementsResponse = await self.ws.send_proto_and_wait(
+            player.GetGameAchievementsRequest(appid=app_id, language=(language or self.language).api_name)
+        )
+
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg.achievements
+
+    async def fetch_or_create_app_leaderboard(
+        self, app_id: AppID, leaderboard_name: str, create: bool = False
+    ) -> leaderboards.CMsgClientLbsFindOrCreateLbResponse:
+        msg: leaderboards.CMsgClientLbsFindOrCreateLbResponse = await self.ws.send_proto_and_wait(
+            leaderboards.CMsgClientLbsFindOrCreateLb(
+                app_id=app_id, leaderboard_name=leaderboard_name, create_if_not_found=create
+            ),
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg
+
+    async def fetch_app_leaderboard_entries(
+        self,
+        app_id: AppID,
+        leaderboard_id: int,
+        start: int,
+        stop: int,
+        leaderboard_data_request: int,
+        id64s: list[ID64],
+    ) -> list[leaderboards.CMsgClientLbsGetLbEntriesResponseEntry]:
+        try:
+            async with timeout(15):
+                msg: leaderboards.CMsgClientLbsGetLbEntriesResponse = await self.ws.send_proto_and_wait(
+                    leaderboards.CMsgClientLbsGetLbEntries(
+                        leaderboard_id=leaderboard_id,
+                        app_id=app_id,
+                        range_start=start,
+                        range_end=stop,
+                        leaderboard_data_request=leaderboard_data_request,
+                        steamids=cast("list[int]", id64s),
+                    ),
+                )
+        except asyncio.TimeoutError:
+            raise WSNotFound(leaderboards.CMsgClientLbsGetLbEntriesResponse(eresult=Result.NoMatch)) from None
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg.entries
+
+    async def set_app_leaderboard_score(
+        self,
+        app_id: AppID,
+        leaderboard_id: LeaderboardID,
+        score: int,
+        details: bytes,
+        method: LeaderboardUploadScoreMethod,
+    ) -> leaderboards.CMsgClientLbsSetScoreResponse:
+        msg: leaderboards.CMsgClientLbsSetScoreResponse = await self.ws.send_proto_and_wait(
+            leaderboards.CMsgClientLbsSetScore(
+                app_id=app_id,
+                leaderboard_id=leaderboard_id,
+                score=score,
+                details=details,
+                upload_score_method=method,
+            )
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg
+
+    async def set_app_leaderboard_ugc(self, app_id: AppID, leaderboard_id: LeaderboardID, ugc_id: int) -> None:
+        msg: leaderboards.CMsgClientLbsSetUgcResponse = await self.ws.send_proto_and_wait(
+            leaderboards.CMsgClientLbsSetUgc(
+                app_id=app_id,
+                leaderboard_id=leaderboard_id,
+                ugc_id=ugc_id,
+            )
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+
+    async def fetch_community_item_definitions(
+        self, app_id: AppID, item_type: CommunityDefinitionItemType, language: Language | None
+    ) -> list[quest.GetCommunityItemDefinitionsResponseItemDefinition]:
+        msg: quest.GetCommunityItemDefinitionsResponse = await self.ws.send_um_and_wait(
+            quest.GetCommunityItemDefinitionsRequest(
+                appid=app_id, item_type=item_type, language=(language or self.language).name, keyvalues_as_json=True
+            )
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg.item_definitions
+
+    async def fetch_reward_items(self, app_id: AppID, language: Language | None) -> list[loyalty_rewards.Definition]:
+        msg: loyalty_rewards.QueryRewardItemsResponse = await self.ws.send_um_and_wait(
+            loyalty_rewards.QueryRewardItemsRequest(appids=[app_id], language=(language or self.language).name)
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg.definitions
+
+    async def fetch_friend_thoughts(self, app_id: AppID) -> reviews.GetFriendsRecommendedAppResponse:
+        msg: reviews.GetFriendsRecommendedAppResponse = await self.ws.send_um_and_wait(
+            reviews.GetFriendsRecommendedAppRequest(appid=app_id)
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg
+
+    async def fetch_friends_who_own(self, app_id: AppID) -> list[ID64]:
+        msg: friends.ClientGetFriendsWhoPlayGameResponse = await self.ws.send_proto_and_wait(
+            friends.ClientGetFriendsWhoPlayGame(app_id=app_id)
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return cast(list[ID64], msg.friends)
+
+    @asynccontextmanager
+    async def hold_licenses(self) -> AsyncGenerator[None, None]:
+        async with self._license_lock:
+            self.handled_licenses.clear()
+            yield
+            await self.handled_licenses.wait()
+
+    @parser
+    async def handle_licenses(self, msg: client_server.CMsgClientLicenseList) -> None:
+        await self.login_complete.wait()
+        users: dict[int, User] = {
+            user.id: user
+            for user in await self._maybe_users(
+                parse_id64(license.owner_id, type=Type.Individual) for license in msg.licenses
+            )
+        }
+        for license in msg.licenses:
+            self.licenses[license_.id] = (license_ := License(self, license, users[license.owner_id]))
+            if future := self.licenses_being_waited_for.get(license_.id):
+                future.set_result(license_)
+
+        self.handled_licenses.set()
+
+    async def request_free_licenses(self, *app_ids: AppID) -> dict[AppID, list[License]]:
+        async with self.hold_licenses():
+            msg: client_server_2.CMsgClientRequestFreeLicenseResponse = await self.ws.send_proto_and_wait(
+                client_server_2.CMsgClientRequestFreeLicense(appids=list(app_ids)),
+            )
             if msg.result != Result.OK:
                 raise WSException(msg)
+            if any(app_id not in msg.granted_appids for app_id in app_ids):
+                raise WSNotFound(msg)
+            if not msg.granted_packageids:
+                raise ValueError("No licenses granted")
 
-            if original_msg is None:
-                original_msg = msg
-            else:
-                original_msg.assets += msg.assets
-                original_msg.descriptions += msg.descriptions
-            more_items = msg.more_items
+        ret: dict[AppID, list[License]] = {app_id: [] for app_id in cast(list[AppID], msg.granted_appids)}
+        _, packages = await self.fetch_product_info((), cast(list[PackageID], msg.granted_packageids))
+        for package in packages:
+            for app in await package.apps():
+                try:
+                    ret[app.id].append(self.licenses[package.id])
+                except KeyError:
+                    pass
+        return ret
+
+    async def fetch_legacy_cd_key(self, app_id: AppID) -> str:
+        msg: client_server_2.ClientGetLegacyGameKeyResponse = await self.ws.send_proto_and_wait(
+            client_server_2.ClientGetLegacyGameKeyRequest(app_id=app_id),
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg.legacy_game_key
+
+    async def register_cd_key(self, key: str) -> store.PurchaseReceiptInfo:
+        msg: store.RegisterCDKeyResponse = await self.ws.send_um_and_wait(
+            store.RegisterCDKeyRequest(activation_code=key)
+        )
+        if msg.result != Result.OK:
+            msg.header.error_message += (
+                f"\nPurchase result {PurchaseResult.try_value(msg.purchase_receipt_info.result_detail)!r}"
+            )
+            msg.header.error_message = msg.header.error_message.strip()
+            raise WSException(msg)
+        return msg.purchase_receipt_info
+
+    async def fetch_encrypted_app_ticket(
+        self, app_id: AppID, user_data: bytes
+    ) -> encrypted_app_ticket.EncryptedAppTicket:
+        msg: client_server.CMsgClientRequestEncryptedAppTicketResponse = await self.ws.send_proto_and_wait(
+            client_server.CMsgClientRequestEncryptedAppTicket(app_id=app_id, userdata=user_data),
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg.encrypted_app_ticket
+
+    async def fetch_app_ownership_ticket(self, app_id: AppID) -> bytes:
+        msg: client_server.CMsgClientGetAppOwnershipTicketResponse = await self.ws.send_proto_and_wait(
+            client_server.CMsgClientGetAppOwnershipTicket(app_id=app_id),
+        )
+        if msg.result != Result.OK:
+            raise WSException(msg)
+        return msg.ticket
+
+    @parser
+    def handle_game_connect_tokens(self, msg: client_server.CMsgClientGameConnectTokens) -> None:
+        self._game_connect_bytes += msg.tokens
+
+    @asynccontextmanager
+    async def temporarily_play(self, *apps: App) -> AsyncGenerator[None, None]:
+        old_apps = self._apps
+        to_proto_apps = [app.to_proto() for app in apps]
+        if all(app in old_apps for app in to_proto_apps):
+            yield
+            return
+
+        try:
+            await self.ws.change_presence(apps=[*self._apps, *to_proto_apps])
+            yield
+        finally:
+            await self.ws.change_presence(apps=old_apps)
+
+    async def activate_auth_session_tickets(self, *tickets: AuthenticationTicket) -> None:
+        for ticket in tickets:
+            if not ticket.is_valid():
+                raise ValueError(f"Ticket {ticket!r} is not valid")
+
+            if (ticket.app.id, ticket.user.id64) in self._active_auth_tickets:
+                log.debug("Ticket %r is already active", ticket)
+
+                if ticket.user != self.user:
+                    log.info("Canceling existing ticket %r", ticket)
+            self._active_auth_tickets[ticket.app.id, ticket.user.id64] = ticket
+        await self.send_auth_list()
+
+    async def deactivate_auth_session_tickets(self, *tickets: AuthenticationTicket) -> None:
+        assert tickets
+        for ticket in tickets:
             try:
-                start_asset_id = msg.assets[-1].assetid
-            except IndexError:
-                break
-        assert original_msg is not None
-        return original_msg
+                del self._active_auth_tickets[ticket.app.id, ticket.user.id64]
+            except KeyError:
+                log.debug("Ticket %r is not active", ticket)
+
+        if ticket.user == self.user:  # type: ignore  # ticket cannot be unbound
+            return  # can't deactivate our own ticket?
+        await self.send_auth_list()
+
+    async def send_auth_list(self, force_app_id: AppID | None = None) -> None:
+        unique_app_ids = {app_id for app_id, _ in self._active_auth_tickets}
+        if force_app_id is not None:
+            unique_app_ids.add(force_app_id)
+        log.info("Sending authentication list with %s active tickets", len(self._active_auth_tickets))
+
+        msg: client_server.CMsgClientAuthListAck = await self.ws.send_proto_and_wait(
+            client_server.CMsgClientAuthList(
+                tokens_left=len(self._game_connect_bytes),
+                last_request_seq=self._auth_seq_me,
+                last_request_seq_from_server=self._auth_seq_them,
+                app_ids=list(unique_app_ids),
+                message_sequence=self._auth_seq_me + 1,
+                tickets=[
+                    client_server.CMsgAuthTicket(
+                        estate=int(self.user != ticket.user),
+                        steamid=0 if self.user == ticket.user else ticket.user.id64,
+                        gameid=ticket.app.id,
+                        h_steam_pipe=self._h_steam_pipe,
+                        ticket_crc=crc32(ticket.auth_ticket),
+                        ticket=ticket.auth_ticket,
+                    )
+                    for ticket in self._active_auth_tickets.values()
+                ],
+            ),
+            check=lambda msg: (
+                isinstance(msg, client_server.CMsgClientAuthListAck) and msg.message_sequence == self._auth_seq_me + 1
+            ),
+        )
+        self._auth_seq_me += 1
+        self._auth_seq_them = msg.message_sequence
+
+    @parser
+    def handle_ticket_auth_complete(self, msg: client_server.CMsgClientTicketAuthComplete) -> None:
+        ticket = utils.find(
+            lambda ticket: crc32(ticket.auth_ticket) == msg.ticket_crc, self._active_auth_tickets.values()
+        )
+        if ticket is None:
+            return log.info("Got auth complete for unknown ticket %r disgaurding", msg.ticket_crc)
+
+        if msg.eauth_session_response != AuthSessionResponse.OK:
+            del self._active_auth_tickets[ticket.app.id, ticket.user.id64]
+            log.info(
+                "Removed canceled ticket %r with state %s. Now have %s active tickets.",
+                ticket,
+                msg.eauth_session_response,
+                len(self._active_auth_tickets),
+            )
+
+        self.dispatch(
+            "authentication_ticket_update",
+            ticket,
+            AuthSessionResponse.try_value(msg.eauth_session_response),
+            msg.estate,
+        )
+
+    async def fetch_package(self, package_id: PackageID, language: Language | None) -> FetchedPackage:
+        resp = await self.http.get_package(package_id, language)
+        data = resp[str(package_id)]
+        if data["success"]:
+            return FetchedPackage(self, data["data"])
+        raise ValueError("package_id is invalid")
+
+    async def fetch_bundle(self, bundle_id: BundleID, language: Language | None) -> FetchedBundle:
+        (data,) = await self.http.get_bundle(bundle_id, language)
+        return FetchedBundle(self, data)
 
     async def fetch_item_info(
         self, app_id: AppID, items: Iterable[CacheKey], language: Language | None
@@ -1716,29 +2197,6 @@ class ConnectionState:
         if msg.result != Result.OK:
             raise WSException(msg)
         return msg.roles
-
-    async def add_user(self, user_id64: ID64) -> None:
-        msg: player.AddFriendResponse = await self.ws.send_proto_and_wait(player.AddFriendRequest(steamid=user_id64))
-        if msg.result != Result.OK:
-            raise WSException(msg)
-
-    async def remove_user(self, user_id64: ID64) -> None:
-        msg: player.RemoveFriendResponse = await self.ws.send_um_and_wait(player.RemoveFriendRequest(steamid=user_id64))
-        if msg.result != Result.OK:
-            raise WSException(msg)
-
-    async def _block_user(self, user_id64: ID64, block: bool) -> None:
-        msg: player.IgnoreFriendResponse = await self.ws.send_um_and_wait(
-            player.IgnoreFriendRequest(steamid=user_id64, unignore=block)
-        )
-        if msg.result != Result.OK:
-            raise WSException(msg)
-
-    async def block_user(self, user_id64: ID64) -> None:
-        await self._block_user(user_id64, True)
-
-    async def unblock_user(self, user_id64: ID64) -> None:
-        await self._block_user(user_id64, False)
 
     async def fetch_comment(self, owner: Commentable, id: int) -> community.GetCommentThreadResponse.Comment:
         msg: community.GetCommentThreadResponse = await self.ws.send_um_and_wait(
@@ -1884,6 +2342,12 @@ class ConnectionState:
         return
 
     @parser
+    async def parse_notification(self, msg: client_server_2.CMsgClientUserNotifications) -> None:
+        if any(b.user_notification_type == 1 for b in msg.notifications):
+            # 1 is a trade offer
+            await self.poll_trades()
+
+    @parser
     def handle_emoticon_list(self, msg: friends.CMsgClientEmoticonList) -> None:
         self.emoticons = [ClientEmoticon(self, emoticon) for emoticon in msg.emoticons]
         self.stickers = [ClientSticker(self, sticker) for sticker in msg.stickers]
@@ -1915,184 +2379,6 @@ class ConnectionState:
 
         # but also if this doesn't work there's no point including this method
         return [_Reaction(reactionid=id, count=count) for id, count in collections.Counter(msg.reactionids).items()]
-
-    @parser
-    async def parse_notification(self, msg: client_server_2.CMsgClientUserNotifications) -> None:
-        if any(b.user_notification_type == 1 for b in msg.notifications):
-            # 1 is a trade offer
-            await self.poll_trades()
-
-    @parser
-    async def parse_new_items(self, msg: client_server_2.CMsgClientItemAnnouncements) -> None:
-        if msg.count_new_items:
-            await self.poll_trades()
-
-    async def fetch_user_post(self, user_id64: ID64, post_id: PostID) -> player.GetPostedStatusResponse:
-        msg: player.GetPostedStatusResponse = await self.ws.send_um_and_wait(
-            player.GetPostedStatusRequest(
-                steamid=user_id64,
-                postid=post_id,
-            )
-        )
-        if msg.result == Result.InvalidParameter:
-            raise WSNotFound(msg)
-        if msg.result != Result.OK:
-            raise WSException(msg)
-        return msg
-
-    async def create_user_post(self, content: str, app_id: AppID) -> None:
-        msg: player.PostStatusToFriendsResponse = await self.ws.send_um_and_wait(
-            player.PostStatusToFriendsRequest(appid=app_id, status_text=content)
-        )
-        if msg.result != Result.OK:
-            raise WSException(msg)
-
-    async def delete_user_post(self, post_id: PostID) -> None:
-        msg: player.DeletePostedStatusResponse = await self.ws.send_um_and_wait(
-            player.DeletePostedStatusRequest(
-                postid=post_id,
-            )
-        )
-        if msg.result == Result.InvalidParameter:
-            raise WSNotFound(msg)
-        if msg.result != Result.OK:
-            raise WSException(msg)
-
-    async def fetch_user_reviews(
-        self, user_id64: ID64, app_ids: Iterable[AppID]
-    ) -> list[reviews.RecommendationDetails]:
-        msg: reviews.GetIndividualRecommendationsResponse = await self.ws.send_um_and_wait(
-            reviews.GetIndividualRecommendationsRequest(
-                [
-                    reviews.GetIndividualRecommendationsRequestRecommendationRequest(steamid=user_id64, appid=app_id)
-                    for app_id in app_ids
-                ]
-            )
-        )
-        if msg.result != Result.OK:
-            raise WSException(msg)
-
-        return msg.recommendations
-
-    async def edit_review(
-        self,
-        review_id: int,
-        content: str,
-        public: bool,
-        commentable: bool,
-        language: str,
-        is_in_early_access: bool,
-        received_compensation: bool,
-    ) -> None:
-        msg = await self.ws.send_um_and_wait(
-            reviews.UpdateRequest(
-                recommendationid=review_id,
-                review_text=content,
-                is_public=public,
-                language=language,
-                is_in_early_access=is_in_early_access,
-                received_compensation=received_compensation,
-                comments_disabled=not commentable,
-            )
-        )
-        if msg.result != Result.OK:
-            raise WSException(msg)
-
-    async def fetch_friend_thoughts(self, app_id: AppID) -> reviews.GetFriendsRecommendedAppResponse:
-        msg: reviews.GetFriendsRecommendedAppResponse = await self.ws.send_um_and_wait(
-            reviews.GetFriendsRecommendedAppRequest(appid=app_id)
-        )
-        if msg.result != Result.OK:
-            raise WSException(msg)
-        return msg
-
-    @parser
-    @requires_intent(Intents.Users)
-    async def parse_account_info(self, msg: login.CMsgClientAccountInfo) -> None:
-        await self.login_complete.wait()
-        if msg.persona_name != self.user.name:
-            before = copy(self.user)
-            self.user.name = msg.persona_name or self.user.name
-            self.dispatch("user_update", before, self.user)
-
-    async def fetch_friends_who_own(self, app_id: AppID) -> list[ID64]:
-        msg: friends.ClientGetFriendsWhoPlayGameResponse = await self.ws.send_proto_and_wait(
-            friends.ClientGetFriendsWhoPlayGame(app_id=app_id)
-        )
-        if msg.result != Result.OK:
-            raise WSException(msg)
-        return cast(list[ID64], msg.friends)
-
-    async def rate_clan_announcement(self, clan_id: ID32, announcement_id: int, upvoted: bool) -> None:
-        msg = await self.ws.send_um_and_wait(
-            community.RateClanAnnouncementRequest(
-                announcementid=announcement_id,
-                clan_accountid=clan_id,
-                vote_up=upvoted,
-            )
-        )
-        if msg.result != Result.OK:
-            raise WSException(msg)
-
-    async def respond_to_clan_invite(self, clan_id64: ID64, accept: bool) -> None:
-        msg: clan.RespondToClanInviteResponse = await self.ws.send_um_and_wait(
-            clan.RespondToClanInviteRequest(steamid=clan_id64, accept=accept)
-        )
-        if msg.result != Result.OK:
-            raise WSException(msg)
-
-    @parser
-    @requires_intent(Intents.ChatGroups)
-    async def update_clan(self, msg: client_server.CMsgClientClanState) -> None:
-        await self.handled_chat_groups.wait()
-        steam_id = ID(msg.steamid_clan)
-        clan = self.get_clan(steam_id.id) or await self.fetch_clan(steam_id.id64, maybe_chunk=False)
-
-        for event in msg.events:
-            if event.just_posted:
-                event = await clan.fetch_event(event.gid)
-                self.dispatch("event_create", event)
-        for announcement in msg.announcements:
-            if announcement.just_posted:
-                announcement = await clan.fetch_announcement(announcement.gid)
-                self.dispatch("announcement_create", announcement)
-
-        user_counts = msg.user_counts
-        name_info = msg.name_info
-        flags_changed = clan.flags != msg.clan_account_flags
-        dispatch_update = user_counts or name_info or flags_changed
-
-        if dispatch_update:
-            before = copy(clan)
-        if user_counts:
-            clan.member_count = user_counts.members
-            clan.in_game_count = user_counts.in_game
-            clan.online_count = user_counts.online
-            clan.active_member_count = user_counts.chatting
-        if name_info:
-            clan.name = name_info.clan_name
-            clan._avatar_sha = name_info.sha_avatar
-        if flags_changed:
-            clan.flags = ClanAccountFlags.try_value(msg.clan_account_flags)
-
-        if dispatch_update:
-            self.dispatch("clan_update", before, clan)
-
-    @parser
-    async def handle_licenses(self, msg: client_server.CMsgClientLicenseList) -> None:
-        await self.login_complete.wait()
-        users: dict[int, User] = {
-            user.id: user
-            for user in await self._maybe_users(
-                parse_id64(license.owner_id, type=Type.Individual) for license in msg.licenses
-            )
-        }
-        for license in msg.licenses:
-            self.licenses[license_.id] = (license_ := License(self, license, users[license.owner_id]))
-            if future := self.licenses_being_waited_for.get(license_.id):
-                future.set_result(license_)
-
-        self.handled_licenses.set()
 
     @parser
     def handle_wallet(self, msg: client_server.CMsgClientWalletInfoUpdate) -> None:
@@ -2329,63 +2615,6 @@ class ConnectionState:
         ):  # invalid is for the case where access tokens are not required
             raise WSException(msg)
         return msg
-
-    async def register_cd_key(self, key: str) -> store.PurchaseReceiptInfo:
-        msg: store.RegisterCDKeyResponse = await self.ws.send_um_and_wait(
-            store.RegisterCDKeyRequest(activation_code=key)
-        )
-        if msg.result != Result.OK:
-            msg.header.error_message += (
-                f"\nPurchase result {PurchaseResult.try_value(msg.purchase_receipt_info.result_detail)!r}"
-            )
-            msg.header.error_message = msg.header.error_message.strip()
-            raise WSException(msg)
-        return msg.purchase_receipt_info
-
-    async def _fetch_store_info(
-        self, ids: list[store.StoreItemId], language: Language | None = None
-    ) -> list[store.StoreItem]:
-        msg: store.GetItemsResponse = await self.ws.send_proto_and_wait(
-            store.GetItemsRequest(
-                ids=ids,
-                context=store.StoreBrowseContext(
-                    country_code=(language or self.language).web_api_name,
-                ),
-                data_request=store.StoreBrowseItemDataRequest(
-                    include_assets=True,
-                    include_release=True,
-                    include_platforms=True,
-                    include_all_purchase_options=True,
-                    include_screenshots=True,
-                    include_trailers=True,
-                    include_ratings=True,
-                    include_tag_count=True,
-                    include_reviews=True,
-                    include_basic_info=True,
-                    include_supported_languages=True,
-                ),
-            )
-        )
-        if msg.result != Result.OK:
-            raise WSException(msg)
-        return msg.store_items
-
-    async def fetch_store_info(
-        self,
-        app_ids: Iterable[AppID] = (),
-        package_ids: Iterable[PackageID] = (),
-        bundle_ids: Iterable[BundleID] = (),
-        language: Language | None = None,
-    ) -> list[store.StoreItem]:
-        ids = (
-            [store.StoreItemId(appid=app_id) for app_id in app_ids]
-            + [store.StoreItemId(packageid=package_id) for package_id in package_ids]
-            + [store.StoreItemId(bundleid=bundle_id) for bundle_id in bundle_ids]
-        )
-        return await self._fetch_store_info(ids, language)
-
-    async def fetch_app_tag(self, *tag_ids: int, language: Language | None = None) -> list[store.StoreItem]:
-        return await self._fetch_store_info([store.StoreItemId(tagid=tag_id) for tag_id in tag_ids], language)
 
     async def fetch_published_files_with_author(
         self,
@@ -2663,263 +2892,63 @@ class ConnectionState:
         if msg.result != Result.OK:
             raise WSException(msg)
 
-    @asynccontextmanager
-    async def hold_licenses(self) -> AsyncGenerator[None, None]:
-        async with self._license_lock:
-            self.handled_licenses.clear()
-            yield
-            await self.handled_licenses.wait()
-
-    async def request_free_licenses(self, *app_ids: AppID) -> dict[AppID, list[License]]:
-        async with self.hold_licenses():
-            msg: client_server_2.CMsgClientRequestFreeLicenseResponse = await self.ws.send_proto_and_wait(
-                client_server_2.CMsgClientRequestFreeLicense(appids=list(app_ids)),
-            )
-            if msg.result != Result.OK:
-                raise WSException(msg)
-            if any(app_id not in msg.granted_appids for app_id in app_ids):
-                raise WSNotFound(msg)
-            if not msg.granted_packageids:
-                raise ValueError("No licenses granted")
-
-        ret: dict[AppID, list[License]] = {app_id: [] for app_id in cast(list[AppID], msg.granted_appids)}
-        _, packages = await self.fetch_product_info((), cast(list[PackageID], msg.granted_packageids))
-        for package in packages:
-            for app in await package.apps():
-                try:
-                    ret[app.id].append(self.licenses[package.id])
-                except KeyError:
-                    pass
-        return ret
-
-    async def fetch_legacy_cd_key(self, app_id: AppID) -> str:
-        msg: client_server_2.ClientGetLegacyGameKeyResponse = await self.ws.send_proto_and_wait(
-            client_server_2.ClientGetLegacyGameKeyRequest(app_id=app_id),
-        )
-        if msg.result != Result.OK:
-            raise WSException(msg)
-        return msg.legacy_game_key
-
-    async def fetch_encrypted_app_ticket(
-        self, app_id: AppID, user_data: bytes
-    ) -> encrypted_app_ticket.EncryptedAppTicket:
-        msg: client_server.CMsgClientRequestEncryptedAppTicketResponse = await self.ws.send_proto_and_wait(
-            client_server.CMsgClientRequestEncryptedAppTicket(app_id=app_id, userdata=user_data),
-        )
-        if msg.result != Result.OK:
-            raise WSException(msg)
-        return msg.encrypted_app_ticket
-
-    async def fetch_app_ownership_ticket(self, app_id: AppID) -> bytes:
-        msg: client_server.CMsgClientGetAppOwnershipTicketResponse = await self.ws.send_proto_and_wait(
-            client_server.CMsgClientGetAppOwnershipTicket(app_id=app_id),
-        )
-        if msg.result != Result.OK:
-            raise WSException(msg)
-        return msg.ticket
+    @parser
+    async def handle_close(self, _: login.CMsgClientLogOff | Any = None) -> Never:
+        if not self.ws.socket.closed:
+            await self.ws.close()
+        if hasattr(self.ws, "_keep_alive"):
+            self.ws._keep_alive.stop()
+            del self.ws._keep_alive
+        log.info("Websocket closed, cannot reconnect.")
+        self.ws.closed = True
+        raise ConnectionClosed(self.ws.cm)
 
     @parser
-    def handle_game_connect_tokens(self, msg: client_server.CMsgClientGameConnectTokens) -> None:
-        self._game_connect_bytes += msg.tokens
-
-    async def activate_auth_session_tickets(self, *tickets: AuthenticationTicket) -> None:
-        for ticket in tickets:
-            if not ticket.is_valid():
-                raise ValueError(f"Ticket {ticket!r} is not valid")
-
-            if (ticket.app.id, ticket.user.id64) in self._active_auth_tickets:
-                log.debug("Ticket %r is already active", ticket)
-
-                if ticket.user != self.user:
-                    log.info("Canceling existing ticket %r", ticket)
-            self._active_auth_tickets[ticket.app.id, ticket.user.id64] = ticket
-        await self.send_auth_list()
-
-    async def deactivate_auth_session_tickets(self, *tickets: AuthenticationTicket) -> None:
-        assert tickets
-        for ticket in tickets:
-            try:
-                del self._active_auth_tickets[ticket.app.id, ticket.user.id64]
-            except KeyError:
-                log.debug("Ticket %r is not active", ticket)
-
-        if ticket.user == self.user:  # type: ignore  # ticket cannot be unbound
-            return  # can't deactivate our own ticket?
-        await self.send_auth_list()
-
-    async def send_auth_list(self, force_app_id: AppID | None = None) -> None:
-        unique_app_ids = {app_id for app_id, _ in self._active_auth_tickets}
-        if force_app_id is not None:
-            unique_app_ids.add(force_app_id)
-        log.info("Sending authentication list with %s active tickets", len(self._active_auth_tickets))
-
-        msg: client_server.CMsgClientAuthListAck = await self.ws.send_proto_and_wait(
-            client_server.CMsgClientAuthList(
-                tokens_left=len(self._game_connect_bytes),
-                last_request_seq=self._auth_seq_me,
-                last_request_seq_from_server=self._auth_seq_them,
-                app_ids=list(unique_app_ids),
-                message_sequence=self._auth_seq_me + 1,
-                tickets=[
-                    client_server.CMsgAuthTicket(
-                        estate=int(self.user != ticket.user),
-                        steamid=0 if self.user == ticket.user else ticket.user.id64,
-                        gameid=ticket.app.id,
-                        h_steam_pipe=self._h_steam_pipe,
-                        ticket_crc=crc32(ticket.auth_ticket),
-                        ticket=ticket.auth_ticket,
-                    )
-                    for ticket in self._active_auth_tickets.values()
-                ],
-            ),
-            check=lambda msg: (
-                isinstance(msg, client_server.CMsgClientAuthListAck) and msg.message_sequence == self._auth_seq_me + 1
-            ),
-        )
-        self._auth_seq_me += 1
-        self._auth_seq_them = msg.message_sequence
+    def ack_heartbeat(self, msg: login.CMsgClientHeartBeat) -> None:
+        self.ws._keep_alive.ack()
 
     @parser
-    def handle_ticket_auth_complete(self, msg: client_server.CMsgClientTicketAuthComplete) -> None:
-        ticket = utils.find(
-            lambda ticket: crc32(ticket.auth_ticket) == msg.ticket_crc, self._active_auth_tickets.values()
-        )
-        if ticket is None:
-            return log.info("Got auth complete for unknown ticket %r disgaurding", msg.ticket_crc)
+    def set_steam_time(self, msg: login.CMsgClientServerTimestampResponse) -> None:
+        self.server_offset = timedelta(milliseconds=msg.server_timestamp_ms - msg.client_request_timestamp)
 
-        if msg.eauth_session_response != AuthSessionResponse.OK:
-            del self._active_auth_tickets[ticket.app.id, ticket.user.id64]
-            log.info(
-                "Removed canceled ticket %r with state %s. Now have %s active tickets.",
-                ticket,
-                msg.eauth_session_response,
-                len(self._active_auth_tickets),
-            )
+    @parser
+    def handle_multi(self, msg: base.CMsgMulti) -> None:
+        data: bytearray = unpack_multi(msg) if msg.size_unzipped else msg.message_body  # type: ignore
 
-        self.dispatch(
-            "authentication_ticket_update",
-            ticket,
-            AuthSessionResponse.try_value(msg.eauth_session_response),
-            msg.estate,
-        )
+        while data:
+            size = READ_U32(data)
+            self.ws.receive(data[4 : 4 + size])
+            data = data[4 + size :]
 
-    async def fetch_user_app_stats(self, user_id64: ID64, app_id: AppID) -> user_stats.CMsgClientGetUserStatsResponse:
-        msg: user_stats.CMsgClientGetUserStatsResponse = await self.ws.send_proto_and_wait(
-            user_stats.CMsgClientGetUserStats(steam_id_for_user=user_id64, game_id=app_id),
-        )
+    @parser
+    async def handle_logoff(self, msg: login.CMsgClientLoggedOff) -> Never:
+        await self.handle_close()
 
-        if msg.result != Result.OK:
-            raise WSException(msg)
-        return msg
-
-    async def fetch_app_achievements(
-        self, app_id: AppID, language: Language | None
-    ) -> list[player.GetGameAchievementsResponseAchievement]:
-        msg: player.GetGameAchievementsResponse = await self.ws.send_proto_and_wait(
-            player.GetGameAchievementsRequest(appid=app_id, language=(language or self.language).api_name)
-        )
-
-        if msg.result != Result.OK:
-            raise WSException(msg)
-        return msg.achievements
-
-    async def fetch_user_achievements(
-        self, user_id64: ID64, *app_ids: AppID, language: Language | None
-    ) -> list[player.GetAchievementsProgressResponseAchievementProgress]:
-        msg: player.GetAchievementsProgressResponse = await self.ws.send_proto_and_wait(
-            player.GetAchievementsProgressRequest(
-                steamid=user_id64,
-                appids=cast(list[int], list(app_ids)),
-                language=(language or self.language).api_name,
-            )
-        )
-
-        if msg.result != Result.OK:
-            raise WSException(msg)
-        return msg.achievement_progress
-
-    async def fetch_or_create_app_leaderboard(
-        self, app_id: AppID, leaderboard_name: str, create: bool = False
-    ) -> leaderboards.CMsgClientLbsFindOrCreateLbResponse:
-        msg: leaderboards.CMsgClientLbsFindOrCreateLbResponse = await self.ws.send_proto_and_wait(
-            leaderboards.CMsgClientLbsFindOrCreateLb(
-                app_id=app_id, leaderboard_name=leaderboard_name, create_if_not_found=create
-            ),
-        )
-        if msg.result != Result.OK:
-            raise WSException(msg)
-        return msg
-
-    async def fetch_app_leaderboard_entries(
-        self,
-        app_id: AppID,
-        leaderboard_id: int,
-        start: int,
-        stop: int,
-        leaderboard_data_request: int,
-        id64s: list[ID64],
-    ) -> list[leaderboards.CMsgClientLbsGetLbEntriesResponseEntry]:
-        try:
-            async with timeout(15):
-                msg: leaderboards.CMsgClientLbsGetLbEntriesResponse = await self.ws.send_proto_and_wait(
-                    leaderboards.CMsgClientLbsGetLbEntries(
-                        leaderboard_id=leaderboard_id,
-                        app_id=app_id,
-                        range_start=start,
-                        range_end=stop,
-                        leaderboard_data_request=leaderboard_data_request,
-                        steamids=cast("list[int]", id64s),
-                    ),
-                )
-        except asyncio.TimeoutError:
-            raise WSNotFound(leaderboards.CMsgClientLbsGetLbEntriesResponse(eresult=Result.NoMatch)) from None
-        if msg.result != Result.OK:
-            raise WSException(msg)
-        return msg.entries
-
-    async def set_app_leaderboard_score(
-        self,
-        app_id: AppID,
-        leaderboard_id: LeaderboardID,
-        score: int,
-        details: bytes,
-        method: LeaderboardUploadScoreMethod,
-    ) -> leaderboards.CMsgClientLbsSetScoreResponse:
-        msg: leaderboards.CMsgClientLbsSetScoreResponse = await self.ws.send_proto_and_wait(
-            leaderboards.CMsgClientLbsSetScore(
-                app_id=app_id,
-                leaderboard_id=leaderboard_id,
-                score=score,
-                details=details,
-                upload_score_method=method,
-            )
-        )
-        if msg.result != Result.OK:
-            raise WSException(msg)
-        return msg
-
-    async def set_app_leaderboard_ugc(self, app_id: AppID, leaderboard_id: LeaderboardID, ugc_id: int) -> None:
-        msg: leaderboards.CMsgClientLbsSetUgcResponse = await self.ws.send_proto_and_wait(
-            leaderboards.CMsgClientLbsSetUgc(
-                app_id=app_id,
-                leaderboard_id=leaderboard_id,
-                ugc_id=ugc_id,
-            )
-        )
-        if msg.result != Result.OK:
-            raise WSException(msg)
-
-    async def fetch_community_item_definitions(
-        self, app_id: AppID, item_type: CommunityDefinitionItemType, language: Language | None
-    ) -> list[quest.GetCommunityItemDefinitionsResponseItemDefinition]:
-        msg: quest.GetCommunityItemDefinitionsResponse = await self.ws.send_um_and_wait(
-            quest.GetCommunityItemDefinitionsRequest(
-                appid=app_id, item_type=item_type, language=(language or self.language).name, keyvalues_as_json=True
-            )
-        )
-        if msg.result != Result.OK:
-            raise WSException(msg)
-        return msg.item_definitions
+    @parser
+    async def parse_um(self, msg: UnifiedMessage) -> None:
+        match msg:
+            case chat.IncomingChatMessageNotification():
+                self.handle_chat_message(msg)
+            case chat.MessageReactionNotification():
+                self.handle_chat_message_reaction(msg)
+            case chat.ChatRoomHeaderStateNotification():
+                self.handle_chat_group_update(msg)
+            case chat.NotifyChatGroupUserStateChangedNotification():
+                await self.handle_chat_group_user_action(msg)
+            case chat.MemberStateChangeNotification():
+                await self.handle_chat_member_update(msg)
+            case chat.ChatRoomGroupRoomsChangeNotification():
+                self.handle_chat_update(msg)
+            case friend_messages.IncomingMessageNotification():
+                await self.handle_user_message(msg)
+            case friend_messages.MessageReactionNotification():
+                await self.handle_user_message_reaction(msg)
+            case chat.GetMyChatRoomGroupsResponse():
+                await self.handle_get_my_chat_groups(msg)
+            case notifications.GetSteamNotificationsResponse():
+                await self.handle_notifications(msg)
+            case _:
+                log.debug("Got a UM %r that we don't handle %r", msg.UM_NAME, msg)
 
 
 ConnectionState.parsers = {}

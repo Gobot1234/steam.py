@@ -9,6 +9,7 @@ from typing_extensions import TypeVar
 
 from ...trade import Inventory, Item
 from ...utils import cached_slot_property
+from .currency import Metal
 from .enums import *
 from .protobufs import base, econ, struct_messages
 
@@ -327,7 +328,7 @@ class BackpackItem(Item[OwnerT]):
         data = SKU_RE.match(value)
         if data is None:
             raise ValueError(f"Invalid SKU: {value!r}")
-        self._def_index_cs = int(data["def_index"])
+        self.def_index = int(data["def_index"])
 
         return self
 
@@ -340,6 +341,11 @@ class Backpack(Inventory[BackpackItem["ClientUser"], "ClientUser"]):
     """A class to represent the client's backpack."""
 
     __slots__ = ()
+
+    @property
+    def metal(self) -> Metal:
+        """Returns the amount of metal in this inventory"""
+        return Metal.from_items(self)
 
     async def set_positions(self, items_and_positions: Iterable[tuple[BackpackItem[ClientUser], int]]) -> None:
         """Set the positions of items in the inventory.

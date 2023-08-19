@@ -37,6 +37,7 @@ from bs4 import BeautifulSoup
 
 from . import utils
 from ._const import DOCS_BUILDING, STATE, UNIX_EPOCH, URL, TaskGroup, timeout
+from .achievement import UserNewsAchievement
 from .app import App, AppListApp, AuthenticationTicket, FetchedApp, PartialApp
 from .bundle import Bundle, FetchedBundle, PartialBundle
 from .enums import *
@@ -46,13 +47,13 @@ from .guard import get_authentication_code
 from .http import HTTPClient
 from .id import ID, parse_id64
 from .market import Listing, PriceHistory, PriceOverview, Wallet
-from .models import return_true
+from .models import CDNAsset, return_true
 from .package import FetchedPackage, License, Package, PartialPackage
-from .post import Post
 from .protobufs import store
 from .state import ConnectionState
 from .store import AppStoreItem, BundleStoreItem, PackageStoreItem, TransactionReceipt
-from .types.id import AppID, BundleID, Intable, PackageID, PostID, PublishedFileID, TradeOfferID
+from .types.id import AppID, BundleID, Intable, PackageID, PublishedFileID, TradeOfferID
+from .user_news import UserNews
 from .utils import DateTime, TradeURLInfo
 
 if TYPE_CHECKING:
@@ -73,9 +74,10 @@ if TYPE_CHECKING:
     from .group import Group
     from .invite import AppInvite, ClanInvite, GroupInvite, UserInvite
     from .manifest import AppInfo, PackageInfo
+    from .post import Post
     from .published_file import PublishedFile
     from .reaction import ClientEmoticon, ClientSticker, MessageReaction
-    from .trade import Item, MovedItem, TradeOffer
+    from .trade import Asset, Item, MovedItem, TradeOffer
     from .types import market
     from .types.http import IPAdress
     from .user import ClientUser, User
@@ -187,7 +189,7 @@ class Client:
         return self._state.users
 
     @property
-    def trades(self) -> Sequence[TradeOffer]:
+    def trades(self) -> Sequence[TradeOffer[Asset[User], Asset[ClientUser], User]]:
         """A read-only list of all the trades the connected client can see."""
         return self._state.trades
 
@@ -245,7 +247,6 @@ class Client:
         """
         if self.shared_secret:
             return get_authentication_code(self.shared_secret)
-        print("Please enter a Steam guard code")
         code = await utils.ainput(">>> ")
         return code.strip()
 
@@ -466,6 +467,7 @@ class Client:
         async with nullcontext() if self._aentered else self._tg:
             state = self._state
             STATE.set(state)
+            cm_list = None
 
             async def throttle() -> None:
                 now = time.monotonic()
@@ -495,8 +497,10 @@ class Client:
 
                 try:
                     async with timeout(60):
-                        self.ws = await login_func(self, *args, **kwargs)
+                        self.ws = cast(SteamWebSocket, await login_func(self, *args, **kwargs, cm_list=cm_list))  # type: ignore
                 except RAISED_EXCEPTIONS:
+                    if self.ws:
+                        cm_list = self.ws.cm_list
                     await throttle()
                     continue
 
@@ -604,7 +608,7 @@ class Client:
         if identity_secret is None:
             log.info("Trades will not be automatically accepted when sent as no identity_secret was passed.")
 
-        await self._login(SteamWebSocket.from_client, refresh_token=refresh_token)
+        await self._login(SteamWebSocket.from_client, refresh_token=refresh_token or self.refresh_token)
 
     async def anonymous_login(self) -> None:
         """Initialize a connection to a Steam CM and login anonymously."""
@@ -1109,7 +1113,7 @@ class Client:
         """
         return await self._state.fetch_published_files(cast(tuple[PublishedFileID, ...], ids), revision, language)
 
-    async def create_post(self, content: str, app: App | None = None) -> Post:
+    async def create_post(self, content: str, app: App | None = None) -> Post[ClientUser]:
         """Create a post.
 
         Parameters
@@ -1120,24 +1124,76 @@ class Client:
             The app to create the post for.
         """
         await self._state.create_user_post(content, app_id=AppID(0) if app is None else app.id)
-        # TODO if ws ever gives the post id switch to just this
-        # for now steam is broken and thinks I'm logged out even though /my seems to resolve to the right account
-        resp = await self.http.get(URL.COMMUNITY / "my/myactivity")
-        soup = BeautifulSoup(resp, "html.parser")
-        for post in soup.find_all("div", class_="blotter_userstatus"):
-            if (
-                content_element := post.find("div", class_="blotter_userstatus_content responsive_body_text")
-            ) is not None and content_element.text.strip() == content:
-                id, _, _ = post["id"].removeprefix("userstatus_").partition("_")
-                return Post(
-                    self._state,
-                    PostID(int(id)),
-                    content,
-                    self.user,
-                    PartialApp(self._state, id=app.id) if app else None,
-                )
-
+        async for entry in self.user_news(flags=UserNewsType.Post):
+            if entry.app == app and entry.actor == self.user:
+                post = await entry.post()
+                if post.content == content:
+                    return cast("Post[ClientUser]", post)
         raise RuntimeError("Post created has no ID, this should be unreachable")
+
+    async def user_news(
+        self,
+        *,
+        limit: int | None = None,
+        before: datetime.datetime | None = None,
+        after: datetime.datetime | None = None,
+        app: App | None = None,
+        flags: UserNewsType | None = None,
+        language: Language | None = None,
+    ) -> AsyncGenerator[UserNews, None]:
+        """Fetch news for the user.
+
+        Parameters
+        ----------
+        limit
+            The maximum number of news entries to fetch.
+        before
+            The date to fetch news before.
+        after
+            The date to fetch news after.
+        app
+            The app to fetch news entries related to.
+        flags
+            The type of news to fetch.
+        language
+            The language to fetch the news in. If ``None``, the current language is used.
+        """
+        before = before or DateTime.now()
+        after = after or UNIX_EPOCH
+        if flags is None:
+            flags = UserNewsType.Friend if app is None else UserNewsType.App
+
+        while True:
+            msg = await self._state.fetch_user_news(flags, app.id if app is not None else None, before, after, language)
+
+            achievements = {
+                achievements.appid: {
+                    achievement.name: UserNewsAchievement(
+                        achievement.name,
+                        PartialApp(self._state, id=achievements.appid),
+                        achievement.display_name,
+                        achievement.display_description,
+                        CDNAsset(
+                            self._state,
+                            f"{URL.CDN}/steamcommunity/public/images/apps/{achievements.appid}/{achievement.icon}",
+                        ),
+                        achievement.hidden,
+                        round(achievement.unlocked_pct, 1),
+                    )
+                    for achievement in achievements.achievements
+                }
+                for achievements in msg.achievement_display_data
+            }
+
+            for news_item in msg.news:
+                yield (news := UserNews(self._state, news_item, achievements.get(news_item.gameid, {})))
+                before = news.created_at
+                if limit is not None:
+                    limit -= 1
+                    if limit <= 0:
+                        return
+            else:
+                return
 
     async def trade_history(
         self,

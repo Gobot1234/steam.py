@@ -2,13 +2,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ....protobufs.msg import GCMessage
+from ....protobufs.msg import GCMessage, GCProtobufMessage
 from ....utils import StructIO
 from ..enums import EMsg
 
 if TYPE_CHECKING:
-    from typing_extensions import Self
-
     from ....types.id import ID64, AssetID
 
 # some custom messages to make things a lot easier decoding/encoding wise
@@ -21,7 +19,7 @@ class CraftRequest(GCMessage, msg=EMsg.Craft):
     def __bytes__(self) -> bytes:
         with StructIO() as io:
             io.write_struct("<hh", self.recipe, len(self.items))
-            io.write_struct(f"<{len(self.items)}Q", self.items)
+            io.write_struct(f"<{len(self.items)}Q", *self.items)
 
             return io.buffer
 
@@ -77,6 +75,5 @@ class OpenCrateRequest(GCMessage, msg=EMsg.UnlockCrate):
     crate_id: AssetID
 
 
-class CacheSubscribedCheck(GCMessage, msg=EMsg.SOCacheSubscriptionCheck):
-    def parse(self, data: bytes) -> Self:
-        return self  # IDK how to decode this but I don't want to have to special case this
+class CacheSubscribedCheck(GCProtobufMessage, msg=EMsg.SOCacheSubscriptionCheck):
+    pass

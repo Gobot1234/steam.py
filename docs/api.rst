@@ -47,22 +47,25 @@ Event Reference
 This page outlines the different types of events listened for by the :class:`Client`.
 
 There are two ways to register an event, the first way is through the use of :meth:`Client.event`. The second way is
-through subclassing :class:`Client` and overriding the specific events. For example: ::
+through subclassing :class:`Client` and overriding the specific events. For example:
+
+.. code:: python3
 
     import steam
 
 
     class MyClient(steam.Client):
-        async def on_trade_receive(self, trade: steam.TradeOffer) -> None:
-            await trade.user.send("Thank you for your trade")
-            print(f"Received trade: #{trade.id}")
-            print("Trade partner is:", trade.user)
-            print("We would send:", len(trade.sending), "items")
-            print("We would receive:", len(trade.receiving), "items")
+        async def on_trade(self, trade: steam.TradeOffer) -> None:
+            if not trade.is_our_offer():
+                await trade.user.send("Thank you for your trade")
+                print(f"Received trade: #{trade.id}")
+                print("Trade partner is:", trade.user)
+                print("We would send:", len(trade.sending), "items")
+                print("We would receive:", len(trade.receiving), "items")
 
-            if trade.is_gift():
-                print("Accepting the trade as it is a gift")
-                await trade.accept()
+                if trade.is_gift():
+                    print("Accepting the trade as it is a gift")
+                    await trade.accept()
 
 
 If an event handler raises an exception, :meth:`Client.on_error` will be called to handle it, which by default prints a
@@ -84,8 +87,6 @@ traceback and ignoring the exception.
 .. automethod:: Client.on_message
 
 .. automethod:: Client.on_typing
-
-.. automethod:: Client.on_trade_receive
 
 .. automethod:: Client.on_trade
 
@@ -149,7 +150,7 @@ Enumerations
     :members:
     :undoc-members:
 
-.. autoclass:: CurrencyCode()
+.. autoclass:: Currency()
     :members:
     :undoc-members:
 
@@ -274,6 +275,14 @@ Enumerations
     :undoc-members:
 
 .. autoclass:: AuthSessionResponse()
+    :members:
+    :undoc-members:
+
+.. autoclass:: ContentDescriptor()
+    :members:
+    :undoc-members:
+
+.. autoclass:: UserNewsType()
     :members:
     :undoc-members:
 
@@ -889,6 +898,15 @@ Roles
 .. autoclass:: RolePermissions()
     :members:
 
+User News
+~~~~~~~~~~~~~~~
+
+.. attributetable:: UserNews
+
+.. autoclass:: UserNews
+    :members:
+    :undoc-members:
+
 Users
 ~~~~~~~~~~~~~~~
 
@@ -966,6 +984,55 @@ Apps can be manually constructed using their app ID eg:
 
 .. autofunction:: CUSTOM_APP
 
+.. attributetable:: OwnershipTicket
+
+.. autoclass:: OwnershipTicket()
+    :inherited-members:
+    :members:
+
+.. attributetable:: AuthenticationTicket
+
+.. autoclass:: AuthenticationTicket()
+    :inherited-members:
+    :members:
+
+.. attributetable:: EncryptedTicket
+
+.. autoclass:: EncryptedTicket()
+    :inherited-members:
+    :members:
+
+.. attributetable:: AppShopItem
+
+.. autoclass:: AppShopItem
+    :inherited-members:
+    :members:
+
+.. attributetable:: AppShopItemTag
+
+.. autoclass:: AppShopItemTag
+    :inherited-members:
+    :members:
+
+.. attributetable:: AppShopItems
+
+.. autoclass:: AppShopItems
+    :inherited-members:
+    :members:
+
+.. attributetable:: CommunityItem
+
+.. autoclass:: CommunityItem
+    :inherited-members:
+    :members:
+
+.. attributetable:: RewardItem
+
+.. autoclass:: RewardItem
+    :inherited-members:
+    :members:
+
+
 .. attributetable:: steam.app.PartialApp
 
 .. autoclass:: steam.app.PartialApp()
@@ -993,24 +1060,6 @@ Apps can be manually constructed using their app ID eg:
 .. attributetable:: DLC
 
 .. autoclass:: DLC()
-    :inherited-members:
-    :members:
-
-.. attributetable:: OwnershipTicket
-
-.. autoclass:: OwnershipTicket()
-    :inherited-members:
-    :members:
-
-.. attributetable:: AuthenticationTicket
-
-.. autoclass:: AuthenticationTicket()
-    :inherited-members:
-    :members:
-
-.. attributetable:: EncryptedTicket
-
-.. autoclass:: EncryptedTicket()
     :inherited-members:
     :members:
 

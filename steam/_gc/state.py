@@ -76,7 +76,7 @@ class GCState(ConnectionState, Generic[Inv]):
             except (TypeError, KeyError):
                 kwargs["apps"] = [app]
         kwargs["app"] = self._APP
-        self._original_apps: list[App] = [app for app in kwargs.get("apps", ()) if app.id not in self.client._GC_APPS]
+        self._original_apps = [app for app in kwargs.get("apps", ()) if app.id not in self.client._GC_APPS]
         super().__init__(client, **kwargs)
         self._original_client_user_msg: friends.CMsgClientPersonaStateFriend | None = None
 
@@ -93,11 +93,14 @@ class GCState(ConnectionState, Generic[Inv]):
             cls.gc_parsers[msg] = func
 
     @property
-    def backpack(self) -> Inv:
-        return cast(Inv, self.backpacks[APP.get().id])
+    def backpack(self) -> Inv | None:
+        try:
+            return cast(Inv, self.backpacks[APP.get().id])
+        except KeyError:
+            return None
 
     @backpack.setter
-    def backpack(self, value: Inv):
+    def backpack(self, value: Inv) -> None:
         self.backpacks[APP.get().id] = value  # type: ignore
 
     def _get_gc_message(self) -> GCProtobufMessage | GCMessage:

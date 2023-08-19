@@ -256,8 +256,8 @@ class GCMessageBase:
             GC_PROTOBUFS[cls.APP_ID][msg] = cls  # type: ignore
         except KeyError:
             GC_PROTOBUFS[cls.APP_ID] = {msg: cls}  # type: ignore
-        super().__init_subclass__()
         cls.MSG = msg
+        super().__init_subclass__()
 
 
 @dataclass_transform()
@@ -268,9 +268,6 @@ class GCMessage(GCMessageBase, NotProtobufWrapped):
         self.header = GCMessageHeader()
 
     __init__ = __post_init__
-
-    def __bytes__(self) -> bytes:
-        return bytes(self.header) + super().__bytes__()
 
     def parse(self, data: bytes, msg: int, app_id: AppID, /) -> Self:  # type: ignore
         try:

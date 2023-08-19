@@ -168,9 +168,7 @@ class AppListApp(TypedDict):
     price_change_number: int
 
 
-class AssetPricesAsset(
-    dict[{"class": list[dict[str, Any]]}],  # noqa: F722
-):
+class AssetPricesAsset(TypedDict("", {"class": list[dict[str, Any]]})):
     prices: dict[str, int]  # CurrencyCode.name => price in base denomination (£1.54 == 154)
     original_prices: NotRequired[dict[str, int]]
     name: str  # really the def_index?

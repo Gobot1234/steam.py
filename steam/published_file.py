@@ -269,7 +269,7 @@ class PublishedFile(Commentable, Awardable, Generic[UserT]):
         """Whether the file is banned."""
         self.ban_reason = proto.ban_reason if self.banned else None
         """The file's ban_reason."""
-        self.banner = PartialUser(state, proto.banner) if self.banned else None
+        self.banner = state.get_partial_user(proto.banner) if self.banned else None
         """The file's banner."""
         self.ban_text_check_result = proto.ban_text_check_result
         """The file's ban_text_check_result."""

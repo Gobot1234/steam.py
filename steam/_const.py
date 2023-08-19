@@ -22,6 +22,8 @@ from yarl import URL as _URL
 from .types.vdf import BinaryVDFDict, VDFDict
 
 if TYPE_CHECKING:
+    from typing_extensions import Buffer
+
     from .state import ConnectionState
 
 DOCS_BUILDING: bool = getattr(builtins, "__sphinx__", False)
@@ -121,7 +123,7 @@ UNIX_EPOCH: Final = datetime(1970, 1, 1, tzinfo=timezone.utc)
 STEAM_EPOCH: Final = datetime(2003, 1, 1, tzinfo=timezone.utc)
 
 
-def READ_U32(s: bytes, unpacker: Callable[[bytes], tuple[int]] = struct.Struct("<I").unpack_from, /) -> int:
+def READ_U32(s: Buffer, unpacker: Callable[[Buffer], tuple[int]] = struct.Struct("<I").unpack_from, /) -> int:
     (u32,) = unpacker(s)
     return u32
 

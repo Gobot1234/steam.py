@@ -33,7 +33,7 @@ class StructMessage:
             for key, annotation in annotations.items():
                 if isinstance(annotation, type):
                     raise RuntimeError("annotations shouldn't be types")
-                if annotation == "int":
+                if annotation in {"int", "AssetID"}:
                     io.write_u64(getattr(self, key))
                 elif annotation == "bool":
                     io.write_u8(getattr(self, key))
