@@ -258,7 +258,7 @@ def call_once(*, wait: Literal[True] = ...) -> Callable[[F_wait], F_wait]:
 def call_once(func: F_wait | None = None, *, wait: bool = False) -> F_wait | Callable[[F_wait], F_wait]:
     def get_inner(func: F_wait) -> F_wait:
         locks = weakref.WeakKeyDictionary[object, asyncio.Lock]()
-        being_called = weakref.WeakKeyDictionary[object, bool]()
+        being_called = weakref.WeakSet[object]()
 
         if wait:
             futures = dict[object, asyncio.Future[Any]]()
@@ -270,19 +270,22 @@ def call_once(func: F_wait | None = None, *, wait: bool = False) -> F_wait | Cal
                     lock = locks[self] = asyncio.Lock()
 
                 async with lock:
-                    if being_called.setdefault(self, True):
+                    if self in being_called:
                         return await futures[self]
 
+                    being_called.add(self)
                     futures[self] = future = asyncio.get_running_loop().create_future()
 
                 try:
                     res = await func(self, *args, **kwargs)
                 except Exception as exc:
                     future.set_exception(exc)
+                    raise exc
                 else:
                     future.set_result(res)
+                    return res
                 finally:
-                    being_called[self] = False
+                    being_called.remove(self)
                     del futures[self]
 
         else:
@@ -294,15 +297,17 @@ def call_once(func: F_wait | None = None, *, wait: bool = False) -> F_wait | Cal
                     lock = locks[self] = asyncio.Lock()
 
                 async with lock:
-                    if being_called.setdefault(self, True):
+                    if self in being_called:
                         return
+
+                    being_called.add(self)
 
                 try:
                     await func(self, *args, **kwargs)
                 finally:
-                    being_called[self] = False
+                    being_called.remove(self)
 
-        return cast(F_wait, functools.wraps(inner))
+        return cast(F_wait, functools.wraps(func)(inner))
 
     return get_inner if func is None else get_inner(func)
 
