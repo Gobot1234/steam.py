@@ -1279,13 +1279,13 @@ class PartialApp(App[NameT]):
                 [
                     AppBadge(
                         self._state,
-                        idx,
+                        1,
                         f"{def_.community_item_data.item_name.removesuffix(' Point Shop Badge')} - Level {badge.level}",
                         self,
                         CDNAsset(self._state, f"{URL.CDN}/steamcommunity/public/images/items/{self.id}/{badge.image}"),
                         badge.level,
                     )
-                    for idx, badge in enumerate(def_.community_item_data.badge_data, start=1)
+                    for badge in def_.community_item_data.badge_data
                 ],
                 def_.defid,
                 def_.quantity,
