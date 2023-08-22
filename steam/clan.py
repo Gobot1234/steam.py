@@ -208,6 +208,7 @@ class PartialClan(ID[Literal[Type.Clan]], Commentable):
         self,
         name: str,
         content: str,
+        *,
         hidden: bool = False,
     ) -> Announcement[Self]:
         """Create an announcement.
@@ -425,8 +426,11 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
             self._members[user.id] = ClanMember(self._state, self, user, member)
         return await super().chunk()
 
-    def _get_partial_member(self, id: ID32) -> PartialMember:
-        return PartialMember(self._state, clan=self, member=self._partial_members[id])
+    def _get_partial_member(self, id: ID32, /) -> PartialMember:
+        try:
+            return PartialMember(self._state, clan=self, member=self._partial_members[id])
+        except KeyError:
+            return PartialMember(self._state, clan=self, member=self._partial_members[id])
 
     def is_ogg(self) -> bool:
         """Whether this clan is an official game group."""

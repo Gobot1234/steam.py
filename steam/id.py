@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import abc
 import re
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from contextlib import nullcontext
 from types import GenericAlias
-from typing import TYPE_CHECKING, Any, Final, Generic, Literal, cast, overload
+from typing import TYPE_CHECKING, Final, Generic, Literal, cast
 
 import aiohttp
-from typing_extensions import Self, TypeVar
+from typing_extensions import TypeVar
 
 from ._const import JSON_LOADS, URL
 from .enums import Instance, Type, TypeChar, Universe
@@ -29,6 +29,7 @@ __all__ = ("ID",)
 
 def parse_id64(
     id: Intable,
+    /,
     *,
     type: Type | None = None,
     universe: Universe | None = None,
@@ -153,7 +154,7 @@ USER_ID64_FROM_URL_REGEX = re.compile(r"g_rgProfileData\s*=\s*(?P<json>{.*?});\s
 CLAN_ID64_FROM_URL_REGEX = re.compile(r"OpenGroupChat\(\s*'(?P<steamid>\d+)'\s*\)")
 
 
-async def id64_from_url(url: StrOrURL, session: aiohttp.ClientSession | None = None) -> ID64 | None:
+async def id64_from_url(url: StrOrURL, /, session: aiohttp.ClientSession | None = None) -> ID64 | None:
     """Takes a Steam Community url and returns 64-bit Steam ID or ``None``.
 
     Notes
@@ -280,6 +281,7 @@ class ID(Generic[TypeT], metaclass=abc.ABCMeta):
     def __init__(
         self,
         id: Intable,
+        /,
         *,
         type: TypeT | None = None,
         universe: Universe | None = None,
@@ -553,7 +555,7 @@ class ID(Generic[TypeT], metaclass=abc.ABCMeta):
 
     @staticmethod
     async def from_url(
-        url: StrOrURL, session: ClientSession | None = None
+        url: StrOrURL, /, session: ClientSession | None = None
     ) -> ID[Literal[Type.Individual, Type.Clan]] | None:
         """A helper function creates a Steam ID instance from a Steam community url.
 
@@ -563,9 +565,7 @@ class ID(Generic[TypeT], metaclass=abc.ABCMeta):
         """
         id64 = await id64_from_url(url, session)
         if id64:
-            id = ID(id64)
-            assert id.type in (Type.Individual, Type.Clan)
-            return id
+            return ID[Literal[Type.Individual, Type.Clan]](id64)
 
 
 ID_ZERO: Final = ID[Literal[Type.Individual]](0, type=Type.Individual)

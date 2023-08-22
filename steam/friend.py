@@ -48,7 +48,7 @@ class Friend(WrapsUser):
         """
         return self.id64 in await self._state.fetch_friends_who_own(app.id)
 
-    async def invite_to_group(self, group: ID[Literal[Type.Chat]]) -> None:
+    async def invite_to_group(self, group: ID[Literal[Type.Chat]], /) -> None:
         """Invites the user to a :class:`Group`.
 
         Parameters
@@ -58,7 +58,7 @@ class Friend(WrapsUser):
         """
         await self._state.invite_user_to_chat_group(self.id64, group.id)
 
-    async def invite_to_clan(self, clan: ID[Literal[Type.Clan]]) -> None:
+    async def invite_to_clan(self, clan: ID[Literal[Type.Clan]], /) -> None:
         """Invites the user to a :class:`Clan`.
 
         Parameters

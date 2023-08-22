@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from ._const import impl_eq_via_id
-from .abc import Awardable, Commentable, PartialUser, _CommentableKwargs
+from .abc import Awardable, Commentable, _CommentableKwargs
 from .app import PartialApp
 from .chat import WrapsUser
 from .enums import Language, ReviewType
@@ -224,6 +224,7 @@ class Review(Commentable, Awardable):
     async def edit(
         self,
         content: str,
+        /,
         *,
         public: bool = True,
         commentable: bool | None = None,

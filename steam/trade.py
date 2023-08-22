@@ -136,6 +136,7 @@ class Asset(Generic[OwnerT]):
     async def gift_to(
         self: Asset[ClientUser],
         recipient: Friend,
+        /,
         *,
         name: str | None = None,
         message: str,
@@ -280,7 +281,7 @@ class Inventory(Generic[ItemT, OwnerT], Sequence[ItemT]):
     def __contains__(self, item: object) -> bool:
         return item in self.items
 
-    def _update(self, proto: econ.GetInventoryItemsWithDescriptionsResponse) -> None:
+    def _update(self, proto: econ.GetInventoryItemsWithDescriptionsResponse, /) -> None:
         items: list[ItemT] = []
         ItemClass: type[ItemT]
         try:  # ideally one day this will just be ItemT.__value__ or something
@@ -664,6 +665,7 @@ class TradeOffer(Generic[ReceivingAssetT, SendingAssetT, UserT]):
     async def counter(
         self: TradeOffer[Asset[UserT], Asset[ClientUser], UserT],
         trade: TradeOffer[Asset[UserT], Asset[ClientUser], Any],
+        /,
     ) -> None:
         """Counter a trade offer from an :class:`User`.
 

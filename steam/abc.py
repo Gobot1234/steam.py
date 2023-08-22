@@ -110,7 +110,7 @@ class Commentable(Protocol):
         ):
             assert cls.__name__ in _CommentThreadType.__members__, f"{cls.__name__} is not a valid commentable type"
 
-    async def fetch_comment(self, id: int) -> Comment[Self]:
+    async def fetch_comment(self, id: int, /) -> Comment[Self]:
         """Fetch a comment by its ID.
 
         Parameters
@@ -131,7 +131,7 @@ class Commentable(Protocol):
             reactions=[AwardReaction(self._state, reaction) for reaction in comment.reactions],
         )
 
-    async def comment(self, content: str, *, subscribe: bool = True) -> Comment[Self, ClientUser]:
+    async def comment(self, content: str, /, *, subscribe: bool = True) -> Comment[Self, ClientUser]:
         """Post a comment to a comments section.
 
         Parameters
@@ -269,7 +269,7 @@ class Awardable(Protocol):
         super().__init_subclass__()
         assert cls.__name__ in _AwardableType.__members__, f"{cls.__name__} is not a valid awardable type"
 
-    async def award(self, award: Award) -> None:
+    async def award(self, award: Award, /) -> None:
         """Add an :class:`Award` to this piece of user generated content.
 
         Parameters
@@ -402,7 +402,7 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
         ]
 
     async def inventory(
-        self, app: App, *, context_id: int | None = None, language: Language | None = None
+        self, app: App, /, *, context_id: int | None = None, language: Language | None = None
     ) -> Inventory[Item[Self], Self]:
         """Fetch a user's :class:`~steam.Inventory` for trading.
 
@@ -453,7 +453,7 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
         apps = await self._state.http.get_user_recently_played_apps(self.id64)
         return [UserRecentlyPlayedApp(self._state, app) for app in apps]
 
-    async def app_stats(self, app: App, *, language: Language | None = None) -> UserAppStats:
+    async def app_stats(self, app: App, /, *, language: Language | None = None) -> UserAppStats:
         """Fetch the stats for the user in the app.
 
         Parameters
@@ -467,7 +467,7 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
         return UserAppStats(self._state, app, msg, data, language or self._state.language)
 
     # TODO find a better way to do this
-    async def achievements(self, app: App, *, language: Language | None = None) -> list[UserAppAchievement]:
+    async def achievements(self, app: App, /, *, language: Language | None = None) -> list[UserAppAchievement]:
         """Fetch the achievements for the user in the app.
 
         Parameters
@@ -693,6 +693,7 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
     async def fetch_published_file(
         self,
         id: int,
+        /,
         *,
         revision: PublishedFileRevision = PublishedFileRevision.Default,
         language: Language | None = None,
@@ -781,7 +782,7 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
                 yield file
                 yielded += 1
 
-    async def fetch_post(self, id: int) -> Post[Self]:
+    async def fetch_post(self, id: int, /) -> Post[Self]:
         """Fetch a post by its id.
 
         Parameters
@@ -904,7 +905,7 @@ class Messageable(Protocol[MessageT]):
     def _send_media(self, media: Media) -> Coroutine[Any, Any, None]:
         raise NotImplementedError
 
-    async def send(self, content: Any = None, *, media: Media | None = None) -> MessageT | None:
+    async def send(self, content: Any = None, /, *, media: Media | None = None) -> MessageT | None:
         """Send a message to a certain destination.
 
         Parameters
@@ -1097,7 +1098,7 @@ class Message(Generic[UserT], metaclass=abc.ABCMeta):
     async def _react(self, emoticon: Emoticon | Sticker, add: bool) -> None:
         raise NotImplementedError
 
-    async def add_emoticon(self, emoticon: Emoticon) -> None:
+    async def add_emoticon(self, emoticon: Emoticon, /) -> None:
         """Adds an emoticon to this message.
 
         Parameters
@@ -1107,7 +1108,7 @@ class Message(Generic[UserT], metaclass=abc.ABCMeta):
         """
         await self._react(emoticon, True)
 
-    async def remove_emoticon(self, emoticon: Emoticon) -> None:
+    async def remove_emoticon(self, emoticon: Emoticon, /) -> None:
         """Removes an emoticon from this message.
 
         Parameters
@@ -1117,7 +1118,7 @@ class Message(Generic[UserT], metaclass=abc.ABCMeta):
         """
         await self._react(emoticon, False)
 
-    async def add_sticker(self, sticker: Sticker) -> None:
+    async def add_sticker(self, sticker: Sticker, /) -> None:
         """Adds a sticker to this message.
 
         Parameters
@@ -1127,7 +1128,7 @@ class Message(Generic[UserT], metaclass=abc.ABCMeta):
         """
         await self._react(sticker, True)
 
-    async def remove_sticker(self, sticker: Sticker) -> None:
+    async def remove_sticker(self, sticker: Sticker, /) -> None:
         """Adds a sticker to this message.
 
         Parameters

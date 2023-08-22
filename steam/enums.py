@@ -79,7 +79,7 @@ class classproperty(Generic[TT_co, T_co]):
         return self.__func__(type)
 
 
-def _is_descriptor(obj: object) -> bool:
+def _is_descriptor(obj: object, /) -> bool:
     """Returns True if obj is a descriptor, False otherwise."""
     return hasattr(obj, "__get__") or hasattr(obj, "__set__") or hasattr(obj, "__delete__")
 
@@ -222,7 +222,7 @@ class Enum(_Enum if TYPE_CHECKING else object, metaclass=EnumType):
         return f"{self.__class__.__name__}.{self.name}"
 
     @classmethod
-    def try_value(cls, value: Any) -> Self:
+    def try_value(cls, value: Any, /) -> Self:
         try:
             return cls._value_map_[value]
         except (KeyError, TypeError):
@@ -313,7 +313,7 @@ class Intents(Flags):
     """
 
     @classmethod
-    def all(cls) -> Self:
+    def All(cls) -> Self:
         """Returns all the intents.
 
         Warning
@@ -327,9 +327,9 @@ class Intents(Flags):
         return reduce(cls.__or__, cls._value_map_.values())
 
     @classmethod
-    def safe(cls) -> Self:
+    def Safe(cls) -> Self:
         """Returns all the intents without the unsafe ones."""
-        return cls.all() & ~cls.Market
+        return cls.All() & ~cls.Market
 
 
 class Result(IntEnum):
@@ -762,14 +762,14 @@ class Language(IntEnum):
         return self.WEB_API_MAP[self]
 
     @classmethod
-    def from_str(cls, string: str) -> Self:
+    def from_str(cls, string: str, /) -> Self:
         try:
             return _REVERSE_API_LANGUAGE_MAP[string.lower()]
         except KeyError:
             return cls.__new__(cls, name=string.title(), value=-1)
 
     @classmethod
-    def from_web_api_str(cls, string: str) -> Self:
+    def from_web_api_str(cls, string: str, /) -> Self:
         try:
             return _REVERSE_WEB_API_MAP[string]
         except KeyError:
@@ -783,7 +783,7 @@ _REVERSE_WEB_API_MAP: Final = cast(
     Mapping[str, Language], {value: key for key, value in Language.WEB_API_MAP.items()}
 )
 
-class CurrencyCode(IntEnum):
+class CurrencyCode(IntEnum):  # XXX needs renaming
     """All currencies currently supported by Steam."""
     USD = 1
     """The United States Dollar."""
@@ -881,7 +881,7 @@ class CurrencyCode(IntEnum):
     """The Romanian Leu."""
 
     @classmethod
-    def try_name(cls, name: str) -> Self:
+    def try_name(cls, name: str, /) -> Self:
         try:
             return cls._member_map_[name]
         except (KeyError, TypeError):
@@ -1189,20 +1189,6 @@ class TradeOfferState(IntEnum):
     """The trade offer was cancelled by second factor."""
     StateInEscrow             = 11
     """The trade offer is in escrow."""
-
-    @property
-    def event_name(self) -> str | None:
-        try:
-            return {
-                TradeOfferState.Accepted: "accept",
-                TradeOfferState.Countered: "counter",
-                TradeOfferState.Expired: "expire",
-                TradeOfferState.Canceled: "cancel",
-                TradeOfferState.Declined: "decline",
-                TradeOfferState.CanceledBySecondaryFactor: "cancel",
-            }[self]
-        except KeyError:
-            return None
 
 
 class ChatMemberRank(IntEnum):
@@ -1576,7 +1562,7 @@ class AppType(Flags):
     """A placeholder since depots and apps share the same namespace."""
 
     @classmethod
-    def from_str(cls, name: str) -> Self:
+    def from_str(cls, name: str, /) -> Self:
         types = iter(name.split(","))
         type = next(types).strip().title()
         self = cls[TYPE_TRANSFORM_MAP.get(type, type)]

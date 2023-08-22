@@ -33,8 +33,6 @@ from typing import (
     overload,
 )
 
-from bs4 import BeautifulSoup
-
 from . import utils
 from ._const import DOCS_BUILDING, STATE, UNIX_EPOCH, URL, TaskGroup, timeout
 from .achievement import UserNewsAchievement
@@ -45,13 +43,13 @@ from .game_server import GameServer, Query
 from .gateway import *
 from .guard import get_authentication_code
 from .http import HTTPClient
-from .id import ID, parse_id64
+from .id import _ID64_TO_ID32
 from .models import CDNAsset, PriceOverview, Wallet, return_true
 from .package import FetchedPackage, License, Package, PartialPackage
 from .protobufs import store
 from .state import ConnectionState
 from .store import AppStoreItem, BundleStoreItem, PackageStoreItem, TransactionReceipt
-from .types.id import AppID, BundleID, Intable, PackageID, PublishedFileID, TradeOfferID
+from .types.id import ID64, AppID, BundleID, PackageID, PublishedFileID, TradeOfferID
 from .user_news import UserNews
 from .utils import DateTime, TradeURLInfo
 
@@ -612,32 +610,27 @@ class Client:
         await self._login(SteamWebSocket.anonymous_login_from_client)
 
     # state stuff
-    # TODO decide on where this should take id32s
-    def get_user(self, id: Intable) -> User | None:
+    def get_user(self, id: int, /) -> User | None:
         """Returns a user from cache with a matching ID or ``None`` if the user was not found.
 
         Parameters
         ----------
         id
-            The ID of the user, can be an :attr:`.ID.id64`, :attr:`.ID.id`, :attr:`.ID.id2` or an
-            :attr:`.ID.id3`.
+            The ID64 of the user.
         """
-        steam_id = ID(id=id, type=Type.Individual)
-        return self._state.get_user(steam_id.id)
+        return self._state.get_user(_ID64_TO_ID32(id))
 
-    async def fetch_user(self, id: Intable) -> User:
+    async def fetch_user(self, id: int, /) -> User:
         """Fetches a user with a matching ID.
 
         Parameters
         ----------
         id
-            The ID of the user, can be an :attr:`.ID.id64`, :attr:`.ID.id`, :attr:`.ID.id2` or an
-            :attr:`.ID.id3`.
+            The ID64 of the user.
         """
-        id64 = parse_id64(id=id, type=Type.Individual)
-        return await self._state.fetch_user(id64)
+        return await self._state.fetch_user(ID64(id))
 
-    async def fetch_users(self, *ids: Intable) -> Sequence[User]:
+    async def fetch_users(self, *ids: int) -> Sequence[User]:
         """Fetches a list of :class:`~steam.User`.
 
         Note
@@ -649,21 +642,9 @@ class Client:
         ids
             The user's IDs.
         """
-        id64s = [parse_id64(id, type=Type.Individual) for id in ids]
-        return await self._state.fetch_users(id64s)
+        return await self._state.fetch_users(cast("tuple[ID64, ...]", ids))
 
-    async def fetch_user_named(self, name: str) -> User | None:
-        """Fetches a user from https://steamcommunity.com from their community URL name.
-
-        Parameters
-        ----------
-        name
-            The name of the user after https://steamcommunity.com/id
-        """
-        id64 = await utils.id64_from_url(URL.COMMUNITY / f"id/{name}", self.http._session)
-        return await self._state.fetch_user(id64) if id64 is not None else None
-
-    def get_trade(self, id: int) -> TradeOffer | None:
+    def get_trade(self, id: int, /) -> TradeOffer | None:
         """Get a trade from cache with a matching ID or ``None`` if the trade was not found.
 
         Parameters
@@ -674,7 +655,7 @@ class Client:
         return self._state.get_trade(TradeOfferID(id))
 
     async def fetch_trade(
-        self, id: int, *, language: Language | None = None
+        self, id: int, /, *, language: Language | None = None
     ) -> TradeOffer[Item[User], Item[ClientUser], User] | None:
         """Fetches a trade with a matching ID or ``None`` if the trade was not found.
 
@@ -687,31 +668,27 @@ class Client:
         """
         return await self._state.fetch_trade(TradeOfferID(id), language)
 
-    def get_group(self, id: Intable) -> Group | None:
+    def get_group(self, id: int, /) -> Group | None:
         """Get a group from cache with a matching ID or ``None`` if the group was not found.
 
         Parameters
         ----------
         id
-            The ID of the group, can be an :attr:`.ID.id64`, :attr:`.ID.id`, :attr:`.ID.id2` or an
-            :attr:`.ID.id3`.
+            The ID64 of the group.
         """
-        steam_id = ID(id=id, type=Type.Chat)
-        return self._state.get_group(steam_id.id)
+        return self._state.get_group(_ID64_TO_ID32(id))
 
-    def get_clan(self, id: Intable) -> Clan | None:
+    def get_clan(self, id: int, /) -> Clan | None:
         """Get a clan from cache with a matching ID or ``None`` if the group was not found.
 
         Parameters
         ----------
         id
-            The ID of the clan, can be an :attr:`.ID.id64`, :attr:`.ID.id`, :attr:`.ID.id2` or an
-            :attr:`.ID.id3`.
+            The ID64 of the clan.
         """
-        steam_id = ID(id=id, type=Type.Clan)
-        return self._state.get_clan(steam_id.id)
+        return self._state.get_clan(_ID64_TO_ID32(id))
 
-    async def fetch_clan(self, id: Intable) -> Clan | None:
+    async def fetch_clan(self, id: int, /) -> Clan:
         """Fetches a clan from the websocket with a matching ID or ``None`` if the clan was not found.
 
         Parameters
@@ -720,21 +697,9 @@ class Client:
             The ID of the clan, can be an :attr:`.ID.id64`, :attr:`.ID.id`, :attr:`.ID.id2` or an
             :attr:`.ID.id3`.
         """
-        id64 = parse_id64(id=id, type=Type.Clan)
-        return await self._state.fetch_clan(id64)
+        return await self._state.fetch_clan(ID64(id))
 
-    async def fetch_clan_named(self, name: str) -> Clan | None:
-        """Fetches a clan from https://steamcommunity.com with a matching name or ``None`` if the clan was not found.
-
-        Parameters
-        ----------
-        name
-            The name of the Steam clan.
-        """
-        steam_id = await ID.from_url(URL.COMMUNITY / "clans" / name, self.http._session)
-        return await self._state.fetch_clan(steam_id.id64) if steam_id is not None else None
-
-    def get_app(self, id: int) -> PartialApp[None]:
+    def get_app(self, id: int, /) -> PartialApp[None]:
         """Creates a :class:`PartialApp` instance from its ID.
 
         Parameters
@@ -744,7 +709,7 @@ class Client:
         """
         return PartialApp(self._state, id=id)
 
-    async def fetch_app(self, id: int, *, language: Language | None = None) -> FetchedApp:
+    async def fetch_app(self, id: int, /, *, language: Language | None = None) -> FetchedApp:
         """Fetch an app from its ID.
 
         Parameters
@@ -761,7 +726,7 @@ class Client:
         """
         return await self._state.fetch_app(AppID(id), language)
 
-    def get_package(self, id: int) -> PartialPackage:
+    def get_package(self, id: int, /) -> PartialPackage:
         """Creates a :class:`PartialPackage` from its ID.
 
         Parameters
@@ -771,7 +736,7 @@ class Client:
         """
         return PartialPackage(self._state, id=id)
 
-    async def fetch_package(self, id: int, *, language: Language | None = None) -> FetchedPackage:
+    async def fetch_package(self, id: int, /, *, language: Language | None = None) -> FetchedPackage:
         """Fetch a package from its ID.
 
         Parameters
@@ -788,7 +753,7 @@ class Client:
         """
         return await self._state.fetch_package(PackageID(id), language)
 
-    async def redeem_package(self, id: int) -> License:
+    async def redeem_package(self, id: int, /) -> License:
         """Redeem a promotional free licenses package from its ID.
 
         Parameters
@@ -803,7 +768,7 @@ class Client:
             await self.http.redeem_package(id)
             return await future
 
-    def get_bundle(self, id: int) -> PartialBundle:
+    def get_bundle(self, id: int, /) -> PartialBundle:
         """Creates a :class:`PartialBundle` instance from its ID.
 
         Parameters
@@ -813,7 +778,7 @@ class Client:
         """
         return PartialBundle(self._state, id=id)
 
-    async def fetch_bundle(self, id: int, *, language: Language | None = None) -> FetchedBundle:
+    async def fetch_bundle(self, id: int, /, *, language: Language | None = None) -> FetchedBundle:
         """Fetch a bundle from its ID.
 
         Parameters
@@ -826,7 +791,7 @@ class Client:
         return await self._state.fetch_bundle(BundleID(id), language)
 
     @overload
-    async def fetch_server(self, *, id: Intable) -> GameServer | None:
+    async def fetch_server(self, *, id: int) -> GameServer | None:
         ...
 
     @overload
@@ -841,7 +806,7 @@ class Client:
     async def fetch_server(
         self,
         *,
-        id: Intable | None = None,
+        id: int | None = None,
         ip: IPAdress | str | None = None,
         port: int | str | None = None,
     ) -> GameServer | None:
@@ -854,8 +819,7 @@ class Client:
         port
             The port of the server.
         id
-            The ID of the game server, can be an :attr:`.ID.id64`, :attr:`.ID.id2` or an :attr:`.ID.id3`.
-            If this is passed, it makes a call to the master server to fetch its ip and port.
+            The ID64 of the game server. If passed, it makes a call to the master server to fetch its ip and port.
 
         Note
         ----
@@ -866,7 +830,7 @@ class Client:
             raise TypeError("Too many arguments passed to fetch_server")
         if id:
             # we need to fetch the ip and port
-            servers = await self._state.fetch_server_ip_from_steam_id(parse_id64(id, type=Type.GameServer))
+            servers = await self._state.fetch_server_ip_from_steam_id(ID64(id))
             if not servers:
                 raise ValueError(f"The master server didn't find a matching server for {id}")
             ip_, _, port = servers[0].addr.rpartition(":")
@@ -877,7 +841,7 @@ class Client:
         servers = await self.fetch_servers(Query.ip / f"{ip}{f':{port}' if port is not None else ''}", limit=1)
         return servers[0] if servers else None
 
-    async def fetch_servers(self, query: Query[Any], *, limit: int = 100) -> list[GameServer]:
+    async def fetch_servers(self, query: Query[Any], /, *, limit: int = 100) -> list[GameServer]:
         """Query game servers.
 
         Parameters
@@ -1057,7 +1021,7 @@ class Client:
                     ],
                 )
 
-    async def register_cd_key(self, key: str) -> TransactionReceipt:
+    async def register_cd_key(self, key: str, /) -> TransactionReceipt:
         """Register a CD key.
 
         Parameters
@@ -1073,6 +1037,7 @@ class Client:
     async def fetch_published_file(
         self,
         id: int,
+        /,
         *,
         revision: PublishedFileRevision = PublishedFileRevision.Default,
         language: Language | None = None,
@@ -1110,7 +1075,7 @@ class Client:
         """
         return await self._state.fetch_published_files(cast(tuple[PublishedFileID, ...], ids), revision, language)
 
-    async def create_post(self, content: str, app: App | None = None) -> Post[ClientUser]:
+    async def create_post(self, content: str, /, app: App | None = None) -> Post[ClientUser]:
         """Create a post.
 
         Parameters

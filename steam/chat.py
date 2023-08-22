@@ -24,7 +24,7 @@ from .models import Avatar
 from .protobufs import chat
 from .reaction import Emoticon, MessageReaction, PartialMessageReaction, Sticker
 from .role import Role
-from .types.id import ID32, ID64, ChatGroupID, ChatID, Intable, RoleID
+from .types.id import ID32, ChatGroupID, ChatID, Intable, RoleID
 from .types.user import IndividualID
 from .user import User, WrapsUser
 from .utils import DateTime, cached_slot_property
@@ -70,7 +70,7 @@ class _PartialMemberProto(
     clan: Clan | None
     group: Group | None
 
-    def _update(self, member: chat.Member) -> None:
+    def _update(self, member: chat.Member, /) -> None:
         self.rank = ChatMemberRank.try_value(member.rank)
         self._role_ids = cast("tuple[RoleID, ...]", tuple(member.role_ids))
         self.kick_expires_at = DateTime.from_timestamp(member.time_kick_expire)
@@ -87,12 +87,12 @@ class _PartialMemberProto(
         chat_group = self._chat_group
         return [chat_group._roles[role_id] for role_id in self._role_ids]
 
-    async def add_role(self, role: Role) -> None:
+    async def add_role(self, role: Role, /) -> None:
         """Add a role to the member."""
         chat_group = self._chat_group
         await chat_group.add_role(self, role)
 
-    async def remove_role(self, role: Role) -> None:
+    async def remove_role(self, role: Role, /) -> None:
         chat_group = self._chat_group
         await chat_group.remove_role(self, role)
 
@@ -239,7 +239,7 @@ class ChatMessage(Message[AuthorT], Generic[AuthorT, MemberT]):
             *self.channel._location, (int(self.created_at.timestamp()), self.ordinal)
         )
 
-    async def fetch_reaction(self, emoticon: Emoticon | Sticker) -> list[MessageReaction]:
+    async def fetch_reaction(self, emoticon: Emoticon | Sticker, /) -> list[MessageReaction]:
         """Fetches the reactions to this message with a given emoticon."""
         reactors = await self._state.fetch_message_reactors(
             *self.channel._location,
@@ -340,7 +340,7 @@ class Chat(Channel[ChatMessageT]):
         """The last message sent in the channel."""
         self._update(proto)
 
-    def _update(self, proto: GroupChannelProtos) -> None:
+    def _update(self, proto: GroupChannelProtos, /) -> None:
         if isinstance(proto, (chat.State, chat.IncomingChatMessageNotification)):
             first, _, second = proto.chat_name.partition(" | ")
             self.name = second or first
@@ -468,7 +468,7 @@ class Chat(Channel[ChatMessageT]):
         """Delete the chat."""
         await self._state.delete_chat(*self._location)
 
-    async def bulk_delete(self, messages: Iterable[ChatMessage]) -> None:
+    async def bulk_delete(self, messages: Iterable[ChatMessage], /) -> None:
         """Bulk delete messages.
 
         Parameters
@@ -647,7 +647,7 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
         if default_channel_id is not None:
             self._default_channel_id = ChatID(default_channel_id)
 
-    def _update_header_state(self, proto: chat.GroupHeaderState) -> None:
+    def _update_header_state(self, proto: chat.GroupHeaderState, /) -> None:
         self.name = proto.chat_name
         self._owner_id = ID32(proto.accountid_owner)
         self.app = PartialApp(self._state, id=proto.appid)
@@ -672,7 +672,7 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
         """A list of the chat group's members."""
         return list(self._members.values())
 
-    def get_member(self, id64: ID64) -> MemberT | None:
+    def get_member(self, id64: int, /) -> MemberT | None:
         """Get a member of the chat group by id.
 
         Parameters
@@ -683,10 +683,10 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
         return self._members.get(_ID64_TO_ID32(id64))
 
     @abc.abstractmethod
-    def _get_partial_member(self, id: ID32) -> PartialMember:
+    def _get_partial_member(self, id: ID32, /) -> PartialMember:
         raise NotImplementedError
 
-    def _maybe_member(self, id: ID32) -> MemberT | PartialMember:
+    def _maybe_member(self, id: ID32, /) -> MemberT | PartialMember:
         if (member := self._members.get(id)) is not None:
             return member
 
@@ -697,7 +697,7 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
 
         return self._get_partial_member(id)
 
-    def _maybe_members(self, ids: Iterable[ID32]) -> list[MemberT | PartialMember]:
+    def _maybe_members(self, ids: Iterable[ID32], /) -> list[MemberT | PartialMember]:
         members: list[MemberT | PartialMember] = []
         member_cls, _, _ = self._type_args
         for id in ids:
@@ -741,7 +741,7 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
         """A list of the chat group's channels."""
         return list(self._channels.values())
 
-    def get_channel(self, id: int) -> ChatT | None:
+    def get_channel(self, id: int, /) -> ChatT | None:
         """Get a channel from cache.
 
         Parameters
@@ -761,7 +761,7 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
         """A list of the group's roles."""
         return list(self._roles.values())
 
-    def get_role(self, id: int) -> Role | None:
+    def get_role(self, id: int, /) -> Role | None:
         """Get a role from cache.
 
         Parameters
@@ -813,7 +813,7 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
             ),
         )
 
-    async def invite(self, user: User) -> None:
+    async def invite(self, user: User, /) -> None:
         """Invites a :class:`~steam.User` to the chat group.
 
         Parameters

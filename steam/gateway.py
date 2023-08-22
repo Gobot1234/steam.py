@@ -691,7 +691,7 @@ class SteamWebSocket:
         except WebSocketClosure:
             await self._state.handle_close()
 
-    def parser_callback(self, task: asyncio.Task[Any]) -> None:
+    def parser_callback(self, task: asyncio.Task[Any], /) -> None:
         try:
             exc = task.exception()
         except asyncio.CancelledError:
@@ -760,19 +760,19 @@ class SteamWebSocket:
         for idx in reversed(removed):
             del self.listeners[idx]
 
-    async def send(self, data: bytes) -> None:
+    async def send(self, data: bytes, /) -> None:
         try:
             await self.socket.send_bytes(data)
         except ConnectionResetError:
             await self._state.handle_close()
 
-    async def send_proto(self, message: ProtoMsgs) -> None:
+    async def send_proto(self, message: ProtoMsgs, /) -> None:
         message.header.steam_id = self.id64
         message.header.session_id = self.session_id
 
         await self.send(bytes(message))
 
-    async def send_gc_message(self, msg: GCMsgs) -> int:  # for ext's to send GC messages
+    async def send_gc_message(self, msg: GCMsgs, /) -> int:  # for ext's to send GC messages
         app_id = msg.APP_ID
         message = client_server_2.CMsgGcClientToGC(
             appid=app_id,
@@ -802,7 +802,7 @@ class SteamWebSocket:
         self._gc_current_job_id = (self._gc_current_job_id + 1) % 10000 or 1
         return self._gc_current_job_id
 
-    async def send_um(self, um: UnifiedMessage) -> int:
+    async def send_um(self, um: UnifiedMessage, /) -> int:
         um.header.job_id_source = job_id = self.next_job_id
         await self.send_proto(um)
         return job_id
@@ -810,6 +810,7 @@ class SteamWebSocket:
     async def send_um_and_wait(
         self,
         um: UnifiedMessage,
+        /,
         check: Callable[[UnifiedMsgT], bool] = ...,  # type: ignore  # we rely on this not being solvable.
         # I won't tell Eric if you won't. (This isn't part of PEP 696)
     ) -> UnifiedMsgT:
@@ -819,7 +820,7 @@ class SteamWebSocket:
         await self.send_proto(um)
         return await future
 
-    async def send_proto_and_wait(self, msg: ProtoMsgs, check: Callable[[ProtoMsgsT], bool] = ...) -> ProtoMsgsT:  # type: ignore
+    async def send_proto_and_wait(self, msg: ProtoMsgs, /, check: Callable[[ProtoMsgsT], bool] = ...) -> ProtoMsgsT:  # type: ignore
         msg.header.job_id_source = job_id = self.next_job_id
         future = self.wait_for(
             emsg=None, check=check if check is not ... else (lambda msg: msg.header.job_id_target == job_id)
@@ -827,7 +828,7 @@ class SteamWebSocket:
         await self.send_proto(msg)
         return await future
 
-    async def send_gc_message_and_wait(self, msg: GCMsgs, check: Callable[[GCMsgProtoT], bool] = ...) -> GCMsgProtoT:  # type: ignore
+    async def send_gc_message_and_wait(self, msg: GCMsgs, /, check: Callable[[GCMsgProtoT], bool] = ...) -> GCMsgProtoT:  # type: ignore
         msg.header.job_id_source = job_id = self.next_gc_job_id
         future = self.gc_wait_for(
             emsg=None,

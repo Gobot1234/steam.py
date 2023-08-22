@@ -444,7 +444,7 @@ class PublishedFile(Commentable, Awardable, Generic[UserT]):
         """Whether the client user is subscribed to this published file."""
         return await self._state.is_subscribed_to_published_file(self.id)
 
-    async def add_child(self, child: PublishedFile) -> None:
+    async def add_child(self, child: PublishedFile, /) -> None:
         """Adds a child to this published file.
 
         Parameters
@@ -454,7 +454,7 @@ class PublishedFile(Commentable, Awardable, Generic[UserT]):
         """
         await self._state.add_published_file_child(self.id, child.id)
 
-    async def remove_child(self, child: PublishedFile) -> None:
+    async def remove_child(self, child: PublishedFile, /) -> None:
         """Removes a child from this published file.
 
         Parameters

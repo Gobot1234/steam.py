@@ -50,7 +50,7 @@ class Group(ChatGroup[GroupMember, GroupChannel, Literal[Type.Chat]]):
             self._members[member.id] = member
         return await super().chunk()
 
-    def _get_partial_member(self, id: ID32) -> PartialMember:
+    def _get_partial_member(self, id: ID32, /) -> PartialMember:
         return PartialMember(self._state, group=self, member=self._partial_members[id])
 
     # TODO is this possible

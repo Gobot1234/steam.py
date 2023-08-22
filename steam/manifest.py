@@ -69,7 +69,7 @@ __all__ = (
 log = logging.getLogger(__name__)
 
 
-def unzip(data: bytes) -> bytes:
+def unzip(data: bytes, /) -> bytes:
     if data[:2] == b"VZ":
         if data[-2:] != b"zv":
             raise RuntimeError(f"VZ: Invalid footer: {data[-2:]!r}")
@@ -181,7 +181,7 @@ class ManifestPathIO(AsyncStreamReaderMixin):
         return content
 
 
-def _manifest_parts(filename: str) -> list[str]:
+def _manifest_parts(filename: str, /) -> list[str]:
     return filename.rstrip("\x00 \n\t").split("\\")
 
 
@@ -451,7 +451,7 @@ class ManifestPath(PurePathBase, _IOMixin):
 
             paths += [path._make_child_relpath(d) for d in reversed(dirnames)]  # type: ignore
 
-    def glob(self, pattern: str) -> Generator[Self, None, None]:
+    def glob(self, pattern: str, /) -> Generator[Self, None, None]:
         """Perform a glob operation on this path. Similar to :meth:`pathlib.Path.glob`."""
         if not pattern:
             raise ValueError(f"Unacceptable pattern: {pattern!r}")
@@ -460,7 +460,7 @@ class ManifestPath(PurePathBase, _IOMixin):
             methodcaller("match", f"{self.as_posix().removesuffix('/')}/{pattern}"), self._manifest._paths.values()
         )
 
-    def rglob(self, pattern: str) -> Generator[Self, None, None]:
+    def rglob(self, pattern: str, /) -> Generator[Self, None, None]:
         """Perform a recursive glob operation on this path. Similar to :meth:`pathlib.Path.rglob`."""
         yield from self.glob(f"**/{pattern}")
 
@@ -939,7 +939,7 @@ class AppInfo(ProductInfo, PartialApp[str]):
         ]
         """This app's supported languages."""
         self.categories = [
-            PartialCategory(id=int(name.removeprefix("category_"))) for name in common.get("category", ())
+            PartialCategory(state, id=int(name.removeprefix("category_"))) for name in common.get("category", ())
         ]
 
         # TODO genres

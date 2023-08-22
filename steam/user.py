@@ -63,7 +63,7 @@ class _BaseUser(BaseUser):
         super().__init__(state, proto.friendid)
         self._update(proto)
 
-    def _update(self, proto: UserProto) -> None:
+    def _update(self, proto: UserProto, /) -> None:
         self.name = proto.player_name
         """The user's username."""
         self._avatar_sha = proto.avatar_hash
@@ -150,6 +150,7 @@ class User(_BaseUser, Messageable["UserMessage"]):
     async def send(
         self,
         content: Any = None,
+        /,
         *,
         trade: TradeOffer[Asset[User], Asset[ClientUser], Any] | None = None,
         media: Media | None = None,
@@ -325,13 +326,18 @@ class ClientUser(_BaseUser):
         """A list of the user's friends."""
         return list(self._friends.values())
 
-    def get_friend(self, id: Intable) -> Friend | None:
-        """Get a friend from the client user's friends list."""
-        id32 = _ID64_TO_ID32(utils.parse_id64(id, type=Type.Individual))
-        return self._friends.get(id32)
+    def get_friend(self, id: int, /) -> Friend | None:
+        """Get a friend from the client user's friends list.
+
+        Parameters
+        ----------
+        id
+            The ID64 of the friend to get.
+        """
+        return self._friends.get(_ID64_TO_ID32(id))
 
     async def inventory(
-        self, app: App, *, context_id: int | None = None, language: Language | None = None
+        self, app: App, /, *, context_id: int | None = None, language: Language | None = None
     ) -> Inventory[Item[Self], Self]:
         try:
             lock = self._inventory_locks[app.id]
