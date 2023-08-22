@@ -324,7 +324,11 @@ class ConnectionState:
         return user
 
     async def fetch_users(self, user_id64s: Iterable[ID64]) -> Sequence[User]:
-        users = await self.ws.fetch_users(user_id64s)
+        user_id64s = list(user_id64s)
+        try:
+            users = [user async for user in self.ws.fetch_users(user_id64s)]
+        except asyncio.TimeoutError:
+            users = [User._dict_to_proto(user) async for user in self.http.get_users(user_id64s)]
         return [self._store_user(user) for user in users]
 
     async def _maybe_user(self, id: Intable) -> User:

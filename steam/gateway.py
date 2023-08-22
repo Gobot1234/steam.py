@@ -451,7 +451,7 @@ class SteamWebSocket:
                 self.connect_time = utils.DateTime.now()
                 self.session_id = msg.header.session_id
 
-                (us,) = await self.fetch_users((self.id64,))
+                us = await anext(self.fetch_users((self.id64,)))
                 client.http.user = ClientUser(state, us)
                 if hasattr(self._state, "_original_client_user_msg"):
                     self._state._original_client_user_msg = us  # type: ignore
@@ -871,9 +871,10 @@ class SteamWebSocket:
             log.debug("Sending %r to change UI mode", ui_mode_msg)
             await self.send_proto(ui_mode_msg)
 
-    async def fetch_users(self, user_id64s: Iterable[ID64]) -> list[friends.CMsgClientPersonaStateFriend]:
+    async def fetch_users(
+        self, user_id64s: Iterable[ID64]
+    ) -> AsyncGenerator[friends.CMsgClientPersonaStateFriend, None]:
         futs: list[asyncio.Future[friends.CMsgClientPersonaState]] = []
-        users: list[friends.CMsgClientPersonaStateFriend] = []
         user_id64s = dict.fromkeys(user_id64s)
 
         def callback(msg: friends.CMsgClientPersonaState, user_id64: ID64) -> bool:
@@ -912,6 +913,6 @@ class SteamWebSocket:
             if msg.result not in (Result.OK, Result.Invalid):  # not sure if checking this is even useful
                 raise WSException(msg)
 
-            users += [user for user in msg.friends if user.friendid in user_id64s]
-
-        return users
+            for user in msg.friends:
+                if user.friendid in user_id64s:  # type: ignore
+                    yield user

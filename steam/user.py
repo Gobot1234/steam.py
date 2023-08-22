@@ -10,7 +10,6 @@ from ipaddress import IPv4Address
 from operator import attrgetter
 from typing import TYPE_CHECKING, Any, Literal
 
-from . import utils
 from ._const import DOCS_BUILDING, UNIX_EPOCH, URL, TaskGroup
 from .abc import BaseUser, Messageable
 from .app import PartialApp
@@ -18,8 +17,9 @@ from .enums import Language, PersonaState, PersonaStateFlag, Type
 from .id import _ID64_TO_ID32, ID
 from .profile import ClientUserProfile, OwnedProfileItems, ProfileInfo, ProfileItem
 from .protobufs import friend_messages, player
+from .protobufs.friends import CMsgClientPersonaStateFriend as UserProto
 from .reaction import Emoticon, MessageReaction, Sticker
-from .types.id import ID32, AppID, Intable
+from .types.id import ID32, AppID
 from .utils import DateTime, cached_slot_property, parse_bb_code
 
 if TYPE_CHECKING:
@@ -32,9 +32,9 @@ if TYPE_CHECKING:
     from .friend import Friend
     from .media import Media
     from .message import UserMessage
-    from .protobufs.friends import CMsgClientPersonaStateFriend as UserProto
     from .state import ConnectionState
     from .trade import Asset, Inventory, Item, TradeOffer
+    from .types import user
 
 __all__ = (
     "User",
@@ -110,6 +110,19 @@ class User(_BaseUser, Messageable["UserMessage"]):
     """
 
     __slots__ = ("_cs_channel",)
+
+    @staticmethod
+    def _dict_to_proto(data: user.User) -> UserProto:
+        return UserProto(
+            player_name=data["personaname"],
+            friendid=int(data["steamid"]),
+            avatar_hash=bytes.fromhex(data["avatarhash"]) if "avatarhash" in data else b"\x00" * 20,
+            persona_state=data.get("personastate", 0),
+            game_played_app_id=int(data.get("gameid", 0)),
+            persona_state_flags=data.get("personastateflags", 0),
+            last_logoff=data.get("lastlogoff", 0),
+            game_name=data.get("gameextrainfo", 0),
+        )
 
     async def add(self) -> None:
         """Sends a friend invite to the user to your friends list."""

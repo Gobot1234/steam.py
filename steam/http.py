@@ -220,9 +220,9 @@ class HTTPClient:
         await self._session.close()
 
     async def get_user(self, user_id64: ID64) -> user.User | None:
-        return await anext(self.get_users(user_id64), None)
+        return await anext(self.get_users((user_id64,)), None)
 
-    async def get_users(self, *user_id64s: ID64) -> AsyncGenerator[user.User, None]:
+    async def get_users(self, user_id64s: Iterable[ID64]) -> AsyncGenerator[user.User, None]:
         for data in await asyncio.gather(  # gather all the requests concurrently
             *(
                 self.get(
