@@ -281,7 +281,6 @@ class ID(Generic[TypeT], metaclass=abc.ABCMeta):
     def __init__(
         self,
         id: Intable,
-        /,
         *,
         type: TypeT | None = None,
         universe: Universe | None = None,
