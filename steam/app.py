@@ -431,14 +431,14 @@ class AppShopItem(DescriptionMixin):
         self.class_ = data["class"]
         """Extra info about the item."""
         self.prices = cast(
-            Mapping[CurrencyCode, int],
-            {CurrencyCode.try_name(name): price for name, price in data["prices"].items()},
+            Mapping[Currency, int],
+            {Currency.try_name(name): price for name, price in data["prices"].items()},
         )
         """The prices of the asset in the store."""
         self.original_prices = cast(
-            Mapping[CurrencyCode, int] | None,
+            Mapping[Currency, int] | None,
             {
-                CurrencyCode.try_name(name): price
+                Currency.try_name(name): price
                 for name, price in data["original_prices"].items()
                 if data["prices"][name] < price
             }
@@ -1141,9 +1141,7 @@ class PartialApp(App[NameT]):
         info = await self._state.request_free_licenses(self.id)
         return info[self.id]
 
-    async def shop_items(
-        self, *, currency: CurrencyCode | None = None, language: Language | None = None
-    ) -> AppShopItems:
+    async def shop_items(self, *, currency: Currency | None = None, language: Language | None = None) -> AppShopItems:
         """Fetch the items that are purchasable inside of the app's shop.
 
         Parameters
@@ -1464,7 +1462,7 @@ class OwnershipDLC(PartialApp):
 
 @dataclass(slots=True)
 class PartialAppPriceOverview:
-    currency: CurrencyCode
+    currency: Currency
     initial: int
     final: int
     discount_percent: int
@@ -1490,7 +1488,7 @@ class DLC(PartialApp[str]):
         """The time the DLC was released at."""
         self.logo = CDNAsset(state, data["header_image"])
         """The logo url of the DLC."""
-        currency_code = CurrencyCode[data["price_overview"].pop("currency")]  # type: ignore  # TypedDict is immutable
+        currency_code = Currency[data["price_overview"].pop("currency")]  # type: ignore  # TypedDict is immutable
         self.price_overview = PartialAppPriceOverview(currency=currency_code, **data["price_overview"])  # type: ignore
         """A price overview for the DLC."""
 
@@ -1759,7 +1757,7 @@ class FetchedApp(PartialApp[str]):
         ]
 
         try:
-            currency = CurrencyCode[data["price_overview"].pop("currency")]  # type: ignore
+            currency = Currency[data["price_overview"].pop("currency")]  # type: ignore
             self.price_overview = AppPriceOverview(currency=currency, **data["price_overview"])  # type: ignore
             """The price overview of the app."""
         except KeyError:

@@ -12,7 +12,7 @@ from typing_extensions import TypeVar
 
 from ._const import URL, impl_eq_via_id
 from .app import App, PartialApp, PartialAppPriceOverview
-from .enums import CurrencyCode, Language, LicenseFlag, LicenseType, PaymentMethod
+from .enums import Currency, Language, LicenseFlag, LicenseType, PaymentMethod
 from .errors import HTTPException
 from .models import CDNAsset
 from .types.id import DepotID, Intable, PackageID
@@ -280,7 +280,7 @@ class FetchedPackage(PartialPackage[str]):
         self._on_windows = platforms["windows"]
         self._on_mac_os = platforms["mac"]
         self._on_linux = platforms["linux"]
-        currency = CurrencyCode[data["price"].pop("currency")]  # type: ignore
+        currency = Currency[data["price"].pop("currency")]  # type: ignore
         self.price_overview = PackagePriceOverview(currency=currency, **data["price"])  # type: ignore
 
     def is_free(self) -> bool:

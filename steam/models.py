@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any, Literal, ParamSpec, TypedDict, TypeVar, c
 from typing_extensions import Protocol
 
 from ._const import DEFAULT_AVATAR, URL
-from .enums import CurrencyCode, PurchaseResult, Realm, Result
+from .enums import Currency, PurchaseResult, Realm, Result
 from .media import Media
 from .types.id import AppID, ClassID
 
@@ -77,7 +77,7 @@ class PriceOverview:
     median_price: float | str
     """The median price observed by the market."""
 
-    def __init__(self, data: PriceOverviewDict, currency: CurrencyCode) -> None:
+    def __init__(self, data: PriceOverviewDict, currency: Currency) -> None:
         lowest_price_ = PRICE_RE.search(data["lowest_price"])
         median_price_ = PRICE_RE.search(data["median_price"])
         assert lowest_price_ is not None
@@ -268,7 +268,7 @@ class Wallet:
 
     E.g. $3.45 -> 345
     """
-    currency: CurrencyCode
+    currency: Currency
     """The currency the balance is in."""
     balance_delayed: int
     """Your delayed balance if Steam is refunding something?"""
@@ -376,7 +376,7 @@ class DescriptionMixin(Protocol):
         """Whether the item is marketable."""
         return self._is_marketable
 
-    async def price(self, *, currency: CurrencyCode | None = None) -> PriceOverview:
+    async def price(self, *, currency: Currency | None = None) -> PriceOverview:
         """Fetch the price of this item on the Steam Community Market place.
 
         Shorthand for:
@@ -386,7 +386,7 @@ class DescriptionMixin(Protocol):
             await client.fetch_price(item.market_hash_name, item.app, currency)
         """
         price = await self._state.http.get_price(self._app_id, self.market_hash_name, currency)
-        return PriceOverview(price, currency or CurrencyCode.USD)
+        return PriceOverview(price, currency or Currency.USD)
 
     @property
     def app(self) -> PartialApp[None]:

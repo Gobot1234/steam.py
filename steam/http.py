@@ -20,7 +20,7 @@ from yarl import URL as URL_
 from . import errors, utils
 from .__metadata__ import __version__
 from ._const import HTML_PARSER, JSON_DUMPS, JSON_LOADS, URL
-from .enums import CurrencyCode, Language, Result, Type
+from .enums import Currency, Language, Result, Type
 from .id import CLAN_ID64_FROM_URL_REGEX, ID, parse_id64
 from .models import PriceOverviewDict, api_route
 from .types.id import ID32, ID64, AppID, AssetID, BundleID, ChatGroupID, ChatID, PackageID, PostID, TradeOfferID
@@ -507,7 +507,7 @@ class HTTPClient:
         payload = {"sessionid": self.session_id}
         return self.post(URL.COMMUNITY / "my/ajaxclearaliashistory", data=payload)
 
-    def get_price(self, app_id: AppID, item_name: str, currency: CurrencyCode | None) -> Coro[PriceOverviewDict]:
+    def get_price(self, app_id: AppID, item_name: str, currency: Currency | None) -> Coro[PriceOverviewDict]:
         payload = {
             "appid": app_id,
             "market_hash_name": item_name,
@@ -783,7 +783,7 @@ class HTTPClient:
         }
         return self.get(URL.STORE / "api/dlcforapp", params=params)
 
-    async def get_app_asset_prices(self, app_id: AppID, currency: CurrencyCode | None = None) -> app.AssetPrices:
+    async def get_app_asset_prices(self, app_id: AppID, currency: Currency | None = None) -> app.AssetPrices:
         params = {
             "appid": app_id,
         }

@@ -1361,7 +1361,7 @@ class Client:
         """Waits until the client's internal cache is all ready."""
         await self._ready.wait()
 
-    async def fetch_price(self, name: str, app: App, currency: CurrencyCode | None = None) -> PriceOverview:
+    async def fetch_price(self, name: str, app: App, currency: Currency | None = None) -> PriceOverview:
         """Fetch the :class:`PriceOverview` for an item.
 
         Parameters
@@ -1374,7 +1374,7 @@ class Client:
             The currency to fetch the price in.
         """
         price = await self.http.get_price(app.id, name, currency)
-        return PriceOverview(price, currency or CurrencyCode.USD)
+        return PriceOverview(price, currency or Currency.USD)
 
     # events to be subclassed
 

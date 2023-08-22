@@ -2387,7 +2387,7 @@ class ConnectionState:
     @parser
     def handle_wallet(self, msg: client_server.CMsgClientWalletInfoUpdate) -> None:
         self.wallet = Wallet(
-            self, msg.balance64, CurrencyCode.try_value(msg.currency), msg.balance64_delayed, Realm.try_value(msg.realm)
+            self, msg.balance64, Currency.try_value(msg.currency), msg.balance64_delayed, Realm.try_value(msg.realm)
         )
         self.handled_wallet.set()
 
