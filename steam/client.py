@@ -1086,7 +1086,7 @@ class Client:
             The app to create the post for.
         """
         await self._state.create_user_post(content, app_id=AppID(0) if app is None else app.id)
-        async for entry in self.user_news(flags=UserNewsType.Post):
+        async for entry in self.user_news(flags=UserNewsType.Friend, app=app):
             if entry.app == app and entry.actor == self.user:
                 post = await entry.post()
                 if post.content == content:
@@ -1120,7 +1120,7 @@ class Client:
         language
             The language to fetch the news in. If ``None``, the current language is used.
         """
-        before = before or DateTime.now()
+        before = original_before = before or DateTime.now()
         after = after or UNIX_EPOCH
         if flags is None:
             flags = UserNewsType.Friend if app is None else UserNewsType.App
@@ -1146,16 +1146,20 @@ class Client:
                 }
                 for achievements in msg.achievement_display_data
             }
+            if not msg.news:
+                return
 
             for news_item in msg.news:
-                yield (news := UserNews(self._state, news_item, achievements.get(news_item.gameid, {})))
+                news = UserNews(self._state, news_item, achievements.get(news_item.gameid, {}))
+                if after < news.created_at < original_before:
+                    yield news
+                else:
+                    return
                 before = news.created_at
                 if limit is not None:
                     limit -= 1
                     if limit <= 0:
                         return
-            else:
-                return
 
     async def trade_history(
         self,
