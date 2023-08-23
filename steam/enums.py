@@ -312,8 +312,8 @@ class Intents(Flags):
     Using this comes could lead to your account being banned, much more so than with any other library operations.
     """
 
-    @classmethod
-    def All(cls) -> Self:
+    @classproperty
+    def All(cls: type[Self]) -> Self:  # type: ignore
         """Returns all the intents.
 
         Warning
@@ -326,10 +326,10 @@ class Intents(Flags):
         """
         return reduce(cls.__or__, cls._value_map_.values())
 
-    @classmethod
-    def Safe(cls) -> Self:
+    @classproperty
+    def Safe(cls: type[Self]) -> Self:  # type: ignore
         """Returns all the intents without the unsafe ones."""
-        return cls.All() & ~cls.Market
+        return cls.All & ~cls.Market
 
 
 class Result(IntEnum):
@@ -782,6 +782,7 @@ _REVERSE_API_LANGUAGE_MAP: Final = cast(
 _REVERSE_WEB_API_MAP: Final = cast(
     Mapping[str, Language], {value: key for key, value in Language.WEB_API_MAP.items()}
 )
+
 
 class Currency(IntEnum):
     """All currencies currently supported by Steam."""
@@ -2082,6 +2083,7 @@ class ContentDescriptor(IntEnum):
     FrequentViolenceOrGore = 2
     StrongSexualContent = 3
     AnyMatureContent = 5
+
 
 class has_associated_flag(int):
     flag: int

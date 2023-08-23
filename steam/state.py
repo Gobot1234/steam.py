@@ -194,7 +194,7 @@ class ConnectionState:
         self.login_complete = asyncio.Event()
         self.handled_licenses = asyncio.Event()
         self.handled_wallet = asyncio.Event()
-        self.intents: Final = kwargs.get("intents", Intents.Safe())
+        self.intents: Final = kwargs.get("intents", Intents.Safe)
         self.max_messages: int | None = kwargs.get("max_messages", 1000)
 
         app = kwargs.get("app")
