@@ -540,7 +540,7 @@ class TradeOffer(Generic[ReceivingAssetT, SendingAssetT, UserT]):
                     for asset, description in cast("list[tuple[econ.Asset, econ.ItemDescription]]", receiving)
                 ]
                 return cast("TradeOffer[Item[UserT], Item[ClientUser], UserT]", self)
-            except ValueError:
+            except TypeError:
                 self.sending = [
                     Asset(self._state, asset=asset, owner=self._state.user)
                     for asset in cast("list[econ.Asset]", sending)
