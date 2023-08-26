@@ -4,23 +4,19 @@ from __future__ import annotations
 
 from datetime import timedelta
 from ipaddress import IPv4Address
-from typing import TYPE_CHECKING, Any, Generic, Literal, NamedTuple, TypeAlias, TypeVar
+from operator import attrgetter  # noqa: TCH003
+from typing import TYPE_CHECKING, Any, Literal, NamedTuple, cast, get_type_hints
+
+from typing_extensions import Annotated, TypedDict, Unpack
 
 from .app import App, PartialApp
-from .enums import Enum, GameServerRegion, Type
+from .enums import GameServerRegion, Type
 from .id import ID
 from .protobufs.game_servers import EQueryType, GetServerListResponseServer, QueryResponse
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
-    from typing_extensions import Unpack
-
     from .state import ConnectionState
 
-T = TypeVar("T")
-T_co = TypeVar("T_co", covariant=True)
-Q: TypeAlias = "Query[Q]"
 
 __all__ = (
     "Query",
@@ -29,123 +25,32 @@ __all__ = (
 )
 
 
-class Operator(Enum):
-    # fmt: off
-    div  = "\\"
-    nor  = "\\nor\\"
-    nand = "\\nand\\"
-    # fmt: on
+class Operator:
+    @staticmethod
+    def not_(arg: str) -> str:
+        return Operator.nor(arg)
 
-    def format(self, query_1: str, query_2: str) -> str:
-        return f"{query_1}{query_2}" if self is Operator.div else f"{self.value}[{query_1}{query_2}]"
+    @staticmethod
+    def and_(*args: str) -> str:
+        """All"""
+        return "".join(args)
+
+    # or would be nice if you can figure it out
+
+    @staticmethod
+    def nand(*args: str) -> str:
+        """Not all"""
+        joined = "\\".join(args)
+        return f"\\nand\\{len(args)}{joined}"
+
+    @staticmethod
+    def nor(*args: str) -> str:
+        """Not any"""
+        joined = "\\".join(args)
+        return f"\\nor\\{len(args)}{joined}"
 
 
-class QueryAll:
-    def __repr__(self) -> str:
-        return self.__class__.__name__
-
-    def __eq__(self, other: object) -> bool:
-        return isinstance(other, self.__class__)
-
-    query = ""
-
-
-class QueryMeta(type):
-    @property
-    def not_empty(cls) -> Q:
-        """Fetches servers that are not empty."""
-        return Query["Q"](r"\empty\1")
-
-    @property
-    def empty(cls) -> Q:
-        """Fetches servers that are empty."""
-        return Query["Q"](r"\noplayers\1")
-
-    @property
-    def proxy(cls) -> Q:
-        """Fetches servers that are spectator proxies."""
-        return Query["Q"](r"\proxy\1")
-
-    @property
-    def whitelisted(cls) -> Q:
-        """Fetches servers that are whitelisted."""
-        return Query["Q"](r"\white\1")
-
-    @property
-    def dedicated(cls) -> Q:
-        """Fetches servers that are running dedicated."""
-        return Query["Q"](r"\dedicated\1")
-
-    @property
-    def secure(cls) -> Q:
-        """Fetches servers that are using anti-cheat technology (VAC, but potentially others as well)."""
-        return Query["Q"](r"\secure\1")
-
-    @property
-    def linux(cls) -> Q:
-        """Fetches servers running on a Linux platform."""
-        return Query["Q"](r"\linux\1")
-
-    @property
-    def no_password(cls) -> Q:
-        """Fetches servers that are not password protected."""
-        return Query["Q"](r"\password\0")
-
-    @property
-    def not_full(cls) -> Q:
-        """Fetches servers that are not full."""
-        return Query["Q"](r"\full\1")
-
-    @property
-    def unique_addresses(cls) -> Q:
-        """Fetches only one server for each unique IP address matched."""
-        return Query["Q"]("\\collapse_addr_hash\\1")
-
-    @property
-    def version_match(cls) -> Query[str]:
-        """Fetches servers running version "x" (``"*"`` is wildcard)."""
-        return Query["str"]("\\version_match\\", type=str)
-
-    @property
-    def name_match(cls) -> Query[str]:
-        """Fetches servers with their hostname matching "x" (``"*"`` is wildcard)."""
-        return Query["str"]("\\name_match\\", type=str)
-
-    @property
-    def running_mod(cls) -> Query[str]:
-        """Fetches servers running the specified modification (e.g. cstrike)."""
-        return Query["str"]("\\gamedir\\", type=str)
-
-    @property
-    def running_map(cls) -> Query[str]:
-        """Fetches servers running the specified map (e.g. cs_italy)"""
-        return Query["str"]("\\map\\", type=str)
-
-    @property
-    def ip(cls) -> Query[str]:
-        """Fetches servers on the specified IP address, port is optional.
-
-        See Also
-        --------
-        :meth:`Client.fetch_server` for a Query free version of this.
-        """
-        return Query["str"]("\\gameaddr\\", type=str)
-
-    @property
-    def running(cls) -> Query[App | int]:
-        """Fetches servers running a :class:`.App` or an :class:`int` app id."""
-        return Query["App | int"]("\\appid\\", type=(App, int), callback=lambda app: getattr(app, "id", app))
-
-    @property
-    def not_running(cls) -> Query[App | int]:
-        """Fetches servers not running a :class:`.App` or an :class:`int` app id."""
-        return Query["App | int"]("\\nappid\\", type=(App, int), callback=lambda app: getattr(app, "id", app))
-
-    @property
-    def match_tags(cls) -> Query[list[str]]:
-        """Fetches servers with all the given tag(s) in :attr:`GameServer.tags`."""
-        return Query["list[str]"]("\\gametype\\", type=list, callback=lambda items: f"[{','.join(items)}]")
-
+class LFD2SpecificQueries:  # TODO need implementing
     @property
     def match_hidden_tags(cls) -> Query[list[str]]:
         """Fetches servers with all the given tag(s) in their 'hidden' tags only applies for :attr:`steam.LFD2`."""
@@ -156,135 +61,137 @@ class QueryMeta(type):
         """Fetches servers with any of the given tag(s) in their 'hidden' tags only applies for :attr:`steam.LFD2`."""
         return Query["list[str]"]("\\gamedataor\\", type=list, callback=lambda items: f"[{','.join(items)}]")
 
-    @property
-    def region(cls) -> Query[GameServerRegion]:
-        """Fetches servers in a given region."""
-        return Query["GameServerRegion"]("\\region\\", type=GameServerRegion, callback=lambda region: region.value)
 
-    @property
-    def all(cls) -> QueryAll:
-        """Fetches any servers. Any operations on this will fail."""
-        return QueryAll()
-
-
-class Query(Generic[T_co], metaclass=QueryMeta):
-    r"""A :class:`pathlib.Path` like class for constructing Global Master Server queries.
-
-    .. container:: operations
-
-        .. describe:: x == y
-
-            Checks if two queries are equal, order is checked.
-
-        .. describe:: x / y
-
-            Appends y's query to x.
-
-        .. describe:: x | y
-
-            Combines the two queries in ``\nor\[x\y]`` (not or).
-
-        .. describe:: x & y
-
-            Combines the two queries in ``\nand\[x\y]`` (not and).
-
-    Examples
-    --------
-
-    Match servers running TF2, that are not empty and are using VAC
-
-    .. code-block:: pycon
-
-        >>> Query.running / TF2 / Query.not_empty / Query.secure
-        <Query query='\\appid\\440\\empty\\1\\secure\\1'>
+class QueryWhereBoolKwargs(TypedDict, total=False):
+    # Annotated[bool, TruthyCase | None, FalsyCase?]
+    empty: Annotated[bool, r"\noplayers\1", r"\empty\1"]
+    is_proxy: Annotated[bool, r"\proxy\1"]
+    whitelisted: Annotated[bool, r"\white\1"]
+    dedicated: Annotated[bool, r"\dedicated\1"]
+    secure: Annotated[bool, r"\secure\1"]
+    linux: Annotated[bool, r"\linux\1"]
+    has_password: Annotated[bool, None, r"\password\0"]
+    full: Annotated[bool, None, r"\full\1"]  # TODO double check this
+    only_one_per_ip: Annotated[Literal[True], r"\collapse_addr_hash\1"]  # only makes sense as Literal[True]
 
 
-    Matches servers that are not empty, not full and are not using VAC
+class QueryWhereSimpleKwargs(TypedDict, total=False):
+    version_match: Annotated[str, "\\version_match\\"]
+    name_match: Annotated[str, "\\name_match\\"]
+    game_directory: Annotated[str, "\\gamedir\\"]
+    map: Annotated[str, "\\map\\"]
+    ip: Annotated[str, "\\gameaddr\\"]
+    app: Annotated[App, "\\app\\", attrgetter("id")]  # has inverse?
+    not_app: Annotated[App, "\\napp\\", attrgetter("id")]
+    tags: Annotated[list[str], "\\gametype\\", ",".join]
+    region: Annotated[GameServerRegion, "\\region\\", attrgetter("value")]
 
-    .. code-block:: pycon
 
-        >>> Query.not_empty / Query.not_full | Query.secure
-        <Query query='\\empty\\1\\nor\\[\\full\\1\\secure\\1]'>
+class QueryWhereKwargs(QueryWhereBoolKwargs, QueryWhereSimpleKwargs, total=False):
+    ...
 
-    Match servers where the server name is not "A cool Server" or the server doesn't support alltalk or increased max
-    players
 
-    .. code-block:: pycon
+for cls in (QueryWhereBoolKwargs, QueryWhereSimpleKwargs):
+    cls.__annotations__ = get_type_hints(cls, include_extras=True)
 
-        >>> Query.name_match / "A not cool server" | Query.match_tags / ["alltalk", "increased_maxplayers"]
-        <Query query='\\nor\\[\\name_match\\A not cool server\\gametype\\[alltalk,increased_maxplayers]]'>
+QueryWhereKwargs.__annotations__ = QueryWhereBoolKwargs.__annotations__ | QueryWhereSimpleKwargs.__annotations__
 
-    Match servers where the server is not on linux and the server doesn't have no password (has a password)
 
-    .. code-block:: pycon
+class Query:
+    """A class to construct Global Master Server queries."""
 
-        >>> Query.linux & Query.no_password
-    """
+    @classmethod
+    def where(cls, **kwargs: Unpack[QueryWhereKwargs]) -> str:
+        """Construct a query meeting all the given criteria.
 
-    # simple specification:
-    # - immutable
-    # - based on https://developer.valvesoftware.com/wiki/Master_Server_Query_Protocol
+        Parameters
+        ----------
+        empty
+            Fetches servers that are empty.
+        is_proxy
+            Fetches servers that are spectator proxies.
+        whitelisted
+            Fetches servers that are whitelisted.
+        dedicated
+            Fetches servers that are running dedicated.
+        secure
+            Fetches servers that are using anti-cheat technology (VAC, but potentially others as well).
+        linux
+            Fetches servers running on a Linux platform.
+        has_password
+            Fetches servers that are password protected.
+        full
+            Fetches servers that are full.
+        only_one_per_ip
+            Fetches only one server for each unique IP address matched.
+        version_match
+            Fetches servers running version "x" (``"*"`` is wildcard equivalent to ``.*`` in regex).
+        name_match
+            Fetches servers with their name matching "x" (``"*"`` is wildcard equivalent to ``.*`` in regex).
+        game_directory
+            Fetches servers running the specified modification (e.g. cstrike).
+        map
+            Fetches servers running the specified map (e.g. cs_italy)
+        ip
+            Fetches servers on the specified IP address, port is optional.
+        app
+            Fetches servers running a :class:`.App`.
+        not_app
+            Fetches servers not running a :class:`.App`.
+        tags
+            Fetches servers with all the given tag(s) in :attr:`GameServer.tags`.
+        region
+            Fetches servers in a given region.
 
-    # TODO use __invert__ to do some cool manipulation where possible and generally change the dunders cause they make
-    # little sense atm
-    __slots__ = ("_raw", "_type", "_callback")
-    _raw: tuple[Query[Any], Operator, T_co] | tuple[str]
-    _type: type[T_co] | tuple[type[T_co], ...] | None
-    _callback: Callable[[T_co], Any] | None
+        Returns
+        -------
+        The query that should be passed to :meth:`Client.fetch_servers`.
 
-    def __new__(
-        cls,
-        *raw: Unpack[tuple[Query[Any], Operator, T_co]] | Unpack[tuple[str]],
-        type: type[T_co] | tuple[type[T_co], ...] | None = None,
-        callback: Callable[[T_co], Any] = lambda x: x,
-    ) -> Query[T_co]:
-        self = super().__new__(cls)
-        self._raw = raw  # type: ignore  # can't tell if this is a pyright bug
-        self._type = type
-        self._callback = callback
-        return self
+        Examples
+        --------
 
-    def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} query={self.query!r}>"
+        Match servers running TF2, that are not empty and are using VAC
 
-    # it's safe to use a covariant TypeVar here as everything is read-only
-    def _process_op(self, other: T_co, op: Operator) -> Q:  # type: ignore
-        cls = self.__class__
+        .. code-block:: pycon
 
-        if self._type is not None and isinstance(other, self._type):
-            return cls(self, op, other)
+            >>> Query.where(
+            ...     app=TF2,
+            ...     empty=False,
+            ...     secure=True,
+            ... )
 
-        if not isinstance(other, Query):
-            return NotImplemented
+        Match servers where the server name is not "A cool Server" and the server supports "alltalk" and increased max
+        players
 
-        return cls(self, op, other, type=other._type, callback=other._callback)
+        .. code-block:: pycon
 
-    def __truediv__(self, other: T_co) -> Q:  # type: ignore
-        return self._process_op(other, Operator.div)
+            >>> Query.where(name_match="A not cool server*", match_tags=["alltalk", "increased_maxplayers"])
+        """
 
-    def __and__(self, other: T_co) -> Q:  # type: ignore
-        return self._process_op(other, Operator.nand)
+        filters: list[str] = []
 
-    def __or__(self, other: T_co) -> Q:  # type: ignore
-        return self._process_op(other, Operator.nor)
-
-    def __eq__(self, other: object) -> bool:
-        return isinstance(other, Query) and self._raw == other._raw
-
-    @property
-    def query(self) -> str:
-        """The actual query used for querying Global Master Servers."""
-
-        if len(self._raw) == 1:  # string query
-            return self._raw[0]
-
-        # normal
-        query_1, op, query_2 = self._raw
-
-        return op.format(
-            query_1.query,
-            query_2.query if isinstance(query_2, Query) else query_1._callback(query_2),
-        )
+        for name, value in kwargs.items():
+            try:
+                annotated = QueryWhereKwargs.__annotations__[name]
+            except KeyError:
+                raise TypeError(f"{name!r} is an invalid keyword argument for where()") from None
+            metadata: tuple[Any, ...] = annotated.__metadata__
+            if name in QueryWhereBoolKwargs.__annotations__:
+                value = cast(bool, value)
+                try:
+                    filter_code = metadata[not value]
+                except IndexError:
+                    filter_code = None
+                if filter_code is None:
+                    inverse_filter_code = metadata[value]
+                    filter_code = Operator.not_(inverse_filter_code)
+            else:
+                filter_code = metadata[0]
+                if len(metadata) > 1:
+                    value = str(metadata[-1](value))
+                filter_code += value
+            filters.append(filter_code)
+        return Operator.and_(*filters)
 
 
 class ServerPlayer(NamedTuple):
@@ -308,6 +215,7 @@ class GameServer(ID[Literal[Type.GameServer]]):
         "max_player_count",
         "region",
         "version",
+        "game_directory",
         "_secure",
         "_dedicated",
         "_state",
@@ -337,6 +245,7 @@ class GameServer(ID[Literal[Type.GameServer]]):
         """The region the server is in."""
         self.version = server.version
         """The version of the server."""
+        self.game_directory = server.gamedir
 
         self._secure = server.secure
         self._dedicated = server.dedicated

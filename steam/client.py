@@ -838,20 +838,24 @@ class Client:
         elif not ip:
             raise TypeError("fetch_server missing argument ip")
 
-        servers = await self.fetch_servers(Query.ip / f"{ip}{f':{port}' if port is not None else ''}", limit=1)
+        servers = await self.fetch_servers(Query.where(ip=f"{ip}{f':{port}' if port is not None else ''}"), limit=1)
         return servers[0] if servers else None
 
-    async def fetch_servers(self, query: Query[Any], /, *, limit: int = 100) -> list[GameServer]:
+    async def fetch_servers(self, query: str | None = None, /, *, limit: int = 100) -> list[GameServer]:
         """Query game servers.
 
         Parameters
         ----------
         query
-            The query to match servers with.
+            The query to match servers with. If None returns all servers.
         limit
             The maximum amount of servers to return.
+
+        See Also
+        --------
+        :meth:`.Query.where` to generate these programmatically.
         """
-        servers = await self._state.fetch_servers(query.query, limit)
+        servers = await self._state.fetch_servers(query or "", limit)
         return [GameServer(self._state, server) for server in servers]
 
     # content server related stuff
