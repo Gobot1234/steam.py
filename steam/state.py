@@ -85,6 +85,7 @@ from .reaction import (
 from .role import Role, RolePermissions
 from .trade import Item, TradeOffer
 from .types.id import *
+from .types.user import IndividualID
 from .user import ClientUser, User
 from .utils import DateTime, cached_property, call_once
 
@@ -979,6 +980,13 @@ class ConnectionState:
             chat.InviteFriendToChatRoomGroupRequest(chat_group_id=chat_group_id, steamid=user_id64)
         )
 
+        if msg.result == Result.InvalidParameter:
+            raise WSNotFound(msg)
+        elif msg.result != Result.OK:
+            raise WSException(msg)
+
+    async def revoke_chat_group_invite(self, user_id64: ID64, chat_group_id: ChatGroupID) -> None:
+        msg = await self.ws.send_um_and_wait(chat.RevokeInviteRequest(chat_group_id=chat_group_id, steamid=user_id64))
         if msg.result == Result.InvalidParameter:
             raise WSNotFound(msg)
         elif msg.result != Result.OK:

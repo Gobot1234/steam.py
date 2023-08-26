@@ -1507,9 +1507,7 @@ class Client:
                 The comment received.
             """
 
-        async def on_invite(
-            self, invite: steam.UserInvite | steam.ClanInvite | steam.GroupInvite | steam.AppInvite, /
-        ) -> None:
+        async def on_invite(self, invite: steam.Invite, /) -> None:
             """Called when the client receives/sends an invitation.
 
             Parameters
@@ -1518,9 +1516,7 @@ class Client:
                 The invite received.
             """
 
-        async def on_invite_accept(
-            self, invite: steam.UserInvite | steam.ClanInvite | steam.GroupInvite | steam.AppInvite, /
-        ) -> None:
+        async def on_invite_accept(self, invite: steam.Invite, /) -> None:
             """Called when the client/author accepts an invitation.
 
             Parameters
@@ -1529,9 +1525,7 @@ class Client:
                 The invite that was accepted.
             """
 
-        async def on_invite_decline(
-            self, invite: steam.UserInvite | steam.ClanInvite | steam.GroupInvite | steam.AppInvite, /
-        ) -> None:
+        async def on_invite_decline(self, invite: steam.Invite, /) -> None:
             """Called when the client/author declines an invitation.
 
             Parameters

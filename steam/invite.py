@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, TypeAlias
+
+from .chat import ChatGroup
 
 if TYPE_CHECKING:
-    from typing_extensions import Never
-
     from .abc import PartialUser
     from .app import PartialApp
     from .clan import Clan, PartialClan
@@ -29,7 +29,7 @@ __all__ = (
 
 
 @dataclass(slots=True)
-class Invite(metaclass=ABCMeta):
+class _Invite(metaclass=ABCMeta):
     _state: ConnectionState
     user: User | ClientUser | PartialUser
     """The user that was invited."""
@@ -44,14 +44,6 @@ class Invite(metaclass=ABCMeta):
         """Accept the invite request."""
         raise NotImplementedError()
 
-    @abstractmethod
-    async def decline(self) -> None:
-        """Decline the invite request."""
-        raise NotImplementedError()
-
-    async def revoke(self) -> None:  # ChatGroup only
-        ...
-
     def __repr__(self) -> str:
         cls = self.__class__
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in cls.REPR_ATTRS]
@@ -59,7 +51,7 @@ class Invite(metaclass=ABCMeta):
 
 
 @dataclass(repr=False, slots=True)
-class UserInvite(Invite):
+class UserInvite(_Invite):
     """Represents a invite from a user to become their friend."""
 
     REPR_ATTRS: ClassVar = ("author", "relationship")
@@ -68,11 +60,29 @@ class UserInvite(Invite):
         await self._state.add_user(self.author.id64)
 
     async def decline(self) -> None:
+        """Decline the invite request."""
         await self._state.remove_user(self.author.id64)
 
 
-class ChatGroupInvite(Invite):
-    code: str | None
+@dataclass(repr=False, slots=True)
+class ChatGroupInvite(_Invite):
+    if TYPE_CHECKING:
+        code: str | None
+        clan: Clan | PartialClan | None
+        group: Group | None
+
+    async def revoke(self) -> None:
+        """Revoke the invite request."""
+        await self._state.revoke_chat_group_invite(self.user.id64, self._chat_group._id)
+
+    @property
+    def _chat_group(self) -> Clan | Group:
+        chat_group = self.clan or self.group
+        assert chat_group is not None
+        if not isinstance(chat_group, ChatGroup):
+            # should be unreachable, but just in case
+            raise ValueError(f"Expected a ChatGroup, got {chat_group.__class__.__name__}")
+        return chat_group
 
 
 @dataclass(repr=False, slots=True)
@@ -83,11 +93,14 @@ class ClanInvite(ChatGroupInvite):
     clan: Clan | PartialClan
     """The clan to join."""
     relationship: FriendRelationship
+    group: None = None
+    code: str | None = None
 
     async def accept(self) -> None:
         await self._state.respond_to_clan_invite(self.clan.id64, True)
 
     async def decline(self) -> None:
+        """Decline the invite request."""
         await self._state.respond_to_clan_invite(self.clan.id64, False)
 
 
@@ -99,16 +112,14 @@ class GroupInvite(ChatGroupInvite):
     group: Group
     """The group to join."""
     code: str
+    clan: None = None
 
     async def accept(self) -> None:
         await self.group.join(invite_code=self.code)
 
-    async def decline(self) -> Never:
-        await self.group.leave()  # TODO this probably errors
-
 
 @dataclass(repr=False, slots=True)
-class AppInvite(Invite):
+class AppInvite(_Invite):
     """Represents an invitation to join a :class:`~steam.App` from a user."""
 
     REPR_ATTRS: ClassVar = ("author", "app")
@@ -122,5 +133,6 @@ class AppInvite(Invite):
     async def accept(self) -> None:
         return await super().accept()
 
-    async def decline(self) -> None:
-        return await super().decline()
+
+Invite: TypeAlias = UserInvite | ClanInvite | GroupInvite | AppInvite
+"""Represents an invite from a user to become their friend, join a clan, join a group, or join an app."""
