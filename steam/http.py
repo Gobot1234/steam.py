@@ -1018,12 +1018,10 @@ class HTTPClient:
         with media:
             await self.send_media(media, chat_group_id=chat_group_id, chat_id=chat_id)
 
-    async def upload_chat_icon(self, media: Media) -> str:
+    async def upload_chat_icon(self, media: Media) -> bytes:
         with media:
             payload = aiohttp.FormData()
             payload.add_field("sessionid", self.session_id)
-            payload.add_field(
-                "avatar", media.read(), filename=f"avatar.{media.type}", content_type=f"image/{media.type}"
-            )
-            resp = await self.post(URL.COMMUNITY / "chat/avatarfileupload")
-            return resp["sha"]
+            payload.add_field("avatar", media.read(), filename=media.name, content_type=f"image/{media.type}")
+            resp = await self.post(URL.COMMUNITY / "chat/avatarfileupload", data=payload)
+            return bytes.fromhex(resp["sha"])

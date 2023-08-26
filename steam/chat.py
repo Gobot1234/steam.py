@@ -839,8 +839,18 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
         """Leaves the chat group."""
         await self._state.leave_chat_group(self._id)
 
-    async def edit(self, *, name: str | None = None, tagline: str | None = None, avatar: Media) -> None:
-        """Edits the chat group."""
+    async def edit(self, *, name: str | None = None, tagline: str | None = None, avatar: Media | None = None) -> None:
+        """Edits the chat group.
+
+        Parameters
+        ----------
+        name
+            The new name of the chat group.
+        tagline
+            The new tagline of the chat group.
+        avatar
+            The new avatar of the chat group.
+        """
         await self._state.edit_chat_group(self._id, name, tagline, avatar)
 
     async def create_role(self, name: str) -> Role:

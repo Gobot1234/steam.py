@@ -1082,6 +1082,7 @@ class ConnectionState:
     async def edit_chat_group(
         self, chat_group_id: ChatGroupID, name: str | None, tagline: str | None, avatar: Media | None
     ) -> None:
+        chat_group = self._chat_groups.get(chat_group_id)
         if name is not None:
             msg = await self.ws.send_um_and_wait(
                 chat.RenameChatRoomGroupRequest(
@@ -1093,18 +1094,22 @@ class ConnectionState:
                 raise WSNotFound(msg)
             elif msg.result != Result.OK:
                 raise WSException(msg)
+            if chat_group is not None:
+                chat_group.name = name
         if avatar is not None:
             sha = await self.http.upload_chat_icon(avatar)
             msg = await self.ws.send_um_and_wait(
                 chat.SetChatRoomGroupAvatarRequest(
                     chat_group_id=chat_group_id,
-                    avatar_sha=sha.encode(),  # TODO not sure if this is right
+                    avatar_sha=sha,
                 )
             )
             if msg.result == Result.InvalidParameter:
                 raise WSNotFound(msg)
             elif msg.result != Result.OK:
                 raise WSException(msg)
+            if chat_group is not None:
+                chat_group._avatar_sha = sha
         if tagline is not None:
             msg = await self.ws.send_um_and_wait(
                 chat.SetChatRoomGroupTaglineRequest(
@@ -1116,6 +1121,8 @@ class ConnectionState:
                 raise WSNotFound(msg)
             elif msg.result != Result.OK:
                 raise WSException(msg)
+            if chat_group is not None:
+                chat_group.tagline = tagline
 
     @requires_intent(Intents.ChatGroups)
     def handle_chat_group_update(self, msg: chat.ChatRoomHeaderStateNotification) -> None:
