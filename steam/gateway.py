@@ -863,7 +863,7 @@ class SteamWebSocket:
         if state is not None or flags is not None:
             state_msg = friends.CMsgClientChangeStatus(
                 persona_state=state or self._state._state, persona_state_flags=flags or self._state._flags
-            )  # TODO what does need_persona_response do?
+            )
             log.debug("Sending %r to change state", state_msg)
             await self.send_proto(state_msg)
         if ui_mode is not None:

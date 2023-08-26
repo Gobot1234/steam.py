@@ -535,9 +535,8 @@ class HTTPClient:
                     yield int(user["data-miniprofile"])  # type: ignore
             page += 1
 
-    async def get_clan_invitees(
-        self,
-    ) -> dict[ID64, ID64]:  # TODO what about the case where you've been invited by multiple peopl
+    async def get_clan_invitees(self) -> dict[ID64, ID64]:
+        # N.B. can only be invited by one person at a time
         resp = await self.get(URL.COMMUNITY / "my/groups/pending", params={"ajax": "1"})
         soup = BeautifulSoup(resp, HTML_PARSER)
         elements = soup.find_all("a", class_="linkStandard")
