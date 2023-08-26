@@ -2332,12 +2332,9 @@ class ConnectionState:
                         case _:
                             log.info("Unknown commentable type %d", type)
                             continue
-                    comments = [
-                        comment async for comment in commentable.comments(limit=comment_index)
-                    ]  # would be nice if steam gave the id so it could be directly fetched
                     try:
-                        self.dispatch("comment", comments[comment_index])
-                    except IndexError:
+                        self.dispatch("comment", await commentable.fetch_comment(int(body["cgid"])))
+                    except WSException:
                         pass
                 case 9:  # trade, this is only going to happen at startup
                     await self.poll_trades()
