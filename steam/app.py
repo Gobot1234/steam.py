@@ -566,14 +566,12 @@ class CommunityItem(Generic[AppT]):
 
         badges: list[AppBadge[AppT]] = []
         previous_name = ""
-        for id, (name, image) in enumerate(
-            zip(self.data["level_names"].values(), self.data["level_images"].values()), start=1
-        ):
+        for name, image in zip(self.data["level_names"].values(), self.data["level_images"].values()):
             if not name:
                 name = previous_name
             badge = AppBadge(
                 self._state,
-                id,
+                1,
                 name,
                 self.app,
                 CDNAsset(self._state, f"{URL.CDN}/steamcommunity/public/images/items/{self.app.id}/{image}"),
@@ -1330,6 +1328,14 @@ class PartialApp(App[NameT]):
 
         badge_def = utils.get(community_items, class_=CommunityItemClass.Badge)
         badge_rewards = utils.get(rewards, class_=CommunityItemClass.Badge)
+
+        if badge_def is None and badge_rewards is None:
+            return []
+        if badge_def is not None and badge_rewards is None:
+            return badge_def.badges
+        if badge_def is None and badge_rewards is not None:
+            return badge_rewards.badges
+
         assert badge_def
         assert badge_rewards
         return badge_def.badges + badge_rewards.badges
