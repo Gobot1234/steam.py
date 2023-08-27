@@ -578,37 +578,18 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
             except WSException:
                 pass
             else:
-                self._partial_members = cast(
-                    dict[ID32, chat.Member], {member.accountid: member for member in group_state.members}
-                )
-                self._roles = {
-                    RoleID(role.role_id): Role(self._state, self, role, permissions)
-                    for role in group_state.header_state.roles
-                    for permissions in group_state.header_state.role_actions
-                    if permissions.role_id == role.role_id
-                }
-                member_cls, _, _ = self._type_args
-                try:
-                    self._members = {
-                        self._state.user.id: member_cls(
-                            self._state,
-                            self,
-                            cast("User", self._state.user),
-                            self._partial_members[self._state.user.id],
-                        )
-                    }
-                except KeyError:
-                    self._members = {}  # we aren't a member
+                self._update_group_state(group_state)
 
-            if self._state.auto_chunk_chat_groups:
-                await self.chunk()
-
-            self._officers = [
-                id for id, member in self._partial_members.items() if member.rank is ChatMemberRank.Officer
-            ]
-            self._mods = [id for id, member in self._partial_members.items() if member.rank is ChatMemberRank.Moderator]
+            await self._maybe_chunk()
 
         return self
+
+    async def _maybe_chunk(self):
+        if self._state.auto_chunk_chat_groups:
+            await self.chunk()
+
+        self._officers = [id for id, member in self._partial_members.items() if member.rank is ChatMemberRank.Officer]
+        self._mods = [id for id, member in self._partial_members.items() if member.rank is ChatMemberRank.Moderator]
 
     @utils.classproperty
     def _type_args(cls: type[Self]) -> tuple[type[MemberT], type[ChatT], type[ChatGroupTypeT]]:  # type: ignore
@@ -658,6 +639,29 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
             for role_action in proto.role_actions:
                 if role.role_id == role_action.role_id:
                     self._roles[role.role_id] = Role(self._state, self, role, role_action)  # type: ignore
+
+    def _update_group_state(self, group_state: chat.GroupState):
+        self._partial_members = cast(
+            dict[ID32, chat.Member], {member.accountid: member for member in group_state.members}
+        )
+        self._roles = {
+            RoleID(role.role_id): Role(self._state, self, role, permissions)
+            for role in group_state.header_state.roles
+            for permissions in group_state.header_state.role_actions
+            if permissions.role_id == role.role_id
+        }
+        member_cls, _, _ = self._type_args
+        try:
+            self._members = {
+                self._state.user.id: member_cls(
+                    self._state,
+                    self,
+                    cast("User", self._state.user),
+                    self._partial_members[self._state.user.id],
+                )
+            }
+        except KeyError:
+            self._members = {}  # we aren't a member
 
     def __repr__(self) -> str:
         attrs = ("name", "id", "universe", "instance")

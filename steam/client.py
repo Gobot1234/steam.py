@@ -71,11 +71,13 @@ if TYPE_CHECKING:
     from .group import Group
     from .invite import AppInvite, ClanInvite, GroupInvite, UserInvite
     from .manifest import AppInfo, PackageInfo
+    from .media import Media
     from .post import Post
     from .published_file import PublishedFile
     from .reaction import ClientEmoticon, ClientSticker, MessageReaction
     from .trade import Asset, Item, MovedItem, TradeOffer
     from .types.http import IPAdress
+    from .types.user import IndividualID
     from .user import ClientUser, User
 
 
@@ -153,7 +155,6 @@ class Client:
 
     # TODO
     # Client.create_clan
-    # Client.create_group
 
     def __init__(self, **options: Unpack[ClientKwargs]):
         self.http = HTTPClient(client=self, **options)
@@ -698,6 +699,32 @@ class Client:
             :attr:`.ID.id3`.
         """
         return await self._state.fetch_clan(ID64(id))
+
+    async def create_group(
+        self,
+        name: str,
+        /,
+        *,
+        members: Iterable[IndividualID],
+        avatar: Media | None = None,
+        tagline: str | None = None,
+    ) -> Group:
+        """Create a group.
+
+        Parameters
+        ----------
+        name
+            The name of the group.
+        members
+            The members to add to the group.
+        avatar
+            The avatar of the group.
+        tagline
+            The tagline of the group.
+        """
+        group = await self._state.create_group(name, members)
+        await group.edit(tagline=tagline, avatar=avatar)
+        return group
 
     def get_app(self, id: int, /) -> PartialApp[None]:
         """Creates a :class:`PartialApp` instance from its ID.

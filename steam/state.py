@@ -85,7 +85,6 @@ from .reaction import (
 from .role import Role, RolePermissions
 from .trade import Item, TradeOffer
 from .types.id import *
-from .types.user import IndividualID
 from .user import ClientUser, User
 from .utils import DateTime, cached_property, call_once
 
@@ -100,7 +99,7 @@ if TYPE_CHECKING:
     from .media import Media
     from .types import manifest, trade
     from .types.http import Coro
-    from .types.user import Author, AuthorT
+    from .types.user import Author, AuthorT, IndividualID
 
 
 log = logging.getLogger(__name__)
@@ -936,6 +935,18 @@ class ConnectionState:
 
     def get_group(self, id: ChatGroupID) -> Group | None:
         return self._groups.get(id)
+
+    async def create_group(self, name: str, members: Iterable[IndividualID]) -> Group:
+        msg: chat.CreateChatRoomGroupResponse = await self.ws.send_um_and_wait(
+            chat.CreateChatRoomGroupRequest(name=name, steamid_invitees=[member.id64 for member in members])
+        )
+        group = Group(self, ChatGroupID(msg.chat_group_id))
+        group._update_header_state(msg.state.header_state)
+        group._update_channels(msg.state.chat_rooms, default_channel_id=msg.state.default_chat_id)
+        group._update_group_state(msg.state)
+        group._top_members = []
+        group.active_member_count = 0
+        return group
 
     def get_clan(self, id: ID32) -> Clan | None:
         return self._clans.get(id)
