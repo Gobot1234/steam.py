@@ -641,7 +641,7 @@ class Client:
         Parameters
         ----------
         ids
-            The user's IDs.
+            The user's ID64s.
         """
         return await self._state.fetch_users(cast("tuple[ID64, ...]", ids))
 
@@ -651,7 +651,7 @@ class Client:
         Parameters
         ----------
         id
-            The id of the trade to search for from the cache.
+            The ID of the trade to search for from the cache.
         """
         return self._state.get_trade(TradeOfferID(id))
 
@@ -695,8 +695,7 @@ class Client:
         Parameters
         ----------
         id
-            The ID of the clan, can be an :attr:`.ID.id64`, :attr:`.ID.id`, :attr:`.ID.id2` or an
-            :attr:`.ID.id3`.
+            The ID64 of the clan.
         """
         return await self._state.fetch_clan(ID64(id))
 
