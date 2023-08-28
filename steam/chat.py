@@ -57,12 +57,13 @@ class _PartialMemberProto(
         "clan",
         "group",
         "rank",
-        "kick_expires",
+        "kick_expires_at",
         "_role_ids",
         "_state",
     )
     if not TYPE_CHECKING:
         __slots__ = ()
+
     _state: ConnectionState
     rank: ChatMemberRank
     _role_ids: tuple[RoleID, ...]
@@ -76,7 +77,7 @@ class _PartialMemberProto(
         self.kick_expires_at = DateTime.from_timestamp(member.time_kick_expire)
 
     @property
-    def _chat_group(self) -> Clan | ChatGroup:
+    def _chat_group(self) -> Clan | Group:
         chat_group = self.group or self.clan
         assert chat_group is not None
         return chat_group
@@ -452,7 +453,7 @@ class Chat(Channel[ChatMessageT]):
             if not resp.more_available:
                 return
 
-    async def edit(self, *, name: str, move_below: Self) -> None:
+    async def edit(self, *, name: str | None = None, move_below: Self | None) -> None:
         """Edit the chat.
 
         Parameters
@@ -462,7 +463,7 @@ class Chat(Channel[ChatMessageT]):
         move_below
             The chat to move this chat below.
         """
-        await self._state.edit_chat(*self._location, name, move_below.id)
+        await self._state.edit_chat(*self._location, name, move_below.id if move_below else None)
 
     async def delete(self) -> None:
         """Delete the chat."""
