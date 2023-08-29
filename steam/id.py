@@ -79,7 +79,7 @@ def parse_id64(
         # textual input e.g. [g:1:4]
         if not isinstance(id, str):
             raise InvalidID(id, type, universe, instance, "it cannot be parsed as an int or str") from None
-        result = ID.from_id2(id) or ID.from_id3(id) or ID.from_invite_code(id)
+        result = ID.from_id2(id) or ID.from_id3(id)
         if result is None:
             raise InvalidID(id, type, universe, instance, "it cannot be parsed") from None
         return result.id64
