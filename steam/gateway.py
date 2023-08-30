@@ -568,6 +568,7 @@ class SteamWebSocket:
         allowed_confirmation: auth.AllowedConfirmation,
     ) -> auth.PollAuthSessionStatusResponse:
         type = allowed_confirmation.confirmation_type
+        count = 0
         while True:
             code = await self._state.client.code()
             try:
@@ -582,6 +583,19 @@ class SteamWebSocket:
             except ConnectionClosed:
                 continue
             if code_msg.result == Result.TwoFactorCodeMismatch:
+                count += 1
+                if count > 3:
+                    exc = WSException(code_msg)
+                    if sys.version_info >= (3, 11):
+                        msg = (
+                            "Your clock is out of sync with the Steam servers or your shared secret is incorrect"
+                            if self._state.client.shared_secret is not None
+                            else "Your clock is likely out of sync with the Steam servers"
+                        )
+                        exc.add_note(msg)
+                    raise exc
+                if self._state.client.shared_secret is not None:
+                    await asyncio.sleep(2)
                 continue
             elif code_msg.result != Result.OK:
                 raise WSException(code_msg)
