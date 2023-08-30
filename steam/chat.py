@@ -17,7 +17,7 @@ from . import utils
 from ._const import UNIX_EPOCH
 from .abc import Channel, Message, PartialUser
 from .app import PartialApp
-from .enums import ChatMemberRank, Type
+from .enums import ChatMemberJoinState, ChatMemberRank, Type
 from .errors import WSException
 from .id import _ID64_TO_ID32, ID
 from .models import Avatar
@@ -57,6 +57,7 @@ class _PartialMemberProto(
         "clan",
         "group",
         "rank",
+        "join_state",
         "kick_expires_at",
         "_role_ids",
         "_state",
@@ -66,6 +67,7 @@ class _PartialMemberProto(
 
     _state: ConnectionState
     rank: ChatMemberRank
+    join_state: ChatMemberJoinState
     _role_ids: tuple[RoleID, ...]
     kick_expires_at: datetime
     clan: Clan | None
@@ -73,6 +75,7 @@ class _PartialMemberProto(
 
     def _update(self, member: chat.Member, /) -> None:
         self.rank = ChatMemberRank.try_value(member.rank)
+        self.join_state = ChatMemberJoinState.try_value(member.state)
         self._role_ids = cast("tuple[RoleID, ...]", tuple(member.role_ids))
         self.kick_expires_at = DateTime.from_timestamp(member.time_kick_expire)
 
@@ -146,7 +149,7 @@ class PartialMember(PartialUser, _PartialMemberProto):  # type: ignore
             self.group,
             chat.Member(
                 self.id,
-                chat.EChatRoomJoinState.Joined,
+                self.join_state,  # type: ignore
                 self.rank,  # type: ignore
                 int(self.kick_expires_at.timestamp()),
                 list(self._role_ids),

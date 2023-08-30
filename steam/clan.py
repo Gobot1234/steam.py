@@ -22,13 +22,13 @@ from .chat import ChatGroup, Member, PartialMember
 from .enums import ClanAccountFlags, EventType, Language, Type, UserNewsType
 from .event import Announcement, Event
 from .id import ID, parse_id64
+from .protobufs import chat
 from .types.id import ID32, ID64, Intable
 from .utils import BBCodeStr, DateTime, parse_bb_code
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Sequence
 
-    from .protobufs import chat
     from .state import ConnectionState
     from .types.http import IPAdress
     from .user import User
@@ -430,7 +430,8 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
         try:
             return PartialMember(self._state, clan=self, member=self._partial_members[id])
         except KeyError:
-            return PartialMember(self._state, clan=self, member=self._partial_members[id])
+            member = self._partial_members[id] = chat.Member(id, state=chat.EChatRoomJoinState.NONE)
+            return PartialMember(self._state, clan=self, member=member)
 
     def is_ogg(self) -> bool:
         """Whether this clan is an official game group."""

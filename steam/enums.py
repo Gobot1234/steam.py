@@ -33,6 +33,7 @@ __all__ = (
     "CommunityVisibilityState",
     "TradeOfferState",
     "ChatMemberRank",
+    "ChatMemberJoinState",
     "ChatEntryType",
     "ClanAccountFlags",
     "UIMode",
@@ -1208,6 +1209,12 @@ class ChatMemberRank(IntEnum):
     """Officer rank for a chat member."""
     Owner = 50
     """Owner rank for a chat member."""
+
+class ChatMemberJoinState(IntEnum):
+    """The join state of a chat member."""
+    Default = 0
+    NONE = 1
+    Joined = 2
 
 
 class ChatEntryType(IntEnum):
