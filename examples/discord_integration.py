@@ -43,7 +43,7 @@ class UserConverter(commands.Converter[steam.User]):
 
     async def convert(self, ctx: commands.Context[DiscordBot], argument: str) -> steam.User:
         try:
-            return await ctx.bot.client.fetch_user(argument)
+            return await ctx.bot.client.fetch_user(steam.utils.parse_id64(argument))
         except steam.InvalidID:
             id64 = await steam.utils.id64_from_url(argument)
             if id64 is None:
