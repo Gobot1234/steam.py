@@ -28,8 +28,10 @@ from ...app import App, PartialApp
 from ...channel import Channel
 from ...chat import ChatMessage, Member, PartialMember
 from ...clan import Clan
+from ...enums import Type
 from ...errors import HTTPException, InvalidID, WSException
 from ...group import Group
+from ...id import ID, parse_id64
 from ...user import ClientUser, User
 from .errors import BadArgument
 
@@ -372,7 +374,7 @@ class ClanConverter(Converter[Clan]):
 
     async def convert(self, ctx: Context, argument: str) -> Clan:
         try:
-            clan = await ctx.bot.fetch_clan(argument)
+            clan = await ctx.bot.fetch_clan(parse_id64(argument, type=Type.Clan))
         except (InvalidID, HTTPException):
             clan = utils.find(lambda c: c.name == argument, ctx.bot.clans)
             if clan is None:
@@ -393,7 +395,7 @@ class GroupConverter(Converter[Group]):
 
     async def convert(self, ctx: Context, argument: str) -> Group:
         try:
-            group = ctx.bot.get_group(argument)
+            group = ctx.bot.get_group(parse_id64(argument, type=Type.Chat))
         except InvalidID:
             group = utils.find(lambda c: c.name == argument, ctx.bot.groups)
         if group is None:
