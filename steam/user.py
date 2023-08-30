@@ -6,11 +6,12 @@ import asyncio
 import weakref
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
+from functools import partial
 from ipaddress import IPv4Address
 from operator import attrgetter
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
-from ._const import DOCS_BUILDING, UNIX_EPOCH, URL, TaskGroup
+from ._const import DOCS_BUILDING, MISSING, UNIX_EPOCH, URL, TaskGroup
 from .abc import BaseUser, Messageable
 from .app import PartialApp
 from .enums import Language, PersonaState, PersonaStateFlag, Type
@@ -162,7 +163,7 @@ class User(_BaseUser, Messageable["UserMessage"]):
 
     async def send(
         self,
-        content: Any = None,
+        content: Any = MISSING,
         /,
         *,
         trade: TradeOffer[Asset[User], Asset[ClientUser], Any] | None = None,
@@ -195,8 +196,11 @@ class User(_BaseUser, Messageable["UserMessage"]):
         -------
         The sent message only applicable if ``content`` is passed.
         """
+        super_send = partial(
+            Messageable["UserMessage[ClientUser]"].send, cast("Messageable[UserMessage[ClientUser]]", self)
+        )  # done because calls to super() break in WrapsUser subclasses
 
-        message = await super().send(content, media=media)
+        message = await super_send(content, media=media)
         if trade is not None:
             await self._send_trade(trade)
 

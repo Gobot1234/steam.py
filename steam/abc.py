@@ -905,7 +905,7 @@ class Messageable(Protocol[MessageT]):
     def _send_media(self, media: Media) -> Coroutine[Any, Any, None]:
         raise NotImplementedError
 
-    async def send(self, content: Any = None, /, *, media: Media | None = None) -> MessageT | None:
+    async def send(self, content: Any = MISSING, /, *, media: Media | None = None) -> MessageT | None:
         """Send a message to a certain destination.
 
         Parameters
@@ -930,7 +930,7 @@ class Messageable(Protocol[MessageT]):
         -------
         The sent message, only applicable if ``content`` is passed.
         """
-        message = None if content is None else await self._send_message(str(content))
+        message = None if content is MISSING else await self._send_message(str(content))
         if media is not None:
             await self._send_media(media)
 
