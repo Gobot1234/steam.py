@@ -527,7 +527,7 @@ class Greedy(Generic[T]):
     ) -> Never:  # give a more helpful message than typing._BaseGenericAlias.__call__
         raise TypeError("Greedy cannot be instantiated directly, instead use Greedy[...]")
 
-    def __class_getitem__(cls, converter: GreedyTypes[T]) -> Greedy[T]:
+    def __class_getitem__(cls, converter: T) -> Greedy[T]:
         """The entry point for creating a Greedy type.
 
         Note
@@ -560,16 +560,6 @@ if TYPE_CHECKING:
     # when I drop support for <3.8 I'll make __class_getitem__ return a types.GenericAlias subclass
     class Greedy(Greedy[T], Sequence[T]):
         ...
-
-
-ConverterTypes: TypeAlias = "T | str | tuple[T] | tuple[str]"
-GreedyTypes: TypeAlias = "T | str | tuple[T, ...] | tuple[str, ...] | Converters"
-# in order of appearance:
-# a class/type
-# should be a string with a ForwardRef to a class to be evaluated later
-# for Greedy[int,] / Greedy[(int,)] to be valid or Greedy[User, int] to be expanded to Union
-# same as above two points
-# a simple callable converter or Converter
 
 
 INVALID_GREEDY_TYPES = (

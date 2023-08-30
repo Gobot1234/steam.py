@@ -138,7 +138,7 @@ class App(Generic[NameT]):
 
 def CUSTOM_APP(
     name: str,
-) -> App[str]:  # TODO if actually optimising make this return a different class cause it's a u64 cause haha steam
+) -> App[str]:
     """Create a custom app instance for :meth:`~steam.Client.change_presence`.
     The :attr:`App.id` will be set to ``15190414816125648896``.
 
@@ -153,6 +153,7 @@ def CUSTOM_APP(
     name
         The name of the app to set your playing status to.
     """
+    # if actually optimising make this return a different class cause it's a u64 cause haha steam
     return App(name=name, id=15190414816125648896)
 
 

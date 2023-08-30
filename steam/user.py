@@ -167,7 +167,7 @@ class User(_BaseUser, Messageable["UserMessage"]):
         *,
         trade: TradeOffer[Asset[User], Asset[ClientUser], Any] | None = None,
         media: Media | None = None,
-    ) -> UserMessage | None:
+    ) -> UserMessage[ClientUser] | None:
         """Send a message, trade or image to an :class:`User`.
 
         Parameters

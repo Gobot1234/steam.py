@@ -850,11 +850,11 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
         Parameters
         ----------
         name
-            The new name of the chat group.
+            The new name of the chat group. If ``None``, the name will not be changed.
         tagline
-            The new tagline of the chat group.
+            The new tagline of the chat group. If ``None``, the tagline will not be changed.
         avatar
-            The new avatar of the chat group.
+            The new avatar of the chat group. If ``None``, the avatar will not be changed.
         """
         await self._state.edit_chat_group(self._id, name, tagline, avatar)
 

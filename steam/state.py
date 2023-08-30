@@ -2302,7 +2302,7 @@ class ConnectionState:
 
     async def fetch_notifications(self) -> list[notifications.SteamNotificationData]:
         msg: notifications.GetSteamNotificationsResponse = await self.ws.send_um_and_wait(
-            notifications.GetSteamNotificationsRequest()
+            notifications.GetSteamNotificationsRequest(include_hidden=True)
         )
         if msg.result != Result.OK:
             raise WSException(msg)
@@ -2310,11 +2310,9 @@ class ConnectionState:
         return msg.notifications
 
     async def handle_notifications(self, msg: notifications.GetSteamNotificationsResponse) -> None:
-        comment_index = 0
         for notification in msg.notifications:
             match notification.notification_type:
                 case 3:  # comment
-                    comment_index += 1
                     body: dict[str, Any] = JSON_LOADS(notification.body_data)
                     forum_id = int(body["forum_id"])
                     partial_user = self.get_partial_user(body["owner_steam_id"])
@@ -2345,8 +2343,8 @@ class ConnectionState:
                             continue
                     try:
                         self.dispatch("comment", await commentable.fetch_comment(int(body["cgid"])))
-                    except WSException:
-                        pass
+                    except (WSException, KeyError):
+                        log.info("Failed to fetch comment %s", notification, exc_info=True)
                 case 9:  # trade, this is only going to happen at startup
                     await self.poll_trades()
 
@@ -2362,11 +2360,8 @@ class ConnectionState:
 
     @parser
     async def handle_comments(self, msg: client_server_2.CMsgClientCommentNotifications) -> None:
-        notifications = await self.fetch_notifications()
-        while all(notification.notification_type != 3 for notification in notifications):
+        while all(notification.notification_type != 3 for notification in await self.fetch_notifications()):
             await asyncio.sleep(5)  # steam takes a bit to put comments in your notifications
-            notifications = await self.fetch_notifications()
-        return
 
     @parser
     async def parse_notification(self, msg: client_server_2.CMsgClientUserNotifications) -> None:
