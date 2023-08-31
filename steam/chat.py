@@ -36,6 +36,7 @@ if TYPE_CHECKING:
     from .channel import ClanChannel, GroupChannel
     from .clan import Clan
     from .group import Group
+    from .invite import ChatGroupInvite
     from .media import Media
     from .message import ClanMessage, GroupMessage
     from .state import ConnectionState
@@ -518,6 +519,7 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
         "_roles",
         "_default_role_id",
         "_avatar_sha",
+        "_invites",
     )
     name: str
     """The name of the chat group."""
@@ -553,6 +555,7 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
         self._roles: dict[RoleID, Role] = {}
         self._officers: list[ID32] = []
         self._mods: list[ID32] = []
+        self._invites: dict[ID32, ChatGroupInvite] = {}
 
     @classmethod
     async def _from_proto(

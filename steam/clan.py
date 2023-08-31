@@ -88,6 +88,14 @@ class PartialClan(ID[Literal[Type.Clan]], Commentable):
         async for id32 in self._state.http.get_clan_members(self.id64):
             yield self._state.get_partial_user(id32)
 
+    async def join(self) -> None:
+        """Joins the clan."""
+        await self._state.http.join_clan(self.id64)
+
+    async def leave(self) -> None:
+        """Leaves the clan."""
+        await self._state.http.leave_clan(self.id64)
+
     # event/announcement stuff
 
     async def fetch_event(self, id: int) -> Event[EventType, Self]:
@@ -444,12 +452,10 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
             yield self._maybe_member(id32)
 
     async def join(self, *, invite_code: str | None = None) -> None:
-        """Joins the clan."""
         await self._state.http.join_clan(self.id64)
         await super().join(invite_code=invite_code)
 
     async def leave(self) -> None:
-        """Leaves the clan."""
         await super().leave()
         await self._state.http.leave_clan(self.id64)
 

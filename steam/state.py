@@ -35,7 +35,7 @@ from .gateway import CMServer, ConnectionClosed, Msgs, ProtoMsgs, SteamWebSocket
 from .group import Group, GroupMember
 from .guard import *
 from .id import _ID64_TO_ID32, ID, parse_id64
-from .invite import ClanInvite, UserInvite
+from .invite import ClanInvite, GroupInvite, UserInvite
 from .manifest import AppInfo, ContentServer, Manifest, PackageInfo
 from .message import *
 from .message import ClanMessage
@@ -1412,12 +1412,34 @@ class ConnectionState:
 
     def handle_chat_server_message(
         self, chat_group: Clan | Group, author: ClanMember | GroupMember | PartialMember, msg: chat.ServerMessage
-    ):
+    ) -> None:
+        if self.intents & Intents.Users & Intents.Chat > 0:
+            return
+        user_id = ID32(msg.accountid_param)
         match msg.message:
             case chat.EChatRoomServerMessage.Invited:
-                invite = ...
-                chat_group._invites[...] = ...
-                self.dispatch(f"{chat_group.__class__.__name__.lower()}_invite", invite)
+                invite = chat_group._invites[user_id] = (
+                    ClanInvite(
+                        self,
+                        chat_group._get_partial_member(user_id),
+                        author,
+                        FriendRelationship.RequestRecipient,
+                        clan=chat_group,
+                    )
+                    if isinstance(chat_group, Clan)
+                    else GroupInvite(
+                        self,
+                        chat_group._get_partial_member(user_id),
+                        author,
+                        FriendRelationship.RequestRecipient,
+                        group=chat_group,
+                    )
+                )
+                self.dispatch("invite", invite)
+            case chat.EChatRoomServerMessage.Joined:
+                invite = chat_group._invites.pop(user_id, None)
+                if invite is not None:
+                    self.dispatch("invite_accept", invite)
 
     @requires_intent(Intents.ChatGroups | Intents.Chat | Intents.Messages | Intents.Users)
     def handle_chat_message(self, msg: chat.IncomingChatMessageNotification) -> None:
@@ -1430,7 +1452,7 @@ class ConnectionState:
         channel._update(msg)
         author = chat_group._maybe_member(_ID64_TO_ID32(msg.steamid_sender))
         if msg.server_message:
-            return  # self.handle_chat_server_message(chat_group, author, msg.server_message)  # this needs to manually handle intents
+            return self.handle_chat_server_message(chat_group, author, msg.server_message)
 
         (message_cls,) = channel._type_args
         message = message_cls(

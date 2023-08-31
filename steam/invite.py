@@ -65,7 +65,7 @@ class UserInvite(_Invite):
 
 
 @dataclass(repr=False, slots=True)
-class ChatGroupInvite(_Invite):
+class _ChatGroupInvite(_Invite):
     if TYPE_CHECKING:
         code: str | None
         clan: Clan | PartialClan | None
@@ -86,18 +86,19 @@ class ChatGroupInvite(_Invite):
 
 
 @dataclass(repr=False, slots=True)
-class ClanInvite(ChatGroupInvite):
+class ClanInvite(_ChatGroupInvite):
     """Represents an invitation to join a :class:`~steam.Clan` from a user."""
 
     REPR_ATTRS: ClassVar = ("author", "relationship", "clan")
     clan: Clan | PartialClan
     """The clan to join."""
     relationship: FriendRelationship
-    group: None = None
     code: str | None = None
+    group: None = None
 
     async def accept(self) -> None:
         await self._state.respond_to_clan_invite(self.clan.id64, True)
+        await self.clan.join()
 
     async def decline(self) -> None:
         """Decline the invite request."""
@@ -105,17 +106,20 @@ class ClanInvite(ChatGroupInvite):
 
 
 @dataclass(repr=False, slots=True)
-class GroupInvite(ChatGroupInvite):
+class GroupInvite(_ChatGroupInvite):
     """Represents an invitation from a user to join a group."""
 
     REPR_ATTRS: ClassVar = ("author", "relationship", "group")
     group: Group
     """The group to join."""
-    code: str
+    code: str | None = None
     clan: None = None
 
     async def accept(self) -> None:
         await self.group.join(invite_code=self.code)
+
+
+ChatGroupInvite = ClanInvite | GroupInvite
 
 
 @dataclass(repr=False, slots=True)
