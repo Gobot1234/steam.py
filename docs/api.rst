@@ -869,6 +869,12 @@ Reactions
     :members:
     :inherited-members:
 
+.. attributetable:: ClientEffect
+
+.. autoclass:: ClientEffect()
+    :members:
+    :inherited-members:
+
 Reviews
 ~~~~~~~~~~~~~~~
 

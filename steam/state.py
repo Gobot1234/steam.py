@@ -74,6 +74,7 @@ from .protobufs import (
 from .published_file import PublishedFile
 from .reaction import (
     Award,
+    ClientEffect,
     ClientEmoticon,
     ClientSticker,
     Emoticon,
@@ -222,8 +223,10 @@ class ConnectionState:
 
         self._messages: deque[Message] = deque(maxlen=self.max_messages or 0)
         self.invites: dict[ID64, UserInvite | ClanInvite] = {}
+
         self.emoticons: list[ClientEmoticon] = []
         self.stickers: list[ClientSticker] = []
+        self.effects: list[ClientEffect] = []
 
         self._trades: dict[TradeOfferID, TradeOffer[Item[User], Item[ClientUser], User]] = {}
         self._confirmations: dict[TradeOfferID, Confirmation] = {}
@@ -2395,7 +2398,7 @@ class ConnectionState:
     def handle_emoticon_list(self, msg: friends.CMsgClientEmoticonList) -> None:
         self.emoticons = [ClientEmoticon(self, emoticon) for emoticon in msg.emoticons]
         self.stickers = [ClientSticker(self, sticker) for sticker in msg.stickers]
-        # self.effects = [ClientEffect(self, effect) for effect in msg.effects]  # TODO
+        self.effects = [ClientEffect(self, effect) for effect in msg.effects]
         self.handled_emoticons.set()
 
     async def add_award(self, awardable: Awardable, award: Award) -> None:

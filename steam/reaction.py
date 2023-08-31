@@ -356,3 +356,31 @@ class ClientSticker(BaseClientEmoticon, Sticker):
 
     async def app(self) -> PartialApp[None]:
         return PartialApp(self._state, id=self._app_id)  # no point fetching cause endpoint doesn't return name
+
+
+class ClientEffect(BaseEmoticon):
+    __slots__ = (
+        "count",
+        "received_at",
+        "infinite_use",
+        "_app_id",
+    )
+
+    def __init__(self, state: ConnectionState, proto: ClientEffectProto):
+        super().__init__(state, proto.name)
+        self.count = proto.count
+        """The number of times this emoticon can be used."""
+        self.received_at = DateTime.from_timestamp(proto.time_received)
+        """The time this emoticon was received."""
+        self.infinite_use = proto.infinite_use
+        self._app_id = proto.appid
+
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__} name={self.name!r} count={self.count!r}>"
+
+    def __str__(self) -> str:
+        return f"/roomeffect {self.name}"
+
+
+# https://cdn.akamai.steamstatic.com/steamcommunity/public/assets/winter2019/roomeffects/96px/firework.png
+# Message.sticker?/roomeffect

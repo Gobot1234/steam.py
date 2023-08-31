@@ -74,7 +74,7 @@ if TYPE_CHECKING:
     from .media import Media
     from .post import Post
     from .published_file import PublishedFile
-    from .reaction import ClientEmoticon, ClientSticker, MessageReaction
+    from .reaction import ClientEffect, ClientEmoticon, ClientSticker, MessageReaction
     from .trade import Asset, Item, MovedItem, TradeOffer
     from .types.http import IPAdress
     from .types.user import IndividualID
@@ -218,6 +218,11 @@ class Client:
     def stickers(self) -> Sequence[ClientSticker]:
         """A read-only list of all the stickers the client has."""
         return self._state.stickers
+
+    @property
+    def effects(self) -> Sequence[ClientEffect]:
+        """A read-only list of all the effects the client has."""
+        return self._state.effects
 
     @property
     def latency(self) -> float:
