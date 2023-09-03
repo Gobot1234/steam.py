@@ -68,7 +68,7 @@ class UserInvite(_Invite):
 class _ChatGroupInvite(_Invite, _HasChatGroupMixin):
     if TYPE_CHECKING:
         code: str | None
-        clan: Clan | PartialClan | None
+        clan: Clan | PartialClan | None  # type: ignore
         group: Group | None
 
     async def revoke(self) -> None:
@@ -110,7 +110,7 @@ class GroupInvite(_ChatGroupInvite):
         await self.group.join(invite_code=self.code)
 
 
-ChatGroupInvite = ClanInvite | GroupInvite
+ChatGroupInvite: TypeAlias = ClanInvite | GroupInvite
 
 
 @dataclass(repr=False, slots=True)

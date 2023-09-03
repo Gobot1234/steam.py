@@ -85,7 +85,9 @@ def parse_id64(
         return result.id64
     else:
         # numeric input
-        if 0 <= id < 2**32:  # 32 bit
+        if id < 0:
+            raise InvalidID(id, type, universe, instance, "it is too small")
+        elif 0 <= id < 2**32:  # 32 bit
             type = type or Type.Individual
             universe = universe or Universe.Public
 
@@ -98,13 +100,13 @@ def parse_id64(
                 raise InvalidID(id, type, universe, instance, "type is bigger than 4 bits")
             if not (0 <= instance < 1 << 20):
                 raise InvalidID(id, type, universe, instance, "instance is bigger than 20 bits")
-        elif 0 <= id < 2**64:  # 64 bit
+        elif id < 2**64:  # 64 bit
             universe = Universe.try_value((id >> 56) & 0xFF)
             type = Type.try_value((id >> 52) & 0xF)
             instance = Instance.try_value((id >> 32) & 0xFFFFF)
             id &= 0xFFFFFFFF
         else:
-            raise InvalidID(id, type, universe, instance, f"it is too {'large' if id >= 2**64 else 'small'}")
+            raise InvalidID(id, type, universe, instance, "it is too large")
 
     return ID64(universe << 56 | type << 52 | instance << 32 | id)
 
