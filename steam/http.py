@@ -11,10 +11,10 @@ from http.cookies import SimpleCookie
 from random import randbytes
 from sys import version_info
 from time import time
-from typing import TYPE_CHECKING, Any, Literal, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Literal, Mapping, TypeVar, cast
 
 import aiohttp
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 from yarl import URL as URL_
 
 from . import errors, utils
@@ -478,6 +478,79 @@ class HTTPClient:
         }
         data: ResponseDict[trade.TradeStatus] = await self.get(api_route("IEconService/GetTradeStatus"), params=params)
         return data["response"]
+
+    async def check_availability(self, value: str, type: str) -> bool:
+        data = {
+            "xml": 1,
+            "type": type,
+            "value": value,
+        }
+        xml = await self.post(URL.COMMUNITY / "actions/AvailabilityCheck", data=data)
+        soup = BeautifulSoup(xml, "xml")
+        return soup.response.bResults.text == "1"  # type: ignore
+
+    async def create_clan(
+        self,
+        name: str,
+        abbreviation: str | None,
+        community_url_path: str | None,
+        public: bool,
+    ) -> ID64:
+        if not await self.check_availability(name, "groupName"):
+            raise ValueError("Name is not available")
+        abbreviation = abbreviation or name
+        if not 0 < len(abbreviation) < 12:
+            raise ValueError("Abbreviation must be between 1 and 12 characters")
+        if not await self.check_availability(abbreviation, "abbreviation"):
+            raise ValueError("Abbreviation is not available")
+        community_url_path = community_url_path or name
+        if not await self.check_availability(community_url_path, "groupLink"):
+            raise ValueError("Community URL path is not available")
+
+        data = {
+            "sessionID": self.session_id,
+            "step": 2,  # might need to be 1 then 2
+            "groupName": name,
+            "abbreviation": abbreviation or name,
+            "groupLink": community_url_path or name,
+            "bIsPublic": int(public),
+        }
+        edit_page = await self.post(URL.COMMUNITY / "actions/GroupCreate", data=data)
+        soup = BeautifulSoup(edit_page, "html.parser")
+        for element in soup.find_all("div", class_="formRow"):
+            row_title = element.find("div", class_="formRowTitle")
+            if row_title and "ID" in row_title.text.strip():
+                return parse_id64(element.find("div", class_="formRowFields").text.strip(), type=Type.Clan)
+        raise RuntimeError("Could not find ID should be unreachable")
+
+    async def edit_clan(
+        self,
+        clan_id64: ID64,
+        *,
+        abbreviation: str | None = None,
+        headline: str | None = None,
+        summary: str | None = None,
+        community_url_path: str | None = None,
+        language: Language | None = None,
+        country: str | None = None,
+        state: str | None = None,
+        city: str | None = None,
+        apps: Iterable[AppID] | None = None,
+    ) -> None:
+        data = {
+            "sessionID": self.session_id,
+            "type": "profileSave",
+            "abbreviation": abbreviation or "",
+            "headline": headline or "",
+            "summary": summary or "",
+            "customURL": community_url_path or "",
+            "language": language.api_name if language is not None else "",
+            "country": country or "",
+            "state": state or "",
+            "city": city or "",
+            "favorite_games": ",".join(map(str, apps)) if apps is not None else "",
+        }
+        return await self.post(f"{ID(clan_id64).community_url}/edit", data=data)
 
     def join_clan(self, clan_id64: ID64) -> Coro[None]:
         payload = {
@@ -968,18 +1041,17 @@ class HTTPClient:
 
         await self.post(f"{self.user.community_url}/edit", data=payload)
 
-    async def update_avatar(self, avatar: Media) -> None:
+    async def update_avatar(self, avatar: Media, type: str, *, params: Mapping[str, Any] = {}, **extras: Any) -> None:
         with avatar:
-            payload = aiohttp.FormData()
+            payload = aiohttp.FormData(fields=tuple(extras.items()))
             payload.add_field("MAX_FILE_SIZE", str(avatar.size))
-            payload.add_field("type", "player_avatar_image")
-            payload.add_field("sId", str(self.user.id64))
+            payload.add_field("type", type)
             payload.add_field("sessionid", self.session_id)
             payload.add_field("doSub", "1")
             payload.add_field(
                 "avatar", avatar.read(), filename=f"avatar.{avatar.type}", content_type=f"image/{avatar.type}"
             )
-            await self.post(URL.COMMUNITY / "actions/FileUploader", data=payload)
+            await self.post(URL.COMMUNITY / "actions/FileUploader", data=payload, params=params)
 
     async def send_media(self, media: Media, **kwargs: int) -> None:
         contents = media.read()
@@ -998,7 +1070,7 @@ class HTTPClient:
         result = resp["result"]
         url = f'{"https" if result["use_https"] else "http"}://{result["url_host"]}{result["url_path"]}'
         headers = {header["name"]: header["value"] for header in result["request_headers"]}
-        await self.request("PUT", url=url, headers=headers, data=contents)
+        await self.request("PUT", url, headers=headers, data=contents)
 
         payload |= {
             "success": 1,

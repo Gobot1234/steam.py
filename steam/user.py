@@ -472,7 +472,7 @@ class ClientUser(_BaseUser):
         if any((name, real_name, url, summary, country, state, city)):
             await self._state.http.edit_profile_info(name, real_name, url, summary, country, state, city)
         if avatar is not None:
-            await self._state.http.update_avatar(avatar)
+            await self._state.http.update_avatar(avatar, "player_avatar_image", sId=self.id64)
         # TODO privacy stuff
 
 

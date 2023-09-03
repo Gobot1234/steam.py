@@ -33,12 +33,16 @@ from typing import (
     overload,
 )
 
+from yarl import URL as URL_
+
 from . import utils
 from ._const import DOCS_BUILDING, STATE, UNIX_EPOCH, URL, TaskGroup, timeout
 from .achievement import UserNewsAchievement
 from .app import App, AppListApp, AuthenticationTicket, FetchedApp, PartialApp
 from .bundle import Bundle, FetchedBundle, PartialBundle
+from .chat import ChatGroup
 from .enums import *
+from .errors import WSException
 from .game_server import GameServer, Query
 from .gateway import *
 from .guard import get_authentication_code
@@ -152,9 +156,6 @@ class Client:
         Whether to automatically call chunk on clans and groups filling :attr:`ChatGroup.members`. Setting this to
         ``True`` isn't recommend unless you have a good internet connection and good hardware.
     """
-
-    # TODO
-    # Client.create_clan
 
     def __init__(self, **options: Unpack[ClientKwargs]):
         self.http = HTTPClient(client=self, **options)
@@ -695,7 +696,7 @@ class Client:
         return self._state.get_clan(_ID64_TO_ID32(id))
 
     async def fetch_clan(self, id: int, /) -> Clan:
-        """Fetches a clan from the websocket with a matching ID or ``None`` if the clan was not found.
+        """Fetches a clan from the websocket with a matching ID.
 
         Parameters
         ----------
@@ -703,6 +704,75 @@ class Client:
             The ID64 of the clan.
         """
         return await self._state.fetch_clan(ID64(id))
+
+    async def create_clan(
+        self,
+        name: str,
+        /,
+        *,
+        abbreviation: str | None = None,
+        community_url: URL_ | str | None = None,
+        public: bool = True,
+        headline: str | None = None,
+        summary: str | None = None,
+        language: Language | None = None,
+        country: str | None = None,
+        state: str | None = None,
+        city: str | None = None,
+        apps: Iterable[App] | None = None,
+        avatar: Media | None = None,
+    ) -> Clan:
+        """Create a clan.
+
+        Parameters
+        ----------
+        name
+            The name of the clan.
+        avatar
+            The avatar of the clan.
+        abbreviation
+            The abbreviation of the clan.
+        community_url
+            The community URL of the clan.
+        public
+            Whether the clan is public.
+        headline
+            The headline of the clan.
+        summary
+            The summary of the clan.
+        language
+            The language of the clan.
+        country
+            The country of the clan.
+        state
+            The state of the clan.
+        city
+            The city of the clan.
+        apps
+            The apps the clan is associated with.
+        """
+        if isinstance(community_url, str):
+            community_url = URL_(community_url)
+        if community_url is not None:
+            community_url = community_url.parts[-1] or community_url.parts[-2]
+
+        id64 = await self.http.create_clan(name, abbreviation, community_url, public)
+        clan = await self._state._maybe_clan(id64, create=True)  # should just be created by steam for us
+        await clan.edit(
+            headline=headline,
+            summary=summary,
+            language=language,
+            country=country,
+            state=state,
+            city=city,
+            apps=apps,
+            avatar=avatar,
+        )
+        try:
+            await ChatGroup.join(clan)  # type: ignore  # should be removed one day
+        except WSException:
+            log.debug("Failed to join clan chat group", exc_info=True)
+        return clan
 
     async def create_group(
         self,

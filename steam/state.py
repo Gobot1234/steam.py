@@ -954,9 +954,9 @@ class ConnectionState:
     def get_clan(self, id: ID32) -> Clan | None:
         return self._clans.get(id)
 
-    async def fetch_clan(self, id64: ID64, *, maybe_chunk: bool = True) -> Clan:
+    async def fetch_clan(self, id64: ID64, *, maybe_chunk: bool = True, create: bool = False) -> Clan:
         msg: chat.GetClanChatRoomInfoResponse = await self.ws.send_um_and_wait(
-            chat.GetClanChatRoomInfoRequest(steamid=id64)
+            chat.GetClanChatRoomInfoRequest(steamid=id64, autocreate=create)
         )
         if msg.result == Result.Busy:
             raise WSNotFound(msg)
@@ -966,6 +966,9 @@ class ConnectionState:
         clan = await Clan._from_proto(self, msg.chat_group_summary, maybe_chunk=maybe_chunk)
         self._clans[clan.id] = clan
         return clan
+
+    async def _maybe_clan(self, id: ID64, *, create: bool = False) -> Clan:
+        return self._clans.get(_ID64_TO_ID32(id)) or await self.fetch_clan(id, create=create)
 
     @cached_property
     def _chat_groups(self) -> utils.ChainMap[ChatGroupID, Group | Clan]:

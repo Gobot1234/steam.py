@@ -7,7 +7,7 @@ import itertools
 import re
 from datetime import date, datetime, timezone
 from ipaddress import IPv4Address
-from typing import TYPE_CHECKING, Literal, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Iterable, Literal, TypeVar, cast, overload
 
 from bs4 import BeautifulSoup, Tag
 from typing_extensions import Self
@@ -29,6 +29,7 @@ from .utils import BBCodeStr, DateTime, parse_bb_code
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Sequence
 
+    from .media import Media
     from .state import ConnectionState
     from .types.http import IPAdress
     from .user import User
@@ -77,6 +78,74 @@ class PartialClan(ID[Literal[Type.Clan]], Commentable):
     @utils.classproperty
     def _COMMENTABLE_TYPE(cls: type[Self]) -> _CommentThreadType:  # type: ignore
         return _CommentThreadType.Clan
+
+    async def edit(
+        self,
+        *,
+        abbreviation: str | None = None,
+        headline: str | None = None,
+        summary: str | None = None,
+        community_url: URL | str | None = None,
+        language: Language | None = None,
+        country: str | None = None,
+        state: str | None = None,
+        city: str | None = None,
+        apps: Iterable[App] | None = None,
+        avatar: Media | None = None,
+    ) -> None:
+        """Edits the clan.
+
+        Parameters
+        ----------
+        abbreviation
+            The new abbreviation for the clan.
+        headline
+            The new headline for the clan.
+        summary
+            The new summary for the clan.
+        community_url
+            The new custom URL for the clan.
+        language
+            The new language for the clan.
+        country
+            The new country for the clan.
+        state
+            The new state for the clan.
+        city
+            The new city for the clan.
+        apps
+            The new apps for the clan.
+        avatar
+            The new avatar for the clan.
+        """
+        if isinstance(community_url, str):
+            community_url = URL(community_url)
+        if community_url is not None:
+            community_url = community_url.parts[-1] or community_url.parts[-2]
+
+        await self._state.http.edit_clan(
+            self.id64,
+            abbreviation=abbreviation,
+            headline=headline,
+            summary=summary,
+            community_url_path=community_url,
+            language=language,
+            country=country,
+            state=state,
+            city=city,
+            apps=(app.id for app in apps) if apps is not None else None,
+        )
+        if avatar:
+            await self._state.http.update_avatar(
+                avatar,
+                "group_avatar_image",
+                gId=self.id64,
+                query={
+                    "type": "group_avatar_image",
+                    "gId": self.id64,
+                    "bgColor": "1b2838",
+                },
+            )
 
     async def fetch_members(self) -> AsyncGenerator[PartialUser, None]:
         """An :term:`async iterator` over a clan's member list.
@@ -446,6 +515,52 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
         if self.flags is not None:
             return self.flags & ClanAccountFlags.OGG > 0
         return self._is_app_clan
+
+    async def edit(
+        self,
+        *,
+        abbreviation: str | None = None,
+        headline: str | None = None,
+        summary: str | None = None,
+        community_url: URL | str | None = None,
+        language: Language | None = None,
+        country: str | None = None,
+        state: str | None = None,
+        city: str | None = None,
+        apps: Iterable[App] | None = None,
+        name: str | None = None,
+        tagline: str | None = None,
+        avatar: Media | None = None,
+    ) -> None:
+        """Edits the clan.
+
+        Parameters
+        ----------
+        name
+            The new name for the clan's chat group. **Does not change the clan's name.**
+        tagline
+            The new tagline for the clan.
+        avatar
+            The new avatar for the clan.
+
+        See Also
+        --------
+        :meth:`PartialClan.edit` for other parameters.
+        """
+        await PartialClan.edit(
+            self,
+            abbreviation=abbreviation,
+            headline=headline,
+            summary=summary,
+            community_url=community_url,
+            language=language,
+            country=country,
+            state=state,
+            city=city,
+            apps=apps,
+            avatar=avatar,
+        )
+        await super().edit(name=name, tagline=tagline)
 
     async def fetch_members(self) -> AsyncGenerator[ClanMember | PartialMember, None]:
         async for id32 in self._state.http.get_clan_members(self.id64):
