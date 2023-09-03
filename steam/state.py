@@ -1327,7 +1327,12 @@ class ConnectionState:
         return Role(self, self._chat_groups[chat_group_id], role, msg.actions)
 
     async def edit_role(
-        self, chat_group_id: ChatGroupID, role_id: RoleID, name: str | None, permissions: RolePermissions | None
+        self,
+        chat_group_id: ChatGroupID,
+        role_id: RoleID,
+        name: str | None,
+        permissions: RolePermissions | None,
+        ordinal: int | None,
     ) -> None:
         if name is not None:
             msg = await self.ws.send_um_and_wait(
@@ -1349,10 +1354,14 @@ class ConnectionState:
                 raise WSNotFound(msg)
             elif msg.result != Result.OK:
                 raise WSException(msg)
-
-    # TODO no idea what this does
-    # async def edit_role_position(self, chat_group_id: ChatGroupID, role_id: RoleID, ordinal: int) -> None:
-    #     chat.ReorderRoleRequest(chat_group_id=chat_group_id, role_id=role_id, ordinal=ordinal)
+        if ordinal is not None:
+            msg = await self.ws.send_um_and_wait(
+                chat.ReorderRoleRequest(chat_group_id=chat_group_id, role_id=role_id, ordinal=ordinal)
+            )
+            if msg.result == Result.InvalidParameter:
+                raise WSNotFound(msg)
+            elif msg.result != Result.OK:
+                raise WSException(msg)
 
     async def delete_role(self, chat_group_id: ChatGroupID, role_id: RoleID) -> None:
         msg = await self.ws.send_um_and_wait(chat.DeleteRoleRequest(chat_group_id=chat_group_id, role_id=role_id))

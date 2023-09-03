@@ -58,7 +58,9 @@ class Role(_HasChatGroupMixin):
         """The members that have this role."""
         return [m for m in self._chat_group.members if self in m.roles]
 
-    async def edit(self, *, name: str | None = None, permissions: RolePermissions | None = None) -> None:
+    async def edit(
+        self, *, name: str | None = None, permissions: RolePermissions | None = None, ordinal: int | None = None
+    ) -> None:
         """Edit this role.
 
         Parameters
@@ -67,8 +69,10 @@ class Role(_HasChatGroupMixin):
             The new name of the role.
         permissions
             The new permissions of the role.
+        ordinal
+            The new ordinal (position) of the role.
         """
-        await self._state.edit_role(self._chat_group._id, self.id, name=name, permissions=permissions)
+        await self._state.edit_role(self._chat_group._id, self.id, name=name, permissions=permissions, ordinal=ordinal)
 
     async def delete(self) -> None:
         """Delete this role."""
