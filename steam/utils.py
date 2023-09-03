@@ -212,6 +212,12 @@ class CachedSlotProperty(Generic[_SelfT, _T_co]):
         self.function = function
         self.__doc__: str | None = getattr(function, "__doc__", None)
         self.name = name
+        if __debug__:  # sanity check slots are present
+            try:
+                slots = sys._getframe(2).f_locals["__slots__"]
+            except KeyError:
+                slots = sys._getframe(3).f_locals["__slots__"]
+            assert name in slots, f"Slot {name} must exist"
 
     @overload
     def __get__(self, instance: None, _) -> Self:

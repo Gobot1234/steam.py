@@ -65,7 +65,7 @@ class Media:
         - OGV
     """
 
-    __slots__ = ("fp", "spoiler", "name", "width", "height", "type", "_cs_size", "_tell")
+    __slots__ = ("fp", "spoiler", "name", "width", "height", "type", "_size_cs", "_tell")
     fp: MediaIO
 
     def __init__(self, fp: MediaIO | StrOrBytesPath | int, *, spoiler: bool = False):
