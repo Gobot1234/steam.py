@@ -9,6 +9,7 @@ from __future__ import annotations
 import abc
 import asyncio
 import logging
+from operator import attrgetter
 from typing import TYPE_CHECKING, Any, Generic, Literal, Protocol, TypeAlias, cast, overload, runtime_checkable
 
 from typing_extensions import Self, TypeVar, get_original_bases
@@ -86,6 +87,11 @@ class _PartialMemberProto(
         """The member's roles."""
         chat_group = self._chat_group
         return [chat_group._roles[role_id] for role_id in self._role_ids]
+
+    @property
+    def top_role(self) -> Role | None:
+        """The member's top role."""
+        return min(self.roles, key=attrgetter("ordinal"), default=None)
 
     async def add_role(self, role: Role, /) -> None:
         """Add a role to the member."""
