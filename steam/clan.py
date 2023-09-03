@@ -331,6 +331,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
 
     __slots__ = (
         "summary",
+        "headline",
         "created_at",
         "language",
         "location",
@@ -345,11 +346,10 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
     # Clan.respond_to_requesting_membership(*users, approve)
     # Clan.respond_to_all_requesting_membership(approve)
 
-    # V1
-    # Clan.headline
-
     summary: BBCodeStr | None
     """The summary of the clan."""
+    headline: str | None
+    """The headline of the clan."""
     created_at: datetime | None
     """The time the clan was created at."""
     member_count: int
@@ -386,6 +386,9 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
             if url:
                 self._avatar_sha = bytes.fromhex(url.path.removesuffix("/").removesuffix("_full.jpg"))
 
+        headline = soup.find("div", class_="group_content group_summary")
+        headline_h1 = headline.h1 if isinstance(headline, Tag) else None
+        self.headline = headline_h1.text if headline_h1 else None
         content = soup.find("meta", property="og:description")
         self.summary = parse_bb_code(cast(str, content["content"])) if isinstance(content, Tag) else None
 
