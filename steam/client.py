@@ -260,17 +260,8 @@ class Client:
         """Indicates if connection is closed to the WebSocket."""
         return self._closed
 
-    @overload
-    def event(self, coro: None = ...) -> Callable[[E], E]:
-        ...
-
-    @overload
-    def event(self, coro: E) -> E:
-        ...
-
-    def event(self, coro: Callable[[E], E] | E | None = None) -> Callable[[E], E] | E:
-        """|maybecallabledeco|
-        Register an event to listen to.
+    def event(self, coro: F) -> F:
+        """A decorator that registers an event to listen to.
 
         The events must be a :ref:`coroutine <coroutine>`, if not, :exc:`TypeError` is raised.
 
@@ -288,15 +279,12 @@ class Client:
             The function passed is not a coroutine.
         """
 
-        def decorator(coro: E) -> E:
-            if not inspect.iscoroutinefunction(coro):
-                raise TypeError(f"Registered events must be a coroutines, {coro.__name__} is {type(coro).__name__}")
+        if not inspect.iscoroutinefunction(coro):
+            raise TypeError(f"Registered events must be coroutine functions, {coro.__name__} is {type(coro).__name__}")
 
-            setattr(self, coro.__name__, coro)
-            log.debug("%s has been registered as an event", coro.__name__)
-            return coro
-
-        return decorator(coro) if coro is not None else decorator
+        setattr(self, coro.__name__, coro)
+        log.debug("%s has been registered as an event", coro.__name__)
+        return coro
 
     async def _run_event(self, coro: CoroFunc, event_name: str, *args: Any, **kwargs: Any) -> None:
         try:
