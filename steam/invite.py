@@ -6,7 +6,7 @@ from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, ClassVar, TypeAlias
 
-from .chat import ChatGroup
+from ._const import _HasChatGroupMixin
 
 if TYPE_CHECKING:
     from .abc import PartialUser
@@ -65,7 +65,7 @@ class UserInvite(_Invite):
 
 
 @dataclass(repr=False, slots=True)
-class _ChatGroupInvite(_Invite):
+class _ChatGroupInvite(_Invite, _HasChatGroupMixin):
     if TYPE_CHECKING:
         code: str | None
         clan: Clan | PartialClan | None
@@ -74,15 +74,6 @@ class _ChatGroupInvite(_Invite):
     async def revoke(self) -> None:
         """Revoke the invite request."""
         await self._state.revoke_chat_group_invite(self.user.id64, self._chat_group._id)
-
-    @property
-    def _chat_group(self) -> Clan | Group:
-        chat_group = self.clan or self.group
-        assert chat_group is not None
-        if not isinstance(chat_group, ChatGroup):
-            # should be unreachable, but just in case
-            raise ValueError(f"Expected a ChatGroup, got {chat_group.__class__.__name__}")
-        return chat_group
 
 
 @dataclass(repr=False, slots=True)

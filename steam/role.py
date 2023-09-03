@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast, overload
 
+from ._const import _HasChatGroupMixin
 from .enums import Type
 from .protobufs import chat
 from .types.id import RoleID
@@ -22,7 +23,7 @@ __all__ = (
 )
 
 
-class Role:
+class Role(_HasChatGroupMixin):
     """Represents a role in a chat group."""
 
     __slots__ = ("id", "name", "ordinal", "clan", "group", "permissions", "_state")
@@ -51,12 +52,6 @@ class Role:
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} name={self.name!r} id={self.id}>"
-
-    @property
-    def _chat_group(self) -> Clan | Group:
-        chat_group = self.clan or self.group
-        assert chat_group is not None
-        return chat_group
 
     @property
     def members(self) -> list[Member]:

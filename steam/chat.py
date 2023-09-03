@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any, Generic, Literal, Protocol, TypeAlias, ca
 from typing_extensions import Self, TypeVar, get_original_bases
 
 from . import utils
-from ._const import UNIX_EPOCH
+from ._const import UNIX_EPOCH, _HasChatGroupMixin
 from .abc import Channel, Message, PartialUser
 from .app import PartialApp
 from .enums import ChatMemberJoinState, ChatMemberRank, Type
@@ -51,6 +51,7 @@ log = logging.getLogger(__name__)
 
 @runtime_checkable
 class _PartialMemberProto(
+    _HasChatGroupMixin,
     Protocol,
     IndividualID if TYPE_CHECKING else object,  # type: ignore   # needs intersection types
 ):
@@ -79,12 +80,6 @@ class _PartialMemberProto(
         self.join_state = ChatMemberJoinState.try_value(member.state)
         self._role_ids = cast("tuple[RoleID, ...]", tuple(member.role_ids))
         self.kick_expires_at = DateTime.from_timestamp(member.time_kick_expire)
-
-    @property
-    def _chat_group(self) -> Clan | Group:
-        chat_group = self.group or self.clan
-        assert chat_group is not None
-        return chat_group
 
     @property
     def roles(self) -> list[Role]:
@@ -168,7 +163,7 @@ else:
 
 
 @PartialMember.register
-class Member(_BaseMember):
+class Member(_BaseMember, _HasChatGroupMixin):
     """Represents a member of a chat group."""
 
     __slots__ = tuple(slot for slot in _BaseMember.__slots__ if slot not in {"_state"})
@@ -193,7 +188,7 @@ class Member(_BaseMember):
     def copy(self) -> Self:
         return self.__class__(
             self._state,
-            self.clan or self.group,  # type: ignore
+            self._chat_group,
             self._user,
             chat.Member(
                 self.id,
@@ -323,7 +318,7 @@ ChatMessageT = TypeVar("ChatMessageT", bound="GroupMessage | ClanMessage", covar
 GroupChannelProtos: TypeAlias = chat.IncomingChatMessageNotification | chat.State | chat.ChatRoomState
 
 
-class Chat(Channel[ChatMessageT]):
+class Chat(Channel[ChatMessageT], _HasChatGroupMixin):
     __slots__ = ("id", "name", "joined_at", "position", "last_message", "_cs_location")
 
     def __init__(
@@ -371,12 +366,6 @@ class Chat(Channel[ChatMessageT]):
         chat_id = self._chat_group._id
         assert chat_id is not None
         return chat_id, self.id
-
-    @property
-    def _chat_group(self) -> Clan | Group:
-        chat_group = self.clan or self.group
-        assert chat_group is not None
-        return chat_group
 
     @utils.classproperty
     def _type_args(cls: type[Self]) -> tuple[type[ChatMessageT]]:  # type: ignore

@@ -24,6 +24,8 @@ from .types.vdf import BinaryVDFDict, VDFDict
 if TYPE_CHECKING:
     from typing_extensions import Buffer
 
+    from .clan import Clan
+    from .group import Group
     from .state import ConnectionState
 
 DOCS_BUILDING: bool = getattr(builtins, "__sphinx__", False)
@@ -190,6 +192,18 @@ def impl_eq_via_id(cls: TypeT) -> TypeT:
     cls.__eq__ = __eq__
     cls.__hash__ = __hash__
     return cls
+
+
+class _HasChatGroupMixin(Protocol):
+    __slots__ = ()
+    clan: Clan | None
+    group: Group | None
+
+    @property
+    def _chat_group(self) -> Clan | Group:
+        chat_group = self.clan or self.group
+        assert chat_group is not None
+        return chat_group
 
 
 @dataclass(frozen=True, slots=True)
