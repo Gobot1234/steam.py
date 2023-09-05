@@ -6,17 +6,19 @@ from typing import TYPE_CHECKING, Any, Generic
 
 from typing_extensions import TypeVar
 
+from ..._const import _HasChatGroupMixin
 from ...abc import Message, Messageable, PartialUser
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Coroutine
     from datetime import datetime
+    from inspect import Parameter
 
+    from ...chat import Member, PartialMember
     from ...friend import Friend
     from ...media import Media
-    from ...user import User
+    from ...user import ClientUser, User
     from .bot import Bot
-    from .cog import Cog
     from .commands import Command
     from .utils import Shlex
 
@@ -26,7 +28,7 @@ __all__ = ("Context",)
 BotT = TypeVar("BotT", bound="Bot", default="Bot", covariant=True)
 
 
-class Context(Generic[BotT], Messageable["Message"]):
+class Context(Generic[BotT], Messageable["Message"], _HasChatGroupMixin):
     """Represents the context of a command.
 
     Attributes
@@ -54,7 +56,7 @@ class Context(Generic[BotT], Messageable["Message"]):
     def __init__(
         self,
         bot: BotT,
-        message: Message[User],
+        message: Message[User | ClientUser | Friend | Member | PartialMember | PartialUser],
         lex: Shlex,
         prefix: str | None,
         command: Command | None = None,
@@ -78,6 +80,7 @@ class Context(Generic[BotT], Messageable["Message"]):
         self.args: tuple[Any, ...] | None = None
         self.kwargs: dict[str, Any] | None = None
         self.command_failed: bool = False
+        self.current_param: Parameter | None = None
 
     def _send_message(self, content: str) -> Coroutine[Any, Any, Message]:
         return self.channel._send_message(content)
@@ -94,6 +97,8 @@ class Context(Generic[BotT], Messageable["Message"]):
 
             await ctx.command.invoke(ctx)
         """
+        if self.command is None:
+            return
         await self.command.invoke(self)
 
     def history(

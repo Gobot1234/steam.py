@@ -8,42 +8,35 @@ The appropriate license is in LICENSE
 
 from __future__ import annotations
 
+import copy
 import importlib.machinery
 import importlib.util
 import inspect
 import os
 import sys
 import traceback
-import warnings
+from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
 from types import MappingProxyType, ModuleType
-from typing import TYPE_CHECKING, Any, Literal, TypeAlias, TypedDict, TypeVar, overload
+from typing import TYPE_CHECKING, Any, TypeAlias, TypeVar, overload
 
 from ... import _const, utils
-from ...client import Client, CoroFunc, E, log
-from ...id import parse_id64
+from ...client import Client, ClientKwargs, CoroFunc, F, log
+from ...id import Intable, parse_id64
+from ...message import Message
 from .cog import Cog
-from .commands import CHR, CheckReturnType, CheckType, Command, GroupMixin, InvokeT, check
+from .commands import Check, CheckType, Command, CoroFuncT, GroupMixin, InvokeT, MaybeBool, check
 from .context import Context
 from .converters import CONVERTERS, Converters
 from .errors import CommandNotFound
 from .help import DefaultHelpCommand, HelpCommand
-from .utils import Shlex
+from .utils import Coro, Shlex
 
 if TYPE_CHECKING:
-    import datetime
-    from collections.abc import Callable, Coroutine, Iterable
-
     from typing_extensions import Required, Unpack
 
     from steam.ext import commands
 
-    from ...comment import Comment
-    from ...gateway import Msgs
-    from ...invite import ClanInvite, UserInvite
-    from ...message import Message
-    from ...trade import TradeOffer
-    from ...user import User
 
 __all__ = (
     "Bot",
@@ -52,11 +45,9 @@ __all__ = (
 )
 
 
-CommandPrefixType: TypeAlias = (
-    "Iterable[str] | Callable[[Bot, Message], Iterable[str] | Coroutine[Any, Any, Iterable[str]]]"
-)
+CommandPrefixType: TypeAlias = Iterable[str] | Callable[["Bot", Message], Iterable[str] | Coro[Iterable[str]]]
 C = TypeVar("C", bound="Context")
-Check = TypeVar("Check", bound="Callable[[CheckType], CheckReturnType]")
+CheckT = TypeVar("CheckT", bound="Callable[[CheckType], Check]")
 
 
 def when_mentioned(bot: Bot, message: Message) -> list[str]:
@@ -98,15 +89,15 @@ def when_mentioned_or(*prefixes: str) -> Callable[[Bot, Message], list[str]]:
     return inner
 
 
-class BotKwargs(TypedDict, total=False):
+class BotKwargs(ClientKwargs, total=False):
     command_prefix: Required[CommandPrefixType]
     help_command: HelpCommand
-    owner_id: int
-    owner_ids: Iterable[int]
+    owner_id: Intable
+    owner_ids: Iterable[Intable]
     case_insensitive: bool
 
 
-class Bot(GroupMixin, Client):
+class Bot(GroupMixin[None], Client):
     """Represents a Steam bot.
 
     This class is a subclass of :class:`~steam.Client` and as a result anything that you can do with
@@ -139,17 +130,14 @@ class Bot(GroupMixin, Client):
         it should always be last as no prefix after it will be matched.
 
     owner_id
-        The Steam ID of the owner, this is converted to their 64 bit ID representation upon initialization.
+        The Steam ID of the owner, this is converted to its 64 bit ID representation upon initialization.
     owner_ids
         The Steam IDs of the owners, these are converted to their 64 bit ID representations upon initialization.
     case_insensitive
         Whether or not commands should be invoke-able case insensitively.
     """
 
-    def __init__(
-        self,
-        **options: Unpack[BotKwargs],
-    ):
+    def __init__(self, **options: Unpack[BotKwargs]):
         super().__init__(**options)
         self.__cogs__: dict[str, Cog] = {}
         self.__listeners__: dict[str, list[CoroFunc]] = {}
@@ -168,14 +156,13 @@ class Bot(GroupMixin, Client):
             except AttributeError:
                 continue
             if isinstance(command, Command):
+                command = copy.copy(command)
                 command.cog = self
-                if isinstance(command, GroupMixin):
-                    continue
-                self.add_command(command)
+                self.add_command(command)  # type: ignore
 
         self.help_command = options.get("help_command", DefaultHelpCommand())
 
-        self.checks: list[CheckReturnType] = []
+        self.checks: list[Check] = []
         self._before_hook = None
         self._after_hook = None
 
@@ -190,7 +177,7 @@ class Bot(GroupMixin, Client):
         return MappingProxyType(self.__extensions__)
 
     @property
-    def converters(self) -> MappingProxyType[type, tuple[Converters, ...]]:
+    def converters(self) -> MappingProxyType[type[Any], Sequence[Converters]]:
         """A read only mapping of registered converters."""
         return MappingProxyType(CONVERTERS)
 
@@ -222,13 +209,13 @@ class Bot(GroupMixin, Client):
         """Unloads any extensions and cogs, then closes the connection to Steam."""
         for extension in tuple(self.extensions):
             try:
-                self.unload_extension(extension)
+                await self.unload_extension(extension)
             except Exception:
                 pass
 
         for cog in tuple(self.cogs.values()):
             try:
-                self.remove_cog(cog)
+                await self.remove_cog(cog)
             except Exception:
                 pass
 
@@ -244,7 +231,7 @@ class Bot(GroupMixin, Client):
             raise ModuleNotFoundError(f"{extension!r} not found")
         return spec
 
-    def load_extension(self, extension: str | os.PathLike[str]) -> None:
+    async def load_extension(self, extension: str | os.PathLike[str]) -> None:
         """Load an extension.
 
         Parameters
@@ -264,7 +251,7 @@ class Bot(GroupMixin, Client):
         module = importlib.util.module_from_spec(spec)
         sys.modules[module.__name__] = module
         try:
-            spec.loader.exec_module(module)
+            spec.loader.exec_module(module)  # type: ignore
         except:
             del sys.modules[module.__name__]
             raise
@@ -274,10 +261,11 @@ class Bot(GroupMixin, Client):
                 f"{module.__name__!r} is missing a setup function", name=module.__name__, path=module.__file__
             )
 
-        module.setup(self)
+        await module.setup(self)
+        assert module.__file__
         self.__extensions__[module.__file__] = module
 
-    def unload_extension(self, extension: str | os.PathLike[str]) -> None:
+    async def unload_extension(self, extension: str | os.PathLike[str]) -> None:
         """Unload an extension.
 
         Parameters
@@ -291,7 +279,7 @@ class Bot(GroupMixin, Client):
             The ``extension`` wasn't found in the loaded extensions.
         """
         spec = self._spec_from_extension(extension)
-
+        assert spec.origin
         try:
             module = self.__extensions__[spec.origin]
         except KeyError:
@@ -301,15 +289,16 @@ class Bot(GroupMixin, Client):
 
         for cog in tuple(self.cogs.values()):
             if cog.__module__ == module.__name__:
-                self.remove_cog(cog)
+                await self.remove_cog(cog)
 
         if hasattr(module, "teardown"):
             module.teardown(self)
 
         del sys.modules[module.__name__]
+        assert module.__file__
         del self.__extensions__[module.__file__]
 
-    def reload_extension(self, extension: str | os.PathLike[str]) -> None:
+    async def reload_extension(self, extension: str | os.PathLike[str]) -> None:
         """Atomically reload an extension. If any error occurs during the reload the extension will be reverted to its
         original state.
 
@@ -324,7 +313,7 @@ class Bot(GroupMixin, Client):
             The ``extension`` wasn't found in the loaded extensions.
         """
         spec = self._spec_from_extension(extension)
-
+        assert spec.origin
         try:
             previous = self.__extensions__[spec.origin]
         except KeyError:
@@ -333,15 +322,16 @@ class Bot(GroupMixin, Client):
             ) from None
 
         try:
-            self.unload_extension(extension)
-            self.load_extension(extension)
+            await self.unload_extension(extension)
+            await self.load_extension(extension)
         except:
-            previous.setup(self)
+            await previous.setup(self)
+            assert previous.__file__
             self.__extensions__[previous.__file__] = previous
             sys.modules[previous.__name__] = previous
             raise
 
-    def add_cog(self, cog: Cog) -> None:
+    async def add_cog(self, cog: Cog) -> None:
         """Add a cog to the internal list.
 
         Parameters
@@ -352,10 +342,10 @@ class Bot(GroupMixin, Client):
         if not isinstance(cog, Cog):
             raise TypeError("Cogs must derive from commands.Cog")
 
-        cog._inject(self)
+        await cog._inject(self)
         self.__cogs__[cog.qualified_name] = cog
 
-    def remove_cog(self, cog: Cog) -> None:
+    async def remove_cog(self, cog: Cog) -> None:
         """Remove a cog from the internal list.
 
         Parameters
@@ -363,7 +353,7 @@ class Bot(GroupMixin, Client):
         cog
             The cog to remove.
         """
-        cog._eject(self)
+        await cog._eject(self)
         del self.__cogs__[cog.qualified_name]
 
     def add_listener(self, func: CoroFunc, name: str | None = None) -> None:
@@ -404,14 +394,14 @@ class Bot(GroupMixin, Client):
             pass
 
     @overload
-    def listen(self, coro: E) -> E:
+    def listen(self, coro: CoroFuncT, /) -> CoroFuncT:
         ...
 
     @overload
-    def listen(self, name: str | None = None) -> Callable[[E], E]:
+    def listen(self, name: str | None = None, /) -> Callable[[F], F]:
         ...
 
-    def listen(self, name: E | str | None = None) -> Callable[[E], E]:
+    def listen(self, name: F | str | None = None, /) -> Callable[[F], F] | F:
         """|maybecallabledeco|
         Register a function as a listener. Calls :meth:`add_listener`. Similar to :meth:`.Cog.listener`
 
@@ -421,25 +411,20 @@ class Bot(GroupMixin, Client):
             The name of the event to listen for. Will default to ``func.__name__``.
         """
 
-        def decorator(coro: E) -> E:
+        def decorator(coro: F) -> F:
             self.add_listener(coro, coro.__name__ if callable(name) else name)
             return coro
 
         return decorator(name) if callable(name) else decorator
 
-    def check(self, predicate: Check | CHR | None = None) -> Check | CHR:
-        """|maybecallabledeco|
-        Register a global check for all commands. This is similar to :func:`commands.check`.
-        """
+    def check(self, predicate: Callable[[Context], MaybeBool]) -> Check[MaybeBool]:
+        """Register a global check for all commands. This is similar to :func:`commands.check`."""
 
-        def decorator(predicate: Check) -> CHR:
-            predicate = check(predicate)
-            self.add_check(predicate)
-            return predicate
+        predicate = check(predicate)
+        self.add_check(predicate)
+        return predicate
 
-        return decorator(predicate) if predicate is not None else decorator
-
-    def add_check(self, predicate: CheckReturnType) -> None:
+    def add_check(self, predicate: Check) -> None:
         """Add a global check to the bot.
 
         Parameters
@@ -449,7 +434,7 @@ class Bot(GroupMixin, Client):
         """
         self.checks.append(predicate)
 
-    def remove_check(self, predicate: CheckReturnType) -> None:
+    def remove_check(self, predicate: Check) -> None:
         """Remove a global check from the bot.
 
         Parameters
@@ -471,8 +456,10 @@ class Bot(GroupMixin, Client):
             The invocation context.
         """
         for check in self.checks:
-            if not await utils.maybe_coroutine(check, ctx):
+            if not await check.predicate(ctx):
                 return False
+        if ctx.command is None:
+            return False
         return await ctx.command.can_run(ctx)
 
     @overload
@@ -634,7 +621,10 @@ class Bot(GroupMixin, Client):
             return
 
         if hasattr(ctx.command, "on_error"):
-            return await ctx.command.on_error(ctx, error)
+            if ctx.command.cog:
+                return await ctx.command.on_error(ctx.command.cog, ctx, error)
+            else:
+                return await ctx.command.on_error(ctx, error)
 
         if ctx.cog and ctx.cog is not self:
             return await ctx.cog.cog_command_error(ctx, error)

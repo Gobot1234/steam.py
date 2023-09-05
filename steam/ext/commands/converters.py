@@ -3,45 +3,43 @@
 from __future__ import annotations
 
 import types
-import warnings
 from abc import ABC, abstractmethod
+from collections import defaultdict
+from collections.abc import Callable, Sequence
 from typing import (
     TYPE_CHECKING,
     Any,
     ForwardRef,
-    Generic,
     Protocol,
     TypeAlias,
     TypeVar,
-    Union,
+    cast,
     get_args,
     get_origin,
     overload,
     runtime_checkable,
 )
 
-from typing_extensions import Never, get_original_bases
+from typing_extensions import Never, Self, get_original_bases
 
-from ... import _const, utils
+from ... import utils
 from ...abc import PartialUser
 from ...app import App, PartialApp
 from ...channel import Channel
 from ...chat import ChatMessage, Member, PartialMember
 from ...clan import Clan
-from ...enums import Type
+from ...enums import Type, classproperty
 from ...errors import HTTPException, InvalidID, WSException
 from ...group import Group
-from ...id import ID, parse_id64
+from ...id import id64_from_url, parse_id64
 from ...user import ClientUser, User
-from .errors import BadArgument
+from .errors import BadArgument, MissingRequiredArgument
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Generator, Sequence
-
     from steam.ext import commands
 
     from .bot import Bot
-    from .commands import MC
+    from .commands import MaybeCommandT
     from .context import Context
 
 __all__ = (
@@ -64,23 +62,17 @@ __all__ = (
 T = TypeVar("T")
 T_co = TypeVar("T_co", covariant=True)
 BotT = TypeVar("BotT", bound="Bot", covariant=True)
-Converters: TypeAlias = "ConverterBase[Any] | BasicConverter[Any]"
-
-
-class ConverterDict(dict[type, "tuple[Converters, ...]"]):
-    def __setitem__(self, key: Any, value: Converters) -> None:
-        old_value = super().get(key, ())
-        super().__setitem__(key, (*old_value, value))
+Converters: TypeAlias = "ConverterBase[Any] | BasicConverter[Any] | Callable[[str], Any]"
 
 
 class BasicConverter(Protocol[T]):
     converter_for: type[T]
 
-    def __call__(self, __arg: str) -> T:
+    def __call__(self, arg: str, /) -> T:
         ...
 
 
-CONVERTERS = ConverterDict()
+CONVERTERS = defaultdict[type, list[Converters]](list)
 
 
 def converter_for(converter_for: type[T]) -> Callable[[Callable[[str], T]], BasicConverter[T]]:
@@ -120,7 +112,7 @@ def converter_for(converter_for: type[T]) -> Callable[[Callable[[str], T]], Basi
     def decorator(func: BasicConverter[T]) -> BasicConverter[T]:
         if not isinstance(func, types.FunctionType):
             raise TypeError(f"Excepted a function, received {func.__class__.__name__!r}")
-        CONVERTERS[converter_for] = func
+        CONVERTERS[converter_for].append(func)
         func.converter_for = converter_for
         return func
 
@@ -206,20 +198,11 @@ class Converter(ConverterBase[T_co], ABC):
         # !set_avatar https://my_image_url.com
     """
 
-    @classmethod
-    @overload
-    def register(cls, command: None = ...) -> Callable[[MC], MC]:
-        ...
+    converter_for: type[T_co]
 
     @classmethod
-    @overload
-    def register(cls, command: MC) -> MC:
-        ...
-
-    @classmethod
-    def register(cls, command: Callable[[MC], MC] | MC | None = None) -> Callable[[MC], MC] | MC:
-        """|maybecallabledeco|
-        Register a converter to a specific command.
+    def register(cls, command: MaybeCommandT) -> MaybeCommandT:
+        """Register a converter to a specific command.
 
         Examples
         --------
@@ -238,39 +221,26 @@ class Converter(ConverterBase[T_co], ABC):
         In this example ``is_cool``'s user parameter would be registered to the ``CustomUserConverter`` rather than
         the global :class:`UserConverter`.
         """
+        from .commands import Command
 
-        def decorator(command: MC) -> MC:
-            is_command = not isinstance(command, types.FunctionType)
-            try:
-                (command.special_converters if is_command else command.__special_converters__).append(cls)
-            except AttributeError:
-                if is_command:
-                    command.special_converters = [cls]
-                else:
-                    command.__special_converters__ = [cls]
-            return command
-
-        return decorator(command) if command is not None else decorator
-
-    def __init_subclass__(cls) -> None:
-        super().__init_subclass__()
         try:
-            converter_for = get_args(get_original_bases(cls)[-1])[0]
+            (command.special_converters if isinstance(command, Command) else command.__special_converters__).append(cls)
+        except AttributeError:
+            command.__special_converters__ = [cls]
+        return command
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        try:
+            converter_for = get_args(get_original_bases(cls)[-1])[0]  # T_co.__value__
         except IndexError:
             raise TypeError("Converters should subclass commands.Converter using __class_getitem__")
         else:
             if isinstance(converter_for, ForwardRef):
                 raise NameError(f"name {converter_for.__forward_arg__!r} is not defined") from None
-            setattr(cls, "converter_for", converter_for)
-            CONVERTERS[converter_for] = cls
-
-    if TYPE_CHECKING or _const.DOCS_BUILDING:
-
-        @classmethod  # TODO: for 3.9 make this a cached_property and classmethod
-        @property
-        def converter_for(cls) -> T_co:
+            cls.converter_for = converter_for
             """The class that the converter can be type-hinted to to."""
-            ...
+            CONVERTERS[converter_for].append(cls)
 
 
 class PartialUserConverter(Converter[PartialUser]):
@@ -282,21 +252,21 @@ class PartialUserConverter(Converter[PartialUser]):
                 argument.startswith("@")
                 and isinstance(ctx.message, ChatMessage)
                 and (
-                    mention := next(
-                        (
-                            tag
-                            for tag in ctx.message.content.tags
-                            if tag.name == "mention" and tag.inner == argument and tag.position[0] >= ctx.lex.position
-                        ),
-                        None,
+                    (
+                        mention := utils.find(
+                            lambda tag: (
+                                tag.name == "mention" and tag.inner == argument and tag.position[0] >= ctx.lex.position
+                            ),
+                            ctx.message.content.tags,
+                        )
                     )
+                    is not None
                 )
-                is not None
             ):
                 return ctx._state.get_partial_user(mention.attributes[""])
             if (user := utils.get(ctx.bot.users, name=argument)) is not None:
                 return ctx._state.get_partial_user(user.id64)
-            if (id64 := await utils.id64_from_url(argument, session=ctx._state.http._session)) is not None:
+            if (id64 := await id64_from_url(argument, session=ctx._state.http._session)) is not None:
                 return ctx._state.get_partial_user(id64)
 
         raise BadArgument(f'Failed to convert "{argument}" to a Steam user')
@@ -326,18 +296,16 @@ class UserConverter(PartialUserConverter, Converter[User]):
 class PartialMemberConverter(PartialUserConverter, Converter[PartialMember]):
     async def convert(self, ctx: Context, argument: str) -> PartialMember:
         partial_user = await super().convert(ctx, argument)
-        chat_group = ctx.clan or ctx.group
-        assert chat_group is not None
-        return chat_group._get_partial_member(partial_user.id)
+        if not (ctx.clan or ctx.group):
+            raise BadArgument("Cannot convert to a partial member without a clan or group")
+        return ctx._chat_group._get_partial_member(partial_user.id)
 
 
 class MemberConverter(PartialMemberConverter, Converter[Member]):
     async def convert(self, ctx: Context, argument: str) -> Member:
         partial_member = await super().convert(ctx, argument)
-        chat_group = ctx.clan or ctx.group
-        assert chat_group is not None
         try:
-            user = chat_group._maybe_member(partial_member.id32)
+            user = ctx._chat_group._maybe_member(partial_member.id)
             if not isinstance(user, Member):
                 raise TypeError
             return user
@@ -355,8 +323,8 @@ class ChannelConverter(Converter[Channel[Any]]):
 
     async def convert(self, ctx: Context, argument: str) -> Channel[Any]:
         channel = utils.find(
-            lambda c: c.id == int(argument) if argument.isdigit() else lambda c: c.name == argument,
-            (ctx.clan or ctx.group).channels,
+            (lambda c: c.id == int(argument)) if argument.isdigit() else lambda c: c.name == argument,
+            ctx._chat_group.channels,
         )
         if channel is None:
             raise BadArgument(f'Failed to convert "{argument}" to a channel')
@@ -378,9 +346,11 @@ class ClanConverter(Converter[Clan]):
         except (InvalidID, HTTPException):
             clan = utils.find(lambda c: c.name == argument, ctx.bot.clans)
             if clan is None:
-                id64 = await utils.id64_from_url(argument, session=ctx._state.http._session)
-                return await self.convert(ctx, id64)
-        if clan is None:
+                id64 = await id64_from_url(argument, session=ctx._state.http._session)
+                if id64 is None:
+                    raise BadArgument(f'Failed to convert "{argument}" to a Steam clan')
+                return await ctx.bot.fetch_clan(id64)
+        except WSException:
             raise BadArgument(f'Failed to convert "{argument}" to a Steam clan')
         return clan
 
@@ -448,7 +418,7 @@ class Default(Protocol, Any if TYPE_CHECKING else object):
     """
 
     @abstractmethod
-    async def default(self, ctx: commands.Context):
+    async def default(self, ctx: commands.Context) -> object:
         raise NotImplementedError("Derived classes must to implement this")
 
 
@@ -470,6 +440,9 @@ class DefaultGroup(Default):
     """Returns the :attr:`.Context.group`"""
 
     async def default(self, ctx: Context) -> Group:
+        if not ctx.group:
+            assert ctx.current_param is not None
+            raise MissingRequiredArgument(ctx.current_param)
         return ctx.group
 
 
@@ -477,6 +450,9 @@ class DefaultClan(Default):
     """Returns the :attr:`.Context.clan`"""
 
     async def default(self, ctx: Context) -> Clan:
+        if not ctx.clan:
+            assert ctx.current_param is not None
+            raise MissingRequiredArgument(ctx.current_param)
         return ctx.clan
 
 
@@ -484,23 +460,22 @@ class DefaultApp(Default):
     """Returns the :attr:`.Context.author`'s :attr:`~steam.User.app`"""
 
     async def default(self, ctx: Context) -> PartialApp:
+        if not ctx.author.app:
+            assert ctx.current_param is not None
+            raise MissingRequiredArgument(ctx.current_param)
         return ctx.author.app
 
 
-def flatten_greedy(item: T | Greedy[Any]) -> Generator[T, None, None]:
-    if get_origin(item) in (Greedy, Union):
-        for arg in get_args(item):
-            if arg in INVALID_GREEDY_TYPES:
-                raise TypeError(f"Greedy[{arg.__name__}] is invalid")
-            if get_origin(arg) in (Greedy, Union):
-                yield from flatten_greedy(arg)
-            else:
-                yield arg
-    else:
-        yield item
+class GreedyGenericAlias(types.GenericAlias):
+    converter: Any
+
+    def __getattribute__(self, name: str, /) -> Any:
+        if name == "converter":
+            return self.__args__[0]
+        return super().__getattribute__(name)
 
 
-class Greedy(Generic[T]):
+class Greedy(Sequence[T]):
     """
     A custom :class:`typing.Generic` that allows for special greedy command parsing behaviour. It signals to the command
     parser to consume as many arguments as it can until it silently errors reverts the last argument being read and
@@ -520,20 +495,16 @@ class Greedy(Generic[T]):
     ``reason``.
     """
 
-    converter: T  #: The converter the Greedy type holds.
+    converter: T
+    """The converter the Greedy type holds."""
 
     def __new__(
         cls, *args: Any, **kwargs: Any
     ) -> Never:  # give a more helpful message than typing._BaseGenericAlias.__call__
         raise TypeError("Greedy cannot be instantiated directly, instead use Greedy[...]")
 
-    def __class_getitem__(cls, converter: T) -> Greedy[T]:
-        """The entry point for creating a Greedy type.
-
-        Note
-        ----
-        Passing more than one argument to ``converter`` is shorthand for ``Union[converter_tuple]``.
-        """
+    def __class_getitem__(cls, converter: T | tuple[T]) -> Self:
+        """The entry point for creating a Greedy type."""
         if isinstance(converter, tuple):
             try:
                 (converter,) = converter
@@ -543,23 +514,10 @@ class Greedy(Generic[T]):
             raise TypeError(f"Greedy[...] expects a type or a Converter instance not {converter!r}")
 
         if converter in INVALID_GREEDY_TYPES:
-            raise TypeError(f"Greedy[{converter.__name__}] is invalid")
+            name = getattr(converter, "__name__")
+            raise TypeError(f"Greedy[{name}] is invalid")
 
-        seen = tuple(dict.fromkeys(flatten_greedy(converter)))
-        if len(seen) != 1:
-            raise TypeError(f"Cannot create Greedy instance with {converter} ({len(seen)} args)")
-
-        annotation = super().__class_getitem__(seen[0])
-        annotation.converter = get_args(annotation)[0]
-        return annotation
-
-
-if TYPE_CHECKING:
-    # would be nice if this could just subclass Sequence but due to version differences for its
-    # super().__class_getitem__'s return type it isn't necessarily assignable to.
-    # when I drop support for <3.8 I'll make __class_getitem__ return a types.GenericAlias subclass
-    class Greedy(Greedy[T], Sequence[T]):
-        ...
+        return cast(Self, GreedyGenericAlias(cls, (converter,)))
 
 
 INVALID_GREEDY_TYPES = (

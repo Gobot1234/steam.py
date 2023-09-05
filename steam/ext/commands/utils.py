@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from collections import deque
-from typing import TYPE_CHECKING, TypeVar, overload
+from collections.abc import Coroutine
+from typing import TYPE_CHECKING, Any, TypeAlias, TypeVar, overload
 
 from .errors import MissingClosingQuotation
 
@@ -12,6 +13,8 @@ if TYPE_CHECKING:
 
 _T = TypeVar("_T")
 _VT = TypeVar("_VT")
+
+Coro: TypeAlias = Coroutine[Any, Any, _T]
 
 
 class CaseInsensitiveDict(dict[str, _VT]):

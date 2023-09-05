@@ -5,15 +5,16 @@ from __future__ import annotations
 import abc
 import sys
 import traceback
-from typing import TYPE_CHECKING, Any
+from copy import copy
+from typing import TYPE_CHECKING, Unpack, cast
 
 from typing_extensions import final
 
-from .commands import Command, Group, group
+from .commands import Command, CommandKwargs, Group
 from .context import Context  # noqa: TCH001
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Mapping, Sequence
 
     from steam.ext import commands
 
@@ -24,14 +25,20 @@ __all__ = (
 )
 
 
-class HelpCommand(Command):
+class HelpCommand(Command[None, ..., None]):
     """The base implementation of the help command."""
 
-    context: Context  #: The context for the command's invocation.
+    context: Context
+    """The context for the command's invocation."""
 
-    def __init__(self, **kwargs: Any):
-        default = {"name": "help", "help": "Shows this message.", "cog": self} | kwargs
+    def __init__(self, **kwargs: Unpack[CommandKwargs]):
+        default = cast(CommandKwargs, {"name": "help", "help": "Shows this message."} | kwargs)
         super().__init__(self.command_callback, **default)
+
+    async def invoke(self, ctx: Context) -> None:
+        self = copy(self)
+        ctx.command = self
+        return await Command.invoke(self, ctx)  # type: ignore
 
     @final
     async def command_callback(self, ctx: Context, *, content: str | None = None) -> None:
@@ -62,19 +69,18 @@ class HelpCommand(Command):
 
         await self.command_not_found(content)
 
-    def get_bot_mapping(self) -> Mapping[str | None, list[commands.Command]]:
+    def get_bot_mapping(self) -> Mapping[str | None, Sequence[commands.Command]]:
         """
         Generate a mapping of the bot's commands. It's not normally necessary to subclass this. This is passed to
         :meth:`send_help`.
         """
         bot = self.context.bot
-        mapping = {cog.qualified_name: list(cog.commands) for name, cog in bot.cogs.items() if cog.commands}
-        categorized_commands = [command for c in mapping.values() for command in c]
-        mapping[None] = [c for c in bot.commands if c not in categorized_commands]
-        return mapping
+        return {cog.qualified_name: list(cog.commands) for cog in bot.cogs.values() if cog.commands} | {
+            None: [c for c in bot.commands if c.cog is None]
+        }
 
     @abc.abstractmethod
-    async def send_help(self, mapping: Mapping[str | None, list[commands.Command]]) -> None:
+    async def send_help(self, mapping: Mapping[str | None, Sequence[commands.Command]]) -> None:
         """Send the basic help message for the bot's command.
 
         Parameters
@@ -153,12 +159,14 @@ class DefaultHelpCommand(HelpCommand):
         return "<default_help_command>"
 
     def _get_doc(self, command: Command) -> str:
-        try:
-            return command.help.splitlines()[0]
-        except (IndexError, AttributeError):
-            return ""
+        if command.help:
+            try:
+                return command.help.splitlines()[0]
+            except IndexError:
+                pass
+        return ""
 
-    async def send_help(self, mapping: Mapping[str | None, list[commands.Command]]) -> None:
+    async def send_help(self, mapping: Mapping[str | None, Sequence[commands.Command]]) -> None:
         message = ["/pre"]
         for cog_name, commands in mapping.items():
             (

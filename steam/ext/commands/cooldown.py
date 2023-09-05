@@ -4,19 +4,24 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import TYPE_CHECKING, Generic, TypeVar
+from typing import TYPE_CHECKING, Self, cast
 
+from ...chat import PartialMember
 from ...enums import IntEnum
 from .errors import CommandOnCooldown
 
 if TYPE_CHECKING:
-    from ...abc import Message, Messageable
+    from .context import Context
 
 __all__ = (
     "BucketType",
     "Cooldown",
 )
-T_Bucket = TypeVar("T_Bucket", "tuple[int, ...]", int)
+
+
+class BucketTypeType:
+    def __new__(cls, *values: int | None) -> Self:
+        return cast(Self, values)
 
 
 class BucketType(IntEnum):
@@ -26,17 +31,23 @@ class BucketType(IntEnum):
     """
 
     # fmt: off
-    Default = 0  #: The default :class:`BucketType` this operates on a global basis.
-    User    = 1  #: The :class:`BucketType` for a :class:`steam.User`.
-    Member  = 2  #: The :class:`BucketType` for a :class:`steam.User` and a :class:`steam.Clan`.
-    Group   = 3  #: The :class:`BucketType` for a :class:`steam.User` in a :class:`steam.Clan` / :class:`steam.Group`.
-    Clan    = 4  #: The :class:`BucketType` for a :class:`steam.Clan`.
-    Role    = 5  #: The :class:`BucketType` for a :class:`steam.Role`.
-    Channel = 6  #: The :class:`BucketType` for a :class:`steam.Channel`.
-    Admin   = 7  #: The :class:`BucketType` for a :class:`steam.Clan`'s :attr:`steam.Clan.admins`.
+    Default   = 0
+    """The default :class:`BucketType` this operates on a global basis."""
+    User      = 1
+    """The :class:`BucketType` for a :class:`steam.User`."""
+    Member    = 2
+    """The :class:`BucketType` for a :class:`steam.User` and a :class:`steam.Clan`."""
+    Role      = 5
+    """The :class:`BucketType` for a :class:`steam.Role`."""
+    Channel   = 6
+    """The :class:`BucketType` for a :class:`steam.Channel`."""
+    Admin     = 7
+    """The :class:`BucketType` for a :class:`steam.Clan`'s :attr:`steam.Clan.admins`."""
+    ChatGroup = 8
+    """The :class:`BucketType` for a :class:`steam.ChatGroup`."""
     # fmt: on
 
-    def get_bucket(self, ctx: Message | Messageable) -> int | tuple[int, ...]:
+    def get_bucket(self, ctx: Context) -> BucketTypeType:
         """Get a bucket key for a message or context.
 
         Parameters
@@ -44,28 +55,33 @@ class BucketType(IntEnum):
         ctx
             The message or context to get the bucket for.
         """
-        if self == BucketType.Default:
-            return 0
-        elif self == BucketType.User:
-            return ctx.author.id
-        elif self == BucketType.Member:
-            return (ctx.clan and ctx.clan.id), ctx.author.id
-        elif self == BucketType.Group:
-            return (ctx.group or ctx.author).id
-        elif self == BucketType.Role:
-            return (ctx.clan and ctx.author.top_role.id), ctx.author.id
-        elif self == BucketType.Clan:
-            return (ctx.clan or ctx.author).id
-        elif self == BucketType.Channel:
-            return (ctx.channel or ctx.author).id
-        elif self == BucketType.Admin:
-            return (ctx.clan and (ctx.author in ctx.clan.admins)), ctx.author.id
+        match self:
+            case BucketType.Default:
+                return BucketTypeType(0)
+            case BucketType.User:
+                return BucketTypeType(ctx.author.id)
+            case BucketType.Member:
+                if ctx.clan or ctx.group:
+                    return BucketTypeType(ctx._chat_group.id64, ctx.author.id)
+                return BucketTypeType(0, ctx.author.id)
+            case BucketType.Role:
+                assert isinstance(ctx.author, PartialMember)
+                return BucketTypeType((ctx.clan and ctx.author.top_role and ctx.author.top_role.id), ctx.author.id)
+            case BucketType.Channel:
+                if hasattr(ctx.channel, "id"):
+                    return BucketTypeType(ctx.channel.id)  # type: ignore
+                return BucketTypeType(ctx.author.id)
+            case BucketType.Admin:
+                return BucketTypeType((ctx.clan and (ctx.author in ctx.clan.officers)), ctx.author.id)
+            case BucketType.ChatGroup:
+                return BucketTypeType((ctx.clan or ctx.group or ctx.author).id)
 
 
-class Cooldown(Generic[T_Bucket]):
+class Cooldown:
     """The class that holds a command's cooldown."""
 
-    bucket: BucketType  #: The bucket that should be used to determine this command's cooldown.
+    bucket: BucketType
+    """The bucket that should be used to determine this command's cooldown."""
 
     def __init__(self, rate: int, per: float, bucket: BucketType):
         self._rate = rate
@@ -75,17 +91,17 @@ class Cooldown(Generic[T_Bucket]):
 
     def reset(self) -> None:
         """Reset the command's cooldown."""
-        self._queue: dict[float, T_Bucket] = {}
+        self._queue: dict[float, BucketTypeType] = {}
 
-    def _calls(self, bucket: T_Bucket) -> list[tuple[float, T_Bucket], ...]:
+    def _calls(self, bucket: BucketTypeType) -> list[tuple[float, BucketTypeType]]:
         return [(t, b) for t, b in self._queue.items() if b == bucket]
 
-    async def expire_cache(self, bucket: T_Bucket, now: float) -> None:
+    async def expire_cache(self, bucket: BucketTypeType, now: float) -> None:
         self._queue[now] = bucket
         await asyncio.sleep(self._per)
         self._queue.pop(now, None)
 
-    def get_retry_after(self, bucket: T_Bucket, now: float) -> float:
+    def get_retry_after(self, bucket: BucketTypeType, now: float) -> float:
         """Get the retry after for a command.
 
         Parameters
@@ -103,7 +119,7 @@ class Cooldown(Generic[T_Bucket]):
             return last_call + self._per - now
         return 0.0
 
-    def __call__(self, ctx: Message | Messageable) -> None:
+    def __call__(self, ctx: Context) -> None:
         """Invoke the command's cooldown properly and raise if the command is on cooldown.
 
         Parameters
