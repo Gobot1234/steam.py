@@ -693,12 +693,12 @@ class SteamWebSocket:
     async def poll_event(self) -> None:
         try:
             message = await self.socket.receive()
-            if message.type is aiohttp.WSMsgType.BINARY:
-                return self.receive(bytearray(message.data))
-            if message.type is aiohttp.WSMsgType.ERROR:
+            if message.type is aiohttp.WSMsgType.BINARY:  # type: ignore
+                return self.receive(bytearray(message.data))  # type: ignore
+            if message.type is aiohttp.WSMsgType.ERROR:  # type: ignore
                 log.debug("Received %r", message)
-                raise message.data
-            if message.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.CLOSE, aiohttp.WSMsgType.CLOSING):
+                raise message.data  # type: ignore
+            if message.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.CLOSE, aiohttp.WSMsgType.CLOSING):  # type: ignore
                 log.debug("Received %r", message)
                 raise WebSocketClosure
             log.debug("Dropped unexpected message type: %r", message)
@@ -928,5 +928,5 @@ class SteamWebSocket:
                 raise WSException(msg)
 
             for user in msg.friends:
-                if user.friendid in user_id64s:  # type: ignore
+                if user.friendid in user_id64s:
                     yield user

@@ -1953,7 +1953,7 @@ class Client:
         self: Bot,
         event: Literal["command_error"],
         *,
-        check: Callable[[commands.Context, Exception], bool] | None = ...,
+        check: Callable[[commands.Context, Exception], bool] = ...,
         timeout: float | None = ...,
     ) -> tuple[commands.Context, Exception]:
         ...
@@ -1966,7 +1966,7 @@ class Client:
             "command_completion",
         ],
         *,
-        check: Callable[[commands.Context], bool] | None = ...,
+        check: Callable[[commands.Context], bool] = ...,
         timeout: float | None = ...,
     ) -> commands.Context:
         ...

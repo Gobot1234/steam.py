@@ -49,7 +49,7 @@ except ModuleNotFoundError:
 else:
     JSON_LOADS: Final[Callable[[str | bytes], Any]] = orjson.loads  # type: ignore
 
-    def dumps(
+    def dumps_(
         obj: Any,
         __func: Callable[[Any], bytes] = orjson.dumps,  # type: ignore
         __decoder: Callable[[bytes], str] = bytes.decode,
@@ -57,7 +57,7 @@ else:
     ) -> str:
         return __decoder(__func(obj))
 
-    JSON_DUMPS: Final = cast(Callable[[Any], str], dumps)
+    JSON_DUMPS: Final = cast(Callable[[Any], str], dumps_)
 
 
 try:
@@ -67,7 +67,7 @@ except ModuleNotFoundError:
 
     def multi_dict_ify(
         x: Any,
-        __isinstance=isinstance,
+        __isinstance=isinstance,  # type: ignore
         __vdf_dict=vdf.VDFDict,
         __multi_dict: type[MultiDict[Any]] = MultiDict,
         /,
@@ -82,7 +82,7 @@ except ModuleNotFoundError:
 
     def loads(
         s: str,
-        __func: Callable[..., Any] = vdf.parse,
+        __func: Callable[..., Any] = vdf.parse,  # type: ignore
         __mapper: type[vdf.VDFDict] = vdf.VDFDict,
         __multi_dict_ify: Callable[[vdf.VDFDict], MultiDict[Any]] = multi_dict_ify,
         __string_io: type[StringIO] = StringIO,
@@ -92,7 +92,7 @@ except ModuleNotFoundError:
 
     def binary_loads(
         s: bytes,
-        __func: Callable[..., Any] = vdf.binary_load,
+        __func: Callable[..., Any] = vdf.binary_load,  # type: ignore
         __mapper: type[vdf.VDFDict] = vdf.VDFDict,
         __multi_dict_ify: Callable[[vdf.VDFDict], MultiDict[Any]] = multi_dict_ify,
         __bytes_io: type[BytesIO] = BytesIO,
@@ -184,7 +184,7 @@ TypeT = TypeVar("TypeT", bound=type[_IDComparable])
 
 def impl_eq_via_id(cls: TypeT) -> TypeT:
     def __eq__(self: _IDComparable, other: object, /) -> bool:
-        return isinstance(other, cls) and self.id == other.id
+        return isinstance(other, cls) and self.id == other.id  # type: ignore
 
     def __hash__(self: _IDComparable) -> int:
         return hash(self.id)

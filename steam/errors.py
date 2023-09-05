@@ -97,7 +97,10 @@ class HTTPException(SteamException):
             self.code = Result.try_value(int(code))
 
         super().__init__(
-            f"{response.status} {response.reason} (error code: {self.code}){f': {self.message}' if self.message else ''}"
+            (
+                f"{response.status} {response.reason}"  # type: ignore  # another aiohttp types bug fixed upstream
+                f"(error code: {self.code}){f': {self.message}' if self.message else ''}"
+            )
         )
 
 

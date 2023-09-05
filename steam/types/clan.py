@@ -31,12 +31,12 @@ class Event(TypedDict, total=False):
     broadcaster_accountid: int
     follower_count: int
     ignore_count: int
-    forum_topic_id: int
+    forum_topic_id: Required[int]
     gidfeature: Required[int]
     gidfeature2: int
     rtime32_last_modified: int
     news_post_gid: int
-    rtime_mod_reviewed: int
+    rtime_mod_reviewed: Required[int]
     featured_app_tagid: int
     referenced_appids: list[int]
     build_id: int

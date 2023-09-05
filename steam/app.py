@@ -1408,24 +1408,14 @@ class Apps(PartialApp[str], Enum):
 
     __slots__ = ("_name",)
 
-    def __new__(cls, name: str, *args: Any, value: tuple[str, int] | tuple[()] = ()) -> Apps:
+    @classmethod
+    def _new_member(cls, *, name: str, value: tuple[str, int]) -> Self:
         self = object.__new__(cls)
         set_attribute = object.__setattr__
-
-        if args:  # being called when docs are building
-            name = ""
-            value = (name, args[0])
-
-        assert value
         set_attribute(self, "_name", name)
         set_attribute(self, "name", value[0])
         set_attribute(self, "id", value[1])
         return self
-
-    if DOCS_BUILDING:
-
-        def __init__(self, *args: Any) -> None:
-            ...
 
     def __repr__(self) -> str:
         return self._name
@@ -1656,7 +1646,7 @@ class WishlistApp(PartialApp[str]):
         """The time that the app was added to their wishlist."""
         self.background = CDNAsset(state, data["background"])
         """The background of the app."""
-        self.tags = [PartialTag(int(tag)) for tag in data["tags"]]
+        self.tags = [PartialTag(state, int(tag)) for tag in data["tags"]]
         """The tags of the app."""
         self.rank = data["rank"]
         """The global rank of the app by popularity."""

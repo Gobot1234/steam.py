@@ -1048,6 +1048,7 @@ class ConnectionState:
         flags_changed = clan.flags != msg.clan_account_flags
         dispatch_update = user_counts or name_info or flags_changed
 
+        before = None
         if dispatch_update:
             before = copy(clan)
         if user_counts:
@@ -1062,6 +1063,7 @@ class ConnectionState:
             clan.flags = ClanAccountFlags.try_value(msg.clan_account_flags)
 
         if dispatch_update:
+            assert before is not None
             self.dispatch("clan_update", before, clan)
 
     @requires_intent(Intents.ChatGroups)

@@ -44,7 +44,7 @@ __all__ = (
 OwnerT = TypeVar("OwnerT", bound="PartialUser", default="BaseUser", covariant=True)
 
 
-class Asset(Generic[OwnerT]):
+class Asset(Generic[OwnerT], DescriptionMixin):
     """Base most version of an item. This class should only be received when Steam fails to find a matching item for
     its class and instance IDs.
 
@@ -122,8 +122,6 @@ class Asset(Generic[OwnerT]):
             appid=self._app_id,
             contextid=self.context_id,
         )
-
-    app = DescriptionMixin.app
 
     @property
     def url(self) -> str:

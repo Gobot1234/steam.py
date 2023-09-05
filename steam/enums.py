@@ -132,7 +132,7 @@ class EnumType(_EnumMeta if TYPE_CHECKING else type):
 
         for name, value in members.items():
             if (member := value_map.get(value)) is None or member.name not in namespace.aliases:
-                member = cls.__new__(cls, name=name, value=value)  # type: ignore  # this method doesn't exist at type time.
+                member = cls._new_member(name=name, value=value)
                 value_map[value] = member
 
             member_map[name] = member
@@ -141,12 +141,6 @@ class EnumType(_EnumMeta if TYPE_CHECKING else type):
         return cls
 
     if not TYPE_CHECKING:
-
-        def __call__(cls, value: Any) -> Enum:
-            try:
-                return cls._value_map_[value]
-            except (KeyError, TypeError):
-                raise ValueError(f"{value!r} is not a valid {cls.__name__}") from None
 
         def __iter__(cls) -> Generator[Enum, None, None]:
             yield from cls._member_map_.values()
@@ -190,20 +184,25 @@ class Enum(_Enum if TYPE_CHECKING else object, metaclass=EnumType):
     _member_map_: Mapping[str, Self]
     _value_map_: Mapping[Any, Self]
 
-    if not TYPE_CHECKING:
+    def __new__(cls, value: Any) -> Self:
+        try:
+            return cls._value_map_[value]
+        except (KeyError, TypeError):
+            raise ValueError(f"{value!r} is not a valid {cls.__name__}") from None
 
-        def __new__(cls, *, name: str, value: Any) -> Self:
-            # N.B. this method is not ever called after enum creation as it is shadowed by EnumMeta.__call__ and is just
-            # for creating Enum members
-            self = (
-                super().__new__(cls, value)
-                if any(not issubclass(base, Enum) for base in cls.__mro__[:-1])  # is it is a mixin enum
-                else super().__new__(cls)  # type: ignore
-            )
-            super().__setattr__(self, "name", name)
-            super().__setattr__(self, "value", value)
+    @classmethod
+    def _new_member(cls, *, name: str, value: Any) -> Self:
+        # N.B. this method is not ever called after enum creation as it is shadowed by EnumMeta.__call__ and is just
+        # for creating Enum members
+        self = (
+            super().__new__(cls, value)
+            if any(not issubclass(base, Enum) for base in cls.__mro__[:-1])  # is it is a mixin enum
+            else super().__new__(cls)  # type: ignore
+        )
+        super().__setattr__(self, "name", name)
+        super().__setattr__(self, "value", value)
 
-            return self
+        return self
 
     if not DOCS_BUILDING:
 
@@ -227,7 +226,7 @@ class Enum(_Enum if TYPE_CHECKING else object, metaclass=EnumType):
         try:
             return cls._value_map_[value]
         except (KeyError, TypeError):
-            return cls.__new__(cls, name=f"{cls.__name__}UnknownValue", value=value)
+            return cls._new_member(name=f"{cls.__name__}UnknownValue", value=value)
 
 
 class IntEnum(Enum, int):
@@ -262,7 +261,7 @@ class Flags(IntEnum):
                 returning_flag |= flag
             if returning_flag == value:
                 return returning_flag
-        return cls.__new__(cls, name=f"{cls.__name__}UnknownValue", value=value)
+        return cls._new_member(name=f"{cls.__name__}UnknownValue", value=value)
 
     def __or__(self, other: SupportsInt) -> Self:
         cls = self.__class__
@@ -270,7 +269,7 @@ class Flags(IntEnum):
         try:
             return cls._value_map_[value]
         except KeyError:
-            return cls.__new__(cls, name=f"{self.name} | {getattr(other, 'name', other)}", value=value)
+            return cls._new_member(name=f"{self.name} | {getattr(other, 'name', other)}", value=value)
 
     def __and__(self, other: SupportsInt) -> Self:
         cls = self.__class__
@@ -278,7 +277,7 @@ class Flags(IntEnum):
         try:
             return cls._value_map_[value]
         except KeyError:
-            return cls.__new__(cls, name=f"{self.name} & {getattr(other, 'name', other)}", value=value)
+            return cls._new_member(name=f"{self.name} & {getattr(other, 'name', other)}", value=value)
 
     def __invert__(self) -> Self:
         member = self.try_value(~-self.value)
@@ -767,14 +766,14 @@ class Language(IntEnum):
         try:
             return _REVERSE_API_LANGUAGE_MAP[string.lower()]
         except KeyError:
-            return cls.__new__(cls, name=string.title(), value=-1)
+            return cls._new_member(name=string.title(), value=-1)
 
     @classmethod
     def from_web_api_str(cls, string: str, /) -> Self:
         try:
             return _REVERSE_WEB_API_MAP[string]
         except KeyError:
-            return cls.__new__(cls, name=string, value=-1)
+            return cls._new_member(name=string, value=-1)
 
 
 _REVERSE_API_LANGUAGE_MAP: Final = cast(
@@ -887,7 +886,7 @@ class Currency(IntEnum):
         try:
             return cls._member_map_[name]
         except (KeyError, TypeError):
-            return cls.__new__(cls, name=name, value=-1)
+            return cls._new_member(name=name, value=-1)
 
 
 class Realm(IntEnum):
@@ -2139,12 +2138,12 @@ class UserNewsType(IntEnum):
     def __or__(self, other: SupportsInt) -> Self:
         cls = self.__class__
         value = self.flag | int(other) if not isinstance(other, cls) else self.flag | other.flag
-        return cls.__new__(cls, name=f"{self.name} | {getattr(other, 'name', other)}", value=has_associated_flag(-1, value))
+        return cls._new_member(name=f"{self.name} | {getattr(other, 'name', other)}", value=has_associated_flag(-1, value))
 
     def __and__(self, other: SupportsInt) -> Self:
         cls = self.__class__
         value = self.flag & int(other) if not isinstance(other, cls) else self.flag & other.flag
-        return cls.__new__(cls, name=f"{self.name} & {getattr(other, 'name', other)}", value=has_associated_flag(-1, value))
+        return cls._new_member(name=f"{self.name} & {getattr(other, 'name', other)}", value=has_associated_flag(-1, value))
 
     @classproperty
     def App(cls: type[Self]) -> Self: # type: ignore

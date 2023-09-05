@@ -80,14 +80,21 @@ class BackpackItem(Item[OwnerT]):
     REPR_ATTRS = (*Item.REPR_ATTRS, "position", "def_index")
     _state: GCState
 
-    position: int  #: The item's position in the backpack.
+    position: int
+    """The item's position in the backpack."""
 
-    account_id: int  #: Same as the :attr:`steam.SteamID.id` of the :attr:`steam.Client.user`.
-    inventory: int  #: The attribute the :attr:`position` is calculated from.
-    quantity: int  #: I think this should be the same as :attr:`amount`.
-    level: int  #: The item's level.
-    flags: ItemFlags  #: The item's flags.
-    origin: ItemOrigin  #: The item's origin.
+    account_id: int
+    """Same as the :attr:`steam.ID.id` of the :attr:`steam.Client.user`."""
+    inventory: int
+    """The attribute the :attr:`position` is calculated from."""
+    quantity: int
+    """I think this should be the same as :attr:`amount`."""
+    level: int
+    """The item's level."""
+    flags: ItemFlags
+    """The item's flags."""
+    origin: ItemOrigin
+    """The item's origin."""
     custom_name: str
     custom_description: str
     attribute: list[base.ItemAttribute]
@@ -234,7 +241,7 @@ class BackpackItem(Item[OwnerT]):
                         .replace("Craft_Item", "CraftItem")
                     ]
                 except KeyError:
-                    return ItemSlot.__new__(ItemSlot, name=tag.internal_name, value=-1)
+                    return ItemSlot._new_member(name=tag.internal_name, value=-1)
 
     @cached_slot_property
     def def_index(self) -> int:

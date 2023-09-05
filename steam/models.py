@@ -193,7 +193,7 @@ class _IOMixin:
                 raise NotImplementedError("Missing required attributes for implicit _IOMixin.open()")
 
     @asynccontextmanager
-    async def open(self, **kwargs: Any) -> AsyncGenerator[StreamReaderProto, None]:
+    async def open(self) -> AsyncGenerator[StreamReaderProto, None]:
         """Open this file as and returns its contents as an :class:`aiohttp.StreamReader`."""
         url = cast(str, self.url)  # type: ignore
         state = cast("ConnectionState", self._state)  # type: ignore

@@ -453,7 +453,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
         return self
 
     @classmethod
-    async def _from_proto(
+    async def _from_proto(  # type: ignore
         cls,
         state: ConnectionState,
         proto: chat.GetChatRoomGroupSummaryResponse,

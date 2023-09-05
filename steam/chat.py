@@ -222,11 +222,12 @@ class ChatMessage(Message[AuthorT], Generic[AuthorT, MemberT]):
         self.mentions_here = proto.mentions.mention_here
 
     @classmethod
-    def _from_history(
+    def _from_history(  # type: ignore
         cls, channel: GroupChannel | ClanChannel, proto: chat.GetMessageHistoryResponseChatMessage
     ) -> Self:
         self = cls.__new__(cls)  # skip __init__
-        super().__init__(self, channel, proto)
+        super().__init__(self, channel, proto)  # type: ignore
+        # if you want a fun time try and figure out the issues in calling these methods
         self.created_at = DateTime.from_timestamp(proto.server_timestamp)
         return self
 
@@ -408,7 +409,7 @@ class Chat(Channel[ChatMessageT], _HasChatGroupMixin):
             messages: list[ChatMessageT] = []
 
             for message in resp.messages:
-                new_message = message_cls._from_history(self, message)
+                new_message = message_cls._from_history(cast("ClanChannel | GroupChannel", self), message)
                 if not after < new_message.created_at < before:
                     return
                 if limit is not None and yielded >= limit:

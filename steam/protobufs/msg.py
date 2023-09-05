@@ -144,7 +144,12 @@ class Message(MessageMessageBase, NotProtobufWrapped):
     def __init_subclass__(cls, msg: EMsg = MISSING, **kwargs: bool) -> object:
         return super().__init_subclass__(msg, repr=True, eq=True, **kwargs)
 
-    def parse(self, data: bytes, msg: int, /) -> Self:  # type: ignore
+    def parse(  # type: ignore
+        self,
+        data: bytes,
+        msg: int,
+        /,
+    ) -> Self:
         try:
             new_class: type[Self] = PROTOBUFS[msg]  # type: ignore
         except KeyError:
@@ -179,7 +184,12 @@ SERVICE_EMSGS: Final = frozenset({*REQUEST_EMSGS, *RESPONSE_EMSGS})
 
 @dataclass_transform()
 class ProtobufMessage(MessageMessageBase, ProtobufWrappedMessage):
-    def parse(self, data: bytes, msg: int = MISSING, /) -> Self:
+    def parse(  # type: ignore
+        self,
+        data: bytes,
+        msg: int = MISSING,
+        /,
+    ) -> Self:
         if msg is MISSING:  # case CMsgMulti().parse(data)
             return betterproto.Message.parse(self, data)  # type: ignore  # pyright's dumb
 
@@ -269,7 +279,13 @@ class GCMessage(GCMessageBase, NotProtobufWrapped):
 
     __init__ = __post_init__
 
-    def parse(self, data: bytes, msg: int, app_id: AppID, /) -> Self:  # type: ignore
+    def parse(  # type: ignore
+        self,
+        data: bytes,
+        msg: int,
+        app_id: AppID,
+        /,
+    ) -> Self:
         try:
             new_class: type[Self] = GC_PROTOBUFS[app_id][msg]  # type: ignore  # save the extra lookup when casting to IntEnum
         except KeyError:
@@ -285,7 +301,13 @@ class GCMessage(GCMessageBase, NotProtobufWrapped):
 class GCProtobufMessage(GCMessageBase, ProtobufWrappedMessage):
     """A wrapper around received GC protobuf messages, mainly for extensions."""
 
-    def parse(self, data: bytes, msg: int = MISSING, app_id: AppID = MISSING, /) -> Self:
+    def parse(  # type: ignore
+        self,
+        data: bytes,
+        msg: int = MISSING,
+        app_id: AppID = MISSING,
+        /,
+    ) -> Self:
         if msg is MISSING:  # case CMsgMulti().parse(data)
             return betterproto.Message.parse(self, data)  # type: ignore  # pyright's dumb
 

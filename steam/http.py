@@ -6,7 +6,7 @@ import asyncio
 import logging
 import re
 import urllib.parse
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from http.cookies import SimpleCookie
 from random import randbytes
 from sys import version_info
@@ -14,7 +14,7 @@ from time import time
 from typing import TYPE_CHECKING, Any, Literal, Mapping, TypeVar, cast
 
 import aiohttp
-from bs4 import BeautifulSoup, Tag
+from bs4 import BeautifulSoup
 from yarl import URL as URL_
 
 from . import errors, utils
@@ -97,6 +97,7 @@ class HTTPClient:
         elif url.host in (URL.COMMUNITY.host, URL.STORE.host, URL.HELP.host):
             await self.ensure_logged_in()
 
+        r = data = None
         for tries in range(5):
             async with self._session.request(method, url, **kwargs, proxy=self.proxy, proxy_auth=self.proxy_auth) as r:
                 log.debug("%s %s with PAYLOAD: %s has returned %d", method, r.url, payload, r.status)
@@ -145,6 +146,7 @@ class HTTPClient:
                 else:
                     raise errors.HTTPException(r, data)
 
+        assert r is not None
         # we've run out of retries, raise
         raise errors.HTTPException(r, data)
 
@@ -166,7 +168,7 @@ class HTTPClient:
 
     def connect_to_cm(self, cm: str) -> Coro[aiohttp.ClientWebSocketResponse]:
         headers = {"User-Agent": self.user_agent}
-        return self._session.ws_connect(
+        return self._session.ws_connect(  # type: ignore  # aiohttp types issue, fixed upstream
             f"wss://{cm}/cmsocket/", headers=headers, proxy=self.proxy, proxy_auth=self.proxy_auth
         )
 
@@ -379,6 +381,7 @@ class HTTPClient:
             for key, value in page.items():
                 value_in_first_page = first_page[key]
                 if isinstance(value_in_first_page, list):
+                    assert isinstance(value, list)
                     value_in_first_page += value
 
             current_cursor = next_cursor
@@ -615,9 +618,11 @@ class HTTPClient:
         elements = soup.find_all("a", class_="linkStandard")
 
         return {
-            ID64(int(CLAN_ID64_FROM_URL_REGEX.search(clan_element)["steamid"])): parse_id64(
-                invitee_element["data-miniprofile"]
-            )
+            ID64(
+                int(
+                    CLAN_ID64_FROM_URL_REGEX.search(clan_element)["steamid"],  # type: ignore
+                )
+            ): parse_id64(invitee_element["data-miniprofile"])
             for (clan_element, invitee_element) in zip(
                 (element for element in elements if "steamLink" in element["class"]),
                 (element for element in elements if "data-miniprofile" in element.attrs),
@@ -660,7 +665,7 @@ class HTTPClient:
         event_id: int | None,
     ) -> Coro[str]:
         if start is None:
-            tz_offset = int((datetime.now().astimezone().tzinfo.utcoffset()).total_seconds())
+            tz_offset = int((datetime.now().astimezone().tzinfo.utcoffset()).total_seconds())  # type: ignore  # should be fixed by PEP 696
             start_date = "MM/DD/YY"
             start_hour = "12"
             start_minute = "00"
@@ -670,7 +675,7 @@ class HTTPClient:
             if start.tzinfo is None:
                 start = start.astimezone()
 
-            offset = start.tzinfo.utcoffset(start)
+            offset: timedelta = start.tzinfo.utcoffset(start)  # type: ignore
             tz_offset = int(offset.total_seconds())
 
             start_date = f"{start:%m/%d/%y}"

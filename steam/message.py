@@ -41,7 +41,7 @@ class UserMessage(Message[UserMessageAuthorT]):
     def __init__(
         self, proto: friend_messages.IncomingMessageNotification, channel: UserChannel, author: UserMessageAuthorT
     ):
-        super().__init__(channel, proto)
+        super().__init__(channel, proto)  # type: ignore
         self.created_at = DateTime.from_timestamp(proto.rtime32_server_timestamp)
         self.author = author
 
@@ -57,8 +57,8 @@ class UserMessage(Message[UserMessageAuthorT]):
         reaction = MessageReaction(
             self._state,
             self,
-            emoticon if isinstance(emoticon, Emoticon) else None,
-            emoticon if isinstance(emoticon, Sticker) else None,
+            emoticon if isinstance(emoticon, Emoticon) else None,  # type: ignore
+            emoticon if isinstance(emoticon, Sticker) else None,  # type: ignore
             self._state.user,
             DateTime.now(),
             self.ordinal,
@@ -70,9 +70,11 @@ class UserMessage(Message[UserMessageAuthorT]):
         self._state.dispatch(f"reaction_{'add' if add else 'remove'}", reaction)
 
     @classmethod
-    def _from_history(cls, channel: UserChannel, proto: friend_messages.GetRecentMessagesResponseFriendMessage) -> Self:
+    def _from_history(  # type: ignore
+        cls, channel: UserChannel, proto: friend_messages.GetRecentMessagesResponseFriendMessage
+    ) -> Self:
         self = cls.__new__(cls)  # skip __init__
-        super().__init__(self, channel, proto)
+        super().__init__(self, channel, proto)  # type: ignore
         self.created_at = DateTime.from_timestamp(proto.timestamp)
         return self
 

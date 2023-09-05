@@ -21,6 +21,7 @@ from zlib import crc32
 from aiohttp.streams import AsyncStreamReaderMixin
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from multidict import MultiDict
+from typing_extensions import deprecated
 
 from . import utils
 from ._const import MISSING, URL, VDF_LOADS, VDFDict, impl_eq_via_id
@@ -306,7 +307,7 @@ class ManifestPath(PurePathBase, _IOMixin):
         """This path's SHA1 filename hash."""
         return self._mapping.sha_filename
 
-    def is_dir(self) -> bool:  # TODO do these need to handle symlinks?
+    def is_dir(self) -> bool:
         """Whether the path is a directory."""
         return self.flags & DepotFileFlag.Directory > 0
 
@@ -488,7 +489,8 @@ class ManifestPath(PurePathBase, _IOMixin):
     read_bytes = _IOMixin.read
     """Read the contents of the file. Similar to :meth:`pathlib.Path.read_bytes`"""
 
-    async def read(self) -> Never:
+    @deprecated("use read_bytes() instead of read()", category=None)
+    def read(self, **kwargs: Any) -> Never:
         """This method is not implemented. Use :meth:`read_bytes` instead."""
         raise NotImplementedError("use read_bytes() instead of read()")
 
@@ -724,7 +726,7 @@ class Branch:
 
     async def fetch_manifests(self) -> list[Manifest]:
         """Fetch this branch's manifests. Similar to :meth:`PartialApp.manifests`."""
-        return await asyncio.gather(*(manifest.fetch() for manifest in self.manifests))  # type: ignore  # typeshed lies
+        return await asyncio.gather(*(manifest.fetch() for manifest in self.manifests))
 
 
 @dataclass(slots=True)
@@ -762,8 +764,8 @@ class PrivateManifestInfo(ManifestInfo):
         self.encrypted_id = encrypted_id
         self.branch = branch
 
-    @cached_slot_property  # type: ignore
-    def id(self) -> ManifestID:
+    @cached_slot_property
+    def id(self) -> ManifestID:  # type: ignore
         if self.branch.password is None:
             raise ValueError("Cannot access the id of this depot as the password is not set.")
         cipher = Cipher(algorithms.AES(self.branch.password.encode("UTF-8")), modes.ECB())

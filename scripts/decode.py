@@ -6,10 +6,10 @@ Licensed under The MIT License (MIT) - Copyright (c) 2020-present James H-B. See
 
 import asyncio
 import logging
-import sys
 from base64 import b64decode, b64encode
 from collections import defaultdict
 from pathlib import Path
+from typing import Any
 
 import black
 
@@ -18,6 +18,7 @@ from steam.gateway import SteamWebSocket
 from steam.protobufs import EMsg, ProtobufMessage, UnifiedMessage
 from steam.protobufs.base import CMsgMulti
 from steam.protobufs.msg import REQUEST_EMSGS, RESPONSE_EMSGS
+from steam.state import ConnectionState
 
 logging.getLogger("steam").setLevel(logging.DEBUG)
 logging.basicConfig()
@@ -43,25 +44,25 @@ async def main(input_message: str) -> None:
         if msg._unknown_fields:
             print(f"Unknown fields: {msg._unknown_fields}")
 
-    def handle_multi(self, msg: CMsgMulti) -> None:
+    def handle_multi(self: ConnectionState, msg: CMsgMulti) -> None:
         print("This is a multi message, unpacking...")
         state.handle_multi(msg)
 
-    def handle_um_request(self, msg: UnifiedMessage) -> None:
+    def handle_um_request(self: ConnectionState, msg: UnifiedMessage) -> None:
         print("This is a UM request", msg.UM_NAME)
         print(black.format_str(str(msg), mode=black.Mode()))
         print(black.format_str(str(msg.header), mode=black.Mode()))
         if msg._unknown_fields:
             print(f"Unknown fields: {msg._unknown_fields}")
 
-    def handle_um_response(self, msg: UnifiedMessage) -> None:
+    def handle_um_response(self: ConnectionState, msg: UnifiedMessage) -> None:
         print("This is a UM response", msg.UM_NAME)
         print(black.format_str(str(msg), mode=black.Mode()))
         print(black.format_str(str(msg.header), mode=black.Mode()))
         if msg._unknown_fields:
             print(f"Unknown fields: {msg._unknown_fields}")
 
-    state.parsers = defaultdict(lambda: parser)
+    state.parsers = defaultdict[EMsg, Any](lambda: parser)
     state.parsers[EMsg.Multi] = handle_multi
     for msg in REQUEST_EMSGS:
         state.parsers[msg] = handle_um_request

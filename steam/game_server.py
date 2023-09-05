@@ -50,16 +50,16 @@ class Operator:
         return f"\\nor\\{len(args)}{joined}"
 
 
-class LFD2SpecificQueries:  # TODO need implementing
-    @property
-    def match_hidden_tags(cls) -> Query[list[str]]:
-        """Fetches servers with all the given tag(s) in their 'hidden' tags only applies for :attr:`steam.LFD2`."""
-        return Query["list[str]"]("\\gamedata\\", type=list, callback=lambda items: f"[{','.join(items)}]")
+# class LFD2SpecificQueries:  # TODO need implementing
+#     @property
+#     def match_hidden_tags(cls) -> Query[list[str]]:
+#         """Fetches servers with all the given tag(s) in their 'hidden' tags only applies for :attr:`steam.LFD2`."""
+#         return Query["list[str]"]("\\gamedata\\", type=list, callback=lambda items: f"[{','.join(items)}]")
 
-    @property
-    def match_any_hidden_tags(cls) -> Query[list[str]]:
-        """Fetches servers with any of the given tag(s) in their 'hidden' tags only applies for :attr:`steam.LFD2`."""
-        return Query["list[str]"]("\\gamedataor\\", type=list, callback=lambda items: f"[{','.join(items)}]")
+#     @property
+#     def match_any_hidden_tags(cls) -> Query[list[str]]:
+#         """Fetches servers with any of the given tag(s) in their 'hidden' tags only applies for :attr:`steam.LFD2`."""
+#         return Query["list[str]"]("\\gamedataor\\", type=list, callback=lambda items: f"[{','.join(items)}]")
 
 
 class QueryWhereBoolKwargs(TypedDict, total=False):
@@ -71,7 +71,7 @@ class QueryWhereBoolKwargs(TypedDict, total=False):
     secure: Annotated[bool, r"\secure\1"]
     linux: Annotated[bool, r"\linux\1"]
     has_password: Annotated[bool, None, r"\password\0"]
-    full: Annotated[bool, None, r"\full\1"]  # TODO double check this
+    full: Annotated[bool, None, r"\full\1"]
     only_one_per_ip: Annotated[Literal[True], r"\collapse_addr_hash\1"]  # only makes sense as Literal[True]
 
 
