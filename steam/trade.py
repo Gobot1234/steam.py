@@ -44,7 +44,7 @@ __all__ = (
 OwnerT = TypeVar("OwnerT", bound="PartialUser", default="BaseUser", covariant=True)
 
 
-class Asset(Generic[OwnerT], DescriptionMixin):
+class Asset(DescriptionMixin, Generic[OwnerT]):
     """Base most version of an item. This class should only be received when Steam fails to find a matching item for
     its class and instance IDs.
 
