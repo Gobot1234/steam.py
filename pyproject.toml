@@ -59,6 +59,12 @@ htmlmin = "^0.1.12"
 rjsmin = "^1.2.0"
 click = "^8.1.6"
 
+[tool.poetry.group.examples]
+optional = true
+[tool.poetry.group.examples.dependencies]
+"discord.py" = "^2"
+babel = "^2"
+
 [tool.poetry.group.dev]
 optional = true
 [tool.poetry.group.dev.dependencies]
@@ -166,7 +172,9 @@ reportUnnecessaryContains = true
 reportIncompatibleMethodOverride = true
 reportIncompatibleVariableOverride = true
 reportShadowedImports = "none"
-ignore = ["steam/ext/commands", "tests"]
+reportPrivateImportUsage = false
+deprecateTypingAliases = true
+ignore = ["steam/ext/commands", "docs"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

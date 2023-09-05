@@ -8,11 +8,13 @@ Licensed under The MIT License (MIT) - Copyright (c) 2020-present James H-B. See
 from __future__ import annotations
 
 import builtins
+import importlib.util
 import struct
 from collections.abc import Callable
 from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from functools import partial
 from io import BytesIO, StringIO
 from typing import TYPE_CHECKING, Any, Final, Literal, Protocol, TypeVar, cast, final
 
@@ -30,26 +32,27 @@ if TYPE_CHECKING:
 
 DOCS_BUILDING: bool = getattr(builtins, "__sphinx__", False)
 
-
+HAS_ORJSON = False
 try:
     import orjson  # type: ignore
 except ModuleNotFoundError:
     import json
 
-    JSON_LOADS: Final = json.loads  # type: ignore
+    json_loads = json.loads
 
-    def dumps(
+    @partial(cast, Callable[[Any], str])
+    def json_dumps(
         obj: Any,
         __func: Callable[..., str] = json.dumps,
         /,
     ) -> str:
         return __func(obj, separators=(",", ":"), ensure_ascii=True)
 
-    JSON_DUMPS: Final = cast(Callable[[Any], str], dumps)  # type: ignore
 else:
-    JSON_LOADS: Final[Callable[[str | bytes], Any]] = orjson.loads  # type: ignore
+    json_loads = orjson.loads
 
-    def dumps_(
+    @partial(cast, Callable[[Any], str])
+    def json_dumps(
         obj: Any,
         __func: Callable[[Any], bytes] = orjson.dumps,  # type: ignore
         __decoder: Callable[[bytes], str] = bytes.decode,
@@ -57,7 +60,9 @@ else:
     ) -> str:
         return __decoder(__func(obj))
 
-    JSON_DUMPS: Final = cast(Callable[[Any], str], dumps_)
+
+JSON_LOADS: Final = cast(Callable[[str | bytes], Any], json_loads)
+JSON_DUMPS: Final = json_dumps
 
 
 try:
@@ -65,7 +70,7 @@ try:
 except ModuleNotFoundError:
     import vdf
 
-    def multi_dict_ify(
+    def _multi_dict_ify(
         x: Any,
         __isinstance=isinstance,  # type: ignore
         __vdf_dict=vdf.VDFDict,
@@ -76,44 +81,38 @@ except ModuleNotFoundError:
             multi_dict = __multi_dict()
             adder = multi_dict.add
             for k, v in x.items():
-                adder(k, multi_dict_ify(v))
+                adder(k, _multi_dict_ify(v))
             return multi_dict
         return x
 
-    def loads(
+    def vdf_loads(
         s: str,
         __func: Callable[..., Any] = vdf.parse,  # type: ignore
         __mapper: type[vdf.VDFDict] = vdf.VDFDict,
-        __multi_dict_ify: Callable[[vdf.VDFDict], MultiDict[Any]] = multi_dict_ify,
+        __multi_dict_ify: Callable[[vdf.VDFDict], MultiDict[Any]] = _multi_dict_ify,
         __string_io: type[StringIO] = StringIO,
         /,
     ) -> VDFDict:
         return __multi_dict_ify(__func(__string_io(s), mapper=__mapper))
 
-    def binary_loads(
+    def vdf_binary_loads(
         s: bytes,
         __func: Callable[..., Any] = vdf.binary_load,  # type: ignore
         __mapper: type[vdf.VDFDict] = vdf.VDFDict,
-        __multi_dict_ify: Callable[[vdf.VDFDict], MultiDict[Any]] = multi_dict_ify,
+        __multi_dict_ify: Callable[[vdf.VDFDict], MultiDict[Any]] = _multi_dict_ify,
         __bytes_io: type[BytesIO] = BytesIO,
         /,
     ) -> BinaryVDFDict:
         return __multi_dict_ify(__func(__bytes_io(s), mapper=__mapper))
 
-    VDF_LOADS: Final = cast(Callable[[str], VDFDict], loads)  # type: ignore
-    VDF_BINARY_LOADS: Final = cast(Callable[[bytes], BinaryVDFDict], binary_loads)  # type: ignore
-
 else:
-    VDF_LOADS: Final[Callable[[str], VDFDict]] = orvdf.loads  # type: ignore
-    VDF_BINARY_LOADS: Final[Callable[[bytes], BinaryVDFDict]] = orvdf.binary_loads  # type: ignore
+    vdf_loads = orvdf.loads  # type: ignore
+    vdf_binary_loads = orvdf.binary_loads  # type: ignore
 
+VDF_LOADS: Final = cast(Callable[[str], VDFDict], vdf_loads)
+VDF_BINARY_LOADS: Final = cast(Callable[[bytes], BinaryVDFDict], vdf_binary_loads)
 
-try:
-    import lxml  # type: ignore
-except ModuleNotFoundError:
-    HTML_PARSER: Final = "html.parser"  # type: ignore
-else:
-    HTML_PARSER: Final = "lxml-xml"
+HTML_PARSER: Final = "lxml-xml" if importlib.util.find_spec("lxml") else "html.parser"
 
 try:
     from asyncio import TaskGroup as TaskGroup, timeout as timeout  # type: ignore

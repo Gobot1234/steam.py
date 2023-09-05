@@ -12,14 +12,10 @@ if TYPE_CHECKING:
     from typing_extensions import Never, TypedDict
 
 # VDF related types
-try:
-    import orvdf
-except ModuleNotFoundError:
-    VDFDict: TypeAlias = "MultiDict[str | VDFDict]"
-    BinaryVDFDict: TypeAlias = "MultiDict[str | int | float | BinaryVDFDict]"
-else:
-    VDFDict: TypeAlias = "MultiDict[str | bool | None | VDFDict]"
-    BinaryVDFDict: TypeAlias = "MultiDict[str | int | float | bool | None | BinaryVDFDict]"
+VDFDict: TypeAlias = MultiDict["str | VDFDict"]  # str | bool | None | VDFDict for orvdf
+BinaryVDFDict: TypeAlias = MultiDict[
+    "str | int | float | BinaryVDFDict"
+]  # str | int | float | bool | None | BinaryVDFDict for orvdf
 
 
 T = TypeVar("T")

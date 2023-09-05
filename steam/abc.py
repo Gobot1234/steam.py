@@ -839,7 +839,7 @@ class BaseUser(PartialUser):
     """The last time the user logged into steam."""
     last_seen_online: datetime | None
     """The last time the user was seen online."""
-    app: PartialApp | None
+    app: PartialApp[str] | None
     """The app the user is currently in. Is ``None`` if the user isn't in an app."""
     state: PersonaState
     """The current persona state of the account (e.g. LookingToTrade)."""

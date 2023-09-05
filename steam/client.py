@@ -90,8 +90,7 @@ __all__ = ("Client",)
 log = logging.getLogger(__name__)
 
 CoroFunc: TypeAlias = Callable[..., Coroutine[Any, Any, Any]]
-E = TypeVar("E", bound=CoroFunc)
-EventDeco: TypeAlias = Callable[[E], E] | E
+F = TypeVar("F", bound=CoroFunc)
 P = ParamSpec("P")
 
 

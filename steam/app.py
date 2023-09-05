@@ -641,17 +641,9 @@ class PartialApp(App[NameT]):
 
     __slots__ = ("_state",)
 
-    if not TYPE_CHECKING and DOCS_BUILDING:
-
-        def __init__(self, name: str, id: AppID):
-            self.name = name
-            self.id = id
-
-    else:
-
-        def __init__(self, state: ConnectionState, *, id: Intable, name: NameT = None):
-            super().__init__(id=id, name=name)
-            self._state = state
+    def __init__(self, state: ConnectionState, *, id: Intable, name: NameT = None):
+        super().__init__(id=id, name=name)
+        self._state = state
 
     def __repr__(self) -> str:
         attrs = ("name", "id")
@@ -1115,7 +1107,7 @@ class PartialApp(App[NameT]):
             The language to fetch the DLC in. If ``None``, the current language will be used.
         """
         data = await self._state.http.get_app_dlc(self.id, language)
-        self.name = data["name"]
+        self.name = cast(NameT, data["name"])
         return [DLC(self._state, dlc) for dlc in data["dlc"]]
 
     async def packages(self, *, language: Language | None = None) -> list[FetchedAppPackage]:
