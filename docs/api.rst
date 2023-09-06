@@ -130,6 +130,8 @@ steam.py provides some utility functions.
 
 .. autofunction:: steam.utils.parse_id64
 
+.. autofunction:: steam.utils.id64_from_url
+
 .. autofunction:: steam.utils.parse_trade_url
 
 Then some functions from discord.py
