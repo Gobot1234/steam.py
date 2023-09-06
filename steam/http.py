@@ -874,6 +874,17 @@ class HTTPClient:
         )
         return data["result"]
 
+    def get_app_suggestions(
+        self, term: str, language: Language | None = None
+    ) -> Coro[list[dict[{"name": str, "id": str, "type": str}]]]:  # noqa: UP037, F821
+        params = {
+            "term": term,
+            "f": "json",
+            "cc": "en",
+            "l": (language or self.language).api_name,
+        }
+        return self.get(URL.STORE / "search/suggest", params=params)
+
     async def get_all_apps(
         self,
         include_games: bool,

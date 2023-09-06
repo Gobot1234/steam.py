@@ -27,8 +27,6 @@ Mostly from https://github.com/ValvePython/steam/blob/master/tests/test_steamid.
 
 from __future__ import annotations
 
-from typing import Optional, Union
-
 import pytest
 
 from steam import ID, Instance, InvalidID, Type, Universe

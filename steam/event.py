@@ -113,9 +113,8 @@ class BaseEvent(Commentable, utils.AsyncInit, Generic[EventTypeT, ClanT], metacl
         """The number of down votes on the event."""
         self.comment_count: int = data.get("comment_count", 0)
         """The number of comments on the event."""
-        self.server_address: IPv4Address | None = (
-            IPv4Address(data["server_address"]) if "server_address" in data else None
-        )
+        server_address = data.get("server_address")
+        self.server_address: IPv4Address | None = IPv4Address(server_address) if server_address else None
         """The event's server address."""
         self.server_password: str | None = data.get("server_password")
         """The event's server password."""

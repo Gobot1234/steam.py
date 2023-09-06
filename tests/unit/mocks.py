@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock
 
 import steam
 from steam.protobufs.chat import IncomingChatMessageNotification, State
 from steam.protobufs.friends import CMsgClientPersonaStateFriend
 
+from ...steam.types.id import ChatGroupID
 from .test_bot import bot
 
 USER_DATA = CMsgClientPersonaStateFriend(
@@ -41,7 +42,7 @@ class MockUser(steam.User, DataclassesMock):
 
 class MockGroup(steam.Group, DataclassesMock):
     def __init__(self):
-        super().__init__(bot._state, 0)
+        super().__init__(bot._state, ChatGroupID(0))
         self.name = "a group"
 
 
@@ -57,7 +58,7 @@ class MockGroupChannel(steam.GroupChannel, DataclassesMock):
 class MockMessage(steam.Message, DataclassesMock):
     def __init__(self, channel: MockGroupChannel, content: str | None = None):
         proto = IncomingChatMessageNotification(message=content or "a message")
-        steam.Message.__init__(self, channel, proto)
+        steam.Message.__init__(self, channel, proto)  # type: ignore
         self.author = USER
 
 

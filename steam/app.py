@@ -17,7 +17,6 @@ from typing_extensions import Self, TypeVar
 
 from . import utils
 from ._const import (
-    DOCS_BUILDING,
     JSON_LOADS,
     STATE,
     STEAM_BADGES,

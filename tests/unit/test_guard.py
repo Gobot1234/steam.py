@@ -53,7 +53,7 @@ async def test_generate_confirmation_code_one_per_second() -> None:
     with Timer() as timer:
         code_1 = await state._get_confirmation_code("allow")
         code_2 = await state._get_confirmation_code("cancel")
-    assert timer.delta == pytest.approx(0, abs=3e-3)
+    assert timer.delta == pytest.approx(0, abs=3e-3)  # type: ignore
     assert code_1 != code_2
 
     await asyncio.sleep(1.5)
@@ -76,4 +76,4 @@ async def test_generate_confirmation_code_one_per_second() -> None:
 
     with Timer() as timer:
         await state._get_confirmation_code("allow")
-    assert timer.delta == pytest.approx(0, abs=1e-3)
+    assert timer.delta == pytest.approx(0, abs=1e-3)  # type: ignore

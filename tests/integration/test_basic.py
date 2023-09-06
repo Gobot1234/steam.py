@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import atexit
 import contextlib
-import sys
 from io import StringIO
 from typing import Any
 
@@ -13,7 +12,7 @@ import pytest
 
 import steam
 
-from . import IDENTITY_SECRET, PASSWORD, RUNNING_AS_ACTION, SHARED_SECRET, USERNAME
+from . import IDENTITY_SECRET, PASSWORD, SHARED_SECRET, USERNAME
 
 
 class Client(steam.Client):
