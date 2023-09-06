@@ -174,7 +174,8 @@ reportIncompatibleVariableOverride = true
 reportShadowedImports = "none"
 reportPrivateImportUsage = false
 deprecateTypingAliases = true
-ignore = ["steam/ext/commands", "docs"]
+enableExperimentalFeatures = true
+ignore = ["docs"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

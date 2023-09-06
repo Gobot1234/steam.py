@@ -7,26 +7,68 @@ import sys
 import traceback
 from collections.abc import Callable
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Final, TypeAlias, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Concatenate, Final, Generic, Mapping, TypeAlias, overload
 
-from ...enums import classproperty
-from .commands import Command, Group
+from typing_extensions import TypeVar
+
+from .commands import CogT, Command, Group, check
 from .utils import Coro
 
 if TYPE_CHECKING:
-    from typing_extensions import Self
-
     from steam.ext import commands
 
     from .bot import Bot
 
 __all__ = ("Cog",)
 
-EventType: TypeAlias = Callable[..., Coro[None]]
-F = TypeVar("F", bound=EventType)
+ListenerType: TypeAlias = Callable[..., Coro[None]]
+UnboundListenerType: TypeAlias = Callable[Concatenate[CogT, ...], Coro[None]]
+F = TypeVar("F", bound=UnboundListenerType)
 
 
-class Cog:
+class CogCommands:
+    @overload
+    def __get__(self, instance: None, owner: type[Cog]) -> set[Command[None]]:
+        ...
+
+    @overload
+    def __get__(self, instance: CogT, owner: type[CogT]) -> set[Command[CogT]]:  # type: ignore
+        ...
+
+    def __get__(self, instance: Cog | None, owner: type[Cog]) -> Any:
+        commands = owner.__commands__
+        if instance is None:
+            return {command for command in commands.values() if command.parent is None}
+        cog_qualified_names = {command.qualified_name for command in commands.values()}
+        return {command for command in instance.bot.commands if command.qualified_name in cog_qualified_names}
+
+
+class CogListeners:
+    @overload
+    def __get__(self, instance: None, owner: type[CogT]) -> list[tuple[str, UnboundListenerType[CogT]]]:  # type: ignore
+        ...
+
+    @overload
+    def __get__(self, instance: Cog, owner: type[Cog]) -> list[tuple[str, ListenerType]]:
+        ...
+
+    def __get__(self, instance: Cog | None, owner: type[Cog]) -> Any:
+        if instance is None:
+            return [
+                (listener.__name__, listener) for listeners in owner.__listeners__.values() for listener in listeners
+            ]
+
+        return [
+            (listener.__name__, getattr(instance, listener.__name__))
+            for listeners in owner.__listeners__.values()
+            for listener in listeners
+        ]
+
+
+BotT = TypeVar("BotT", bound="Bot", default="Bot", covariant=True)
+
+
+class Cog(Generic[BotT]):
     """A class from which Cogs can be created. These are used to separate commands and listeners into separate files.
 
     Attributes
@@ -62,20 +104,19 @@ class Cog:
         The cleaned up doc-string for the cog.
     """
 
-    __commands__: Final[dict[str, Command]]
-    __listeners__: Final[dict[str, list[EventType]]]
-    command_attrs: Final[dict[str, Any]]
+    __commands__: Final[Mapping[str, Command[None]]]
+    __listeners__: Final[Mapping[str, list[UnboundListenerType]]]
+    command_attrs: Final[Mapping[str, Any]]
     qualified_name: Final[str]
     description: Final[str | None]
+    bot: BotT
 
-    def __init_subclass__(cls, name: str | None = None, command_attrs: dict[str, Any] | None = None) -> None:
+    def __init_subclass__(
+        cls, name: str | None = None, command_attrs: dict[str, Any] | None = None, **kwargs: Any
+    ) -> None:
         cls.qualified_name = name or cls.__name__  # type: ignore
         cls.command_attrs = command_attrs or {}  # type: ignore
-
-        if cls.__doc__ is not None:
-            cls.description = inspect.cleandoc(cls.__doc__)  # type: ignore
-        else:
-            cls.description = None  # type: ignore
+        cls.description = inspect.cleandoc(cls.__doc__) if cls.__doc__ is not None else None  # type: ignore
 
         cls.__listeners__ = {}  # type: ignore
         cls.__commands__ = {}  # type: ignore
@@ -94,7 +135,7 @@ class Cog:
                             if name not in child.__original_kwargs__:
                                 setattr(child, name, value)
                 else:
-                    cls.__commands__[name] = attr
+                    cls.__commands__[name] = attr  # type: ignore
 
                 for name, value in cls.command_attrs.items():
                     if name not in attr.__original_kwargs__:
@@ -105,19 +146,16 @@ class Cog:
                     cls.__listeners__[attr.__event_name__].append(attr)
                 except KeyError:
                     cls.__listeners__[attr.__event_name__] = [attr]
+        super().__init_subclass__(**kwargs)
 
     def __repr__(self) -> str:
         return f"<Cog {f'{self.__class__.__module__}.{self.__class__.__name__}'!r}>"
 
-    @classproperty
-    def commands(cls: type[Self]) -> set[Command]:  # type: ignore
-        """A set of the cog's commands."""
-        return set(cls.__commands__.values())
+    commands: Final = CogCommands()
+    """A set of the cog's commands."""
 
-    @classproperty
-    def listeners(cls: type[Self]) -> list[tuple[str, EventType]]:  # type: ignore
-        """A list of tuples of the events registered with the format (name, listener)"""
-        return [(listener.__name__, listener) for listeners in cls.__listeners__.values() for listener in listeners]
+    listeners: Final = CogListeners()
+    """A list of tuples of the events registered with the format (name, listener)"""
 
     @classmethod
     @overload
@@ -143,12 +181,12 @@ class Cog:
         def decorator(coro: F) -> F:
             if not inspect.iscoroutinefunction(coro):
                 raise TypeError(f"Listeners must be coroutine functions, {coro.__name__} is {type(coro).__name__}")
-            coro.__event_name__ = coro.__name__ if callable(name) else name
+            coro.__event_name__ = coro.__name__ if callable(name) else name  # type: ignore
             return coro
 
         return decorator(name) if callable(name) else decorator
 
-    async def cog_command_error(self, ctx: commands.Context, error: Exception) -> None:
+    async def cog_command_error(self, ctx: commands.Context[Bot], error: Exception) -> None:
         """A special method that is called when an error is dispatched inside this cog. This is similar to
         :func:`~commands.Bot.on_command_error` except it only applies to the commands inside this cog.
 
@@ -162,7 +200,7 @@ class Cog:
         print(f"Ignoring exception in command {ctx.command}:", file=sys.stderr)
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
-    async def cog_check(self, ctx: commands.Context) -> bool:
+    async def cog_check(self, ctx: commands.Context[Bot]) -> bool:
         """A special method that registers as a :func:`commands.check` for every command and subcommand in this cog.
 
         Parameters
@@ -172,7 +210,7 @@ class Cog:
         """
         raise NotImplementedError
 
-    async def bot_check(self, ctx: commands.Context) -> bool:
+    async def bot_check(self, ctx: commands.Context[Bot]) -> bool:
         """A special method that registers as a :meth:`commands.Bot.check` globally.
 
         Parameters
@@ -190,15 +228,16 @@ class Cog:
 
     async def _inject(self, bot: Bot) -> None:
         cls = self.__class__
-        if cls.bot_check is not Cog.bot_check:
-            bot.add_check(self.bot_check)
+        self.bot = bot  # type: ignore
+        if cls.bot_check is not Cog.bot_check:  # type: ignore
+            bot.add_check(check(self.bot_check))
 
         for idx, command in enumerate(self.__commands__.values()):
             command = deepcopy(command)
             command.cog = self
 
-            if cls.cog_check is not Cog.cog_check:
-                command.checks.append(self.cog_check)
+            if cls.cog_check is not Cog.cog_check:  # type: ignore
+                command.checks.append(check(self.cog_check))
 
             if isinstance(command, Group):
                 for child in command.children:
@@ -212,10 +251,8 @@ class Cog:
                     bot.remove_command(to_undo)
                 raise
 
-        for name, listeners in self.__listeners__.items():
-            for listener in listeners:
-                listener = getattr(self, listener.__name__)  # get the bound method version
-                bot.add_listener(listener, name)
+        for name, listener in self.listeners:
+            bot.add_listener(listener, name)
 
     async def _eject(self, bot: Bot) -> None:
         for command in self.__commands__.values():
@@ -224,9 +261,7 @@ class Cog:
             else:
                 bot.remove_command(command.name)
 
-        for name, listeners in self.__listeners__.items():
-            for listener in listeners:
-                listener = getattr(self, listener.__name__)  # get the bound method version
-                bot.remove_listener(listener, name)
+        for name, listener in self.listeners:
+            bot.remove_listener(listener, name)
 
         await self.cog_unload()

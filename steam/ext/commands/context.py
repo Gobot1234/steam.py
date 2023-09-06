@@ -56,7 +56,7 @@ class Context(Generic[BotT], Messageable["Message"], _HasChatGroupMixin):
     def __init__(
         self,
         bot: BotT,
-        message: Message[User | ClientUser | Friend | Member | PartialMember | PartialUser],
+        message: Message[User | ClientUser | Friend | Member | PartialMember],
         lex: Shlex,
         prefix: str | None,
         command: Command | None = None,

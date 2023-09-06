@@ -25,14 +25,13 @@ from typing import (
     TypeAlias,
     TypedDict,
     Union,
-    Unpack,
     cast,
     get_args,
     get_origin,
     overload,
 )
 
-from typing_extensions import ParamSpec, Self, TypeVar
+from typing_extensions import ParamSpec, Self, TypeVar, Unpack
 
 from ...channel import UserChannel
 from ...chat import Chat
@@ -65,7 +64,7 @@ R = TypeVar("R", default=Any, covariant=True)
 MaybeCoroFunc: TypeAlias = Callable[P, R | Coro[R]]
 CoroFunc: TypeAlias = Callable[P, Coro[R]]
 CheckType: TypeAlias = MaybeCoroFunc[["Context"], bool]
-ErrT = TypeVar("ErrT", bound=CoroFunc[["Context", Exception], None])
+ErrT = TypeVar("ErrT", bound=CoroFunc[["Context", Exception], None] | CoroFunc[["Cog", "Context", Exception], None])
 InvokeT = TypeVar("InvokeT", bound=CoroFunc[["Context"], None] | CoroFunc[["Cog", "Context"], None])
 MaybeCommandT = TypeVar("MaybeCommandT", bound="Callable[..., Command] | Command")
 CoroFuncT = TypeVar("CoroFuncT", bound=CoroFunc)
@@ -76,11 +75,14 @@ class CommandDeco(Protocol):
         ...
 
 
-class Check(Protocol[R]):
+MaybeBool = TypeVar("MaybeBool", bound=bool | Coro[bool], default=bool | Coro[bool], covariant=True)
+
+
+class Check(Protocol[MaybeBool]):
     predicate: Callable[[Context[Any]], Coro[bool]]
 
     @overload
-    def __call__(self, context: Context[Any], /) -> R:
+    def __call__(self, context: Context[Any], /) -> MaybeBool:
         ...
 
     @overload
@@ -88,7 +90,7 @@ class Check(Protocol[R]):
         ...
 
 
-@converters.converter_for(bool)
+@converters.converter(bool)
 def to_bool(argument: str) -> bool:
     lowered = argument.lower()
     if lowered in {"yes", "y", "true", "t", "1", "enable", "on"}:
@@ -98,12 +100,8 @@ def to_bool(argument: str) -> bool:
     raise BadArgument(f"{argument!r} is not a recognised boolean option")
 
 
-C = TypeVar("C", bound="Command", default="Command")
-
-
-class CommandKwargs(TypedDict, Generic[C], total=False):
-    name: str
-    cls: type[C]
+class CommandKwargsNoCls(TypedDict, total=False):
+    name: str | None
     help: str
     brief: str
     usage: str
@@ -119,8 +117,14 @@ class CommandKwargs(TypedDict, Generic[C], total=False):
     case_insensitive: bool
 
 
+C = TypeVar("C", bound="Command", default="Command")
+
+
+class CommandKwargs(CommandKwargsNoCls, Generic[C], total=False):
+    cls: type[C] | None
+
+
 CogT = TypeVar("CogT", bound="Cog | Bot | None", default="Cog | Bot | None", covariant=True)
-T = TypeVar("T", default=Any, covariant=True)
 
 
 class Command(Generic[CogT, P, R]):
@@ -244,7 +248,7 @@ class Command(Generic[CogT, P, R]):
 
         self.params = dict(inspect.signature(function, eval_str=True).parameters)
         if not self.params:
-            raise ClientException(f'Callback for {self.name} command is missing a "ctx" parameter.') from None
+            raise TypeError(f'Callback for {self.name} command is missing a "ctx" parameter.') from None
         for param in self.params.values():
             annotation = param.annotation
             if get_origin(annotation) is converters.Greedy and isinstance(annotation.converter, ForwardRef):
@@ -276,7 +280,13 @@ class Command(Generic[CogT, P, R]):
     @property
     def parents(self) -> list[Self]:
         """The command's parents."""
-        return [(self, self := self.parent)[0] for _ in iter(lambda: isinstance(self, Command), False)]
+        commands: list[Self] = []
+        command = self
+        while isinstance(command, Command):
+            commands.append(command)
+            command = command.parent
+
+        return commands
 
     async def __call__(self, ctx: Context, *args: P.args, **kwargs: P.kwargs) -> R:
         """Calls the internal callback that the command holds.
@@ -564,6 +574,9 @@ class Command(Generic[CogT, P, R]):
         return default
 
 
+CallbackT: TypeAlias = CoroFunc[Concatenate[CogT, Context[Any], P], R] | CoroFunc[Concatenate[Context[Any], P], R]
+
+
 class GroupMixin(Generic[CogT]):
     """Mixin for something that can have commands registered under it.
 
@@ -680,25 +693,23 @@ class GroupMixin(Generic[CogT]):
         return command
 
     @overload
+    def command(self, callback: CallbackT[CogT, P, R], /) -> Command[CogT, P, R]:
+        ...
+
+    @overload  # this needs higher kinded types as cls should be type[C[P]] | None
     def command(
-        self,
-        callback: CoroFunc[Concatenate[CogT, Context[Any], P], R] | CoroFunc[Concatenate[Context[Any], P], R],
-    ) -> Command[CogT, P, R]:
+        self, **kwargs: Unpack[CommandKwargsNoCls]
+    ) -> Callable[[CallbackT[CogT, P, R]], Command[CogT, P, R],]:
         ...
 
     @overload  # this also needs higher kinded types as cls should be type[C[P]] | None
-    def command(
-        self, cls: None = None, **kwargs: Unpack[CommandKwargs]
-    ) -> Callable[[Callable[Concatenate[CogT, P], T]], Command[CogT, P, T]]:
+    def command(self, **kwargs: Unpack[CommandKwargs[C]]) -> Callable[[CallbackT[CogT, P, R]], C]:
         ...
 
-    @overload  # this also needs higher kinded types as cls should be type[C[P]] | None
-    def command(self, **kwargs: Unpack[CommandKwargs[C]]) -> Callable[[Callable[P, Any]], C]:
-        ...
-
-    def command(
+    def command(  # type: ignore
         self,
         callback: CoroFuncT | None = None,
+        /,
         *,
         name: str | None = None,
         cls: type[C] = Command,
@@ -723,33 +734,28 @@ class GroupMixin(Generic[CogT]):
 
         def decorator(callback: CoroFuncT) -> C:
             attrs.setdefault("parent", self)
-            result = command(callback, name=name, cls=cls, **attrs)  # type: ignore
-            self.add_command(result)
+            result = command(name=name, cls=cls, **attrs)(callback)
+            self.add_command(result)  # type: ignore
             return result
 
         return decorator(callback) if callback is not None else decorator
 
     @overload
-    def group(
-        self,
-        callback: BaseCallback[P],
-    ) -> Group[P]:
+    def group(self, callback: CallbackT[CogT, P, R], /) -> Group[CogT, P, R]:
         ...
 
     @overload
-    def group(
-        self,
-        callback: None,
-    ) -> Callable[[BaseCallback[P]], Group[P]]:
+    def group(self, **kwargs: Unpack[CommandKwargsNoCls]) -> Callable[[CallbackT[CogT, P, R]], Group[CogT, P, R]]:
         ...
 
     @overload
-    def group(self, **kwargs: Unpack[CommandKwargs[G]]) -> Callable[[BaseCallback[P]], G]:
+    def group(self, **kwargs: Unpack[CommandKwargs[G]]) -> Callable[[CallbackT[CogT, P, R]], G]:
         ...
 
-    def group(
+    def group(  # type: ignore
         self,
         callback: CoroFuncT | None = None,
+        /,
         *,
         name: str | None = None,
         cls: type[G] | None = None,
@@ -771,56 +777,52 @@ class GroupMixin(Generic[CogT]):
         The created group command.
         """
 
-        def decorator(callback: CallbackType[P]) -> G:
+        def decorator(callback: CoroFuncT) -> G:
             attrs.setdefault("parent", self)
-            result = group(callback, name=name, cls=cls or Group, **attrs)  # type: ignore
+            result = group(name=name, cls=cls or Group, **attrs)(callback)
             self.add_command(result)
             return result
 
         return decorator(callback) if callback is not None else decorator
 
-    def recursively_remove_all_commands(self) -> None:
+    def remove_all_commands(self) -> None:
         for command in self.commands:
             if isinstance(command, GroupMixin):
-                command.recursively_remove_all_commands()
+                command.remove_all_commands()
             self.remove_command(command.name)
 
 
 class Group(GroupMixin[CogT], Command[CogT, P, R]):
-    def __init__(self, func: CallbackType[P], **kwargs: Any):
-        super().__init__(func, **kwargs)
-
     async def invoke(self, ctx: Context) -> None:
         command = self
         for command_name in ctx.lex:
             try:
-                command = command.__commands__[command_name]
+                command = command.__commands__[command_name]  # type: ignore
             except (AttributeError, KeyError):
                 ctx.lex.undo()
                 break
 
-        await (super().invoke(ctx) if command is self else command.invoke(ctx))
+        await (super().invoke(ctx) if command is self else Command.invoke(self, ctx))  # type: ignore
 
 
 @overload
-def command(
-    callback: BaseCallback[P],
-) -> Command[P]:
+def command(callback: CallbackT[CogT, P, R], /) -> Command[CogT, P, R]:
     ...
 
 
 @overload
-def command(callback: None) -> Callable[[BaseCallback[P]], Command[P]]:
+def command(**kwargs: Unpack[CommandKwargsNoCls]) -> Callable[[CallbackT[CogT, P, R]], Command[CogT, P, R]]:
     ...
 
 
 @overload
-def command(**kwargs: Unpack[CommandKwargs]) -> Callable[[BaseCallback[P]], Command[P]]:
+def command(**kwargs: Unpack[CommandKwargs[C]]) -> Callable[[CallbackT[CogT, P, R]], C]:
     ...
 
 
-def command(
+def command(  # type: ignore
     callback: CoroFuncT | None = None,
+    /,
     *,
     name: str | None = None,
     cls: type[C] = Command,
@@ -856,24 +858,23 @@ G = TypeVar("G", bound="Group[Any]", default="Group[Any]")
 
 
 @overload
-def group(
-    callback: BaseCallback[P],
-) -> Group[P]:
+def group(callback: CallbackT[CogT, P, R], /) -> Group[CogT, P, R]:
     ...
 
 
 @overload
-def group(callback: None) -> Callable[[BaseCallback[P]], Group[P]]:
+def group(**kwargs: Unpack[CommandKwargsNoCls]) -> Callable[[CallbackT[CogT, P, R]], Group[CogT, P, R]]:
     ...
 
 
 @overload
-def group(**kwargs: Unpack[CommandKwargs[G]]) -> Callable[[BaseCallback[P]], G]:
+def group(**kwargs: Unpack[CommandKwargs[G]]) -> Callable[[CallbackT[CogT, P, R]], G]:
     ...
 
 
 def group(
     callback: CoroFuncT | None = None,
+    /,
     *,
     name: str | None = None,
     cls: type[G] | None = None,
@@ -896,10 +897,7 @@ def group(
     The created group command.
     """
 
-    return command(callback, name=name, cls=cls, **attrs)
-
-
-MaybeBool = TypeVar("MaybeBool", bound=bool | Coro[bool])
+    return command(callback, name=name, cls=cls, **attrs)  # type: ignore
 
 
 def check(predicate: Callable[[Context], MaybeBool]) -> Check[MaybeBool]:
@@ -1036,14 +1034,3 @@ def cooldown(rate: int, per: float, type: BucketType = BucketType.Default) -> Co
         return command
 
     return decorator
-
-
-# g = GroupMixin()
-
-
-# @g.command()
-# async def foo(ctx: Context):
-#     ...
-
-
-# reveal_type(foo)

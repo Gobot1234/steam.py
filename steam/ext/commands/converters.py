@@ -6,6 +6,7 @@ import types
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from collections.abc import Callable, Sequence
+from inspect import get_annotations
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -16,7 +17,6 @@ from typing import (
     cast,
     get_args,
     get_origin,
-    overload,
     runtime_checkable,
 )
 
@@ -28,7 +28,7 @@ from ...app import App, PartialApp
 from ...channel import Channel
 from ...chat import ChatMessage, Member, PartialMember
 from ...clan import Clan
-from ...enums import Type, classproperty
+from ...enums import Type
 from ...errors import HTTPException, InvalidID, WSException
 from ...group import Group
 from ...id import id64_from_url, parse_id64
@@ -38,12 +38,13 @@ from .errors import BadArgument, MissingRequiredArgument
 if TYPE_CHECKING:
     from steam.ext import commands
 
+    from ...friend import Friend
     from .bot import Bot
     from .commands import MaybeCommandT
     from .context import Context
 
 __all__ = (
-    "converter_for",
+    "converter",
     "Converter",
     "UserConverter",
     "ChannelConverter",
@@ -75,7 +76,7 @@ class BasicConverter(Protocol[T]):
 CONVERTERS = defaultdict[type, list[Converters]](list)
 
 
-def converter_for(converter_for: type[T]) -> Callable[[Callable[[str], T]], BasicConverter[T]]:
+def converter(func: Callable[[str], T], /) -> BasicConverter[T]:
     """The recommended way to mark a function converter as such.
 
     Note
@@ -87,8 +88,8 @@ def converter_for(converter_for: type[T]) -> Callable[[Callable[[str], T]], Basi
     --------
     .. code:: python
 
-        @commands.converter_for(commands.Command)  # this is the type hint used
-        def command_converter(argument: str) -> commands.Command:
+        @commands.converter
+        def command_converter(argument: str) -> commands.Command:  # this is the type hint used
             return bot.get_command(argument)
 
 
@@ -98,25 +99,18 @@ def converter_for(converter_for: type[T]) -> Callable[[Callable[[str], T]], Basi
             ...
 
 
-    Parameters
-    ----------
-    converter_for: T
-        The type annotation the decorated converter should convert for.
-
     Attributes
     -----------
     converter_for: T
         The class that the converter can be type-hinted to to.
     """
 
-    def decorator(func: BasicConverter[T]) -> BasicConverter[T]:
-        if not isinstance(func, types.FunctionType):
-            raise TypeError(f"Excepted a function, received {func.__class__.__name__!r}")
-        CONVERTERS[converter_for].append(func)
-        func.converter_for = converter_for
-        return func
-
-    return decorator
+    annotations = get_annotations(func)
+    converter_for = annotations["return"]
+    func = cast(BasicConverter[T], func)
+    func.converter_for = converter_for
+    CONVERTERS[converter_for].append(func)
+    return func
 
 
 @runtime_checkable
@@ -224,9 +218,13 @@ class Converter(ConverterBase[T_co], ABC):
         from .commands import Command
 
         try:
-            (command.special_converters if isinstance(command, Command) else command.__special_converters__).append(cls)
+            (
+                command.special_converters
+                if isinstance(command, Command)
+                else cast(list[Converters], command.__special_converters__)  # type: ignore
+            ).append(cls)
         except AttributeError:
-            command.__special_converters__ = [cls]
+            command.__special_converters__ = [cls]  # type: ignore
         return command
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
@@ -380,9 +378,24 @@ class AppConverter(Converter[App]):
     :attr:`App.name`.
     """
 
-    async def convert(self, ctx: Context, argument: str) -> App:
-        # TODO resolve URLs, and names by fetching
-        return App(id=int(argument)) if argument.isdigit() else App(name=argument)
+    async def convert(self, ctx: Context, argument: str) -> App[str]:
+        entries = await ctx._state.http.get_app_suggestions(argument)
+        try:
+            return next(App(id=int(app["id"]), name=app["name"]) for app in entries)
+        except StopIteration:
+            raise BadArgument(f'Failed to convert "{argument}" to a Steam app') from None
+
+
+class PartialAppConverter(AppConverter, Converter[PartialApp[str]]):
+    """The converter that is used when the type-hint passed is :class:`~steam.App`.
+
+    If the param is a digit it is assumed that the argument is the :attr:`App.id` else it is assumed it is the
+    :attr:`App.name`.
+    """
+
+    async def convert(self, ctx: Context, argument: str) -> PartialApp[str]:
+        app = await super().convert(ctx, argument)
+        return PartialApp(ctx._state, id=app.id, name=app.name)
 
 
 @runtime_checkable
@@ -425,7 +438,7 @@ class Default(Protocol, Any if TYPE_CHECKING else object):
 class DefaultAuthor(Default):
     """Returns the :attr:`.Context.author`"""
 
-    async def default(self, ctx: Context) -> User:
+    async def default(self, ctx: Context) -> User | ClientUser | Friend | Member | PartialMember | PartialUser:
         return ctx.author
 
 
@@ -460,10 +473,10 @@ class DefaultApp(Default):
     """Returns the :attr:`.Context.author`'s :attr:`~steam.User.app`"""
 
     async def default(self, ctx: Context) -> PartialApp:
-        if not ctx.author.app:
+        if getattr(ctx.author, "app", None) is None:
             assert ctx.current_param is not None
             raise MissingRequiredArgument(ctx.current_param)
-        return ctx.author.app
+        return ctx.author.app  # type: ignore
 
 
 class GreedyGenericAlias(types.GenericAlias):

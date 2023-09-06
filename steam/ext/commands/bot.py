@@ -21,11 +21,11 @@ from types import MappingProxyType, ModuleType
 from typing import TYPE_CHECKING, Any, TypeAlias, TypeVar, overload
 
 from ... import _const, utils
-from ...client import Client, ClientKwargs, CoroFunc, F, log
+from ...client import Client, ClientKwargs, F, log
 from ...id import Intable, parse_id64
 from ...message import Message
 from .cog import Cog
-from .commands import Check, CheckType, Command, CoroFuncT, GroupMixin, InvokeT, MaybeBool, check
+from .commands import Check, CheckType, Command, CoroFunc, CoroFuncT, GroupMixin, MaybeBool, check
 from .context import Context
 from .converters import CONVERTERS, Converters
 from .errors import CommandNotFound
@@ -48,6 +48,7 @@ __all__ = (
 CommandPrefixType: TypeAlias = Iterable[str] | Callable[["Bot", Message], Iterable[str] | Coro[Iterable[str]]]
 C = TypeVar("C", bound="Context")
 CheckT = TypeVar("CheckT", bound="Callable[[CheckType], Check]")
+BotInvokeT = TypeVar("BotInvokeT", bound=CoroFunc[["Context"], None])
 
 
 def when_mentioned(bot: Bot, message: Message) -> list[str]:
@@ -97,7 +98,7 @@ class BotKwargs(ClientKwargs, total=False):
     case_insensitive: bool
 
 
-class Bot(GroupMixin[None], Client):
+class Bot(GroupMixin, Client):
     """Represents a Steam bot.
 
     This class is a subclass of :class:`~steam.Client` and as a result anything that you can do with
@@ -156,9 +157,9 @@ class Bot(GroupMixin[None], Client):
             except AttributeError:
                 continue
             if isinstance(command, Command):
-                command = copy.copy(command)
+                command = copy.deepcopy(command)
                 command.cog = self
-                self.add_command(command)  # type: ignore
+                self.add_command(command)
 
         self.help_command = options.get("help_command", DefaultHelpCommand())
 
@@ -462,52 +463,26 @@ class Bot(GroupMixin[None], Client):
             return False
         return await ctx.command.can_run(ctx)
 
-    @overload
-    def before_invoke(self, coro: None = ...) -> Callable[[InvokeT], InvokeT]:
-        ...
+    def before_invoke(self, coro: BotInvokeT) -> BotInvokeT:
+        """Register a :ref:`coroutine <coroutine>` to be ran before any arguments are parsed."""
 
-    @overload
-    def before_invoke(self, coro: InvokeT) -> InvokeT:
-        ...
+        if not inspect.iscoroutinefunction(coro):
+            raise TypeError(f"Hook for {coro.__name__} must be a coroutine")
+        self._before_hook = coro
+        return coro
 
-    def before_invoke(self, coro: InvokeT | None = None) -> Callable[[InvokeT], InvokeT] | InvokeT:
-        """|maybecallabledeco|
-        Register a :ref:`coroutine <coroutine>` to be ran before any arguments are parsed.
-        """
+    def after_invoke(self, coro: BotInvokeT) -> BotInvokeT:
+        """Register a :ref:`coroutine <coroutine>` to be ran after a command has been invoked."""
 
-        def decorator(coro: InvokeT) -> InvokeT:
-            if not inspect.iscoroutinefunction(coro):
-                raise TypeError(f"Hook for {coro.__name__} must be a coroutine")
-            self._before_hook = coro
-            return coro
+        if not inspect.iscoroutinefunction(coro):
+            raise TypeError(f"Hook for {coro.__name__} must be a coroutine")
+        self._after_hook = coro
+        return coro
 
-        return decorator(coro) if coro is not None else decorator
-
-    @overload
-    def after_invoke(self, coro: None = ...) -> Callable[[InvokeT], InvokeT]:
-        ...
-
-    @overload
-    def after_invoke(self, coro: InvokeT) -> InvokeT:
-        ...
-
-    def after_invoke(self, coro: InvokeT | None = None) -> Callable[[InvokeT], InvokeT] | InvokeT:
-        """|maybecallabledeco|
-        Register a :ref:`coroutine <coroutine>` to be ran after a command has been invoked.
-        """
-
-        def decorator(coro: InvokeT) -> InvokeT:
-            if not inspect.iscoroutinefunction(coro):
-                raise TypeError(f"Hook for {coro.__name__} must be a coroutine")
-            self._after_hook = coro
-            return coro
-
-        return decorator(coro) if coro is not None else decorator
-
-    async def on_message(self, message: Message) -> None:
+    async def on_message(self, message: Message, /) -> None:
         await self.process_commands(message)
 
-    async def process_commands(self, message: Message) -> None:
+    async def process_commands(self, message: Message, /) -> None:
         """A method to process commands for a message.
 
         Warning
@@ -562,7 +537,7 @@ class Bot(GroupMixin[None], Client):
 
         lex.position = len(prefix)
         invoked_with = lex.read()
-        command = self.__commands__.get(invoked_with)
+        command = self.__commands__.get(invoked_with)  # type: ignore  # str | None is safe to pass here
 
         return cls(
             bot=self,
@@ -586,15 +561,9 @@ class Bot(GroupMixin[None], Client):
             prefixes = await utils.maybe_coroutine(prefixes, self, message)
         if isinstance(prefixes, str):
             prefixes = (prefixes,)
-
-        try:
-            for prefix in prefixes:
-                if not isinstance(prefix, str):
-                    raise TypeError(f"command_prefix must return an iterable of strings not {type(prefix)}")
-                if message.content.startswith(prefix):
-                    return prefix
-        except TypeError as exc:
-            raise TypeError(f"command_prefix must return an iterable of strings not {type(prefixes)}") from exc
+        for prefix in prefixes:
+            if message.content.startswith(prefix):
+                return prefix
 
     def get_cog(self, name: str) -> Cog | None:
         """Get a loaded cog or ``None``.
@@ -620,13 +589,14 @@ class Bot(GroupMixin[None], Client):
         if self.__listeners__.get("on_command_error"):
             return
 
-        if hasattr(ctx.command, "on_error"):
-            if ctx.command.cog:
-                return await ctx.command.on_error(ctx.command.cog, ctx, error)
+        if ctx.command and hasattr(ctx.command, "on_error"):
+            if ctx.cog:
+                return await ctx.command.on_error(ctx.cog, ctx, error)  # type: ignore
             else:
-                return await ctx.command.on_error(ctx, error)
+                return await ctx.command.on_error(ctx, error)  # type: ignore
 
-        if ctx.cog and ctx.cog is not self:
+        if ctx.cog and not ctx.cog is not self:
+            assert not isinstance(ctx.cog, Bot)
             return await ctx.cog.cog_command_error(ctx, error)
 
         print(f"Ignoring exception in command {ctx.command}:", file=sys.stderr)

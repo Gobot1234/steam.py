@@ -6,9 +6,9 @@ import abc
 import sys
 import traceback
 from copy import copy
-from typing import TYPE_CHECKING, Unpack, cast
+from typing import TYPE_CHECKING, cast
 
-from typing_extensions import final
+from typing_extensions import Unpack, final
 
 from .commands import Command, CommandKwargs, Group
 from .context import Context  # noqa: TCH001

@@ -215,7 +215,7 @@ Cooldowns
 Converters
 -----------
 
-.. autodecorator:: converter_for()
+.. autodecorator:: converter()
 
 .. attributetable:: Converter
 
