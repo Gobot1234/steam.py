@@ -113,6 +113,9 @@ class App(Generic[NameT]):
         self.name = name
         """The app's name."""
 
+    def __str__(self) -> str:
+        return self.name or f"App: {self.id}"
+
     def __repr__(self) -> str:
         attrs = ("name", "id")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
