@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import TYPE_CHECKING, Self, cast
+from typing import TYPE_CHECKING, cast
+
+from typing_extensions import Self
 
 from ...chat import PartialMember
 from ...enums import IntEnum
