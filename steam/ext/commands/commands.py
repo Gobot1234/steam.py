@@ -12,6 +12,7 @@ import asyncio
 import functools
 import inspect
 import itertools
+import sys
 from collections.abc import Callable, Coroutine, Iterable, Sequence
 from time import time
 from typing import (
@@ -90,7 +91,7 @@ class Check(Protocol[MaybeBool]):
         ...
 
 
-@converters.converter(bool)
+@converters.converter
 def to_bool(argument: str) -> bool:
     lowered = argument.lower()
     if lowered in {"yes", "y", "true", "t", "1", "enable", "on"}:
@@ -242,9 +243,7 @@ class Command(Generic[CogT, P, R]):
         if not inspect.iscoroutinefunction(function):
             raise TypeError(f"The callback for the command {function.__name__!r} must be a coroutine function.")
 
-        function = (
-            function.__func__ if inspect.ismethod(function) else function
-        )  # HelpCommand.command_callback  # type: ignore
+        function = function.__func__ if inspect.ismethod(function) else function
 
         self.params = dict(inspect.signature(function, eval_str=True).parameters)
         if not self.params:
