@@ -196,8 +196,11 @@ class Query:
 
 class ServerPlayer(NamedTuple):
     name: str
+    """The player's name."""
     score: int
+    """The player's score."""
     play_time: timedelta
+    """The amount of time the player has spent on the server."""
 
 
 class GameServer(ID[Literal[Type.GameServer]]):
@@ -246,6 +249,7 @@ class GameServer(ID[Literal[Type.GameServer]]):
         self.version = server.version
         """The version of the server."""
         self.game_directory = server.gamedir
+        """The server's game directory e.g. ``"cstrike"``"""
 
         self._secure = server.secure
         self._dedicated = server.dedicated
@@ -270,9 +274,29 @@ class GameServer(ID[Literal[Type.GameServer]]):
     async def _query(self, type: EQueryType) -> QueryResponse:
         return await self._state.query_server(int(self.ip), self.port, self.app.id, type)
 
-    # async def ping(self):  # FIXME not sure how to expose this
-    #     proto = await self._query(EQueryType.Ping)
-    #     proto.ping_data
+    async def update(self) -> None:
+        """Update this game server instance in place."""
+        proto = await self._query(EQueryType.Ping)
+        server = proto.ping_data
+        # self.ip = ip_address(betterproto.which_one_of(server, "server_ip")[1])
+        # query_port: int = betterproto.uint32_field(2)
+        # game_port: int = betterproto.uint32_field(3)
+        # spectator_port: int = betterproto.uint32_field(4)
+        # spectator_server_name: str = betterproto.string_field(5)
+        self.name = server.server_name
+        self.game_directory = server.gamedir
+        self.map = server.map
+        # game_description: str = betterproto.string_field(11)
+        self.tags = server.gametype.split(",")
+        self.player_count = server.num_players
+        self.max_player_count = server.max_players
+        self.bot_count = server.num_bots
+        # password: bool = betterproto.bool_field(16)
+        self._secure = server.secure
+        self._dedicated = server.dedicated
+        self.version = server.version
+        # sdr_popid: int = betterproto.fixed32_field(20)
+        # sdr_location_string: str = betterproto.string_field(21)
 
     async def players(self) -> list[ServerPlayer]:
         """Fetch a server's players.
