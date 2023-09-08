@@ -12,7 +12,6 @@ import asyncio
 import functools
 import inspect
 import itertools
-import sys
 from collections.abc import Callable, Coroutine, Iterable, Sequence
 from time import time
 from typing import (
@@ -24,7 +23,6 @@ from typing import (
     Literal,
     Protocol,
     TypeAlias,
-    TypedDict,
     Union,
     cast,
     get_args,
@@ -32,7 +30,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import ParamSpec, Self, TypeVar, Unpack
+from typing_extensions import ParamSpec, Self, TypedDict, TypeVar, Unpack
 
 from ...channel import UserChannel
 from ...chat import Chat

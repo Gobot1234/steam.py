@@ -8,8 +8,8 @@ from unittest.mock import MagicMock
 import steam
 from steam.protobufs.chat import IncomingChatMessageNotification, State
 from steam.protobufs.friends import CMsgClientPersonaStateFriend
+from steam.types.id import ChatGroupID
 
-from ...steam.types.id import ChatGroupID
 from .test_bot import bot
 
 USER_DATA = CMsgClientPersonaStateFriend(
