@@ -31,7 +31,7 @@ from .id import ID
 from .models import CDNAsset, _IOMixin
 from .package import PartialPackage
 from .protobufs.content_manifest import Metadata, Payload, PayloadFileMapping, PayloadFileMappingChunkData, Signature
-from .tag import PartialCategory, PartialTag, PartialGenre
+from .tag import PartialCategory, PartialGenre, PartialTag
 from .types.id import AppID, DepotID, ManifestID
 from .utils import DateTime, cached_slot_property
 
@@ -881,8 +881,7 @@ class AppInfo(ProductInfo, PartialApp[str]):
         "language_support",
         "store_tags",
         "categories",
-        "genres"
-        "created_at",
+        "genres" "created_at",
         "review_score",
         "review_percentage",
         "partial_dlc",
@@ -960,11 +959,8 @@ class AppInfo(ProductInfo, PartialApp[str]):
             PartialTag(state, id=int(tag_id)) for tag_id in common.get("store_tags", MultiDict()).values()
         ]
         """This app's supported store tags."""
-        self.genres = [
-            PartialGenre(state, id=int(genre_id)) for genre_id in common.get("genres", MultiDict()).values()
-        ]
+        self.genres = [PartialGenre(state, id=int(genre_id)) for genre_id in common.get("genres", MultiDict()).values()]
         """This app's supported genres."""
-
 
         self.created_at = (
             DateTime.from_timestamp(int(common["steam_release_date"])) if "steam_release_date" in common else None
