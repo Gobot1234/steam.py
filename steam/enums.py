@@ -1562,6 +1562,8 @@ class AppType(Flags):
     """A comic."""
     Beta        = 1 << 16
     """A beta for a game."""
+    Media = 1 << 17
+    """Legacy Media"""
 
     Shortcut    = 1 << 30
     """A shortcut to another app, client side only."""
