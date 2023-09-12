@@ -37,7 +37,7 @@ async def main(input_message: str) -> None:
     fake_ws = SteamWebSocket(state, None, None, None)  # type: ignore
     client.ws = fake_ws
 
-    def parser(msg: ProtobufMessage) -> None:
+    def parser(self: ConnectionState, msg: ProtobufMessage) -> None:
         print(f"{msg.MSG=}")
         print(black.format_str(str(msg), mode=black.Mode()))
         print(black.format_str(str(msg.header), mode=black.Mode()))
