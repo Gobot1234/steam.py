@@ -6,7 +6,7 @@ import asyncio
 import logging
 import re
 import urllib.parse
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timezone
 from http.cookies import SimpleCookie
 from random import randbytes
 from sys import version_info
@@ -681,11 +681,11 @@ class HTTPClient:
         app_id: str,
         server_ip: str,
         server_password: str,
-        start: datetime | None,
+        start: datetime[timezone | None] | None,
         event_id: int | None,
     ) -> Coro[str]:
         if start is None:
-            tz_offset = int((datetime.now().astimezone().tzinfo.utcoffset()).total_seconds())  # type: ignore  # should be fixed by PEP 696
+            tz_offset = int(datetime.now().astimezone().tzinfo.utcoffset(None).total_seconds())
             start_date = "MM/DD/YY"
             start_hour = "12"
             start_minute = "00"
@@ -694,9 +694,8 @@ class HTTPClient:
         else:
             if start.tzinfo is None:
                 start = start.astimezone()
-
-            offset: timedelta = start.tzinfo.utcoffset(start)  # type: ignore
-            tz_offset = int(offset.total_seconds())
+            assert start.tzinfo is not None
+            tz_offset = int(start.tzinfo.utcoffset(None).total_seconds())
 
             start_date = f"{start:%m/%d/%y}"
             start_hour = f"{start:%I}"

@@ -560,7 +560,7 @@ class CommunityItem(Generic[AppT]):
         )
 
     @property
-    def badges(self) -> list[AppBadge[AppT]]:
+    def badges(self) -> Sequence[AppBadge[AppT]]:
         """The badges for the item."""
         if self.class_ is not CommunityItemClass.Badge:
             return []
@@ -584,7 +584,7 @@ class CommunityItem(Generic[AppT]):
         return badges
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, unsafe_hash=True)
 class RewardItem(Generic[AppT]):
     """Represents a reward item in the Steam Points Shop."""
 
@@ -606,7 +606,7 @@ class RewardItem(Generic[AppT]):
     """The movie of the reward item. Uses the ``.mp4`` version."""
     animated: bool
     """Whether the reward item is animated."""
-    badges: list[AppBadge[AppT]]
+    badges: Sequence[AppBadge[AppT]]
     """The badges for the item."""
     def_index: int
     """The def index of the reward item."""
@@ -1267,7 +1267,7 @@ class PartialApp(App[NameT]):
                     else None
                 ),
                 def_.community_item_data.animated,
-                [
+                tuple(
                     AppBadge(
                         self._state,
                         1,
@@ -1277,7 +1277,7 @@ class PartialApp(App[NameT]):
                         badge.level,
                     )
                     for badge in def_.community_item_data.badge_data
-                ],
+                ),
                 def_.defid,
                 def_.quantity,
                 CommunityItemClass.try_value(def_.community_item_class),
@@ -1297,7 +1297,7 @@ class PartialApp(App[NameT]):
         for item, def_ in zip(items, defs):
             if def_.bundle_defids:
                 item.bundles = cast(
-                    "list[RewardItem[Self]]", [utils.get(items, def_index=id) for id in def_.bundle_defids]
+                    "tuple[RewardItem[Self], ...]", tuple(utils.get(items, def_index=id) for id in def_.bundle_defids)
                 )
 
         return items
@@ -1333,7 +1333,7 @@ class PartialApp(App[NameT]):
 
         assert badge_def
         assert badge_rewards
-        return badge_def.badges + badge_rewards.badges
+        return [*badge_def.badges, *badge_rewards.badges]
 
     async def legacy_cd_key(self) -> str:
         """Fetch the legacy CD key for this app."""

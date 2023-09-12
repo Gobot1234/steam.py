@@ -221,7 +221,7 @@ class ManifestPath(PurePathBase, _IOMixin):
             return self
 
         def with_segments(self, *args: StrPath) -> Self:
-            return self._select_from_manifest(self._from_parts(self.parts + tuple(map(os.fspath, args))))
+            return self._select_from_manifest(self._from_parts(self.parts + tuple(os.fspath(arg) for arg in args)))
 
         def _select_from_manifest(self, new_self: Self) -> Self:
             try:

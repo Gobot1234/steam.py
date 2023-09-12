@@ -124,7 +124,9 @@ UNIX_EPOCH: Final = datetime(1970, 1, 1, tzinfo=timezone.utc)
 STEAM_EPOCH: Final = datetime(2003, 1, 1, tzinfo=timezone.utc)
 
 
-def READ_U32(s: Buffer, unpacker: Callable[[Buffer], tuple[int]] = struct.Struct("<I").unpack_from, /) -> int:
+def READ_U32(
+    s: Buffer, unpacker: Callable[[Buffer], tuple[int]] = cast(Any, struct.Struct("<I").unpack_from), /
+) -> int:
     (u32,) = unpacker(s)
     return u32
 
@@ -178,10 +180,10 @@ class _IDComparable(Protocol):
     id: Any
 
 
-TypeT = TypeVar("TypeT", bound=type[_IDComparable])
+_TT_IDComp = TypeVar("_TT_IDComp", bound=type[_IDComparable])
 
 
-def impl_eq_via_id(cls: TypeT) -> TypeT:
+def impl_eq_via_id(cls: _TT_IDComp) -> _TT_IDComp:
     def __eq__(self: _IDComparable, other: object, /) -> bool:
         return isinstance(other, cls) and self.id == other.id  # type: ignore
 

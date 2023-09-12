@@ -880,4 +880,4 @@ async def maybe_coroutine(
     **kwargs: _P.kwargs,
 ) -> _T:
     value = func(*args, **kwargs)
-    return await value if isawaitable(value) else value  # type: ignore
+    return await value if isawaitable(value) else value

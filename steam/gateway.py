@@ -329,18 +329,19 @@ class SteamWebSocket:
         ...
 
     @overload
-    def wait_for(self, msg: type[MsgT], *, check: Callable[[MsgT], bool] = return_true) -> asyncio.Future[MsgT]:
+    def wait_for(self, msg: type[MsgT], /, *, check: Callable[[MsgT], bool] = return_true) -> asyncio.Future[MsgT]:
         ...
 
     @overload
     def wait_for(
-        self, msg: type[ProtoMsgT], *, check: Callable[[ProtoMsgT], bool] = return_true
+        self, msg: type[ProtoMsgT], /, *, check: Callable[[ProtoMsgT], bool] = return_true
     ) -> asyncio.Future[ProtoMsgT]:
         ...
 
     def wait_for(
         self,
         msg: type[ProtoMsgs] | None = None,
+        /,
         *,
         emsg: EMsg | None = None,
         check: Callable[[ProtoMsgsT], bool] = return_true,
@@ -358,19 +359,20 @@ class SteamWebSocket:
 
     @overload
     def gc_wait_for(
-        self, msg: type[GCMsgT], *, check: Callable[[GCMsgT], bool] = return_true
+        self, msg: type[GCMsgT], /, *, check: Callable[[GCMsgT], bool] = return_true
     ) -> asyncio.Future[GCMsgT]:
         ...
 
     @overload
     def gc_wait_for(
-        self, msg: type[GCMsgProtoT], *, check: Callable[[GCMsgProtoT], bool] = return_true
+        self, msg: type[GCMsgProtoT], /, *, check: Callable[[GCMsgProtoT], bool] = return_true
     ) -> asyncio.Future[GCMsgProtoT]:
         ...
 
     def gc_wait_for(
         self,
         msg: type[GCMsgsT] | None = None,
+        /,
         *,
         emsg: IntEnum | None = None,
         app_id: AppID | None = None,
@@ -407,7 +409,7 @@ class SteamWebSocket:
 
     @classmethod
     async def from_client(
-        cls, client: Client, refresh_token: str | None = None, cm_list: AsyncGenerator[CMServer, None] | None = None
+        cls, client: Client, /, refresh_token: str | None = None, cm_list: AsyncGenerator[CMServer, None] | None = None
     ) -> SteamWebSocket:
         state = client._state
         cm_list = cm_list or fetch_cm_list(state)

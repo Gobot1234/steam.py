@@ -13,6 +13,8 @@ if TYPE_CHECKING:
     from .state import ConnectionState
 
 
+# TODO add url properties
+# TODO https://github.com/Revadike/InternalSteamWebAPI/wiki/Get-Apps-In-Category
 @dataclass(slots=True)
 class PartialCategory:
     _state: ConnectionState
@@ -52,5 +54,6 @@ class StoreTag(PartialTag):
     url: str
 
 
+# https://store.steampowered.com/tagdata/populartags/english
 class PopularTag(PartialTag):
     ...
