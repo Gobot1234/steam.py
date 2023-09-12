@@ -233,18 +233,20 @@ class _IOMixin:
 class Avatar(_IOMixin):
     __slots__ = (
         "sha",
+        "_suffix",
         "_state",
     )
 
-    def __init__(self, state: ConnectionState, sha: bytes):
+    def __init__(self, state: ConnectionState, sha: bytes, suffix: str = "full"):
         sha = bytes(sha)
         self.sha = sha if sha != b"\x00" * 20 else DEFAULT_AVATAR
         self._state = state
+        self._suffix = suffix
 
     @property
     def url(self) -> str:
         """The URL of the avatar. Uses the large (184x184 px) image URL."""
-        return f"https://avatars.cloudflare.steamstatic.com/{self.sha.hex()}_full.jpg"
+        return f"https://avatars.cloudflare.steamstatic.com/{self.sha.hex()}_{self._suffix}.jpg"
 
     def __eq__(self, other: object) -> bool:
         return isinstance(other, self.__class__) and self.sha == other.sha

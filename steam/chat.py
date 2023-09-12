@@ -786,7 +786,7 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
     @property
     def avatar(self) -> Avatar:
         """The chat group's avatar."""
-        return Avatar(self._state, self._avatar_sha)
+        return Avatar(self._state, self._avatar_sha, suffix="256")
 
     @abc.abstractmethod
     async def chunk(self) -> Sequence[MemberT]:
