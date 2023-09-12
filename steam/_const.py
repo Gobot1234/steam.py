@@ -217,8 +217,8 @@ STEAM_BADGES = (
     SteamBadge(
         "Years of Service",
         1,
-        "https://community.cloudflare.steamstatic.com/public/images/badges/02_years/steamyears19_80.png",
-        19,
+        "https://community.cloudflare.steamstatic.com/public/images/badges/02_years/steamyears20_80.png",
+        20,
     ),
     SteamBadge(
         "Community Ambassador",
