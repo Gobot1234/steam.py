@@ -75,7 +75,7 @@ pytest-asyncio = "^0.21"
 pre-commit = "^3.1"
 poethepoet = "^0.22"
 blacken-docs = "^1.12"
-ruff = ">=0.0.285,<0.0.288"
+ruff = ">=0.0.285,<0.0.289"
 tomli = { version = "~2", python = "<3.11" }
 hypothesis = "^6.82.0"
 types-docutils = "^0.20.0.1"
