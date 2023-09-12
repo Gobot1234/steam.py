@@ -20,7 +20,8 @@ from .profile import ClientUserProfile, OwnedProfileItems, ProfileInfo, ProfileI
 from .protobufs import friend_messages, player
 from .protobufs.friends import CMsgClientPersonaStateFriend as UserProto
 from .reaction import Emoticon, MessageReaction, Sticker
-from .types.id import ID32, AppID
+from .trade import Asset, Inventory, Item, TradeOffer
+from .types.id import ID32, AppID, ContextID
 from .utils import DateTime, cached_slot_property, parse_bb_code
 
 if TYPE_CHECKING:
@@ -34,7 +35,6 @@ if TYPE_CHECKING:
     from .media import Media
     from .message import UserMessage
     from .state import ConnectionState
-    from .trade import Asset, Inventory, Item, TradeOffer
     from .types import user
 
 __all__ = (
@@ -361,8 +361,14 @@ class ClientUser(_BaseUser):
         except KeyError:
             lock = self._inventory_locks[app.id] = asyncio.Lock()
 
+        if context_id is None:
+            context_id = 6 if app.name == "Steam" and context_id is None else 2
+        context_id = ContextID(context_id)
         async with lock:  # requires a per-app lock to avoid Result.DuplicateRequest
-            return await super().inventory(app, context_id=context_id, language=language)
+            resp = await self._state.fetch_user_inventory(
+                self.id64, app.id, context_id, language
+            )  # fast path for own account cause it works for this
+            return Inventory(self._state, resp, self, app, context_id, language)
 
     async def setup_profile(self) -> None:
         """Set up your profile if possible."""

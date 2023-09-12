@@ -23,6 +23,7 @@ from .errors import ConfirmationError, HTTPException, WSException
 from .id import ID
 from .models import Avatar, Ban
 from .profile import *
+from .protobufs import econ
 from .reaction import Award, AwardReaction, Emoticon, MessageReaction, PartialMessageReaction, Sticker
 from .trade import Asset, Inventory, Item, TradeOffer
 from .types.id import ID64, AppID, AssetID, CommentID, ContextID, Intable, PostID, PublishedFileID
@@ -423,7 +424,9 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
         if context_id is None:
             context_id = 6 if app.name == "Steam" and context_id is None else 2
         context_id = ContextID(context_id)
-        resp = await self._state.fetch_user_inventory(self.id64, app.id, (context_id), language)
+        resp = econ.GetInventoryItemsWithDescriptionsResponse().from_dict(
+            await self._state.http.get_user_inventory(self.id64, app.id, context_id, language)
+        )
         return Inventory(state=self._state, proto=resp, owner=self, app=app, context_id=context_id, language=language)
 
     async def inventories(self) -> AsyncGenerator[Inventory[Item[Self], Self], None]:
