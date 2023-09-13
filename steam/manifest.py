@@ -32,6 +32,7 @@ from .models import CDNAsset, _IOMixin
 from .package import PartialPackage
 from .protobufs.content_manifest import Metadata, Payload, PayloadFileMapping, PayloadFileMappingChunkData, Signature
 from .tag import PartialCategory, PartialGenre, PartialTag
+from .types.app import LanguageSupport
 from .types.id import AppID, DepotID, ManifestID
 from .utils import DateTime, cached_slot_property
 
@@ -879,7 +880,7 @@ class AppInfo(ProductInfo, PartialApp[str]):
         "developers",
         "supported_languages",
         "language_support",
-        "store_tags",
+        "tags",
         "categories",
         "genres",
         "created_at",
@@ -949,17 +950,20 @@ class AppInfo(ProductInfo, PartialApp[str]):
         ]
         """This app's supported languages."""
 
-        self.language_support: MultiDict[str, MultiDict[str, str]] = common.get("supported_languages", MultiDict())
+        self.language_support: dict[Language, LanguageSupport] = {
+            Language.from_str(language): LanguageSupport(support) for language, support in
+            common.get("supported_languages", MultiDict()).items()
+        }
         """This app's language support."""
 
         self.categories = [
             PartialCategory(state, id=int(name.removeprefix("category_"))) for name in common.get("category", ())
         ]
         """This app's supported categories."""
-        self.store_tags = [
+        self.tags = [
             PartialTag(state, id=int(tag_id)) for tag_id in common.get("store_tags", MultiDict()).values()
         ]
-        """This app's supported store tags."""
+        """This app's supported tags."""
         self.genres = [PartialGenre(state, id=int(genre_id)) for genre_id in common.get("genres", MultiDict()).values()]
         """This app's supported genres."""
 
