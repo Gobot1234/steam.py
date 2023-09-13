@@ -2209,7 +2209,7 @@ class ConnectionState:
             lambda ticket: crc32(ticket.auth_ticket) == msg.ticket_crc, self._active_auth_tickets.values()
         )
         if ticket is None:
-            return log.info("Got auth complete for unknown ticket %r disgaurding", msg.ticket_crc)
+            return log.info("Got auth complete for unknown ticket %r discarding", msg.ticket_crc)
 
         if msg.eauth_session_response != AuthSessionResponse.OK:
             del self._active_auth_tickets[ticket.app.id, ticket.user.id64]
