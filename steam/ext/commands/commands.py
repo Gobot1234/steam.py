@@ -166,7 +166,7 @@ class Command(Generic[CogT, P, R]):
 
     def __init__(
         self,
-        func: Callable[Concatenate[CogT, Context[Any], P], Coro[R]] | Callable[Concatenate[Context[Any], P], Coro[R]],
+        func: CoroFunc[Concatenate[CogT, Context[Any], P], R] | CoroFunc[Concatenate[Context[Any], P], R],
         /,
         **kwargs: Unpack[CommandKwargs],
     ):
@@ -681,7 +681,7 @@ class GroupMixin(Generic[CogT]):
 
         for name in names[1:]:
             try:
-                command = command.__commands__[name]
+                command = command.__commands__[name]  # type: ignore
             except (AttributeError, KeyError):
                 return None
 

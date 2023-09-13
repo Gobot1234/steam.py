@@ -324,7 +324,7 @@ class SteamWebSocket:
 
     @overload
     def wait_for(
-        self, *, emsg: EMsg | None, check: Callable[[ProtoMsgsT], bool] = return_true
+        self, /, *, emsg: EMsg | None, check: Callable[[ProtoMsgsT], bool] = return_true
     ) -> asyncio.Future[ProtoMsgsT]:
         ...
 
@@ -340,7 +340,7 @@ class SteamWebSocket:
 
     def wait_for(
         self,
-        msg: type[ProtoMsgs] | None = None,
+        msg: type[ProtoMsgsT] | None = None,
         /,
         *,
         emsg: EMsg | None = None,
@@ -353,7 +353,7 @@ class SteamWebSocket:
 
     @overload
     def gc_wait_for(
-        self, *, emsg: IntEnum | None, app_id: AppID | None = None, check: Callable[[GCMsgsT], bool] = return_true
+        self, /, *, emsg: IntEnum | None, app_id: AppID | None = None, check: Callable[[GCMsgsT], bool] = return_true
     ) -> asyncio.Future[GCMsgsT]:
         ...
 

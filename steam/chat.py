@@ -95,10 +95,12 @@ class _PartialMemberProto(
 
     async def add_role(self, role: Role, /) -> None:
         """Add a role to the member."""
+        raise NotImplementedError
         chat_group = self._chat_group
         await chat_group.add_role(self, role)
 
     async def remove_role(self, role: Role, /) -> None:
+        raise NotImplementedError
         chat_group = self._chat_group
         await chat_group.remove_role(self, role)
 
