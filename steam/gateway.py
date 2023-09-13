@@ -36,7 +36,7 @@ from typing_extensions import TypeVar
 from . import utils
 from ._const import CLEAR_PROTO_BIT, DEFAULT_CMS, IS_PROTO, READ_U32, SET_PROTO_BIT
 from .enums import *
-from .errors import HTTPException, NoCMsFound, WSException
+from .errors import AuthenticatorError, HTTPException, NoCMsFound, WSException
 from .id import parse_id64
 from .models import return_true
 from .protobufs import (
@@ -513,7 +513,7 @@ class SteamWebSocket:
         )
 
         if not begin_resp.allowed_confirmations:
-            raise ValueError("No valid auth session guard type was found")
+            raise AuthenticatorError("No valid auth session guard type was found")
 
         code_task = email_code_task = asyncio.create_task(asyncio.sleep(float("inf")))
         schedule_poll = False

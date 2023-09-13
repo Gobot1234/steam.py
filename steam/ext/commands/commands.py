@@ -34,7 +34,6 @@ from typing_extensions import ParamSpec, Self, TypedDict, TypeVar, Unpack
 
 from ...channel import UserChannel
 from ...chat import Chat
-from ...errors import ClientException
 from ...utils import cached_property, maybe_coroutine
 from . import converters
 from .context import Context
@@ -262,11 +261,11 @@ class Command(Generic[CogT, P, R]):
             try:
                 next(params)  # cog's "self" param
             except StopIteration:
-                raise ClientException(f'Callback for {self.name} command is missing a "self" parameter.') from None
+                raise TypeError(f'Callback for {self.name} command is missing a "self" parameter.') from None
         try:
             next(params)  # context param
         except StopIteration:
-            raise ClientException(f'Callback for {self.name} command is missing a "ctx" parameter.') from None
+            raise TypeError(f'Callback for {self.name} command is missing a "ctx" parameter.') from None
         return dict(params)
 
     @property
@@ -621,19 +620,17 @@ class GroupMixin(Generic[CogT]):
             raise TypeError("command should derive from commands.Command")
 
         if command.name in self.__commands__:
-            raise ClientException(f"The command {command.name} is already registered.")
+            raise ValueError(f"The command {command.name} is already registered.")
 
         for param in command.clean_params.values():
             if isinstance(param.annotation, str):
-                raise ClientException(
-                    f"Please rename the parameter {param.name} or make its annotation defined at runtime"
-                )
+                raise TypeError(f"Please rename the parameter {param.name} or make its annotation defined at runtime")
 
         self.__commands__[command.name] = command
         for alias in command.aliases:
             if alias in self.__commands__:
                 self.remove_command(command.name)
-                raise ClientException(f"{alias} is already an existing command or alias.")
+                raise ValueError(f"{alias} is already an existing command or alias.")
             self.__commands__[alias] = command
 
     def remove_command(self, name: str) -> Command[CogT] | None:

@@ -15,7 +15,6 @@ from . import utils
 from ._const import URL
 from .app import App, PartialApp
 from .enums import Language, TradeOfferState
-from .errors import ClientException
 from .models import DescriptionMixin
 from .protobufs import econ
 from .types.id import AppID, AssetID, ClassID, ContextID, InstanceID, TradeOfferID
@@ -587,15 +586,15 @@ class TradeOffer(Generic[ReceivingAssetT, SendingAssetT, UserT]):
 
         Raises
         ------
-        steam.ClientException
+        ValueError
             The trade is either not active, already accepted or not from the ClientUser.
-        steam.ConfirmationError
+        ConfirmationError
             No matching confirmation could not be found.
         """
         if self.state == TradeOfferState.Accepted:
-            raise ClientException("This trade has already been accepted")
+            raise ValueError("This trade has already been accepted")
         if self.is_our_offer():
-            raise ClientException("You cannot accept an offer the ClientUser has made")
+            raise ValueError("You cannot accept an offer the ClientUser has made")
         self._check_active()
         assert self.user is not None
         resp = await self._state.http.accept_user_trade(self.user.id64, self.id)
@@ -607,13 +606,13 @@ class TradeOffer(Generic[ReceivingAssetT, SendingAssetT, UserT]):
 
         Raises
         ------
-        :exc:`~steam.ClientException`
+        ValueError
             The trade is either not active, already declined or not from the ClientUser.
         """
         if self.state == TradeOfferState.Declined:
-            raise ClientException("This trade has already been declined")
+            raise ValueError("This trade has already been declined")
         if self.is_our_offer():
-            raise ClientException("You cannot decline an offer the ClientUser has made")
+            raise ValueError("You cannot decline an offer the ClientUser has made")
         self._check_active()
         await self._state.http.decline_user_trade(self.id)
 
@@ -622,11 +621,11 @@ class TradeOffer(Generic[ReceivingAssetT, SendingAssetT, UserT]):
 
         Raises
         ------
-        :exc:`~steam.ClientException`
+        ValueError
             The trade is either not active or already cancelled.
         """
         if self.state == TradeOfferState.Canceled:
-            raise ClientException("This trade has already been cancelled")
+            raise ValueError("This trade has already been cancelled")
         self._check_active()
         await self._state.http.cancel_user_trade(self.id)
 
@@ -674,12 +673,12 @@ class TradeOffer(Generic[ReceivingAssetT, SendingAssetT, UserT]):
 
         Raises
         ------
-        :exc:`~steam.ClientException`
+        ValueError
             The trade from the ClientUser or it isn't active.
         """
         self._check_active()
         if self.is_our_offer():
-            raise ClientException("You cannot counter an offer the ClientUser has made")
+            raise ValueError("You cannot counter an offer the ClientUser has made")
 
         assert self.user is not None
         await self.user._send_trade(trade, tradeofferid_countered=self.id)
@@ -699,4 +698,4 @@ class TradeOffer(Generic[ReceivingAssetT, SendingAssetT, UserT]):
 
     def _check_active(self) -> None:
         if self.state not in (TradeOfferState.Active, TradeOfferState.ConfirmationNeed) or not self._has_been_sent:
-            raise ClientException("This trade is not active")
+            raise ValueError("This trade is not active")

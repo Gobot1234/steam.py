@@ -23,7 +23,6 @@ __all__ = (
     "LoginError",
     "NoCMsFound",
     "HTTPException",
-    "ClientException",
     "ConfirmationError",
     "AuthenticatorError",
     "InvalidCredentials",
@@ -38,13 +37,6 @@ CODE_FINDER = re.compile(r"\S(\d+)\S")
 
 class SteamException(Exception):
     """Base exception class for steam.py."""
-
-
-class ClientException(SteamException):
-    """Exception that's thrown when something in the client fails.
-
-    Subclass of :exc:`SteamException`.
-    """
 
 
 class HTTPException(SteamException):
@@ -166,7 +158,7 @@ class InvalidCredentials(LoginError):
     """
 
 
-class AuthenticatorError(ClientException):
+class AuthenticatorError(SteamException):
     """Exception that's thrown when Steam cannot authenticate your details.
 
     Subclass of :exc:`LoginError`.
