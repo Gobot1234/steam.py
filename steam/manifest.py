@@ -32,7 +32,6 @@ from .models import CDNAsset, _IOMixin
 from .package import PartialPackage
 from .protobufs.content_manifest import Metadata, Payload, PayloadFileMapping, PayloadFileMappingChunkData, Signature
 from .tag import PartialCategory, PartialGenre, PartialTag
-from .types.app import LanguageSupport
 from .types.id import AppID, DepotID, ManifestID
 from .utils import DateTime, cached_slot_property
 
@@ -929,11 +928,17 @@ class AppInfo(ProductInfo, PartialApp[str]):
         self.controller_support = common.get("controller_support", "none")
         """This app's level of controller support."""
 
-        associations = common.get("associations", MultiDict()).values()
-        self.publishers = [publisher["name"] for publisher in associations if publisher["type"] == "publisher"]
+        self.publishers: list[str] = [
+            publisher["name"]
+            for publisher in common.get("associations", MultiDict()).values()
+            if publisher["type"] == "publisher"
+        ]
         """This app's publishers."""
-
-        self.developers = [developer["name"] for developer in associations if developer["type"] == "developer"]
+        self.developers: list[str] = [
+            developer["name"]
+            for developer in common.get("associations", MultiDict()).values()
+            if developer["type"] == "developer"
+        ]
         """This app's developers."""
 
         self.supported_languages = [
