@@ -930,18 +930,10 @@ class AppInfo(ProductInfo, PartialApp[str]):
         """This app's level of controller support."""
 
         associations = common.get("associations", MultiDict()).values()
-        self.publishers = [
-            publisher["name"]
-            for publisher in associations
-            if publisher["type"] == "publisher"
-        ]
+        self.publishers = [publisher["name"] for publisher in associations if publisher["type"] == "publisher"]
         """This app's publishers."""
 
-        self.developers = [
-            developer["name"]
-            for developer in associations
-            if developer["type"] == "developer"
-        ]
+        self.developers = [developer["name"] for developer in associations if developer["type"] == "developer"]
         """This app's developers."""
 
         self.supported_languages = [
