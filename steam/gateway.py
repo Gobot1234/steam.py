@@ -547,8 +547,10 @@ class SteamWebSocket:
                 (
                     code_task,
                     email_code_task,
-                    asyncio.create_task(
-                        self.poll_auth_status(begin_resp) if schedule_poll else asyncio.sleep(float("inf"))
+                    (
+                        asyncio.create_task(self.poll_auth_status(begin_resp))
+                        if schedule_poll
+                        else asyncio.get_running_loop().create_future()
                     ),
                 ),
                 return_when=asyncio.FIRST_COMPLETED,
