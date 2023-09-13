@@ -30,6 +30,7 @@ from typing import (
     overload,
 )
 
+import typing_extensions
 from typing_extensions import ParamSpec, Self, TypedDict, TypeVar, Unpack
 
 from ...channel import UserChannel
@@ -242,6 +243,7 @@ class Command(Generic[CogT, P, R]):
 
         function = function.__func__ if inspect.ismethod(function) else function
 
+        function.__annotations__ = typing_extensions.get_type_hints(function)
         self.params = dict(inspect.signature(function, eval_str=True).parameters)
         if not self.params:
             raise TypeError(f'Callback for {self.name} command is missing a "ctx" parameter.') from None
@@ -787,16 +789,7 @@ class GroupMixin(Generic[CogT]):
 
 
 class Group(GroupMixin[CogT], Command[CogT, P, R]):
-    async def invoke(self, ctx: Context) -> None:
-        command = self
-        for command_name in ctx.lex:
-            try:
-                command = command.__commands__[command_name]  # type: ignore
-            except (AttributeError, KeyError):
-                ctx.lex.undo()
-                break
-
-        await (super().invoke(ctx) if command is self else Command.invoke(self, ctx))  # type: ignore
+    pass
 
 
 @overload

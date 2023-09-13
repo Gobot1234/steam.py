@@ -10,11 +10,13 @@ from inspect import get_annotations
 from typing import (
     TYPE_CHECKING,
     Any,
+    Final,
     ForwardRef,
     Protocol,
     TypeAlias,
     TypeVar,
     cast,
+    final,
     get_args,
     get_origin,
     runtime_checkable,
@@ -488,6 +490,7 @@ class GreedyGenericAlias(types.GenericAlias):
         return super().__getattribute__(name)
 
 
+@final
 class Greedy(Sequence[T]):
     """
     A custom :class:`typing.Generic` that allows for special greedy command parsing behaviour. It signals to the command
@@ -508,7 +511,7 @@ class Greedy(Sequence[T]):
     ``reason``.
     """
 
-    converter: T
+    converter: Final[type[T]] = Any  # unused
     """The converter the Greedy type holds."""
 
     def __new__(
@@ -523,17 +526,13 @@ class Greedy(Sequence[T]):
                 (converter,) = converter
             except ValueError:
                 raise TypeError("Cannot pass variadic arguments to Greedy")
+        if isinstance(converter, ForwardRef):
+            converter = eval(converter.__forward_code__)
+
         if not (callable(converter) or isinstance(converter, (Converter, str)) or get_origin(converter) is not None):
             raise TypeError(f"Greedy[...] expects a type or a Converter instance not {converter!r}")
 
-        if converter in INVALID_GREEDY_TYPES:
-            name = getattr(converter, "__name__")
-            raise TypeError(f"Greedy[{name}] is invalid")
+        if isinstance(converter, type) and issubclass(converter, str) or converter is types.NoneType:
+            raise TypeError(f"Greedy[{converter.__name__}] is invalid")  # type: ignore
 
         return cast(Self, GreedyGenericAlias(cls, (converter,)))
-
-
-INVALID_GREEDY_TYPES = (
-    str,  # leads to parsing weirdness
-    type(None),  # how would this work
-)

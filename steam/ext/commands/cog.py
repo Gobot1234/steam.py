@@ -5,11 +5,11 @@ from __future__ import annotations
 import inspect
 import sys
 import traceback
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Concatenate, Final, Generic, Mapping, TypeAlias, overload
+from typing import TYPE_CHECKING, Any, Final, Generic, TypeAlias, overload
 
-from typing_extensions import TypeVar
+from typing_extensions import Concatenate, TypeVar
 
 from .commands import CogT, Command, Group, check
 from .utils import Coro

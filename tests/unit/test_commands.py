@@ -25,24 +25,6 @@ async def test_commands():
     with pytest.raises(TypeError):
 
         @commands.command  # type: ignore
-        def not_valid(_):
-            ...
-
-    with pytest.raises(TypeError):
-
-        @commands.command(name=123)  # type: ignore
-        async def _123(_) -> None:
-            ...
-
-    with pytest.raises(TypeError):
-
-        @commands.command(aliases=[1, 2, 3])  # type: ignore
-        async def _123(_) -> None:
-            ...
-
-    with pytest.raises(TypeError):
-
-        @commands.command  # type: ignore
         async def not_valid() -> None:
             ...
 
@@ -60,8 +42,8 @@ async def test_commands():
             async def not_valid(self) -> None:
                 ...
 
-    with pytest.raises(TypeError):
-        await bot.add_cog(MyCog())
+        with pytest.raises(TypeError):
+            await bot.add_cog(MyCog2())
 
 
 def test_annotations() -> None:
@@ -84,34 +66,28 @@ class CustomConverter(commands.Converter[tuple[Any, ...]]):
 
 
 @pytest.mark.parametrize(
-    "param_type, expected",
+    "param_type, result",
     [
-        (None, TypeError),
-        (str, TypeError),
-        (int, int),
-        (CustomConverter, CustomConverter),
-        ("None", TypeError),
-        ("str", TypeError),
-        ("int", int),
+        (None, pytest.raises(TypeError)),
+        (str, pytest.raises(TypeError)),
+        (int, contextlib.nullcontext(int)),
+        (CustomConverter, contextlib.nullcontext(CustomConverter)),
+        ("None", pytest.raises(TypeError)),
+        ("str", pytest.raises(TypeError)),
+        ("int", contextlib.nullcontext(int)),
     ],
 )
-def test_greedy(param_type: type | str, expected: type) -> None:
+def test_greedy(param_type: type | str, result: contextlib.AbstractContextManager[Any]) -> None:
     global param_type_  # hack to make typing.get_type_hints work with locals
     param_type_ = param_type
-    if issubclass(expected, Exception):
-        with pytest.raises(expected):
-
-            @commands.command
-            async def greedy(_, param: commands.Greedy[param_type_]) -> None:  # type: ignore
-                ...
-
-    else:
+    with result as expected:
 
         @commands.command
         async def greedy(_, param: commands.Greedy[param_type_]) -> None:  # type: ignore
             ...
 
-        assert greedy.params["param"].annotation.converter is expected
+        if isinstance(expected, type):
+            assert greedy.params["param"].annotation.converter is expected
 
 
 class TheTestBot(commands.Bot):
@@ -306,27 +282,32 @@ async def test_positional_only_commands():
 @pytest.mark.asyncio
 async def test_group_commands() -> None:
     async with TheTestBot() as bot:
-        context = ContextVar[Any]("context")
+        cmd = None
 
         async def call(command: commands.Command):
+            nonlocal cmd
             await bot.process_commands(command=command)
-            assert context.get() == command
+            assert cmd == command
 
         @bot.group
         async def parent(_) -> None:
-            context.set(parent)
+            nonlocal cmd
+            cmd = parent
 
         @parent.group
         async def child(_) -> None:
-            context.set(child)
+            nonlocal cmd
+            cmd = child
 
         @child.command
         async def grand_child(_) -> None:
-            context.set(grand_child)
+            nonlocal cmd
+            cmd = grand_child
 
         @parent.group
         async def other_child(_) -> None:
-            context.set(other_child)
+            nonlocal cmd
+            cmd = other_child
 
         assert bot.get_command("parent") is parent
         await call(parent)

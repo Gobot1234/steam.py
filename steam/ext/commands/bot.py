@@ -538,6 +538,12 @@ class Bot(GroupMixin, Client):
         lex.position = len(prefix)
         invoked_with = lex.read()
         command = self.__commands__.get(invoked_with)  # type: ignore  # str | None is safe to pass here
+        for command_name in lex:
+            try:
+                command = command.__commands__[command_name]  # type: ignore
+            except (AttributeError, KeyError):
+                lex.undo()
+                break
 
         return cls(
             bot=self,
