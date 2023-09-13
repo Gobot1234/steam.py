@@ -929,29 +929,30 @@ class AppInfo(ProductInfo, PartialApp[str]):
         self.controller_support = common.get("controller_support", "none")
         """This app's level of controller support."""
 
-        self.publishers: list[str] = [
+        associations = common.get("associations", MultiDict()).values()
+        self.publishers = [
             publisher["name"]
-            for publisher in common.get("associations", MultiDict()).values()
+            for publisher in associations
             if publisher["type"] == "publisher"
         ]
         """This app's publishers."""
 
-        self.developers: list[str] = [
+        self.developers = [
             developer["name"]
-            for developer in common.get("associations", MultiDict()).values()
+            for developer in associations
             if developer["type"] == "developer"
         ]
         """This app's developers."""
 
-        self.supported_languages: list[Language] = [
+        self.supported_languages = [
             Language.from_str(language)
             for language, value in common.get("languages", MultiDict()).items()
             if value == "1"
         ]
         """This app's supported languages."""
 
-        self.language_support: dict[Language, LanguageSupport] = {
-            Language.from_str(language): LanguageSupport(support)
+        self.language_support = {
+            Language.from_str(language): support
             for language, support in common.get("supported_languages", MultiDict()).items()
         }
         """This app's language support."""
