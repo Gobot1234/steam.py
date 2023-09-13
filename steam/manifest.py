@@ -31,7 +31,7 @@ from .id import ID
 from .models import CDNAsset, _IOMixin
 from .package import PartialPackage
 from .protobufs.content_manifest import Metadata, Payload, PayloadFileMapping, PayloadFileMappingChunkData, Signature
-from .tag import PartialCategory
+from .tag import PartialCategory, PartialGenre, PartialTag
 from .types.id import AppID, DepotID, ManifestID
 from .utils import DateTime, cached_slot_property
 
@@ -869,6 +869,7 @@ class AppInfo(ProductInfo, PartialApp[str]):
         "headless_depots",
         "type",
         "has_adult_content",
+        "has_adult_content_sex",
         "has_adult_content_violence",
         "market_presence",
         "workshop_visible",
@@ -877,7 +878,10 @@ class AppInfo(ProductInfo, PartialApp[str]):
         "publishers",
         "developers",
         "supported_languages",
+        "language_support",
+        "tags",
         "categories",
+        "genres",
         "created_at",
         "review_score",
         "review_percentage",
@@ -909,6 +913,8 @@ class AppInfo(ProductInfo, PartialApp[str]):
         self.has_adult_content = common.get("has_adult_content", "0") == "1"
         """Whether this app has adult content according to Steam."""
         self.has_adult_content_violence = common.get("has_adult_content_violence", "0") == "1"
+        """Whether this app has adult sexual content according to Steam."""
+        self.has_adult_content_sex = common.get("has_adult_content_sex", "0") == "1"
         """Whether this app has adult violence according to Steam."""
         self.market_presence = common.get("market_presence", "0") == "1"
         """Whether this app has a market presence."""
@@ -934,17 +940,29 @@ class AppInfo(ProductInfo, PartialApp[str]):
             if developer["type"] == "developer"
         ]
         """This app's developers."""
-        self.supported_languages: list[Language] = [
+
+        self.supported_languages = [
             Language.from_str(language)
             for language, value in common.get("languages", MultiDict()).items()
             if value == "1"
         ]
         """This app's supported languages."""
+
+        self.language_support = {
+            Language.from_str(language): support
+            for language, support in common.get("supported_languages", MultiDict()).items()
+        }
+        """This app's language support."""
+
         self.categories = [
             PartialCategory(state, id=int(name.removeprefix("category_"))) for name in common.get("category", ())
         ]
+        """This app's supported categories."""
+        self.tags = [PartialTag(state, id=int(tag_id)) for tag_id in common.get("store_tags", MultiDict()).values()]
+        """This app's supported tags."""
+        self.genres = [PartialGenre(state, id=int(genre_id)) for genre_id in common.get("genres", MultiDict()).values()]
+        """This app's supported genres."""
 
-        # TODO genres
         self.created_at = (
             DateTime.from_timestamp(int(common["steam_release_date"])) if "steam_release_date" in common else None
         )

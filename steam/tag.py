@@ -38,6 +38,21 @@ class StoreCategory(PartialCategory):
 
 
 @dataclass(slots=True)
+class PartialGenre:
+    _state: ConnectionState
+    id: int
+
+    # TODO
+    async def fetch(self) -> StoreGenre:
+        ...
+
+
+@dataclass(slots=True)
+class StoreGenre(PartialGenre):
+    name: str
+
+
+@dataclass(slots=True)
 class PartialTag:
     _state: ConnectionState
     id: int
