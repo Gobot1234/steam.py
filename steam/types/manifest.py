@@ -70,7 +70,6 @@ class Common(TypedVDFDict, total=False):
     steam_release_date: str
     store_asset_mtime: str
     store_tags: VDFList[VDFInt]
-    supported_languages: MultiDict[MultiDict[str]]
     sortas: str
     name_localized: Any
     releasestate: str

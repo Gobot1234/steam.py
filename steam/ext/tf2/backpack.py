@@ -177,6 +177,7 @@ class BackpackItem(Item[OwnerT]):
         position
             The position to set the item to. This is 0 indexed.
         """
+        assert self._state.backpack is not None
         await self._state.backpack.set_positions([(self, position)])
 
     async def set_style(self: BackpackItem[ClientUser], style: int) -> None:
@@ -193,8 +194,8 @@ class BackpackItem(Item[OwnerT]):
         """
         await self._state.ws.send_gc_message(struct_messages.DeliverGiftRequest(user_id64=user.id64, gift_id=self.id))
 
-    async def remove_attribute(self, attribute: Attribute) -> None:
-        await self._state.ws.remove_attribute
+    # async def remove_attribute(self, attribute: Attribute) -> None:
+    #     await self._state.ws.remove_attribute
 
     # methods similar to https://github.com/danocmx/node-tf2-item-format
 
@@ -270,15 +271,16 @@ class BackpackItem(Item[OwnerT]):
 
     @property
     def spells(self) -> list[str]:
-        ...
+        raise NotImplementedError
 
     @property
     def paint_colour(self) -> int | None:
-        ...
+        raise NotImplementedError
 
     @property
     def sku(self) -> str:
         """The item's SKU."""
+        raise NotImplementedError
         parts = [str(self.def_index), ";", self.quality.value]
 
         if self.effect:
@@ -330,6 +332,7 @@ class BackpackItem(Item[OwnerT]):
         ValueError
             The SKU is invalid.
         """
+        raise NotImplementedError
         self = cls.__new__(cls)
 
         data = SKU_RE.match(value)

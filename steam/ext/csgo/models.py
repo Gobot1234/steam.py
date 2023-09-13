@@ -178,7 +178,7 @@ class ClientUser(PartialUser, ClientUser_):
             ...
 
         @overload
-        async def inventory(self, app: App, *, language: Language | None = None) -> Inventory[Item[Self], Self]:
+        async def inventory(self, app: App, *, language: Language | None = None) -> Inventory[Item[Self], Self]:  # type: ignore
             ...
 
     async def csgo_profile(self) -> ProfileInfo[Self]:

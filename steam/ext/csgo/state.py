@@ -7,7 +7,7 @@ import logging
 import math
 import struct
 import sys
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from ... import utils
 from ..._const import READ_U32
@@ -31,7 +31,9 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-def READ_F32(bytes: bytes, *, _unpacker: Callable[[bytes], tuple[float]] = struct.Struct("<f").unpack_from) -> float:
+def READ_F32(
+    bytes: bytes, *, _unpacker: Callable[[bytes], tuple[float]] = cast(Any, struct.Struct("<f").unpack_from)
+) -> float:
     (f32,) = _unpacker(bytes)
     return f32
 
@@ -209,7 +211,7 @@ class GCState(GCState_[Backpack]):
 
     @parser
     async def handle_so_create(self, msg: sdk.SOCreate):
-        if msg.type_id != 1:
+        if msg.type_id != 1 or not self.backpack:
             return  # Not an item
 
         cso_item = base.Item().parse(msg.object_data)
@@ -241,7 +243,7 @@ class GCState(GCState_[Backpack]):
     async def _handle_so_update(
         self, object: sdk.SOCreate | sdk.SODestroy | sdk.SOUpdate | sdk.MultipleObjectsSingleObject
     ) -> None:
-        if object.type_id != 1:
+        if object.type_id != 1 or not self.backpack:
             return log.debug("Unknown item %r updated", object)
 
         cso_item = base.Item().parse(object.object_data)

@@ -490,7 +490,7 @@ class ManifestPath(PurePathBase, _IOMixin):
     """Read the contents of the file. Similar to :meth:`pathlib.Path.read_bytes`"""
 
     @deprecated("use read_bytes() instead of read()", category=None)
-    def read(self, **kwargs: Any) -> Never:
+    async def read(self, **kwargs: Any) -> Never:
         """This method is not implemented. Use :meth:`read_bytes` instead."""
         raise NotImplementedError("use read_bytes() instead of read()")
 

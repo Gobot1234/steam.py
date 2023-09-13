@@ -38,7 +38,7 @@ class ClientUser(ClientUser_):
             ...
 
         @overload
-        async def inventory(self, app: App, *, language: Language_ | None = None) -> Inventory[Item[Self], Self]:
+        async def inventory(self, app: App, *, language: Language_ | None = None) -> Inventory[Item[Self], Self]:  # type: ignore
             ...
 
 

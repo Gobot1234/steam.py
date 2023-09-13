@@ -3,7 +3,7 @@
 # plugin: python-betterproto
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import betterproto
 

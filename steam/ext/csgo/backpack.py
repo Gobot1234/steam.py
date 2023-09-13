@@ -150,7 +150,9 @@ class CasketItem(BaseItem):
     @property
     def casket(self) -> Casket:
         """The casket this item is from."""
-        casket = utils.get(self._state.backpack, id=self._casket_id)
+        backpack = self._state.backpack
+        assert backpack is not None
+        casket = utils.get(backpack, id=self._casket_id)
         assert isinstance(casket, Casket)
         return casket
 
@@ -225,6 +227,7 @@ if TYPE_CHECKING:  # avoid mro issues but keep types
 
     class BaseBackpackItem(Item[OwnerT], BaseItem):
         __slots__ = ()
+        _state: GCState
 
 else:
 
