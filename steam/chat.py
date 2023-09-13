@@ -416,28 +416,15 @@ class Chat(Channel[ChatMessageT], _HasChatGroupMixin):
                     return
 
                 new_message.author = self._chat_group._maybe_member(_ID64_TO_ID32(message.sender))
-                emoticon_reactions = [
+                new_message.partial_reactions = [
                     PartialMessageReaction(
                         self._state,
                         new_message,
-                        Emoticon(self._state, r.reaction),
-                        None,
+                        Emoticon(self._state, r.reaction) if r.reaction_type == Emoticon._TYPE else None,  # type: ignore
+                        Sticker(self._state, r.reaction) if r.reaction_type == Sticker._TYPE else None,  # type: ignore
                     )
                     for r in message.reactions
-                    if r.reaction_type == Emoticon._TYPE
                 ]
-                sticker_reactions = [
-                    PartialMessageReaction(
-                        self._state,
-                        new_message,
-                        None,
-                        Sticker(self._state, r.reaction),
-                    )
-                    for r in message.reactions
-                    if r.reaction_type == Sticker._TYPE
-                ]
-                new_message.partial_reactions = emoticon_reactions + sticker_reactions
-
                 messages.append(new_message)
                 yielded += 1
 
