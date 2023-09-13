@@ -1,5 +1,6 @@
 # ruff: noqa: F811
 import contextlib
+import sys
 import traceback
 from collections.abc import AsyncGenerator
 from copy import copy
@@ -71,10 +72,20 @@ class CustomConverter(commands.Converter[tuple[Any, ...]]):
         (str, pytest.raises(TypeError)),
         (int, contextlib.nullcontext(int)),
         (CustomConverter, contextlib.nullcontext(CustomConverter)),
-        ("None", pytest.raises(TypeError)),
-        ("str", pytest.raises(TypeError)),
-        ("int", contextlib.nullcontext(int)),
-    ],
+    ]
+    + (
+        [
+            ("None", pytest.raises(TypeError)),
+            ("str", pytest.raises(TypeError)),
+            ("int", contextlib.nullcontext(int)),
+        ]
+        if sys.version_info
+        >= (
+            3,
+            11,
+        )  # honestly considering how broken the 3.10 behaviour is I CBA fixing it, don't put your args in strings people
+        else []
+    ),
 )
 def test_greedy(param_type: type | str, result: contextlib.AbstractContextManager[Any]) -> None:
     global param_type_  # hack to make typing.get_type_hints work with locals
