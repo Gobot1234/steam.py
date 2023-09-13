@@ -183,9 +183,3 @@ class AssetPrices(TypedDict):
     assets: list[AssetPricesAsset]
     tags: NotRequired[dict[str, str]]
     tag_ids: NotRequired[dict[int, int]]  # only use .values()
-
-
-class LanguageSupport(TypedDict):
-    supported: NotRequired[str]
-    full_audio: NotRequired[str]
-    subtitles: NotRequired[str]
