@@ -2,7 +2,6 @@
 import contextlib
 import traceback
 from collections.abc import AsyncGenerator
-from contextvars import ContextVar
 from copy import copy
 from typing import Any, TypeAlias, TypeVar, cast
 

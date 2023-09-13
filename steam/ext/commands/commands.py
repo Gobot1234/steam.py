@@ -243,7 +243,10 @@ class Command(Generic[CogT, P, R]):
 
         function = function.__func__ if inspect.ismethod(function) else function
 
-        function.__annotations__ = typing_extensions.get_type_hints(function)
+        function.__annotations__ = annotations = typing_extensions.get_type_hints(function)
+        for name, annotation in annotations.items():
+            if get_origin(annotation) is converters.Greedy and isinstance(annotation.converter, ForwardRef):
+                annotations[name] = converters.Greedy[eval(annotation.converter.__forward_code__, function.__globals__)]
         self.params = dict(inspect.signature(function, eval_str=True).parameters)
         if not self.params:
             raise TypeError(f'Callback for {self.name} command is missing a "ctx" parameter.') from None
