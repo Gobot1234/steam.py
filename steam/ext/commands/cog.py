@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 __all__ = ("Cog",)
 
 ListenerType: TypeAlias = Callable[..., Coro[None]]
-UnboundListenerType: TypeAlias = Callable[Concatenate[CogT, "..."], Coro[None]]
+UnboundListenerType: TypeAlias = "Callable[Concatenate[CogT, ...], Coro[None]]"
 F = TypeVar("F", bound=UnboundListenerType)
 
 
