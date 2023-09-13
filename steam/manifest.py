@@ -51,7 +51,7 @@ if TYPE_CHECKING:
 
     from .protobufs import app_info
     from .state import ConnectionState
-    from .types import manifest
+    from .types import manifest, manifest as manifest_
     from .types.vdf import VDFInt
 
 
@@ -997,6 +997,8 @@ class AppInfo(ProductInfo, PartialApp[str]):
 
         for key, depot in filter(is_depot, depots.items()):
             id = DepotID(int(key))
+            if not depot:
+                depot = cast("manifest_.Depot", MultiDict(name=f"{self.name} ({id}) Depot"))
             name = depot.get("name")
             config = depot.get("config", MultiDict())
             max_size = int(depot["maxsize"]) if "maxsize" in depot else None
