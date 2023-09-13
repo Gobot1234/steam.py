@@ -1663,6 +1663,7 @@ class ConnectionState:
                 ordinal=ordinal,
                 reaction=reaction_name,
                 reaction_type=reaction_type,
+                limit=0xFFFFFFFF,
             )
         )
 
