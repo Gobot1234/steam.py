@@ -346,6 +346,9 @@ class DescriptionMixin(AssetMixin, Protocol):
     if not TYPE_CHECKING:
         __slots__ = ()
 
+    _app_id: AppID
+    class_id: ClassID
+
     def __init__(self, state: ConnectionState, description: econ.ItemDescription):
         self.name = description.market_name
         """The market_name of the item."""

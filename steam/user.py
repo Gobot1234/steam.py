@@ -34,6 +34,7 @@ if TYPE_CHECKING:
     from .friend import Friend
     from .media import Media
     from .message import UserMessage
+    from .review import Review
     from .state import ConnectionState
     from .types import user
 
@@ -94,6 +95,20 @@ class _BaseUser(BaseUser):
         """The current persona state of the account (e.g. LookingToTrade)."""
         self.flags = PersonaStateFlag.try_value(proto.persona_state_flags)
         """The persona state flags of the account."""
+
+    async def fetch_reviews(self, *apps: App) -> list[Review]:
+        """Fetch this user's review for apps.
+
+        Parameters
+        ----------
+        apps
+            The apps to fetch the reviews for.
+        """
+        from .review import Review
+
+        reviews = await self._state.fetch_user_reviews(self.id64, (app.id for app in apps))
+        assert isinstance(self, (User, ClientUser))
+        return [Review._from_proto(self._state, review, self) for review in reviews]
 
 
 class User(_BaseUser, Messageable["UserMessage"]):
@@ -502,7 +517,7 @@ class WrapsUser(User if TYPE_CHECKING or DOCS_BUILDING else BaseUser, Messageabl
 
     __slots__ = ("_user", "_cs_channel")
 
-    def __init__(self, state: ConnectionState, user: User):
+    def __init__(self, state: ConnectionState, user: User | ClientUser):
         IndividualID.__init__(self, user.id64, type=Type.Individual)
         self._user = user
 

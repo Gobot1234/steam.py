@@ -691,6 +691,8 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
         from .review import Review
 
         reviews = await self._state.fetch_user_reviews(self.id64, (app.id for app in apps))
+        self = await self._state.fetch_user(self.id64)  # this kinda sucks but it's the best thing I can think of until
+        # intersections are added
         return [Review._from_proto(self._state, review, self) for review in reviews]
 
     async def fetch_published_file(
@@ -992,8 +994,8 @@ class Messageable(Protocol[MessageT]):
         )
 
 
-ClanT = TypeVar("ClanT", bound="Clan | None", default="Clan | None")
-GroupT = TypeVar("GroupT", bound="Group | None", default="Group | None")
+ClanT = TypeVar("ClanT", bound="Clan | None", default="Clan | None", covariant=True)
+GroupT = TypeVar("GroupT", bound="Group | None", default="Group | None", covariant=True)
 
 
 @dataclass(slots=True)

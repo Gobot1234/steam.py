@@ -21,7 +21,6 @@ from zlib import crc32
 from aiohttp.streams import AsyncStreamReaderMixin
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from multidict import MultiDict
-from typing_extensions import deprecated
 
 from . import utils
 from ._const import MISSING, URL, VDF_LOADS, VDFDict, impl_eq_via_id

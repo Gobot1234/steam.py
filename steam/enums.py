@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Generator, Mapping
-from enum import Enum as _Enum, EnumMeta as _EnumMeta, IntEnum as _IntEnum
+from enum import Enum as _Enum, EnumMeta as _EnumMeta
 from functools import reduce
-from types import MappingProxyType, new_class
+from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Final, Generic, Literal, SupportsInt, TypeVar, cast
 
 from ._const import DOCS_BUILDING

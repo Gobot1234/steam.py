@@ -31,7 +31,7 @@ from .enums import *
 from .id import _ID64_TO_ID32, id64_from_url
 from .models import CDNAsset, DescriptionMixin, _IOMixin
 from .protobufs import client_server, player
-from .tag import FetchedAppCategory, Tag
+from .tag import Category, Tag
 from .types.id import *
 from .utils import DateTime
 
@@ -1742,8 +1742,7 @@ class FetchedApp(PartialApp[str]):
         """The type of the app."""
 
         self.categories = [
-            FetchedAppCategory(state, id=category["id"], name=category["description"])
-            for category in data["categories"]
+            Category(state, id=category["id"], name=category["description"]) for category in data["categories"]
         ]
 
         try:

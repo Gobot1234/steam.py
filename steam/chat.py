@@ -16,7 +16,7 @@ from typing_extensions import Self, TypeVar, get_original_bases
 
 from . import utils
 from ._const import UNIX_EPOCH, _HasChatGroupMixin
-from .abc import Channel, Message, PartialUser
+from .abc import Channel, ClanT, GroupT, Message, PartialUser
 from .app import PartialApp
 from .enums import ChatMemberJoinState, ChatMemberRank, Type
 from .errors import WSException
@@ -27,7 +27,7 @@ from .reaction import Emoticon, MessageReaction, PartialMessageReaction, Sticker
 from .role import Role
 from .types.id import ID32, ChatGroupID, ChatID, Intable, RoleID
 from .types.user import IndividualID
-from .user import User, WrapsUser
+from .user import ClientUser, User, WrapsUser
 from .utils import DateTime, cached_slot_property
 
 if TYPE_CHECKING:
@@ -177,7 +177,7 @@ class Member(_BaseMember, _HasChatGroupMixin):
     __slots__ = tuple(slot for slot in _BaseMember.__slots__ if slot not in {"_state"})
 
     def __init__(
-        self, state: ConnectionState, chat_group: ChatGroup[Any, Any], user: User, member: chat.Member
+        self, state: ConnectionState, chat_group: ChatGroup[Any, Any], user: User | ClientUser, member: chat.Member
     ) -> None:
         super().__init__(state, user)
         self.clan: Clan | None = None
@@ -324,8 +324,6 @@ class ChatMessage(Message[AuthorT], Generic[AuthorT, MemberT]):
 
 
 ChatMessageT = TypeVar("ChatMessageT", bound="GroupMessage | ClanMessage", covariant=True)
-ClanT = TypeVar("ClanT", bound="Clan | None", default="Clan | None")
-GroupT = TypeVar("GroupT", bound="Group | None", default="Group | None")
 
 GroupChannelProtos: TypeAlias = chat.IncomingChatMessageNotification | chat.State | chat.ChatRoomState
 
@@ -651,7 +649,7 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
                 self._state.user.id: member_cls(
                     self._state,
                     self,
-                    cast("User", self._state.user),
+                    self._state.user,
                     self._partial_members[self._state.user.id],
                 )
             }
