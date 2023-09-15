@@ -306,7 +306,24 @@ class Wallet:
 
 
 @runtime_checkable
-class DescriptionMixin(Protocol):
+class AssetMixin(Protocol):
+    __slots__ = ()
+
+    _state: ConnectionState
+    _app_id: AppID
+    class_id: ClassID
+    """The classid of the item."""
+
+    @property
+    def app(self) -> PartialApp[None]:
+        """The app the item is from."""
+        from .app import PartialApp
+
+        return PartialApp(self._state, id=self._app_id)
+
+
+@runtime_checkable
+class DescriptionMixin(AssetMixin, Protocol):
     __slots__ = SLOTS = (
         "name",
         "type",
@@ -327,10 +344,6 @@ class DescriptionMixin(Protocol):
     )
     if not TYPE_CHECKING:
         __slots__ = ()
-
-    _state: ConnectionState
-    _app_id: AppID
-    class_id: ClassID
 
     def __init__(self, state: ConnectionState, description: econ.ItemDescription):
         self.name = description.market_name
@@ -390,13 +403,6 @@ class DescriptionMixin(Protocol):
         """
         price = await self._state.http.get_price(self._app_id, self.market_hash_name, currency)
         return PriceOverview(price, currency or Currency.USD)
-
-    @property
-    def app(self) -> PartialApp[None]:
-        """The app the item is from."""
-        from .app import PartialApp
-
-        return PartialApp(self._state, id=self._app_id)
 
     @property
     def market_fee_app(self) -> PartialApp[None]:

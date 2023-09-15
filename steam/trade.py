@@ -15,7 +15,7 @@ from . import utils
 from ._const import URL
 from .app import App, PartialApp
 from .enums import Language, TradeOfferState
-from .models import DescriptionMixin
+from .models import AssetMixin, DescriptionMixin
 from .protobufs import econ
 from .types.id import AppID, AssetID, ClassID, ContextID, InstanceID, TradeOfferID
 from .utils import DateTime
@@ -43,7 +43,7 @@ __all__ = (
 OwnerT = TypeVar("OwnerT", bound="PartialUser", default="BaseUser", covariant=True)
 
 
-class Asset(DescriptionMixin, Generic[OwnerT]):
+class Asset(AssetMixin, Generic[OwnerT]):
     """Base most version of an item. This class should only be received when Steam fails to find a matching item for
     its class and instance IDs.
 
@@ -79,8 +79,8 @@ class Asset(DescriptionMixin, Generic[OwnerT]):
         self.instance_id = InstanceID(asset.instanceid)
         """The instanceid of the item."""
         self.class_id = ClassID(asset.classid)
-        """The classid of the item."""
         self.context_id = ContextID(asset.contextid)
+        """The contextid of the item."""
         # self.post_rollback_id = int(data["rollback_new_assetid"]) if "rollback_new_assetid" in data else None
         """The assetid of the item after a rollback (cancelled, etc.). ``None`` if not rolled back."""
         self.owner = owner
