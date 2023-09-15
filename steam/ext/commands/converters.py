@@ -313,7 +313,7 @@ class MemberConverter(PartialMemberConverter, Converter[Member]):
             raise BadArgument(f'Failed to convert "{argument}" to a Steam user') from None
 
 
-class ChannelConverter(Converter[Channel[Any]]):
+class ChannelConverter(Converter[Channel[Any, Any, Any]]):
     """The converter that is used when the type-hint passed is :class:`~steam.Channel`.
 
     Lookup is in the order of:

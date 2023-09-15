@@ -27,7 +27,7 @@ __all__ = (
 )
 
 
-class UserChannel(Channel[UserMessage]):
+class UserChannel(Channel[UserMessage, None, None]):
     """Represents the channel a DM is sent in."""
 
     __slots__ = ("participant", "last_message")
@@ -38,8 +38,6 @@ class UserChannel(Channel[UserMessage]):
         super().__init__(state)
         self.participant = participant
         """The recipient of any messages sent."""
-        self.clan = None
-        self.group = None
         self.last_message: UserMessage | None = None
 
     def __repr__(self) -> str:
@@ -93,25 +91,21 @@ class UserChannel(Channel[UserMessage]):
         return self.participant.history(limit=limit, before=before, after=after)
 
 
-class GroupChannel(Chat[GroupMessage]):
+class GroupChannel(Chat[GroupMessage, None, "Group"]):
     """Represents a group channel."""
 
     __slots__ = ()
 
-    clan: None
-
     def __init__(self, state: ConnectionState, group: Group, proto: GroupChannelProtos):
         super().__init__(state, group, proto)
-        self.group: Group = group
+        self.group = group
 
 
-class ClanChannel(Chat[ClanMessage]):
+class ClanChannel(Chat[ClanMessage, "Clan", None]):
     """Represents a clan channel."""
 
     __slots__ = ()
 
-    group: None
-
     def __init__(self, state: ConnectionState, clan: Clan, proto: GroupChannelProtos):
         super().__init__(state, clan, proto)
-        self.clan: Clan = clan
+        self.clan = clan

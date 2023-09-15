@@ -992,12 +992,16 @@ class Messageable(Protocol[MessageT]):
         )
 
 
+ClanT = TypeVar("ClanT", bound="Clan | None", default="Clan | None")
+GroupT = TypeVar("GroupT", bound="Group | None", default="Group | None")
+
+
 @dataclass(slots=True)
-class Channel(Messageable[MessageT]):
+class Channel(Messageable[MessageT], Generic[MessageT, ClanT, GroupT]):
     _state: ConnectionState
-    clan: Clan | None = None
+    clan: ClanT = cast(ClanT, None)
     """The clan this channel belongs to."""
-    group: Group | None = None
+    group: GroupT = cast(GroupT, None)
     """The group this channel belongs to."""
 
 

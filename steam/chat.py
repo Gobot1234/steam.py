@@ -324,15 +324,18 @@ class ChatMessage(Message[AuthorT], Generic[AuthorT, MemberT]):
 
 
 ChatMessageT = TypeVar("ChatMessageT", bound="GroupMessage | ClanMessage", covariant=True)
+ClanT = TypeVar("ClanT", bound="Clan | None", default="Clan | None")
+GroupT = TypeVar("GroupT", bound="Group | None", default="Group | None")
+
 GroupChannelProtos: TypeAlias = chat.IncomingChatMessageNotification | chat.State | chat.ChatRoomState
 
 
-class Chat(Channel[ChatMessageT], _HasChatGroupMixin):
+class Chat(Channel[ChatMessageT, ClanT, GroupT], _HasChatGroupMixin):
     __slots__ = ("id", "name", "joined_at", "position", "last_message", "_cs_location")
 
     def __init__(
-        self, state: ConnectionState, group: ChatGroup[Any, Self], proto: GroupChannelProtos
-    ):  # group is purposely unused
+        self, state: ConnectionState, chat_group: ChatGroup[Any, Self], proto: GroupChannelProtos
+    ):  # chat_group is purposely unused for type checking purposes with chat_cls
         super().__init__(state)
         self.id = ChatID(proto.chat_id)
         """The ID of the channel."""
