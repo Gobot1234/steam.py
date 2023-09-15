@@ -308,7 +308,11 @@ class Wallet:
 
 @runtime_checkable
 class AssetMixin(Protocol):
-    __slots__ = ()
+    __slots__ = (
+        "_state",
+        "_app_id",
+        "class_id",
+    )
 
     _state: ConnectionState
     _app_id: AppID

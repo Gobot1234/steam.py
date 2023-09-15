@@ -61,13 +61,10 @@ class Asset(AssetMixin, Generic[OwnerT]):
     __slots__ = (
         "id",
         "amount",
-        "class_id",
         "instance_id",
         "context_id",
         # "post_rollback_id",
         "owner",
-        "_app_id",
-        "_state",
     )
     REPR_ATTRS = ("id", "class_id", "instance_id", "context_id", "amount", "owner", "app")  # "post_rollback_id"
 
