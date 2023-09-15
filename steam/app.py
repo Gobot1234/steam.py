@@ -1109,7 +1109,6 @@ class PartialApp(App[NameT]):
             The language to fetch the DLC in. If ``None``, the current language will be used.
         """
         data = await self._state.http.get_app_dlc(self.id, language)
-        self.name = cast(NameT, data["name"])
         return [DLC(self._state, dlc) for dlc in data["dlc"]]
 
     async def packages(self, *, language: Language | None = None) -> list[FetchedAppPackage]:

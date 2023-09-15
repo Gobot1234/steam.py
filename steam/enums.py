@@ -239,15 +239,6 @@ class IntEnum(Enum, int):
             ...
 
 
-if not TYPE_CHECKING and DOCS_BUILDING:
-    enum_dict = Enum.__dict__.copy()
-    for key in ("__new__",):
-        del enum_dict[key]
-
-    Enum = new_class("Enum", (_Enum,), {}, lambda ns: dict.update(ns, enum_dict))
-    IntEnum = new_class("IntEnum", (Enum, _IntEnum))  # noqa: F811
-
-
 class Flags(IntEnum):
     @classmethod
     def try_value(cls, value: int) -> Self:
@@ -322,7 +313,7 @@ class Intents(Flags):
 
         See also
         --------
-        :meth:`safe` as a safe alternative to this function which is less likely to get you banned.
+        :attr:`Safe` as a safe alternative to this function which is less likely to get you banned.
         """
         return reduce(cls.__or__, cls._value_map_.values())
 
