@@ -134,7 +134,7 @@ class App(Generic[NameT]):
 
     @property
     def url(self) -> str:
-        """What should be the app's url on steamcommunity if applicable."""
+        """The app's URL on https://steamcommunity.com."""
         return f"{URL.COMMUNITY}/app/{self.id}"
 
 
