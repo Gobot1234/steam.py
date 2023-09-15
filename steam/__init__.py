@@ -39,6 +39,7 @@ from .reaction import *
 from .review import *
 from .role import *
 from .store import *
+from .tag import *
 from .trade import *
 from .user import *
 from .user_news import *

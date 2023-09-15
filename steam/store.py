@@ -16,7 +16,7 @@ from .enums import AppType, ContentDescriptor, Currency, Language, PaymentMethod
 from .models import CDNAsset
 from .package import PartialPackage
 from .protobufs import store
-from .tag import PartialCategory, PartialTag
+from .tag import Category, Tag
 from .utils import DateTime
 
 if TYPE_CHECKING:
@@ -33,9 +33,12 @@ __all__ = (
 )
 
 
-@dataclass(slots=True)
-class StoreItemTag(PartialTag):
-    weight: int
+class StoreItemTag(Tag[None]):
+    __slots__ = ("weight",)
+
+    def __init__(self, state: ConnectionState, id: int, weight: int):
+        super().__init__(state, id)
+        self.weight = weight
 
 
 @dataclass(slots=True)
@@ -194,7 +197,7 @@ class StoreItem:
 
         self.related_parent_app = PartialApp(state, id=proto.related_items.parent_appid)
         self.tags = [StoreItemTag(state, tag.tagid, tag.weight) for tag in proto.tags]
-        self.categories = [PartialCategory(state, id) for id in proto.categories.feature_categoryids]
+        self.categories = [Category(state, id) for id in proto.categories.feature_categoryids]
         self.review_score = ReviewType.try_value(proto.reviews.summary_unfiltered.review_score)
         self.review_count = proto.reviews.summary_unfiltered.review_count
         self.review_percent_positive = proto.reviews.summary_unfiltered.percent_positive

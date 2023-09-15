@@ -1397,6 +1397,18 @@ class Client:
         ):
             yield AppListApp(self._state, app)
 
+    @utils.todo
+    async def all_tags(self):
+        raise NotImplementedError
+
+    @utils.todo
+    async def all_categories(self):
+        raise NotImplementedError
+
+    @utils.todo
+    async def all_genres(self):
+        raise NotImplementedError
+
     async def change_presence(
         self,
         *,

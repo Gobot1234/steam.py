@@ -1913,6 +1913,11 @@ class ConnectionState:
     async def fetch_app_tag(self, *tag_ids: int, language: Language | None = None) -> list[store.StoreItem]:
         return await self._fetch_store_info([store.StoreItemId(tagid=tag_id) for tag_id in tag_ids], language)
 
+    async def fetch_app_categories(self, *category_ids: int, language: Language | None = None) -> list[store.StoreItem]:
+        return await self._fetch_store_info(
+            [store.StoreItemId(hubcategoryid=category_id) for category_id in category_ids], language
+        )
+
     async def fetch_app(self, app_id: AppID, language: Language | None) -> FetchedApp:
         resp = await self.http.get_app(app_id, language)
         data = resp[str(app_id)]

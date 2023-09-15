@@ -31,7 +31,7 @@ from .id import ID
 from .models import CDNAsset, _IOMixin
 from .package import PartialPackage
 from .protobufs.content_manifest import Metadata, Payload, PayloadFileMapping, PayloadFileMappingChunkData, Signature
-from .tag import PartialCategory, PartialGenre, PartialTag
+from .tag import Category, Genre, Tag
 from .types.id import AppID, DepotID, ManifestID
 from .utils import DateTime, cached_slot_property
 
@@ -955,12 +955,12 @@ class AppInfo(ProductInfo, PartialApp[str]):
         """This app's language support."""
 
         self.categories = [
-            PartialCategory(state, id=int(name.removeprefix("category_"))) for name in common.get("category", ())
+            Category(state, id=int(name.removeprefix("category_"))) for name in common.get("category", ())
         ]
         """This app's supported categories."""
-        self.tags = [PartialTag(state, id=int(tag_id)) for tag_id in common.get("store_tags", MultiDict()).values()]
+        self.tags = [Tag(state, id=int(tag_id)) for tag_id in common.get("store_tags", MultiDict()).values()]
         """This app's supported tags."""
-        self.genres = [PartialGenre(state, id=int(genre_id)) for genre_id in common.get("genres", MultiDict()).values()]
+        self.genres = [Genre(state, id=int(genre_id)) for genre_id in common.get("genres", MultiDict()).values()]
         """This app's supported genres."""
 
         self.created_at = (

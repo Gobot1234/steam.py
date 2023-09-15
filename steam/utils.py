@@ -64,7 +64,7 @@ from .enums import Type, _is_descriptor, classproperty as classproperty
 from .id import _URL_START, ID, id64_from_url as id64_from_url, parse_id64 as parse_id64
 
 if TYPE_CHECKING:
-    from typing_extensions import Self
+    from typing_extensions import Self, deprecated
 
     from .types.http import Coro, StrOrURL
     from .types.user import IndividualID
@@ -682,6 +682,17 @@ CHAT_COMMANDS_RE: Final = re.compile(rf"""/(?:{CHAT_COMMANDS})""")
 
 def contains_chat_command(string: str, /) -> bool:
     return bool(CHAT_COMMANDS_RE.match(string))
+
+
+if TYPE_CHECKING:
+    todo = deprecated("This method is not yet implemented")
+else:
+
+    def todo(func):
+        def wrapper(*args: Any, **kwargs: Any) -> None:
+            raise NotImplementedError(f"{func.__name__} is not yet implemented")
+
+        return wrapper
 
 
 # everything below here is directly from discord.py's utils
