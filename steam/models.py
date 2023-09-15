@@ -183,7 +183,8 @@ class StreamReaderProto(Protocol):
         ...
 
 
-class _IOMixin:
+@runtime_checkable
+class _IOMixin(Protocol):
     __slots__ = ()
 
     if __debug__:

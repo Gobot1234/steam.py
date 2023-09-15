@@ -186,7 +186,7 @@ def _manifest_parts(filename: str, /) -> list[str]:
     return filename.rstrip("\x00 \n\t").split("\\")
 
 
-class ManifestPath(PurePathBase, _IOMixin):
+class ManifestPath(PurePathBase):
     """A :class:`pathlib.PurePath` subclass representing a binary file in a Manifest. This class is broadly compatible
     with :class:`pathlib.Path`.
 
@@ -488,11 +488,8 @@ class ManifestPath(PurePathBase, _IOMixin):
 
     read_bytes = _IOMixin.read
     """Read the contents of the file. Similar to :meth:`pathlib.Path.read_bytes`"""
-
-    @deprecated("use read_bytes() instead of read()", category=None)
-    async def read(self, **kwargs: Any) -> Never:
-        """This method is not implemented. Use :meth:`read_bytes` instead."""
-        raise NotImplementedError("use read_bytes() instead of read()")
+    media = _IOMixin.media
+    save = _IOMixin.save
 
     async def read_text(self, encoding: str = MISSING, errors: str = MISSING) -> str:
         """Read the contents of the file. Similar to :meth:`pathlib.Path.read_text`"""
