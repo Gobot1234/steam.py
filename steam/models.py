@@ -339,7 +339,8 @@ class DescriptionMixin(Protocol):
         """
         The displayed name of the item. This could be different to :attr:`Item.name` if the item is user re-nameable.
         """
-        self.market_hash_name = description.market_hash_name
+        self.market_hash_name = description.market_hash_name or self.name or self.display_name
+        """The market_hash_name of the item."""
         self.colour = int(description.name_color, 16) if description.name_color else None
         """The colour of the item."""
         self.descriptions = description.descriptions
