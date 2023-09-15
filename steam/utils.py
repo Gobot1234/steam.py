@@ -252,12 +252,12 @@ def call_once(func: F_no_wait, /) -> F_no_wait:
 
 
 @overload
-def call_once(*, wait: Literal[False]) -> Callable[[F_no_wait], F_no_wait]:
+def call_once(*, wait: Literal[False] = False) -> Callable[[F_no_wait], F_no_wait]:
     ...
 
 
 @overload
-def call_once(*, wait: Literal[True] = ...) -> Callable[[F_wait], F_wait]:
+def call_once(*, wait: Literal[True]) -> Callable[[F_wait], F_wait]:
     ...
 
 
