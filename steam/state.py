@@ -245,8 +245,6 @@ class ConnectionState:
         self._license_lock = asyncio.Lock()
         self.licenses_being_waited_for = weakref.WeakValueDictionary[PackageID, asyncio.Future[License]]()
         self._manifest_passwords: dict[AppID, dict[str, str]] = {}
-        self.cs_servers: list[ContentServer] = []
-        self.cs_servers_lock = asyncio.Lock()
 
         self._game_connect_bytes: list[
             bytes
@@ -2465,6 +2463,25 @@ class ConnectionState:
             raise WSException(msg)
         return msg.servers
 
+    @utils.call_once(wait=True)
+    async def cs_servers(self) -> list[ContentServer]:
+        try:
+            return self._cs_servers
+        except AttributeError:
+            self._cs_servers = sorted(
+                (
+                    ContentServer(
+                        self,
+                        URL_.build(scheme=f"http{'s' * (server.https_support != 'none')}", host=server.vhost),
+                        server.weighted_load,
+                    )
+                    for server in await self.fetch_cs_list(limit=20)
+                    if server.type in {"CDN", "SteamCache"}
+                ),
+                key=attrgetter("weighted_load"),
+            )
+            return self._cs_servers
+
     async def fetch_manifest(
         self,
         app_id: AppID,
@@ -2474,27 +2491,14 @@ class ConnectionState:
         branch: str = "public",
         password_hash: str = "",
     ) -> Manifest:
-        async with self.cs_servers_lock:
-            if not self.cs_servers:
-                self.cs_servers = sorted(
-                    (
-                        ContentServer(
-                            self,
-                            URL_.build(scheme=f"http{'s' * (server.https_support != 'none')}", host=server.vhost),
-                            server.weighted_load,
-                        )
-                        for server in await self.fetch_cs_list(limit=20)
-                        if server.type in ("CDN", "SteamCache")
-                    ),
-                    key=attrgetter("weighted_load"),
-                )
+        servers = await self.cs_servers()
 
-        for server in tuple(self.cs_servers):
+        for server in tuple(servers):
             try:
                 return await server.fetch_manifest(app_id, id, depot_id, name, branch, password_hash)
             except HTTPException as exc:
                 if 500 <= exc.status <= 599:
-                    del self.cs_servers[0]
+                    del servers[0]
                 else:
                     raise
 
