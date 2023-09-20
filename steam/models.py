@@ -343,6 +343,7 @@ class DescriptionMixin(AssetMixin, Protocol):
         "actions",
         "owner_actions",
         "market_actions",
+        "market_fee",
         "_market_fee_app_id",
         "_is_tradable",
         "_is_marketable",
@@ -387,6 +388,10 @@ class DescriptionMixin(AssetMixin, Protocol):
         """The owner actions for the item."""
         self.market_actions = description.market_actions
         """The market actions for the item."""
+        self.market_fee = (
+            int(float(description.market_fee) * 100) if description.market_fee else 10
+        )  # if steam ever support currencies that have more than 2 decimals we're screwed
+        """The market fee percentage for the item."""
         self._app_id = AppID(description.appid)
         self._market_fee_app_id = AppID(description.market_fee_app)
         self._is_tradable = description.tradable
