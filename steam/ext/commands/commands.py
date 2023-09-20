@@ -241,12 +241,15 @@ class Command(Generic[CogT, P, R]):
         if not inspect.iscoroutinefunction(function):
             raise TypeError(f"The callback for the command {function.__name__!r} must be a coroutine function.")
 
-        function = function.__func__ if inspect.ismethod(function) else function
-
-        function.__annotations__ = annotations = typing_extensions.get_type_hints(function)
+        annotations = typing_extensions.get_type_hints(function)
         for name, annotation in annotations.items():
             if get_origin(annotation) is converters.Greedy and isinstance(annotation.converter, ForwardRef):
                 annotations[name] = converters.Greedy[eval(annotation.converter.__forward_code__, function.__globals__)]
+
+        if inspect.ismethod(function):
+            function.__func__.__annotations__ = annotations
+        else:
+            function.__annotations__ = annotations
         self.params = dict(inspect.signature(function, eval_str=True).parameters)
         if not self.params:
             raise TypeError(f'Callback for {self.name} command is missing a "ctx" parameter.') from None
