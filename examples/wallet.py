@@ -5,17 +5,21 @@ import steam
 client = steam.Client()
 
 
+def format_balance(amount: int) -> str:
+    """Formats ``amount`` as a string in the user's locale"""
+    currency_divisor = 10 ** babel.numbers.get_currency_precision(
+        client.wallet.currency.name
+    )  # this should always be 100, but this is the number of pence in a pound/cent in a dollar
+    return babel.numbers.format_currency(
+        amount / currency_divisor,
+        client.wallet.currency.name,
+    )
+
+
 @client.event
 async def on_ready():
     print("Logged in to", client.user)
-    currency_divisor = 10 ** babel.numbers.get_currency_precision(client.wallet.currency.name)
-    print(
-        "Wallet balance",
-        babel.numbers.format_currency(
-            client.wallet.balance / currency_divisor,
-            client.wallet.currency.name,
-        ),
-    )
+    print("Wallet balance", format_balance(client.wallet.balance))
 
     while True:
         print("Want to active a wallet code? (yes/no)")
@@ -30,10 +34,7 @@ async def on_ready():
                 except ValueError:
                     print("Code wasn't valid")
                 else:
-                    print(
-                        "Added",
-                        babel.numbers.format_currency(added_balance / currency_divisor, client.wallet.currency.name),
-                    )
+                    print("Added", format_balance(added_balance))
             case "no" | "n":
                 break
             case _:
