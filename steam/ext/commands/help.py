@@ -149,8 +149,6 @@ class HelpCommand(Command[None, ..., None]):
         print(f"Ignoring exception in command {ctx.command}:", file=sys.stderr)
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
-    cog_command_error = on_error
-
 
 class DefaultHelpCommand(HelpCommand):
     """The default implementation of the help command."""
