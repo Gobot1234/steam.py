@@ -883,7 +883,7 @@ class AppInfo(ProductInfo, PartialApp[str]):
         "review_percentage",
         "metacritic_name",
         "metacritic_score",
-        "metacritic_fullurl",
+        "metacritic_url",
         "partial_dlc",
         "icon",
         "logo",
