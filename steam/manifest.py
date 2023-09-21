@@ -974,7 +974,7 @@ class AppInfo(ProductInfo, PartialApp[str]):
         """This app's metacritic name."""
         self.metacritic_score = int(common.get("metacritic_score")) if "metacritic_score" in common else None
         """This app's metacritic score."""
-        self.metacritic_fullurl = common.get("metacritic_fullurl", None)
+        self.metacritic_url = common.get("metacritic_fullurl", None)
         """This app's metacritic URL."""
 
         dlc = extended.get("listofdlc", "")
