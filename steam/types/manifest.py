@@ -40,7 +40,7 @@ class Common(TypedVDFDict, total=False):
     associations: VDFList[CommonAssociations]
     category: MultiDict[VDFBool]  # category_{id}: "1" cause lol valve
     languages: MultiDict[VDFBool]
-    supported_languages: MultiDict[LanguageSupport] | str # This can occasionally be an empty string
+    supported_languages: MultiDict[LanguageSupport] | str  # This can occasionally be an empty string
     steam_release_date: str
     review_score: str
     review_percentage: str
