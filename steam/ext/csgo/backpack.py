@@ -367,9 +367,6 @@ class Casket(BackpackItem["ClientUser"]):
 
     async def contents(self) -> list[CasketItem]:
         """This casket's contents"""
-        if not self.contained_item_count:
-            return []
-
         contained_items = [item for item in self._state.casket_items.values() if item._casket_id == self.id]
         if len(contained_items) == self.contained_item_count:
             return contained_items
