@@ -949,7 +949,8 @@ class AppInfo(ProductInfo, PartialApp[str]):
 
         self.language_support = {
             Language.from_str(language): support
-            for language, support in common.get("supported_languages", MultiDict()).items()
+            for language, support in (common.get("supported_languages") or MultiDict()).items()
+            if isinstance(common.get("supported_languages"), dict)
         }
         """This app's language support."""
 
