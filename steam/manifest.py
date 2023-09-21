@@ -881,6 +881,9 @@ class AppInfo(ProductInfo, PartialApp[str]):
         "created_at",
         "review_score",
         "review_percentage",
+        "metacritic_name",
+        "metacritic_score",
+        "metacritic_url",
         "partial_dlc",
         "icon",
         "logo",
@@ -967,6 +970,13 @@ class AppInfo(ProductInfo, PartialApp[str]):
         """This app's review score."""
         self.review_percentage = int(common.get("review_percentage", 0))
         """This app's review percentage."""
+        self.metacritic_name = common.get("metacritic_name", None)
+        """This app's metacritic name."""
+        self.metacritic_score = int(common.get("metacritic_score")) if "metacritic_score" in common else None
+        """This app's metacritic score."""
+        self.metacritic_url = common.get("metacritic_fullurl", None)
+        """This app's metacritic URL."""
+
         dlc = extended.get("listofdlc", "")
         self.partial_dlc = [PartialApp(state, id=int(id)) for id in dlc.split(",")] if dlc else []
         """This app's downloadable content."""

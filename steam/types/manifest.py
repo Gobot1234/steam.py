@@ -60,7 +60,7 @@ class Common(TypedVDFDict, total=False):
     logo_small: str
     metacritic_fullurl: str
     metacritic_name: str
-    metacritic_score: str
+    metacritic_score: VDFInt
     metacritic_url: str
     primary_genre: str
     review_percentage: str
