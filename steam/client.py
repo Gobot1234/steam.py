@@ -493,7 +493,8 @@ class Client:
                     await throttle()
                     continue
 
-                self._tg.create_task(dispatch_ready())
+                if login_func != SteamWebSocket.anonymous_login_from_client:
+                    self._tg.create_task(dispatch_ready())
 
                 # this entire thing is a bit of a cluster fuck
                 # but that's what you deserve for having async parsers
