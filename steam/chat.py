@@ -377,7 +377,7 @@ class Chat(Channel[ChatMessageT, ClanT, GroupT], _HasChatGroupMixin):
         return chat_id, self.id
 
     @utils.classproperty
-    def _type_args(cls: type[Self]) -> tuple[type[ChatMessageT]]:  # type: ignore
+    def _type_args(cls: type[Self]) -> tuple[type[ChatMessageT], type[ClanT], type[GroupT]]:  # type: ignore
         return get_original_bases(cls)[0].__args__
 
     def _send_message(self, content: str) -> Coroutine[Any, Any, ChatMessageT]:
@@ -401,7 +401,7 @@ class Chat(Channel[ChatMessageT, ClanT, GroupT], _HasChatGroupMixin):
         last_message_timestamp = before_timestamp
         last_ordinal: int = getattr(self.last_message, "ordinal", 0)
         yielded = 0
-        (message_cls,) = self._type_args
+        message_cls, *_ = self._type_args
 
         while True:
             resp = await self._state.fetch_chat_history(

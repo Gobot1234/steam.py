@@ -1470,7 +1470,7 @@ class ConnectionState:
         if msg.server_message:
             return self.handle_chat_server_message(chat_group, author, msg.server_message)
 
-        (message_cls,) = channel._type_args
+        message_cls, *_ = channel._type_args
         message = message_cls(
             proto=msg,
             channel=channel,  # type: ignore  # type checkers aren't able to figure out this is ok
@@ -1509,7 +1509,7 @@ class ConnectionState:
         group = self._chat_groups[chat_group_id]
         channel = group._channels[chat_id]
         channel._update(proto)
-        (message_cls,) = channel._type_args
+        message_cls, *_ = channel._type_args
         message = message_cls(
             proto=proto,
             channel=channel,  # type: ignore  # type checkers can't figure out this is ok
