@@ -96,20 +96,6 @@ class _BaseUser(BaseUser):
         self.flags = PersonaStateFlag.try_value(proto.persona_state_flags)
         """The persona state flags of the account."""
 
-    async def fetch_reviews(self, *apps: App) -> list[Review]:
-        """Fetch this user's review for apps.
-
-        Parameters
-        ----------
-        apps
-            The apps to fetch the reviews for.
-        """
-        from .review import Review
-
-        reviews = await self._state.fetch_user_reviews(self.id64, (app.id for app in apps))
-        assert isinstance(self, (User, ClientUser))
-        return [Review._from_proto(self._state, review, self) for review in reviews]
-
 
 class User(_BaseUser, Messageable["UserMessage"]):
     """Represents a Steam user's account.

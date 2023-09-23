@@ -633,11 +633,15 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
         :class:`~steam.Review`
         """
         from .review import Review
+        from .user import ClientUser, User
 
         pages = 1
         after = after or UNIX_EPOCH
         before = before or DateTime.now()
         yielded = 0
+        if type(self) is PartialUser:
+            self = await self._state._maybe_user(self.id64)
+        assert isinstance(self, (User, ClientUser))
 
         async def get_reviews(page_number: int = 1) -> AsyncGenerator[Review, None]:
             nonlocal yielded, pages
@@ -689,10 +693,13 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
             The apps to fetch the reviews for.
         """
         from .review import Review
+        from .user import ClientUser, User
 
         reviews = await self._state.fetch_user_reviews(self.id64, (app.id for app in apps))
-        self = await self._state.fetch_user(self.id64)  # this kinda sucks but it's the best thing I can think of until
-        # intersections are added
+        if type(self) is PartialUser:
+            # this kinda sucks but it's the best thing I can think of until intersections are added
+            self = await self._state.fetch_user(self.id64)
+        assert isinstance(self, (User, ClientUser))
         return [Review._from_proto(self._state, review, self) for review in reviews]
 
     async def fetch_published_file(

@@ -1483,9 +1483,9 @@ class DLC(PartialApp[str]):
         """A price overview for the DLC."""
 
         platforms = data["platforms"]
-        self._on_windows: bool = platforms["windows"]
-        self._on_mac_os: bool = platforms["mac"]
-        self._on_linux: bool = platforms["linux"]
+        self._on_windows = platforms["windows"]
+        self._on_mac_os = platforms["mac"]
+        self._on_linux = platforms["linux"]
 
     def is_free(self) -> bool:
         """Whether the app is free to download."""
