@@ -436,7 +436,8 @@ class ConnectionState:
                             try:
                                 clan = await self.fetch_clan(id.id64)
                             except WSException:
-                                clan = PartialClan(self, id.id64)
+                                clan = cast(Clan, PartialClan(self, id.id64))
+                                log.info("Unknown clan %s invited us", clan)
                             self.invites[clan.id64] = invite = ClanInvite(
                                 self, self.user, author=invitee, clan=clan, relationship=relationship
                             )

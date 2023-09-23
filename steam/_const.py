@@ -177,7 +177,9 @@ DEFAULT_AVATAR: Final = b"\xfe\xf4\x9e\x7f\xa7\xe1\x99s\x10\xd7\x05\xb2\xa6\x15\
 
 
 class _IDComparable(Protocol):
-    id: Any
+    @property
+    def id(self) -> Any:
+        ...
 
 
 _TT_IDComp = TypeVar("_TT_IDComp", bound=type[_IDComparable])

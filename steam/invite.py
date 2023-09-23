@@ -4,14 +4,16 @@ from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, ClassVar, TypeAlias
+from typing import TYPE_CHECKING, ClassVar, Generic, TypeAlias
+
+from typing_extensions import TypeVar
 
 from ._const import _HasChatGroupMixin
 
 if TYPE_CHECKING:
     from .abc import PartialUser
     from .app import PartialApp
-    from .clan import Clan, PartialClan
+    from .clan import Clan
     from .enums import FriendRelationship
     from .game_server import GameServer
     from .group import Group
@@ -64,12 +66,16 @@ class UserInvite(_Invite):
         await self._state.remove_user(self.author.id64)
 
 
+ClanT = TypeVar("ClanT", bound="Clan | None", default="Clan | None", covariant=True)
+GroupT = TypeVar("GroupT", bound="Group | None", default="Group | None", covariant=True)
+
+
 @dataclass(repr=False, slots=True)
-class _ChatGroupInvite(_Invite, _HasChatGroupMixin):
+class _ChatGroupInvite(_Invite, _HasChatGroupMixin, Generic[ClanT, GroupT]):
     if TYPE_CHECKING:
         code: str | None
-        clan: Clan | PartialClan | None  # type: ignore
-        group: Group | None
+        clan: ClanT
+        group: GroupT
 
     async def revoke(self) -> None:
         """Revoke the invite request."""
@@ -77,13 +83,12 @@ class _ChatGroupInvite(_Invite, _HasChatGroupMixin):
 
 
 @dataclass(repr=False, slots=True)
-class ClanInvite(_ChatGroupInvite):
+class ClanInvite(_ChatGroupInvite["Clan", None]):
     """Represents an invitation to join a :class:`~steam.Clan` from a user."""
 
     REPR_ATTRS: ClassVar = ("author", "relationship", "clan")
-    clan: Clan | PartialClan
+    clan: Clan
     """The clan to join."""
-    relationship: FriendRelationship
     code: str | None = None
     group: None = None
 
@@ -97,7 +102,7 @@ class ClanInvite(_ChatGroupInvite):
 
 
 @dataclass(repr=False, slots=True)
-class GroupInvite(_ChatGroupInvite):
+class GroupInvite(_ChatGroupInvite[None, "Group"]):
     """Represents an invitation from a user to join a group."""
 
     REPR_ATTRS: ClassVar = ("author", "relationship", "group")
@@ -129,5 +134,5 @@ class AppInvite(_Invite):
         return await super().accept()
 
 
-Invite: TypeAlias = UserInvite | ClanInvite | GroupInvite | AppInvite
+Invite: TypeAlias = UserInvite | ChatGroupInvite | AppInvite
 """Represents an invite from a user to become their friend, join a clan, join a group, or join an app."""

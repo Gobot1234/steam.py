@@ -34,7 +34,6 @@ if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Callable, Coroutine, Iterable, Sequence
     from datetime import datetime
 
-    from .channel import ClanChannel, GroupChannel
     from .clan import Clan
     from .group import Group
     from .invite import ChatGroupInvite
@@ -43,9 +42,7 @@ if TYPE_CHECKING:
     from .state import ConnectionState
 
 
-ChatT = TypeVar(
-    "ChatT", bound="Chat[ClanMessage | GroupMessage]", default="Chat[ClanMessage | GroupMessage]", covariant=True
-)
+ChatT = TypeVar("ChatT", bound="Chat", default="Chat", covariant=True)
 MemberT = TypeVar("MemberT", bound="Member", default="Member", covariant=True)
 log = logging.getLogger(__name__)
 
@@ -171,7 +168,7 @@ else:
 
 
 @PartialMember.register
-class Member(_BaseMember, _HasChatGroupMixin):
+class Member(_BaseMember, _HasChatGroupMixin, Generic[ClanT, GroupT]):
     """Represents a member of a chat group."""
 
     __slots__ = tuple(slot for slot in _BaseMember.__slots__ if slot not in {"_state"})
@@ -180,8 +177,8 @@ class Member(_BaseMember, _HasChatGroupMixin):
         self, state: ConnectionState, chat_group: ChatGroup[Any, Any], user: User | ClientUser, member: chat.Member
     ) -> None:
         super().__init__(state, user)
-        self.clan: Clan | None = None
-        self.group: Group | None = None
+        self.clan = cast(ClanT, None)
+        self.group = cast(GroupT, None)
 
         self._update(member)
 
@@ -211,11 +208,11 @@ class Member(_BaseMember, _HasChatGroupMixin):
 AuthorT = TypeVar("AuthorT", bound="PartialMember", default="PartialMember | Member", covariant=True)
 
 
-class ChatMessage(Message[AuthorT], Generic[AuthorT, MemberT]):
-    channel: GroupChannel | ClanChannel
+class ChatMessage(Message[AuthorT, ChatT], Generic[AuthorT, MemberT, ChatT]):
+    channel: ChatT
     author: AuthorT
 
-    def __init__(self, proto: chat.IncomingChatMessageNotification, channel: Any, author: AuthorT) -> None:
+    def __init__(self, proto: chat.IncomingChatMessageNotification, channel: ChatT, author: AuthorT) -> None:
         super().__init__(channel, proto)
         self.author = author
         self.created_at = DateTime.from_timestamp(proto.timestamp)
@@ -224,11 +221,11 @@ class ChatMessage(Message[AuthorT], Generic[AuthorT, MemberT]):
         self.mentions_here = proto.mentions.mention_here
 
     @classmethod
-    def _from_history(  # type: ignore
-        cls, channel: GroupChannel | ClanChannel, proto: chat.GetMessageHistoryResponseChatMessage
+    def _from_history(
+        cls, channel: ChatT, proto: chat.GetMessageHistoryResponseChatMessage  # type: ignore  # this is a constructor covariance is fine
     ) -> Self:
         self = cls.__new__(cls)  # skip __init__
-        super().__init__(self, channel, proto)  # type: ignore
+        super().__init__(self, channel, proto)
         # if you want a fun time try and figure out the issues in calling these methods
         self.created_at = DateTime.from_timestamp(proto.server_timestamp)
         return self
@@ -323,7 +320,9 @@ class ChatMessage(Message[AuthorT], Generic[AuthorT, MemberT]):
         await self._state.ack_chat_message(*self.channel._location, int(self.created_at.timestamp()))
 
 
-ChatMessageT = TypeVar("ChatMessageT", bound="GroupMessage | ClanMessage", covariant=True)
+ChatMessageT = TypeVar(
+    "ChatMessageT", bound="GroupMessage | ClanMessage", default="GroupMessage | ClanMessage", covariant=True
+)
 
 GroupChannelProtos: TypeAlias = chat.IncomingChatMessageNotification | chat.State | chat.ChatRoomState
 
@@ -412,7 +411,7 @@ class Chat(Channel[ChatMessageT, ClanT, GroupT], _HasChatGroupMixin):
             messages: list[ChatMessageT] = []
 
             for message in resp.messages:
-                new_message = message_cls._from_history(cast("ClanChannel | GroupChannel", self), message)
+                new_message = message_cls._from_history(self, message)  # type: ignore  # there's no easy way to do this
                 if not after < new_message.created_at < before:
                     return
                 if limit is not None and yielded >= limit:
@@ -785,7 +784,7 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
         del self._partial_members
         return self.members
 
-    async def search(self, name: str) -> list[MemberT]:
+    async def search(self, name: str) -> Sequence[MemberT]:
         """Search for members in the chat group.
 
         Parameters

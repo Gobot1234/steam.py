@@ -129,7 +129,7 @@ class PublishedFileImage(_IOMixin):
 
 
 @impl_eq_via_id
-class PublishedFile(Commentable, Awardable, Generic[UserT]):
+class PublishedFile(Commentable, Awardable[PublishedFileID], Generic[UserT]):
     """Represents a published file on SteamPipe."""
 
     __slots__ = (
@@ -201,7 +201,7 @@ class PublishedFile(Commentable, Awardable, Generic[UserT]):
 
     def __init__(self, state: ConnectionState, proto: PublishedFileDetails, author: UserT):
         self._state = state
-        self.id: PublishedFileID = PublishedFileID(proto.publishedfileid)
+        self.id = PublishedFileID(proto.publishedfileid)
         """The file's id."""
         self.name = proto.title
         """The file's name."""

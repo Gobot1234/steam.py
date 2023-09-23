@@ -39,7 +39,7 @@ def READ_F32(
 
 
 class GCState(GCState_[Backpack]):
-    client: Client
+    client: Client  # type: ignore  # PEP 705
     _users: WeakValueDictionary[ID32, User]
     _APP = CSGO  # type: ignore
 

@@ -61,7 +61,11 @@ class GCState(ConnectionState, Generic[Inv]):
     ]  # different to parsers to save on dict lookups 1 vs 2 (1 for app, 1 for msg)
     client: Client
     _APP: Final[App]  # type: ignore
-    user: cached_property[Self, ClientUser]
+    if TYPE_CHECKING:
+
+        @cached_property
+        def user(self) -> ClientUser:
+            ...
 
     def __init__(self, client: Client, **kwargs: Any):
         self._gc_connected = MultiEvent(len(client._GC_APPS))

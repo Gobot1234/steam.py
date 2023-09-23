@@ -55,10 +55,7 @@ CreateableEvents = BoringEvents | Literal[EventType.Game]
 BoringEventT = TypeVar("BoringEventT", bound=BoringEvents)
 
 
-class ClanMember(Member):
-    group: None
-    clan: Clan
-
+class ClanMember(Member["Clan", None]):
     def __init__(self, state: ConnectionState, clan: Clan, user: User, proto: chat.Member):
         super().__init__(state, clan, user, proto)
         self.clan = clan

@@ -34,7 +34,6 @@ if TYPE_CHECKING:
     from .friend import Friend
     from .media import Media
     from .message import UserMessage
-    from .review import Review
     from .state import ConnectionState
     from .types import user
 

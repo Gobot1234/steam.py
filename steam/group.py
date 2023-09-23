@@ -21,10 +21,7 @@ if TYPE_CHECKING:
 __all__ = ("Group", "GroupMember")
 
 
-class GroupMember(Member):
-    group: Group
-    clan: None
-
+class GroupMember(Member[None, "Group"]):
     def __init__(self, state: ConnectionState, group: Group, user: User, proto: chat.Member):
         super().__init__(state, group, user, proto)
         self.group = group

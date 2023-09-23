@@ -7,12 +7,12 @@ from typing import TYPE_CHECKING
 from typing_extensions import Self, TypeVar
 
 from .abc import BaseUser, Message
+from .channel import ClanChannel, GroupChannel, UserChannel
 from .chat import ChatMessage, PartialMember
 from .reaction import Emoticon, MessageReaction, Sticker
 from .utils import DateTime
 
 if TYPE_CHECKING:
-    from .channel import ClanChannel, GroupChannel, UserChannel
     from .clan import Clan, ClanMember
     from .friend import Friend
     from .group import Group, GroupMember
@@ -30,18 +30,17 @@ __all__ = (
 UserMessageAuthorT = TypeVar("UserMessageAuthorT", bound=BaseUser, default="User | Friend | ClientUser", covariant=True)
 
 
-class UserMessage(Message[UserMessageAuthorT]):
+class UserMessage(Message[UserMessageAuthorT, UserChannel]):
     """Represents a message from a user."""
 
     __slots__ = ()
 
-    channel: UserChannel
     mentions: None
 
     def __init__(
         self, proto: friend_messages.IncomingMessageNotification, channel: UserChannel, author: UserMessageAuthorT
     ):
-        super().__init__(channel, proto)  # type: ignore
+        super().__init__(channel, proto)
         self.created_at = DateTime.from_timestamp(proto.rtime32_server_timestamp)
         self.author = author
 
@@ -70,11 +69,9 @@ class UserMessage(Message[UserMessageAuthorT]):
         self._state.dispatch(f"reaction_{'add' if add else 'remove'}", reaction)
 
     @classmethod
-    def _from_history(  # type: ignore
-        cls, channel: UserChannel, proto: friend_messages.GetRecentMessagesResponseFriendMessage
-    ) -> Self:
+    def _from_history(cls, channel: UserChannel, proto: friend_messages.GetRecentMessagesResponseFriendMessage) -> Self:
         self = cls.__new__(cls)  # skip __init__
-        super().__init__(self, channel, proto)  # type: ignore
+        super().__init__(self, channel, proto)
         self.created_at = DateTime.from_timestamp(proto.timestamp)
         return self
 
@@ -87,12 +84,11 @@ GroupMessageAuthorT = TypeVar(
 )
 
 
-class GroupMessage(ChatMessage[GroupMessageAuthorT, "GroupMember"]):
+class GroupMessage(ChatMessage[GroupMessageAuthorT, "GroupMember", GroupChannel]):
     """Represents a message in a group."""
 
     __slots__ = ()
 
-    channel: GroupChannel
     group: Group
     clan: None
 
@@ -105,12 +101,11 @@ ClanMessageAuthorT = TypeVar(
 )
 
 
-class ClanMessage(ChatMessage[ClanMessageAuthorT, "ClanMember"]):
+class ClanMessage(ChatMessage[ClanMessageAuthorT, "ClanMember", ClanChannel]):
     """Represents a message in a clan."""
 
     __slots__ = ()
 
-    channel: ClanChannel
     clan: Clan
     group: None
 

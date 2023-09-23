@@ -519,7 +519,8 @@ class Bot(GroupMixin, Client):
         elif ctx.invoked_with:
             self.dispatch("command_error", ctx, CommandNotFound(f"The command {ctx.invoked_with!r} was not found"))
 
-    async def get_context(self, message: Message, *, cls: type[C] = Context) -> C:
+    # TODO look into removing the Any
+    async def get_context(self, message: Message[Any], *, cls: type[C] = Context) -> C:
         """Get the context for a certain message.
 
         Parameters

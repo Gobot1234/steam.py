@@ -34,8 +34,6 @@ if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Coroutine, Sequence
     from ipaddress import IPv4Address
 
-    import betterproto
-
     from .clan import Clan
     from .comment import Comment
     from .game_server import GameServer
@@ -254,13 +252,16 @@ class _AwardableType(IntEnum):
     Comment = 5
 
 
-class Awardable(Protocol):
+IDT = TypeVar("IDT", bound=int, default=int, covariant=True)
+
+
+class Awardable(Protocol[IDT]):  # type: ignore  # ReadOnly (PEP 705) should save this
     """A mixin that implements award functionality."""
 
     __slots__ = ()
 
-    id: int
     _state: ConnectionState
+    id: IDT
 
     @classproperty
     def _AWARDABLE_TYPE(cls: type[Self]) -> _AwardableType:
@@ -1018,7 +1019,10 @@ def _clean_up_content(content: str) -> str:  # steam does weird stuff with conte
     return content.replace(r"\[", "[").replace("\\\\", "\\")
 
 
-class Message(Generic[UserT], metaclass=abc.ABCMeta):
+ChannelT = TypeVar("ChannelT", bound=Channel, default=Channel, covariant=True)
+
+
+class Message(Generic[UserT, ChannelT], metaclass=abc.ABCMeta):
     """Represents a message from a :class:`~steam.User`. This is a base class from which all messages inherit.
 
     The following classes implement this:
@@ -1058,7 +1062,7 @@ class Message(Generic[UserT], metaclass=abc.ABCMeta):
     created_at: datetime
     """The time this message was sent at."""
 
-    def __init__(self, channel: Channel[Self], proto: Any):
+    def __init__(self, channel: ChannelT, proto: Any):
         self._state: ConnectionState = channel._state
         self.channel = channel
         """The channel the message was sent in."""
@@ -1095,7 +1099,7 @@ class Message(Generic[UserT], metaclass=abc.ABCMeta):
 
     @classmethod
     @abc.abstractmethod
-    def _from_history(cls, channel: Channel[Self], proto: betterproto.Message) -> Self:
+    def _from_history(cls, channel: ChannelT, proto: Any) -> Self:  # type: ignore  # it's a constructor so covariance is fine
         raise NotImplementedError
 
     @property

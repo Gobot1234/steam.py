@@ -25,7 +25,7 @@ log = logging.getLogger(__name__)
 
 
 class GCState(GCState_[Backpack]):
-    client: Client
+    client: Client  # type: ignore  # PEP 705
     _APP = TF2  # type: ignore
 
     def __init__(self, client: Client, **kwargs: Any):

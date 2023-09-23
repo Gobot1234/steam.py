@@ -947,11 +947,11 @@ class AppInfo(ProductInfo, PartialApp[str]):
         ]
         """This app's supported languages."""
 
-        self.language_support = {
-            Language.from_str(language): support
-            for language, support in (common.get("supported_languages") or MultiDict()).items()
-            if isinstance(common.get("supported_languages"), MultiDict)
-        }
+        self.language_support = (
+            {Language.from_str(language): support for language, support in supported_languages.items()}
+            if isinstance(supported_languages := common.get("supported_languages"), MultiDict)
+            else {}
+        )
         """This app's language support."""
 
         self.categories = [
@@ -973,7 +973,7 @@ class AppInfo(ProductInfo, PartialApp[str]):
         """This app's review percentage."""
         self.metacritic_name = common.get("metacritic_name", None)
         """This app's metacritic name."""
-        self.metacritic_score = int(common.get("metacritic_score")) if "metacritic_score" in common else None
+        self.metacritic_score = int(common["metacritic_score"]) if "metacritic_score" in common else None
         """This app's metacritic score."""
         self.metacritic_url = common.get("metacritic_fullurl", None)
         """This app's metacritic URL."""

@@ -192,8 +192,6 @@ class Enum(_Enum if TYPE_CHECKING else object, metaclass=EnumType):
 
     @classmethod
     def _new_member(cls, *, name: str, value: Any) -> Self:
-        # N.B. this method is not ever called after enum creation as it is shadowed by EnumMeta.__call__ and is just
-        # for creating Enum members
         self = (
             super().__new__(cls, value)
             if any(not issubclass(base, Enum) for base in cls.__mro__[:-1])  # is it is a mixin enum

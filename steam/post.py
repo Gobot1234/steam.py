@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 
 @dataclass(repr=False, slots=True, unsafe_hash=True)
-class Post(Awardable, Commentable, Generic[UserT]):
+class Post(Awardable["PostID"], Commentable, Generic[UserT]):
     """Represents a post on Steam Community."""
 
     _state: ConnectionState = field(compare=False, hash=False)

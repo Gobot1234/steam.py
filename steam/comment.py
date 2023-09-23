@@ -26,7 +26,7 @@ OwnerT = TypeVar("OwnerT", bound="Commentable", default="Commentable", covariant
 
 @dataclass(repr=False, slots=True)
 @impl_eq_via_id
-class Comment(Awardable, Generic[OwnerT, AuthorT]):
+class Comment(Awardable["CommentID"], Generic[OwnerT, AuthorT]):
     """Represents a comment on a Steam profile.
 
     .. container:: operations
