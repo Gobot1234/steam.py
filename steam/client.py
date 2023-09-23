@@ -1399,15 +1399,15 @@ class Client:
             yield AppListApp(self._state, app)
 
     @utils.todo
-    async def all_tags(self):
+    async def all_tags(self) -> Any:
         raise NotImplementedError
 
     @utils.todo
-    async def all_categories(self):
+    async def all_categories(self) -> Any:
         raise NotImplementedError
 
     @utils.todo
-    async def all_genres(self):
+    async def all_genres(self) -> Any:
         raise NotImplementedError
 
     async def change_presence(

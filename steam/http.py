@@ -177,8 +177,8 @@ class HTTPClient:
         jar = self._session.cookie_jar
         steam_login_secure = urllib.parse.quote(f"{self.user.id64}||{await self._client._state.ws.access_token()}")
         for url in (URL.COMMUNITY, URL.STORE, URL.HELP):
-            jar.update_cookies(SimpleCookie[str](f"steamLoginSecure={steam_login_secure}"), url)
-            jar.update_cookies(SimpleCookie[str](f"sessionid={self.session_id}"), url)
+            jar.update_cookies(SimpleCookie(f"steamLoginSecure={steam_login_secure}"), url)
+            jar.update_cookies(SimpleCookie(f"sessionid={self.session_id}"), url)
         self.logged_in = True
 
     async def ensure_logged_in(self) -> None:
