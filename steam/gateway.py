@@ -828,29 +828,32 @@ class SteamWebSocket:
         self,
         um: UnifiedMessage,
         /,
-        check: Callable[[UnifiedMsgT], bool] = ...,  # type: ignore  # we rely on this not being solvable.
-        # I won't tell Eric if you won't. (This isn't part of PEP 696)
+        check: Callable[[UnifiedMsgT], bool] | None = None,
     ) -> UnifiedMsgT:
         um.header.job_id_source = job_id = self.next_job_id
-        check = check if check is not ... else (lambda um: um.header.job_id_target == job_id)
+        check = check if check is not None else (lambda um: um.header.job_id_target == job_id)
         future = self.wait_for(emsg=EMsg.ServiceMethodSendToClient, check=check)
         await self.send_proto(um)
         return await future
 
-    async def send_proto_and_wait(self, msg: ProtoMsgs, /, check: Callable[[ProtoMsgsT], bool] = ...) -> ProtoMsgsT:  # type: ignore
+    async def send_proto_and_wait(
+        self, msg: ProtoMsgs, /, check: Callable[[ProtoMsgsT], bool] | None = None
+    ) -> ProtoMsgsT:
         msg.header.job_id_source = job_id = self.next_job_id
         future = self.wait_for(
-            emsg=None, check=check if check is not ... else (lambda msg: msg.header.job_id_target == job_id)
+            emsg=None, check=check if check is not None else (lambda msg: msg.header.job_id_target == job_id)
         )
         await self.send_proto(msg)
         return await future
 
-    async def send_gc_message_and_wait(self, msg: GCMsgs, /, check: Callable[[GCMsgProtoT], bool] = ...) -> GCMsgProtoT:  # type: ignore
+    async def send_gc_message_and_wait(
+        self, msg: GCMsgs, /, check: Callable[[GCMsgProtoT], bool] | None = None
+    ) -> GCMsgProtoT:
         msg.header.job_id_source = job_id = self.next_gc_job_id
         future = self.gc_wait_for(
             emsg=None,
             app_id=msg.APP_ID,
-            check=check if check is not ... else (lambda msg: msg.header.job_id_target == job_id),
+            check=check if check is not None else (lambda msg: msg.header.job_id_target == job_id),
         )
         await self.send_gc_message(msg)
         return await future
