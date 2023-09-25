@@ -563,6 +563,7 @@ class SteamWebSocket:
             assert poll_resp is not None
 
         self.client_id = poll_resp.new_client_id or begin_resp.client_id
+        self._access_token = poll_resp.access_token
         return poll_resp.refresh_token
 
     async def update_auth_with_code(
