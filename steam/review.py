@@ -249,9 +249,8 @@ class Review(Commentable, Awardable):
             Whether the user received compensation for this review. Defaults to the current value.
         """
         if self.commentable is None and commentable is None:
-            raise ValueError(
-                "Pass an argument for commentable or use fetch_review to determine its current comment-ability."
-            )
+            review = await self.author.fetch_review(self.app)
+            commentable = review.commentable
         await self._state.edit_review(
             self.id,
             content,
