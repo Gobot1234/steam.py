@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 from .abc import Channel
 from .chat import Chat, GroupChannelProtos
+from .message import ClanMessage, GroupMessage
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Coroutine
@@ -16,7 +17,7 @@ if TYPE_CHECKING:
     from .friend import Friend
     from .group import Group
     from .media import Media
-    from .message import ClanMessage, GroupMessage, UserMessage
+    from .message import UserMessage
     from .state import ConnectionState
     from .user import User
 
@@ -92,7 +93,7 @@ class UserChannel(Channel["UserMessage", None, None]):
         return self.participant.history(limit=limit, before=before, after=after)
 
 
-class GroupChannel(Chat["GroupMessage", None, "Group"]):
+class GroupChannel(Chat[GroupMessage, None, "Group"]):
     """Represents a group channel."""
 
     __slots__ = ()
@@ -102,7 +103,7 @@ class GroupChannel(Chat["GroupMessage", None, "Group"]):
         self.group = group
 
 
-class ClanChannel(Chat["ClanMessage", "Clan", None]):
+class ClanChannel(Chat[ClanMessage, "Clan", None]):
     """Represents a clan channel."""
 
     __slots__ = ()

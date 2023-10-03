@@ -7,12 +7,12 @@ from typing import TYPE_CHECKING
 from typing_extensions import Self, TypeVar
 
 from .abc import BaseUser, Message
-from .channel import ClanChannel, GroupChannel, UserChannel
 from .chat import ChatMessage, PartialMember
 from .reaction import Emoticon, MessageReaction, Sticker
 from .utils import DateTime
 
 if TYPE_CHECKING:
+    from .channel import ClanChannel, GroupChannel, UserChannel
     from .clan import Clan, ClanMember
     from .friend import Friend
     from .group import Group, GroupMember
@@ -30,7 +30,7 @@ __all__ = (
 UserMessageAuthorT = TypeVar("UserMessageAuthorT", bound=BaseUser, default="User | Friend | ClientUser", covariant=True)
 
 
-class UserMessage(Message[UserMessageAuthorT, UserChannel]):
+class UserMessage(Message[UserMessageAuthorT, "UserChannel"]):
     """Represents a message from a user."""
 
     __slots__ = ()
@@ -84,7 +84,7 @@ GroupMessageAuthorT = TypeVar(
 )
 
 
-class GroupMessage(ChatMessage[GroupMessageAuthorT, "GroupMember", GroupChannel]):
+class GroupMessage(ChatMessage[GroupMessageAuthorT, "GroupMember", "GroupChannel"]):
     """Represents a message in a group."""
 
     __slots__ = ()
@@ -101,7 +101,7 @@ ClanMessageAuthorT = TypeVar(
 )
 
 
-class ClanMessage(ChatMessage[ClanMessageAuthorT, "ClanMember", ClanChannel]):
+class ClanMessage(ChatMessage[ClanMessageAuthorT, "ClanMember", "ClanChannel"]):
     """Represents a message in a clan."""
 
     __slots__ = ()
