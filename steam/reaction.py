@@ -39,6 +39,7 @@ __all__ = (
     "Sticker",
     "ClientEmoticon",
     "ClientSticker",
+    "ClientEffect",
 )
 
 
@@ -358,7 +359,11 @@ class ClientSticker(BaseClientEmoticon, Sticker):
         return PartialApp(self._state, id=self._app_id)  # no point fetching cause endpoint doesn't return name
 
 
-class ClientEffect(BaseEmoticon):
+class Effect(BaseEmoticon):
+    ...
+
+
+class ClientEffect(Effect):
     __slots__ = (
         "count",
         "received_at",
@@ -380,6 +385,10 @@ class ClientEffect(BaseEmoticon):
 
     def __str__(self) -> str:
         return f"/roomeffect {self.name}"
+
+    async def app(self) -> PartialApp[None]:
+        """Fetches this effect's associated app."""
+        return PartialApp(self._state, id=self._app_id)  # no point fetching cause endpoint doesn't return name
 
 
 # https://cdn.akamai.steamstatic.com/steamcommunity/public/assets/winter2019/roomeffects/96px/firework.png

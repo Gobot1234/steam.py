@@ -1410,6 +1410,10 @@ class Client:
     async def all_genres(self) -> Any:
         raise NotImplementedError
 
+    @utils.todo
+    async def all_stickers(self) -> Any:
+        raise NotImplementedError  # QueryRewardItemsRequest
+
     async def change_presence(
         self,
         *,
