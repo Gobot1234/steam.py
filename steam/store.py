@@ -118,7 +118,7 @@ class StoreItemPurchaseOption:
 
 @dataclass(slots=True)
 class LanguageSupport:
-    langauge: Language
+    language: Language
     supported: bool
     audio: bool
     subtitles: bool
