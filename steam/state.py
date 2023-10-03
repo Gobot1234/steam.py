@@ -2246,17 +2246,20 @@ class ConnectionState:
     async def fetch_item_info(
         self, app_id: AppID, items: Iterable[CacheKey], language: Language | None
     ) -> dict[CacheKey, econ.ItemDescription]:
-        msgs: list[econ.GetAssetClassInfoResponse] = await asyncio.gather(
-            *(
-                self.ws.send_um_and_wait(
-                    econ.GetAssetClassInfoRequest(
-                        language=(language or self.language).api_name,
-                        appid=app_id,
-                        classes=[econ.GetAssetClassInfoRequestClass(*item_info) for item_info in chunk],
+        msgs = cast(
+            list[econ.GetAssetClassInfoResponse],
+            await asyncio.gather(
+                *(
+                    self.ws.send_um_and_wait(
+                        econ.GetAssetClassInfoRequest(
+                            language=(language or self.language).api_name,
+                            appid=app_id,
+                            classes=[econ.GetAssetClassInfoRequestClass(*item_info) for item_info in chunk],
+                        )
                     )
+                    for chunk in utils.as_chunks(items, 100)
                 )
-                for chunk in utils.as_chunks(items, 100)
-            )
+            ),
         )
 
         return cast(

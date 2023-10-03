@@ -562,7 +562,7 @@ class TradeOffer(Generic[ReceivingAssetT, SendingAssetT, UserT]):
 
         Raises
         ------
-        steam.ClientException
+        ValueError
             The trade is not active.
         steam.ConfirmationError
             No matching confirmation could not be found.

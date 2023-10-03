@@ -476,7 +476,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
 
         # these actually need fetching
         view_id = self._state.chat_group_to_view_id[self._id]
-        users: dict[ID32, User] = {
+        users = {
             user.id: user
             for users in await asyncio.gather(
                 *(
