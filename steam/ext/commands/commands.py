@@ -14,6 +14,7 @@ import inspect
 import itertools
 from collections.abc import Callable, Coroutine, Iterable, Sequence
 from time import time
+from types import UnionType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -533,7 +534,7 @@ class Command(Generic[CogT, P, R]):
                 try:
                     ret = await self._convert(ctx, converter, param, argument)
                 except BadArgument:
-                    if origin is not Union:
+                    if origin not in (Union, UnionType):
                         raise
                 else:
                     if origin is not Literal:
@@ -541,7 +542,7 @@ class Command(Generic[CogT, P, R]):
                     if arg == ret:
                         return ret
 
-            if origin is Union and args[-1] is type(None):  # typing.Optional
+            if origin in (Union, UnionType) and args[-1] is type(None):  # typing.Optional
                 try:
                     return self._get_default(ctx, param)  # get the default if possible
                 except MissingRequiredArgument:
