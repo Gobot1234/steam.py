@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from functools import partial
 from io import BytesIO, StringIO
-from typing import TYPE_CHECKING, Any, Final, Literal, Protocol, TypeVar, cast, final
+from typing import TYPE_CHECKING, Any, Final, Literal, Protocol, TypeAlias, TypeVar, cast, final
 
 from multidict import MultiDict
 from yarl import URL as _URL
@@ -207,6 +207,21 @@ class _HasChatGroupMixin(Protocol):
         chat_group = self.clan or self.group
         assert chat_group is not None
         return chat_group
+
+
+T_co = TypeVar("T_co", covariant=True)
+
+
+class _ReadOnlyProto(Protocol[T_co]):
+    def __get__(self, __instance: Any, __owner: type) -> T_co:
+        ...
+
+
+ReadOnly: TypeAlias = T_co | _ReadOnlyProto[T_co]
+"""PEP 705 style read only, should make things a easier transition when the feature gets added to nominal classes.
+
+Currently does not mean anything to a type checker really.
+"""
 
 
 @dataclass(frozen=True, slots=True)

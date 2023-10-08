@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Generic
 
 from typing_extensions import Never, TypeVar
 
-from ._const import impl_eq_via_id
+from ._const import ReadOnly, impl_eq_via_id
 from .abc import Awardable, Commentable
 from .types.user import AuthorT
 
@@ -41,7 +41,7 @@ class Comment(Awardable["CommentID"], Generic[OwnerT, AuthorT]):
     """
 
     _state: ConnectionState
-    id: CommentID
+    id: ReadOnly[CommentID]
     """The comment's ID."""
     content: str
     """The comment's content."""

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
-from ._const import impl_eq_via_id
+from ._const import ReadOnly, impl_eq_via_id
 from .abc import Awardable, Commentable, _CommentableKwargs
 from .app import PartialApp
 from .enums import Language, ReviewType
@@ -103,7 +103,7 @@ class Review(Commentable, Awardable):
     )
 
     _state: ConnectionState
-    id: int
+    id: ReadOnly[int]
     """The ID of the review."""
     author: ReviewUser
     """The author of the review."""

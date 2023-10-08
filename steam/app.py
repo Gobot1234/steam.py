@@ -23,6 +23,7 @@ from ._const import (
     UNIX_EPOCH,
     URL,
     WRITE_U32,
+    ReadOnly,
     impl_eq_via_id,
 )
 from .achievement import AppAchievement, AppStats
@@ -1682,7 +1683,7 @@ class FetchedAppMovie(_IOMixin):
         self._state = state
         self.name: str = movie["name"]
         self.id: int = movie["id"]
-        self.url: str = movie["mp4"]["max"]
+        self.url: ReadOnly[str] = movie["mp4"]["max"]
         match = re.search(r"t=(\d+)", self.url)
         self.created_at = DateTime.from_timestamp(int(match[1])) if match else None
 

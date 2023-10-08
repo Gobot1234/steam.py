@@ -2,16 +2,17 @@
 
 from __future__ import annotations
 
+import abc
 import re
-from contextlib import asynccontextmanager
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import timedelta
 from io import BytesIO
-from typing import TYPE_CHECKING, Any, Literal, ParamSpec, TypedDict, TypeVar, cast, runtime_checkable
+from typing import TYPE_CHECKING, Any, Literal, ParamSpec, TypedDict, TypeVar, runtime_checkable
 
 from typing_extensions import Protocol
 
-from ._const import DEFAULT_AVATAR, URL
+from ._const import DEFAULT_AVATAR, URL, ReadOnly
 from .enums import Currency, PurchaseResult, Realm, Result
 from .media import Media
 from .types.id import AppID, ClassID
@@ -184,23 +185,12 @@ class StreamReaderProto(Protocol):
 
 
 @runtime_checkable
-class _IOMixin(Protocol):
+class _IOMixinNoOpen(Protocol):
     __slots__ = ()
 
-    if __debug__:
-
-        def __init_subclass__(cls) -> None:
-            if cls.open is _IOMixin.open and not hasattr(cls, "url") and not hasattr(cls, "_state"):
-                raise NotImplementedError("Missing required attributes for implicit _IOMixin.open()")
-
-    @asynccontextmanager
-    async def open(self) -> AsyncGenerator[StreamReaderProto, None]:
-        """Open this file as and returns its contents as an :class:`aiohttp.StreamReader`."""
-        url = cast(str, self.url)  # type: ignore
-        state = cast("ConnectionState", self._state)  # type: ignore
-
-        async with state.http._session.get(url) as r:
-            yield r.content
+    @abc.abstractmethod
+    def open(self) -> AbstractAsyncContextManager[StreamReaderProto]:
+        raise NotImplementedError
 
     async def read(self, **kwargs: Any) -> bytes:
         """Read the whole contents of this file."""
@@ -231,6 +221,18 @@ class _IOMixin(Protocol):
         return Media(BytesIO(await self.read()), spoiler=spoiler)
 
 
+@runtime_checkable
+class _IOMixin(_IOMixinNoOpen, Protocol):
+    __slots__ = ()
+    _state: ConnectionState
+    url: ReadOnly[str]
+
+    @asynccontextmanager
+    async def open(self) -> AsyncGenerator[StreamReaderProto, None]:
+        async with self._state.http._session.get(self.url) as r:
+            yield r.content
+
+
 class Avatar(_IOMixin):
     __slots__ = (
         "sha",
@@ -259,7 +261,7 @@ class Avatar(_IOMixin):
 @dataclass(slots=True, unsafe_hash=True)
 class CDNAsset(_IOMixin):
     _state: ConnectionState = field(repr=False, hash=False)
-    url: str = field()
+    url: ReadOnly[str] = field()
     """The URL of the asset."""
 
 

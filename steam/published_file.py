@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Generic
 from bs4 import BeautifulSoup
 from yarl import URL as URL_
 
-from ._const import DEFAULT_AVATAR, impl_eq_via_id
+from ._const import DEFAULT_AVATAR, ReadOnly, impl_eq_via_id
 from .abc import Awardable, Commentable, PartialUser, _CommentableKwargs
 from .app import PartialApp
 from .enums import Language, PublishedFileRevision, PublishedFileType, PublishedFileVisibility
@@ -46,7 +46,7 @@ class DetailsPreview(_IOMixin):
     _state: ConnectionState
     id: int
     position: int
-    url: str
+    url: ReadOnly[str]
     size: int
     filename: str
     type: int
@@ -62,7 +62,7 @@ class PreviewInfo(_IOMixin):
     _state: ConnectionState
     ugc_id: int
     size: int
-    url: str
+    url: ReadOnly[str]
 
 
 @dataclass(slots=True)
@@ -112,7 +112,7 @@ class PublishedFileFile(_IOMixin):
     """The file's filename."""
     size: int
     """The file's size."""
-    url: str
+    url: ReadOnly[str]
     """The file's cdn_url."""
 
 
@@ -124,7 +124,7 @@ class PublishedFileImage(_IOMixin):
     """The file's image's width."""
     height: int
     """The file's image's height."""
-    url: str
+    url: ReadOnly[str]
     """The file's image's url."""
 
 

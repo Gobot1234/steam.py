@@ -68,7 +68,7 @@ class Metal(Fraction):
     def __new__(cls, value: SupportsMetal, /) -> Self:  # type: ignore
         ...
 
-    def __new__(cls, value: SupportsMetal, /, *, _normalize: bool = ...) -> Self:
+    def __new__(cls, value: SupportsMetal, /, *, _normalize: bool = True) -> Self:
         return super().__new__(cls, cls.extract_scrap(value), 9)
 
     @classmethod

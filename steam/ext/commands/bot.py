@@ -24,7 +24,6 @@ from ... import _const, utils
 from ...client import Client, ClientKwargs, F, log
 from ...id import Intable, parse_id64
 from ...message import Message
-from .cog import Cog
 from .commands import Check, CheckType, Command, CoroFunc, CoroFuncT, GroupMixin, MaybeBool, check
 from .context import Context
 from .converters import CONVERTERS, Converters
@@ -33,9 +32,11 @@ from .help import DefaultHelpCommand, HelpCommand
 from .utils import Coro, Shlex
 
 if TYPE_CHECKING:
-    from typing_extensions import Required, Unpack
+    from typing_extensions import Required, Self, Unpack
 
     from steam.ext import commands
+
+    from .cog import Cog
 
 
 __all__ = (
@@ -140,7 +141,7 @@ class Bot(GroupMixin, Client):
 
     def __init__(self, **options: Unpack[BotKwargs]):
         super().__init__(**options)
-        self.__cogs__: dict[str, Cog] = {}
+        self.__cogs__: dict[str, Cog[Self]] = {}
         self.__listeners__: dict[str, list[CoroFunc]] = {}
         self.__extensions__: dict[str, ModuleType] = {}
 
@@ -168,7 +169,7 @@ class Bot(GroupMixin, Client):
         self._after_hook = None
 
     @property
-    def cogs(self) -> MappingProxyType[str, Cog]:
+    def cogs(self) -> MappingProxyType[str, Cog[Self]]:
         """A read only mapping of any loaded cogs."""
         return MappingProxyType(self.__cogs__)
 
@@ -332,7 +333,7 @@ class Bot(GroupMixin, Client):
             sys.modules[previous.__name__] = previous
             raise
 
-    async def add_cog(self, cog: Cog) -> None:
+    async def add_cog(self, cog: Cog[Self]) -> None:
         """Add a cog to the internal list.
 
         Parameters
@@ -340,13 +341,10 @@ class Bot(GroupMixin, Client):
         cog
             The cog to add.
         """
-        if not isinstance(cog, Cog):
-            raise TypeError("Cogs must derive from commands.Cog")
-
         await cog._inject(self)
         self.__cogs__[cog.qualified_name] = cog
 
-    async def remove_cog(self, cog: Cog) -> None:
+    async def remove_cog(self, cog: Cog[Self]) -> None:
         """Remove a cog from the internal list.
 
         Parameters
@@ -572,7 +570,7 @@ class Bot(GroupMixin, Client):
             if message.content.startswith(prefix):
                 return prefix
 
-    def get_cog(self, name: str) -> Cog | None:
+    def get_cog(self, name: str) -> Cog[Self] | None:
         """Get a loaded cog or ``None``.
 
         Parameters

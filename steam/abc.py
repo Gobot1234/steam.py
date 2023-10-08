@@ -14,7 +14,7 @@ from typing_extensions import Required, Self, TypeVar
 from yarl import URL as URL_
 
 from . import utils
-from ._const import HTML_PARSER, MISSING, STEAM_EPOCH, UNIX_EPOCH, URL, VDF_BINARY_LOADS
+from ._const import HTML_PARSER, MISSING, STEAM_EPOCH, UNIX_EPOCH, URL, VDF_BINARY_LOADS, ReadOnly
 from .achievement import UserAppAchievement, UserAppStats
 from .app import *
 from .badge import FavouriteBadge, UserBadges
@@ -261,7 +261,7 @@ class Awardable(Protocol[IDT]):  # type: ignore  # ReadOnly (PEP 705) should sav
     __slots__ = ()
 
     _state: ConnectionState
-    id: IDT
+    id: ReadOnly[IDT]
 
     @classproperty
     def _AWARDABLE_TYPE(cls: type[Self]) -> _AwardableType:

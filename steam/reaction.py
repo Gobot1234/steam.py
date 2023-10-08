@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Final, Protocol, cast, overload
 from yarl import URL
 
 from .app import PartialApp
-from .models import _IOMixin
+from .models import _IOMixin, _IOMixinNoOpen
 from .protobufs.chat import EChatRoomMessageReactionType
 from .utils import DateTime
 
@@ -83,7 +83,7 @@ AWARD_ID_TO_NAME: Final = cast(Mapping[int, str], {
 })  # fmt: skip
 
 
-class Award(_IOMixin):
+class Award(_IOMixinNoOpen):
     """Represents an award."""
 
     def __init__(self, state: ConnectionState, id: int):

@@ -109,7 +109,7 @@ class Cog(Generic[BotT]):
     command_attrs: Final[Mapping[str, Any]]
     qualified_name: Final[str]
     description: Final[str | None]
-    bot: BotT
+    bot: Final[BotT]
 
     def __init_subclass__(
         cls, name: str | None = None, command_attrs: dict[str, Any] | None = None, **kwargs: Any
@@ -226,17 +226,17 @@ class Cog(Generic[BotT]):
         This is called before :func:`teardown`.
         """
 
-    async def _inject(self, bot: Bot) -> None:
+    async def _inject(self, bot: BotT) -> None:  # type: ignore
         cls = self.__class__
         self.bot = bot  # type: ignore
-        if cls.bot_check is not Cog.bot_check:  # type: ignore
+        if cls.bot_check is not Cog.bot_check:
             bot.add_check(check(self.bot_check))
 
         for idx, command in enumerate(self.__commands__.values()):
             command = deepcopy(command)
             command.cog = self
 
-            if cls.cog_check is not Cog.cog_check:  # type: ignore
+            if cls.cog_check is not Cog.cog_check:
                 command.checks.append(check(self.cog_check))
 
             if isinstance(command, Group):
