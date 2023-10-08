@@ -109,14 +109,14 @@ class PlayerRankingInfoEnum(IntEnum):
     Wins                        = 3
     RankChange                  = 4
     RankeTypeID                 = 5
-    TVControl                   = 6 
-    RankWindowStats             = 7 
-    LeaderboardName             = 8 
-    RankIfWin                   = 9 
-    RankIfLose                  = 10 
-    RankIfTie                   = 11 
-    PerMapRanking               = 12 
-    LeaderboardNameStatus       = 13 
+    TVControl                   = 6
+    RankWindowStats             = 7
+    LeaderboardName             = 8
+    RankIfWin                   = 9
+    RankIfLose                  = 10
+    RankIfTie                   = 11
+    PerMapRanking               = 12
+    LeaderboardNameStatus       = 13
 
 class Rank(IntEnum):
     NotRanked                   = 0

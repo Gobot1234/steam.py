@@ -1,10 +1,10 @@
-
 from dataclasses import dataclass
 
 import betterproto
 
 from ....protobufs.msg import GCProtobufMessage
 from ..enums import EMsg
+
 
 @dataclass(eq=False, repr=False)
 class PlayerRankingInfo(betterproto.Message):
