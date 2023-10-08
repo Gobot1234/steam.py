@@ -98,7 +98,25 @@ class ItemOrigin(IntEnum):
     LevelUpReward             = 24
     Max                       = 25
 
+class PerMapRankEnum(IntEnum):
+    MapID                     = 1
+    RANK_ID                   = 2
+    WINS                      = 3
 
+class PlayerRankingInfoEnum(IntEnum):
+    AccountID                   = 1
+    RankID                      = 2
+    Wins                        = 3
+    RankChange                  = 4
+    RankeTypeID                 = 5
+    TVControl                   = 6 
+    RankWindowStats             = 7 
+    LeaderboardName             = 8 
+    RankIfWin                   = 9 
+    RankIfLose                  = 10 
+    RankIfTie                   = 11 
+    PerMapRanking               = 12 
+    LeaderboardNameStatus       = 13 
 
 class Rank(IntEnum):
     NotRanked                   = 0
