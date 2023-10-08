@@ -1684,7 +1684,7 @@ class FetchedAppMovie(_IOMixin):
         self.name: str = movie["name"]
         self.id: int = movie["id"]
         self.url: ReadOnly[str] = movie["mp4"]["max"]
-        match = re.search(r"t=(\d+)", self.url)
+        match = re.search(r"t=(\d+)", self.url)  # type: ignore  # should become unnecessary at some point
         self.created_at = DateTime.from_timestamp(int(match[1])) if match else None
 
     def __repr__(self) -> str:

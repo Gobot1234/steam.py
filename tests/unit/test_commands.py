@@ -43,7 +43,7 @@ async def test_commands():
                 ...
 
         with pytest.raises(TypeError):
-            await bot.add_cog(MyCog2())
+            await bot.add_cog(MyCog2())  # type: ignore
 
 
 def test_annotations() -> None:
