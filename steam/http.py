@@ -1096,7 +1096,7 @@ class HTTPClient:
         return (date, int(snapshot_number.rstrip(":")), avg_price, int(quantity))
 
     async def get_listings(self, app_id: AppID, item_name: str) -> list[market.Listing]:
-        headers = {"Referer": URL.MARKET / "search" % {"appid": app_id}}
+        headers = {"Referer": URL.MARKET / "search" % {"appid": app_id}}  # TODO use /render
         resp = await self.get(URL.MARKET / f"listings/{app_id}/{item_name}", headers=headers)
         soup = BeautifulSoup(resp, "html.parser")  # needs to be html.parser
         tag = soup.find("div", class_="responsive_page_template_content", id="responsive_page_template_content")

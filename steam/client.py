@@ -47,7 +47,7 @@ from .game_server import GameServer, Query
 from .gateway import *
 from .guard import get_authentication_code
 from .http import HTTPClient
-from .id import _ID64_TO_ID32, ID, parse_id64
+from .id import _ID64_TO_ID32
 from .market import Listing, PriceHistory, PriceOverview, Wallet
 from .models import CDNAsset, return_true
 from .package import FetchedPackage, License, Package, PartialPackage
@@ -760,7 +760,7 @@ class Client:
             avatar=avatar,
         )
         try:
-            await ChatGroup.join(clan)  # type: ignore  # should be removed one day
+            await ChatGroup.join(clan)
         except WSException:
             log.debug("Failed to join clan chat group", exc_info=True)
         return clan
