@@ -82,7 +82,7 @@ class Paint:
 class BaseItem(metaclass=ABCMeta):
     """Represents an item received from the Game Coordinator."""
 
-    __slots__ = (
+    __slots__ = SLOTS = (
         "position",
         "paint",
         "tradable_after",
@@ -90,6 +90,8 @@ class BaseItem(metaclass=ABCMeta):
         "_state",
         *tuple(base.Item.__annotations__),
     )
+    if not TYPE_CHECKING:
+        __slots__ = ()
 
     _state: GCState
     position: int
@@ -150,7 +152,9 @@ class CasketItem(BaseItem):
     @property
     def casket(self) -> Casket:
         """The casket this item is from."""
-        casket = utils.get(self._state.backpack, id=self._casket_id)
+        backpack = self._state.backpack
+        assert backpack is not None
+        casket = utils.get(backpack, id=self._casket_id)
         assert isinstance(casket, Casket)
         return casket
 
@@ -159,10 +163,10 @@ class CasketItem(BaseItem):
 
 
 @dataclass(repr=False)
-class BaseInspectedItem(metaclass=ABCMeta):
+class BaseInspectedItem:
     """Represents an item received after inspecting an item."""
 
-    __slots__ = (
+    __slots__ = SLOTS = (
         "id",
         "def_index",
         "paint",
@@ -179,6 +183,8 @@ class BaseInspectedItem(metaclass=ABCMeta):
         "music_index",
         "ent_index",
     )
+    if not TYPE_CHECKING:
+        __slots__ = ()
 
     id: int
     """The item's asset ID."""
@@ -218,23 +224,8 @@ class BaseInspectedItem(metaclass=ABCMeta):
 OwnerT = TypeVar("OwnerT", bound="PartialUser", default="BaseUser", covariant=True)
 
 
-if TYPE_CHECKING:  # avoid mro issues but keep types
-
-    class InspectedItem(Item[OwnerT], BaseInspectedItem):
-        __slots__ = ()
-
-    class BaseBackpackItem(Item[OwnerT], BaseItem):
-        __slots__ = ()
-
-else:
-
-    @BaseInspectedItem.register
-    class InspectedItem(Item[OwnerT]):
-        __slots__ = BaseInspectedItem.__slots__
-
-    @BaseItem.register
-    class BaseBackpackItem(Item[OwnerT]):
-        __slots__ = BaseItem.__slots__
+class InspectedItem(Item[OwnerT], BaseInspectedItem):
+    __slots__ = BaseInspectedItem.SLOTS
 
 
 F = TypeVar("F", bound=Callable[..., object])
@@ -251,10 +242,10 @@ def has_to_be_in_our_inventory(func: F) -> F:
     return func
 
 
-class BackpackItem(BaseBackpackItem[OwnerT]):
+class BackpackItem(Item[OwnerT], BaseItem):
     """A class to represent an item which can interact with the GC."""
 
-    __slots__ = ()
+    __slots__ = tuple(set(BaseItem.SLOTS) - {"_state"})
     _state: GCState
 
     REPR_ATTRS = (*Item.REPR_ATTRS, "position")
@@ -376,9 +367,6 @@ class Casket(BackpackItem["ClientUser"]):
 
     async def contents(self) -> list[CasketItem]:
         """This casket's contents"""
-        if not self.contained_item_count:
-            return []
-
         contained_items = [item for item in self._state.casket_items.values() if item._casket_id == self.id]
         if len(contained_items) == self.contained_item_count:
             return contained_items

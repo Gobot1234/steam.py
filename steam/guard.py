@@ -29,7 +29,7 @@ AUTH_CODE_CHARS: Final = "23456789BCDFGHJKMNPQRTVWXY"
 AUTH_CODE_CHARS_LEN: Final = len(AUTH_CODE_CHARS)
 
 
-def _hmac(secret: str, buffer: bytes) -> bytes:
+def _hmac(secret: str, buffer: bytes, /) -> bytes:
     return hmac.new(base64.b64decode(secret), buffer, digestmod=sha1).digest()
 
 
@@ -121,7 +121,7 @@ class Confirmation:
             "tag": tag,
         }
 
-    async def _perform_op(self, op: Tags) -> None:
+    async def _perform_op(self, op: Tags, /) -> None:
         params = await self._confirm_params(op) | {"op": op, "cid": self.id, "ck": self.nonce}
         resp = await self._state.http.get(URL.COMMUNITY / "mobileconf/ajaxop", params=params)
         if not resp["success"]:

@@ -17,13 +17,13 @@ from typing_extensions import Self, TypeVar
 
 from . import utils
 from ._const import (
-    DOCS_BUILDING,
     JSON_LOADS,
     STATE,
     STEAM_BADGES,
     UNIX_EPOCH,
     URL,
     WRITE_U32,
+    ReadOnly,
     impl_eq_via_id,
 )
 from .achievement import AppAchievement, AppStats
@@ -32,7 +32,7 @@ from .enums import *
 from .id import _ID64_TO_ID32, id64_from_url
 from .models import CDNAsset, DescriptionMixin, _IOMixin
 from .protobufs import client_server, econ, player
-from .tag import FetchedAppCategory, PartialTag
+from .tag import Category, FetchedAppCategory, PartialTag, Tag
 from .types.id import *
 from .utils import DateTime
 
@@ -112,6 +112,9 @@ class App(Generic[NameT]):
         self.name = name
         """The app's name."""
 
+    def __str__(self) -> str:
+        return self.name or f"App: {self.id}"
+
     def __repr__(self) -> str:
         attrs = ("name", "id")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
@@ -131,13 +134,13 @@ class App(Generic[NameT]):
 
     @property
     def url(self) -> str:
-        """What should be the app's url on steamcommunity if applicable."""
+        """The app's URL on https://steamcommunity.com."""
         return f"{URL.COMMUNITY}/app/{self.id}"
 
 
 def CUSTOM_APP(
     name: str,
-) -> App[str]:  # TODO if actually optimising make this return a different class cause it's a u64 cause haha steam
+) -> App[str]:
     """Create a custom app instance for :meth:`~steam.Client.change_presence`.
     The :attr:`App.id` will be set to ``15190414816125648896``.
 
@@ -152,6 +155,7 @@ def CUSTOM_APP(
     name
         The name of the app to set your playing status to.
     """
+    # if actually optimising make this return a different class cause it's a u64 cause haha steam
     return App(name=name, id=15190414816125648896)
 
 
@@ -591,7 +595,7 @@ class CommunityItem(Generic[AppT]):
         )
 
     @property
-    def badges(self) -> list[AppBadge[AppT]]:
+    def badges(self) -> Sequence[AppBadge[AppT]]:
         """The badges for the item."""
         if self.class_ is not CommunityItemClass.Badge:
             return []
@@ -600,14 +604,12 @@ class CommunityItem(Generic[AppT]):
 
         badges: list[AppBadge[AppT]] = []
         previous_name = ""
-        for id, (name, image) in enumerate(
-            zip(self.data["level_names"].values(), self.data["level_images"].values()), start=1
-        ):
+        for name, image in zip(self.data["level_names"].values(), self.data["level_images"].values()):
             if not name:
                 name = previous_name
             badge = AppBadge(
                 self._state,
-                id,
+                1,
                 name,
                 self.app,
                 CDNAsset(self._state, f"{URL.CDN}/steamcommunity/public/images/items/{self.app.id}/{image}"),
@@ -617,7 +619,7 @@ class CommunityItem(Generic[AppT]):
         return badges
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, unsafe_hash=True)
 class RewardItem(Generic[AppT]):
     """Represents a reward item in the Steam Points Shop."""
 
@@ -639,7 +641,7 @@ class RewardItem(Generic[AppT]):
     """The movie of the reward item. Uses the ``.mp4`` version."""
     animated: bool
     """Whether the reward item is animated."""
-    badges: list[AppBadge[AppT]]
+    badges: Sequence[AppBadge[AppT]]
     """The badges for the item."""
     def_index: int
     """The def index of the reward item."""
@@ -1354,17 +1356,17 @@ class PartialApp(App[NameT]):
                     else None
                 ),
                 def_.community_item_data.animated,
-                [
+                tuple(
                     AppBadge(
                         self._state,
-                        idx,
+                        1,
                         f"{def_.community_item_data.item_name.removesuffix(' Point Shop Badge')} - Level {badge.level}",
                         self,
                         CDNAsset(self._state, f"{URL.CDN}/steamcommunity/public/images/items/{self.id}/{badge.image}"),
                         badge.level,
                     )
-                    for idx, badge in enumerate(def_.community_item_data.badge_data, start=1)
-                ],
+                    for badge in def_.community_item_data.badge_data
+                ),
                 def_.defid,
                 def_.quantity,
                 CommunityItemClass.try_value(def_.community_item_class),
@@ -1384,7 +1386,7 @@ class PartialApp(App[NameT]):
         for item, def_ in zip(items, defs):
             if def_.bundle_defids:
                 item.bundles = cast(
-                    "list[RewardItem[Self]]", [utils.get(items, def_index=id) for id in def_.bundle_defids]
+                    "tuple[RewardItem[Self], ...]", tuple(utils.get(items, def_index=id) for id in def_.bundle_defids)
                 )
 
         return items
@@ -1410,9 +1412,17 @@ class PartialApp(App[NameT]):
 
         badge_def = utils.get(community_items, class_=CommunityItemClass.Badge)
         badge_rewards = utils.get(rewards, class_=CommunityItemClass.Badge)
+
+        if badge_def is None and badge_rewards is None:
+            return []
+        if badge_def is not None and badge_rewards is None:
+            return badge_def.badges
+        if badge_def is None and badge_rewards is not None:
+            return badge_rewards.badges
+
         assert badge_def
         assert badge_rewards
-        return badge_def.badges + badge_rewards.badges
+        return [*badge_def.badges, *badge_rewards.badges]
 
     async def legacy_cd_key(self) -> str:
         """Fetch the legacy CD key for this app."""
@@ -1481,24 +1491,14 @@ class Apps(PartialApp[str], Enum):
 
     __slots__ = ("_name",)
 
-    def __new__(cls, name: str, *args: Any, value: tuple[str, int] | tuple[()] = ()) -> Apps:
+    @classmethod
+    def _new_member(cls, *, name: str, value: tuple[str, int]) -> Self:
         self = object.__new__(cls)
         set_attribute = object.__setattr__
-
-        if args:  # being called when docs are building
-            name = ""
-            value = (name, args[0])
-
-        assert value
         set_attribute(self, "_name", name)
         set_attribute(self, "name", value[0])
         set_attribute(self, "id", value[1])
         return self
-
-    if DOCS_BUILDING:
-
-        def __init__(self, *args: Any) -> None:
-            ...
 
     def __repr__(self) -> str:
         return self._name
@@ -1573,9 +1573,9 @@ class DLC(PartialApp[str]):
         """A price overview for the DLC."""
 
         platforms = data["platforms"]
-        self._on_windows: bool = platforms["windows"]
-        self._on_mac_os: bool = platforms["mac"]
-        self._on_linux: bool = platforms["linux"]
+        self._on_windows = platforms["windows"]
+        self._on_mac_os = platforms["mac"]
+        self._on_linux = platforms["linux"]
 
     def is_free(self) -> bool:
         """Whether the app is free to download."""
@@ -1729,7 +1729,7 @@ class WishlistApp(PartialApp[str]):
         """The time that the app was added to their wishlist."""
         self.background = CDNAsset(state, data["background"])
         """The background of the app."""
-        self.tags = [PartialTag(int(tag)) for tag in data["tags"]]
+        self.tags = [Tag(state, int(tag)) for tag in data["tags"]]
         """The tags of the app."""
         self.rank = data["rank"]
         """The global rank of the app by popularity."""
@@ -1772,8 +1772,8 @@ class FetchedAppMovie(_IOMixin):
         self._state = state
         self.name: str = movie["name"]
         self.id: int = movie["id"]
-        self.url: str = movie["mp4"]["max"]
-        match = re.search(r"t=(\d+)", self.url)
+        self.url: ReadOnly[str] = movie["mp4"]["max"]
+        match = re.search(r"t=(\d+)", self.url)  # type: ignore  # should become unnecessary at some point
         self.created_at = DateTime.from_timestamp(int(match[1])) if match else None
 
     def __repr__(self) -> str:
@@ -1832,8 +1832,7 @@ class FetchedApp(PartialApp[str]):
         """The type of the app."""
 
         self.categories = [
-            FetchedAppCategory(state, id=category["id"], name=category["description"])
-            for category in data["categories"]
+            Category(state, id=category["id"], name=category["description"]) for category in data["categories"]
         ]
 
         try:

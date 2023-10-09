@@ -33,26 +33,28 @@ from typing import (
     overload,
 )
 
-from bs4 import BeautifulSoup
+from yarl import URL as URL_
 
 from . import utils
 from ._const import DOCS_BUILDING, STATE, UNIX_EPOCH, URL, TaskGroup, timeout
 from .achievement import UserNewsAchievement
 from .app import App, AppListApp, AuthenticationTicket, FetchedApp, PartialApp
 from .bundle import Bundle, FetchedBundle, PartialBundle
+from .chat import ChatGroup
 from .enums import *
+from .errors import WSException
 from .game_server import GameServer, Query
 from .gateway import *
 from .guard import get_authentication_code
 from .http import HTTPClient
-from .id import ID, parse_id64
+from .id import _ID64_TO_ID32, ID, parse_id64
 from .market import Listing, PriceHistory, PriceOverview, Wallet
 from .models import CDNAsset, return_true
 from .package import FetchedPackage, License, Package, PartialPackage
 from .protobufs import store
 from .state import ConnectionState
 from .store import AppStoreItem, BundleStoreItem, PackageStoreItem, TransactionReceipt
-from .types.id import AppID, BundleID, Intable, PackageID, PublishedFileID, TradeOfferID
+from .types.id import ID64, AppID, BundleID, PackageID, PublishedFileID, TradeOfferID
 from .user_news import UserNews
 from .utils import DateTime, TradeURLInfo
 
@@ -74,12 +76,14 @@ if TYPE_CHECKING:
     from .group import Group
     from .invite import AppInvite, ClanInvite, GroupInvite, UserInvite
     from .manifest import AppInfo, PackageInfo
+    from .media import Media
     from .post import Post
     from .published_file import PublishedFile
-    from .reaction import ClientEmoticon, ClientSticker, MessageReaction
+    from .reaction import ClientEffect, ClientEmoticon, ClientSticker, MessageReaction
     from .trade import Asset, Item, MovedItem, TradeOffer
     from .types import market
     from .types.http import IPAdress
+    from .types.user import IndividualID
     from .user import ClientUser, User
 
 
@@ -88,8 +92,7 @@ __all__ = ("Client",)
 log = logging.getLogger(__name__)
 
 CoroFunc: TypeAlias = Callable[..., Coroutine[Any, Any, Any]]
-E = TypeVar("E", bound=CoroFunc)
-EventDeco: TypeAlias = Callable[[E], E] | E
+F = TypeVar("F", bound=CoroFunc)
 P = ParamSpec("P")
 
 
@@ -156,10 +159,6 @@ class Client:
         ``True`` isn't recommend unless you have a good internet connection and good hardware.
     """
 
-    # TODO
-    # Client.create_clan
-    # Client.create_group
-
     def __init__(self, **options: Unpack[ClientKwargs]):
         self.http = HTTPClient(client=self, **options)
         self._state = self._get_state(**options)
@@ -224,6 +223,11 @@ class Client:
         return self._state.stickers
 
     @property
+    def effects(self) -> Sequence[ClientEffect]:
+        """A read-only list of all the effects the client has."""
+        return self._state.effects
+
+    @property
     def latency(self) -> float:
         """Measures latency between a heartbeat send and the heartbeat interval in seconds."""
         return float("nan") if self.ws is None else self.ws.latency
@@ -258,17 +262,8 @@ class Client:
         """Indicates if connection is closed to the WebSocket."""
         return self._closed
 
-    @overload
-    def event(self, coro: None = ...) -> Callable[[E], E]:
-        ...
-
-    @overload
-    def event(self, coro: E) -> E:
-        ...
-
-    def event(self, coro: Callable[[E], E] | E | None = None) -> Callable[[E], E] | E:
-        """|maybecallabledeco|
-        Register an event to listen to.
+    def event(self, coro: F) -> F:
+        """A decorator that registers an event to listen to.
 
         The events must be a :ref:`coroutine <coroutine>`, if not, :exc:`TypeError` is raised.
 
@@ -286,15 +281,12 @@ class Client:
             The function passed is not a coroutine.
         """
 
-        def decorator(coro: E) -> E:
-            if not inspect.iscoroutinefunction(coro):
-                raise TypeError(f"Registered events must be a coroutines, {coro.__name__} is {type(coro).__name__}")
+        if not inspect.iscoroutinefunction(coro):
+            raise TypeError(f"Registered events must be coroutine functions, {coro.__name__} is {type(coro).__name__}")
 
-            setattr(self, coro.__name__, coro)
-            log.debug("%s has been registered as an event", coro.__name__)
-            return coro
-
-        return decorator(coro) if coro is not None else decorator
+        setattr(self, coro.__name__, coro)
+        log.debug("%s has been registered as an event", coro.__name__)
+        return coro
 
     async def _run_event(self, coro: CoroFunc, event_name: str, *args: Any, **kwargs: Any) -> None:
         try:
@@ -504,7 +496,8 @@ class Client:
                     await throttle()
                     continue
 
-                self._tg.create_task(dispatch_ready())
+                if login_func != SteamWebSocket.anonymous_login_from_client:
+                    self._tg.create_task(dispatch_ready())
 
                 # this entire thing is a bit of a cluster fuck
                 # but that's what you deserve for having async parsers
@@ -615,32 +608,27 @@ class Client:
         await self._login(SteamWebSocket.anonymous_login_from_client)
 
     # state stuff
-    # TODO decide on where this should take id32s
-    def get_user(self, id: Intable) -> User | None:
+    def get_user(self, id: int, /) -> User | None:
         """Returns a user from cache with a matching ID or ``None`` if the user was not found.
 
         Parameters
         ----------
         id
-            The ID of the user, can be an :attr:`.ID.id64`, :attr:`.ID.id`, :attr:`.ID.id2` or an
-            :attr:`.ID.id3`.
+            The ID64 of the user.
         """
-        steam_id = ID(id=id, type=Type.Individual)
-        return self._state.get_user(steam_id.id)
+        return self._state.get_user(_ID64_TO_ID32(id))
 
-    async def fetch_user(self, id: Intable) -> User:
+    async def fetch_user(self, id: int, /) -> User:
         """Fetches a user with a matching ID.
 
         Parameters
         ----------
         id
-            The ID of the user, can be an :attr:`.ID.id64`, :attr:`.ID.id`, :attr:`.ID.id2` or an
-            :attr:`.ID.id3`.
+            The ID64 of the user.
         """
-        id64 = parse_id64(id=id, type=Type.Individual)
-        return await self._state.fetch_user(id64)
+        return await self._state.fetch_user(ID64(id))
 
-    async def fetch_users(self, *ids: Intable) -> Sequence[User]:
+    async def fetch_users(self, *ids: int) -> Sequence[User]:
         """Fetches a list of :class:`~steam.User`.
 
         Note
@@ -650,34 +638,22 @@ class Client:
         Parameters
         ----------
         ids
-            The user's IDs.
+            The user's ID64s.
         """
-        id64s = [parse_id64(id, type=Type.Individual) for id in ids]
-        return await self._state.fetch_users(id64s)
+        return await self._state.fetch_users(cast("tuple[ID64, ...]", ids))
 
-    async def fetch_user_named(self, name: str) -> User | None:
-        """Fetches a user from https://steamcommunity.com from their community URL name.
-
-        Parameters
-        ----------
-        name
-            The name of the user after https://steamcommunity.com/id
-        """
-        id64 = await utils.id64_from_url(URL.COMMUNITY / f"id/{name}", self.http._session)
-        return await self._state.fetch_user(id64) if id64 is not None else None
-
-    def get_trade(self, id: int) -> TradeOffer | None:
+    def get_trade(self, id: int, /) -> TradeOffer | None:
         """Get a trade from cache with a matching ID or ``None`` if the trade was not found.
 
         Parameters
         ----------
         id
-            The id of the trade to search for from the cache.
+            The ID of the trade to search for from the cache.
         """
         return self._state.get_trade(TradeOfferID(id))
 
     async def fetch_trade(
-        self, id: int, *, language: Language | None = None
+        self, id: int, /, *, language: Language | None = None
     ) -> TradeOffer[Item[User], Item[ClientUser], User] | None:
         """Fetches a trade with a matching ID or ``None`` if the trade was not found.
 
@@ -690,54 +666,132 @@ class Client:
         """
         return await self._state.fetch_trade(TradeOfferID(id), language)
 
-    def get_group(self, id: Intable) -> Group | None:
+    def get_group(self, id: int, /) -> Group | None:
         """Get a group from cache with a matching ID or ``None`` if the group was not found.
 
         Parameters
         ----------
         id
-            The ID of the group, can be an :attr:`.ID.id64`, :attr:`.ID.id`, :attr:`.ID.id2` or an
-            :attr:`.ID.id3`.
+            The ID64 of the group.
         """
-        steam_id = ID(id=id, type=Type.Chat)
-        return self._state.get_group(steam_id.id)
+        return self._state.get_group(_ID64_TO_ID32(id))
 
-    def get_clan(self, id: Intable) -> Clan | None:
+    def get_clan(self, id: int, /) -> Clan | None:
         """Get a clan from cache with a matching ID or ``None`` if the group was not found.
 
         Parameters
         ----------
         id
-            The ID of the clan, can be an :attr:`.ID.id64`, :attr:`.ID.id`, :attr:`.ID.id2` or an
-            :attr:`.ID.id3`.
+            The ID64 of the clan.
         """
-        steam_id = ID(id=id, type=Type.Clan)
-        return self._state.get_clan(steam_id.id)
+        return self._state.get_clan(_ID64_TO_ID32(id))
 
-    async def fetch_clan(self, id: Intable) -> Clan | None:
-        """Fetches a clan from the websocket with a matching ID or ``None`` if the clan was not found.
+    async def fetch_clan(self, id: int, /) -> Clan:
+        """Fetches a clan from the websocket with a matching ID.
 
         Parameters
         ----------
         id
-            The ID of the clan, can be an :attr:`.ID.id64`, :attr:`.ID.id`, :attr:`.ID.id2` or an
-            :attr:`.ID.id3`.
+            The ID64 of the clan.
         """
-        id64 = parse_id64(id=id, type=Type.Clan)
-        return await self._state.fetch_clan(id64)
+        return await self._state.fetch_clan(ID64(id))
 
-    async def fetch_clan_named(self, name: str) -> Clan | None:
-        """Fetches a clan from https://steamcommunity.com with a matching name or ``None`` if the clan was not found.
+    async def create_clan(
+        self,
+        name: str,
+        /,
+        *,
+        abbreviation: str | None = None,
+        community_url: URL_ | str | None = None,
+        public: bool = True,
+        headline: str | None = None,
+        summary: str | None = None,
+        language: Language | None = None,
+        country: str | None = None,
+        state: str | None = None,
+        city: str | None = None,
+        apps: Iterable[App] | None = None,
+        avatar: Media | None = None,
+    ) -> Clan:
+        """Create a clan.
 
         Parameters
         ----------
         name
-            The name of the Steam clan.
+            The name of the clan.
+        avatar
+            The avatar of the clan.
+        abbreviation
+            The abbreviation of the clan.
+        community_url
+            The community URL of the clan.
+        public
+            Whether the clan is public.
+        headline
+            The headline of the clan.
+        summary
+            The summary of the clan.
+        language
+            The language of the clan.
+        country
+            The country of the clan.
+        state
+            The state of the clan.
+        city
+            The city of the clan.
+        apps
+            The apps the clan is associated with.
         """
-        steam_id = await ID.from_url(URL.COMMUNITY / "clans" / name, self.http._session)
-        return await self._state.fetch_clan(steam_id.id64) if steam_id is not None else None
+        if isinstance(community_url, str):
+            community_url = URL_(community_url)
+        if community_url is not None:
+            community_url = community_url.parts[-1] or community_url.parts[-2]
 
-    def get_app(self, id: int) -> PartialApp[None]:
+        id64 = await self.http.create_clan(name, abbreviation, community_url, public)
+        clan = await self._state._maybe_clan(id64, create=True)  # should just be created by steam for us
+        await clan.edit(
+            headline=headline,
+            summary=summary,
+            language=language,
+            country=country,
+            state=state,
+            city=city,
+            apps=apps,
+            avatar=avatar,
+        )
+        try:
+            await ChatGroup.join(clan)  # type: ignore  # should be removed one day
+        except WSException:
+            log.debug("Failed to join clan chat group", exc_info=True)
+        return clan
+
+    async def create_group(
+        self,
+        name: str,
+        /,
+        *,
+        members: Iterable[IndividualID],
+        avatar: Media | None = None,
+        tagline: str | None = None,
+    ) -> Group:
+        """Create a group.
+
+        Parameters
+        ----------
+        name
+            The name of the group.
+        members
+            The members to add to the group.
+        avatar
+            The avatar of the group.
+        tagline
+            The tagline of the group.
+        """
+        group = await self._state.create_group(name, members)
+        await group.edit(tagline=tagline, avatar=avatar)
+        return group
+
+    def get_app(self, id: int, /) -> PartialApp[None]:
         """Creates a :class:`PartialApp` instance from its ID.
 
         Parameters
@@ -747,7 +801,7 @@ class Client:
         """
         return PartialApp(self._state, id=id)
 
-    async def fetch_app(self, id: int, *, language: Language | None = None) -> FetchedApp:
+    async def fetch_app(self, id: int, /, *, language: Language | None = None) -> FetchedApp:
         """Fetch an app from its ID.
 
         Parameters
@@ -764,7 +818,7 @@ class Client:
         """
         return await self._state.fetch_app(AppID(id), language)
 
-    def get_package(self, id: int) -> PartialPackage:
+    def get_package(self, id: int, /) -> PartialPackage:
         """Creates a :class:`PartialPackage` from its ID.
 
         Parameters
@@ -774,7 +828,7 @@ class Client:
         """
         return PartialPackage(self._state, id=id)
 
-    async def fetch_package(self, id: int, *, language: Language | None = None) -> FetchedPackage:
+    async def fetch_package(self, id: int, /, *, language: Language | None = None) -> FetchedPackage:
         """Fetch a package from its ID.
 
         Parameters
@@ -791,7 +845,7 @@ class Client:
         """
         return await self._state.fetch_package(PackageID(id), language)
 
-    async def redeem_package(self, id: int) -> License:
+    async def redeem_package(self, id: int, /) -> License:
         """Redeem a promotional free licenses package from its ID.
 
         Parameters
@@ -806,7 +860,7 @@ class Client:
             await self.http.redeem_package(id)
             return await future
 
-    def get_bundle(self, id: int) -> PartialBundle:
+    def get_bundle(self, id: int, /) -> PartialBundle:
         """Creates a :class:`PartialBundle` instance from its ID.
 
         Parameters
@@ -816,7 +870,7 @@ class Client:
         """
         return PartialBundle(self._state, id=id)
 
-    async def fetch_bundle(self, id: int, *, language: Language | None = None) -> FetchedBundle:
+    async def fetch_bundle(self, id: int, /, *, language: Language | None = None) -> FetchedBundle:
         """Fetch a bundle from its ID.
 
         Parameters
@@ -829,7 +883,7 @@ class Client:
         return await self._state.fetch_bundle(BundleID(id), language)
 
     @overload
-    async def fetch_server(self, *, id: Intable) -> GameServer | None:
+    async def fetch_server(self, *, id: int) -> GameServer | None:
         ...
 
     @overload
@@ -844,7 +898,7 @@ class Client:
     async def fetch_server(
         self,
         *,
-        id: Intable | None = None,
+        id: int | None = None,
         ip: IPAdress | str | None = None,
         port: int | str | None = None,
     ) -> GameServer | None:
@@ -857,8 +911,7 @@ class Client:
         port
             The port of the server.
         id
-            The ID of the game server, can be an :attr:`.ID.id64`, :attr:`.ID.id2` or an :attr:`.ID.id3`.
-            If this is passed, it makes a call to the master server to fetch its ip and port.
+            The ID64 of the game server. If passed, it makes a call to the master server to fetch its ip and port.
 
         Note
         ----
@@ -869,7 +922,7 @@ class Client:
             raise TypeError("Too many arguments passed to fetch_server")
         if id:
             # we need to fetch the ip and port
-            servers = await self._state.fetch_server_ip_from_steam_id(parse_id64(id, type=Type.GameServer))
+            servers = await self._state.fetch_server_ip_from_steam_id(ID64(id))
             if not servers:
                 raise ValueError(f"The master server didn't find a matching server for {id}")
             ip_, _, port = servers[0].addr.rpartition(":")
@@ -877,20 +930,24 @@ class Client:
         elif not ip:
             raise TypeError("fetch_server missing argument ip")
 
-        servers = await self.fetch_servers(Query.ip / f"{ip}{f':{port}' if port is not None else ''}", limit=1)
+        servers = await self.fetch_servers(Query.where(ip=f"{ip}{f':{port}' if port is not None else ''}"), limit=1)
         return servers[0] if servers else None
 
-    async def fetch_servers(self, query: Query[Any], *, limit: int = 100) -> list[GameServer]:
+    async def fetch_servers(self, query: str | None = None, /, *, limit: int = 100) -> list[GameServer]:
         """Query game servers.
 
         Parameters
         ----------
         query
-            The query to match servers with.
+            The query to match servers with. If None returns all servers.
         limit
             The maximum amount of servers to return.
+
+        See Also
+        --------
+        :meth:`.Query.where` to generate these programmatically.
         """
-        servers = await self._state.fetch_servers(query.query, limit)
+        servers = await self._state.fetch_servers(query or "", limit)
         return [GameServer(self._state, server) for server in servers]
 
     # content server related stuff
@@ -1060,7 +1117,7 @@ class Client:
                     ],
                 )
 
-    async def register_cd_key(self, key: str) -> TransactionReceipt:
+    async def register_cd_key(self, key: str, /) -> TransactionReceipt:
         """Register a CD key.
 
         Parameters
@@ -1076,6 +1133,7 @@ class Client:
     async def fetch_published_file(
         self,
         id: int,
+        /,
         *,
         revision: PublishedFileRevision = PublishedFileRevision.Default,
         language: Language | None = None,
@@ -1113,7 +1171,7 @@ class Client:
         """
         return await self._state.fetch_published_files(cast(tuple[PublishedFileID, ...], ids), revision, language)
 
-    async def create_post(self, content: str, app: App | None = None) -> Post[ClientUser]:
+    async def create_post(self, content: str, /, app: App | None = None) -> Post[ClientUser]:
         """Create a post.
 
         Parameters
@@ -1124,7 +1182,7 @@ class Client:
             The app to create the post for.
         """
         await self._state.create_user_post(content, app_id=AppID(0) if app is None else app.id)
-        async for entry in self.user_news(flags=UserNewsType.Post):
+        async for entry in self.user_news(flags=UserNewsType.Friend, app=app):
             if entry.app == app and entry.actor == self.user:
                 post = await entry.post()
                 if post.content == content:
@@ -1158,7 +1216,7 @@ class Client:
         language
             The language to fetch the news in. If ``None``, the current language is used.
         """
-        before = before or DateTime.now()
+        before = original_before = before or DateTime.now()
         after = after or UNIX_EPOCH
         if flags is None:
             flags = UserNewsType.Friend if app is None else UserNewsType.App
@@ -1184,16 +1242,20 @@ class Client:
                 }
                 for achievements in msg.achievement_display_data
             }
+            if not msg.news:
+                return
 
             for news_item in msg.news:
-                yield (news := UserNews(self._state, news_item, achievements.get(news_item.gameid, {})))
+                news = UserNews(self._state, news_item, achievements.get(news_item.gameid, {}))
+                if after < news.created_at < original_before:
+                    yield news
+                else:
+                    return
                 before = news.created_at
                 if limit is not None:
                     limit -= 1
                     if limit <= 0:
                         return
-            else:
-                return
 
     async def trade_history(
         self,
@@ -1338,6 +1400,22 @@ class Client:
             modified_after=modified_after,
         ):
             yield AppListApp(self._state, app)
+
+    @utils.todo
+    async def all_tags(self) -> Any:
+        raise NotImplementedError
+
+    @utils.todo
+    async def all_categories(self) -> Any:
+        raise NotImplementedError
+
+    @utils.todo
+    async def all_genres(self) -> Any:
+        raise NotImplementedError
+
+    @utils.todo
+    async def all_stickers(self) -> Any:
+        raise NotImplementedError  # QueryRewardItemsRequest
 
     async def change_presence(
         self,
@@ -1583,9 +1661,7 @@ class Client:
                 The comment received.
             """
 
-        async def on_invite(
-            self, invite: steam.UserInvite | steam.ClanInvite | steam.GroupInvite | steam.AppInvite, /
-        ) -> None:
+        async def on_invite(self, invite: steam.Invite, /) -> None:
             """Called when the client receives/sends an invitation.
 
             Parameters
@@ -1594,9 +1670,7 @@ class Client:
                 The invite received.
             """
 
-        async def on_invite_accept(
-            self, invite: steam.UserInvite | steam.ClanInvite | steam.GroupInvite | steam.AppInvite, /
-        ) -> None:
+        async def on_invite_accept(self, invite: steam.Invite, /) -> None:
             """Called when the client/author accepts an invitation.
 
             Parameters
@@ -1605,9 +1679,7 @@ class Client:
                 The invite that was accepted.
             """
 
-        async def on_invite_decline(
-            self, invite: steam.UserInvite | steam.ClanInvite | steam.GroupInvite | steam.AppInvite, /
-        ) -> None:
+        async def on_invite_decline(self, invite: steam.Invite, /) -> None:
             """Called when the client/author declines an invitation.
 
             Parameters
@@ -1946,7 +2018,7 @@ class Client:
         self: Bot,
         event: Literal["command_error"],
         *,
-        check: Callable[[commands.Context, Exception], bool] | None = ...,
+        check: Callable[[commands.Context, Exception], bool] = ...,
         timeout: float | None = ...,
     ) -> tuple[commands.Context, Exception]:
         ...
@@ -1959,7 +2031,7 @@ class Client:
             "command_completion",
         ],
         *,
-        check: Callable[[commands.Context], bool] | None = ...,
+        check: Callable[[commands.Context], bool] = ...,
         timeout: float | None = ...,
     ) -> commands.Context:
         ...

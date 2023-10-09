@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "steamio"
-version = "1.0.0a"
+version = "1.0.0rc1"
 description = "A Python wrapper for the Steam API"
 authors = ["Gobot1234 <gobot1234yt@gmail.com>"]
 license = "MIT"
@@ -34,7 +34,7 @@ aiohttp = "^3.8"
 beautifulsoup4 = "^4.10"
 cryptography = "^41"
 betterproto = "2.0.0b6"
-typing-extensions = "4.7.1"
+typing-extensions = "4.8.0"
 vdf = "^3.4"
 taskgroup = { git = "https://github.com/Gobot1234/taskgroup", rev = "default", python = "<3.11" }
 
@@ -51,6 +51,7 @@ optional = true
 [tool.poetry.group.docs.dependencies]
 sphinx = "^7"
 myst-parser = "^2"
+lutra = { git = "https://github.com/pradyunsg/lutra", rev = "main" }
 sphinxcontrib_trio = "^1.1.2"
 sphinx-copybutton = "^0.5.0"
 sphinx-codeautolink = "^0.15"
@@ -58,6 +59,12 @@ csscompressor = "^0.9.5"
 htmlmin = "^0.1.12"
 rjsmin = "^1.2.0"
 click = "^8.1.6"
+
+[tool.poetry.group.examples]
+optional = true
+[tool.poetry.group.examples.dependencies]
+"discord.py" = "^2"
+babel = "^2"
 
 [tool.poetry.group.dev]
 optional = true
@@ -67,9 +74,9 @@ isort = "^5.10"
 pytest = "^7.1"
 pytest-asyncio = "^0.21"
 pre-commit = "^3.1"
-poethepoet = "^0.21"
+poethepoet = "^0.24"
 blacken-docs = "^1.12"
-ruff = "^0.0.285"
+ruff = "^0.0.292"
 tomli = { version = "~2", python = "<3.11" }
 hypothesis = "^6.82.0"
 types-docutils = "^0.20.0.1"
@@ -166,7 +173,10 @@ reportUnnecessaryContains = true
 reportIncompatibleMethodOverride = true
 reportIncompatibleVariableOverride = true
 reportShadowedImports = "none"
-ignore = ["steam/ext/commands", "tests"]
+reportPrivateImportUsage = false
+deprecateTypingAliases = true
+enableExperimentalFeatures = true
+ignore = ["docs"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

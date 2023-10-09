@@ -33,6 +33,7 @@ __all__ = (
     "CommunityVisibilityState",
     "TradeOfferState",
     "ChatMemberRank",
+    "ChatMemberJoinState",
     "ChatEntryType",
     "ClanAccountFlags",
     "UIMode",
@@ -79,7 +80,7 @@ class classproperty(Generic[TT_co, T_co]):
         return self.__func__(type)
 
 
-def _is_descriptor(obj: object) -> bool:
+def _is_descriptor(obj: object, /) -> bool:
     """Returns True if obj is a descriptor, False otherwise."""
     return hasattr(obj, "__get__") or hasattr(obj, "__set__") or hasattr(obj, "__delete__")
 
@@ -131,7 +132,7 @@ class EnumType(_EnumMeta if TYPE_CHECKING else type):
 
         for name, value in members.items():
             if (member := value_map.get(value)) is None or member.name not in namespace.aliases:
-                member = cls.__new__(cls, name=name, value=value)  # type: ignore  # this method doesn't exist at type time.
+                member = cls._new_member(name=name, value=value)
                 value_map[value] = member
 
             member_map[name] = member
@@ -140,12 +141,6 @@ class EnumType(_EnumMeta if TYPE_CHECKING else type):
         return cls
 
     if not TYPE_CHECKING:
-
-        def __call__(cls, value: Any) -> Enum:
-            try:
-                return cls._value_map_[value]
-            except (KeyError, TypeError):
-                raise ValueError(f"{value!r} is not a valid {cls.__name__}") from None
 
         def __iter__(cls) -> Generator[Enum, None, None]:
             yield from cls._member_map_.values()
@@ -189,20 +184,23 @@ class Enum(_Enum if TYPE_CHECKING else object, metaclass=EnumType):
     _member_map_: Mapping[str, Self]
     _value_map_: Mapping[Any, Self]
 
-    if not TYPE_CHECKING:
+    def __new__(cls, value: Any) -> Self:
+        try:
+            return cls._value_map_[value]
+        except (KeyError, TypeError):
+            raise ValueError(f"{value!r} is not a valid {cls.__name__}") from None
 
-        def __new__(cls, *, name: str, value: Any) -> Self:
-            # N.B. this method is not ever called after enum creation as it is shadowed by EnumMeta.__call__ and is just
-            # for creating Enum members
-            self = (
-                super().__new__(cls, value)
-                if any(not issubclass(base, Enum) for base in cls.__mro__[:-1])  # is it is a mixin enum
-                else super().__new__(cls)  # type: ignore
-            )
-            super().__setattr__(self, "name", name)
-            super().__setattr__(self, "value", value)
+    @classmethod
+    def _new_member(cls, *, name: str, value: Any) -> Self:
+        self = (
+            super().__new__(cls, value)
+            if any(not issubclass(base, Enum) for base in cls.__mro__[:-1])  # is it is a mixin enum
+            else super().__new__(cls)  # type: ignore
+        )
+        super().__setattr__(self, "name", name)
+        super().__setattr__(self, "value", value)
 
-            return self
+        return self
 
     if not DOCS_BUILDING:
 
@@ -222,11 +220,11 @@ class Enum(_Enum if TYPE_CHECKING else object, metaclass=EnumType):
         return f"{self.__class__.__name__}.{self.name}"
 
     @classmethod
-    def try_value(cls, value: Any) -> Self:
+    def try_value(cls, value: Any, /) -> Self:
         try:
             return cls._value_map_[value]
         except (KeyError, TypeError):
-            return cls.__new__(cls, name=f"{cls.__name__}UnknownValue", value=value)
+            return cls._new_member(name=f"{cls.__name__}UnknownValue", value=value)
 
 
 class IntEnum(Enum, int):
@@ -252,7 +250,7 @@ class Flags(IntEnum):
                 returning_flag |= flag
             if returning_flag == value:
                 return returning_flag
-        return cls.__new__(cls, name=f"{cls.__name__}UnknownValue", value=value)
+        return cls._new_member(name=f"{cls.__name__}UnknownValue", value=value)
 
     def __or__(self, other: SupportsInt) -> Self:
         cls = self.__class__
@@ -260,7 +258,7 @@ class Flags(IntEnum):
         try:
             return cls._value_map_[value]
         except KeyError:
-            return cls.__new__(cls, name=f"{self.name} | {getattr(other, 'name', other)}", value=value)
+            return cls._new_member(name=f"{self.name} | {getattr(other, 'name', other)}", value=value)
 
     def __and__(self, other: SupportsInt) -> Self:
         cls = self.__class__
@@ -268,7 +266,7 @@ class Flags(IntEnum):
         try:
             return cls._value_map_[value]
         except KeyError:
-            return cls.__new__(cls, name=f"{self.name} & {getattr(other, 'name', other)}", value=value)
+            return cls._new_member(name=f"{self.name} & {getattr(other, 'name', other)}", value=value)
 
     def __invert__(self) -> Self:
         member = self.try_value(~-self.value)
@@ -303,8 +301,8 @@ class Intents(Flags):
     Using this comes could lead to your account being banned, much more so than with any other library operations.
     """
 
-    @classmethod
-    def all(cls) -> Self:
+    @classproperty
+    def All(cls: type[Self]) -> Self:  # type: ignore
         """Returns all the intents.
 
         Warning
@@ -313,14 +311,14 @@ class Intents(Flags):
 
         See also
         --------
-        :meth:`safe` as a safe alternative to this function which is less likely to get you banned.
+        :attr:`Safe` as a safe alternative to this function which is less likely to get you banned.
         """
         return reduce(cls.__or__, cls._value_map_.values())
 
-    @classmethod
-    def safe(cls) -> Self:
+    @classproperty
+    def Safe(cls: type[Self]) -> Self:  # type: ignore
         """Returns all the intents without the unsafe ones."""
-        return cls.all() & ~cls.Market
+        return cls.All & ~cls.Market
 
 
 class Result(IntEnum):
@@ -753,18 +751,18 @@ class Language(IntEnum):
         return self.WEB_API_MAP[self]
 
     @classmethod
-    def from_str(cls, string: str) -> Self:
+    def from_str(cls, string: str, /) -> Self:
         try:
             return _REVERSE_API_LANGUAGE_MAP[string.lower()]
         except KeyError:
-            return cls.__new__(cls, name=string.title(), value=-1)
+            return cls._new_member(name=string.title(), value=-1)
 
     @classmethod
-    def from_web_api_str(cls, string: str) -> Self:
+    def from_web_api_str(cls, string: str, /) -> Self:
         try:
             return _REVERSE_WEB_API_MAP[string]
         except KeyError:
-            return cls.__new__(cls, name=string, value=-1)
+            return cls._new_member(name=string, value=-1)
 
 
 _REVERSE_API_LANGUAGE_MAP: Final = cast(
@@ -773,6 +771,7 @@ _REVERSE_API_LANGUAGE_MAP: Final = cast(
 _REVERSE_WEB_API_MAP: Final = cast(
     Mapping[str, Language], {value: key for key, value in Language.WEB_API_MAP.items()}
 )
+
 
 class Currency(IntEnum):
     """All currencies currently supported by Steam."""
@@ -872,11 +871,11 @@ class Currency(IntEnum):
     """The Romanian Leu."""
 
     @classmethod
-    def try_name(cls, name: str) -> Self:
+    def try_name(cls, name: str, /) -> Self:
         try:
             return cls._member_map_[name]
         except (KeyError, TypeError):
-            return cls.__new__(cls, name=name, value=-1)
+            return cls._new_member(name=name, value=-1)
 
 
 class Realm(IntEnum):
@@ -1181,20 +1180,6 @@ class TradeOfferState(IntEnum):
     StateInEscrow             = 11
     """The trade offer is in escrow."""
 
-    @property
-    def event_name(self) -> str | None:
-        try:
-            return {
-                TradeOfferState.Accepted: "accept",
-                TradeOfferState.Countered: "counter",
-                TradeOfferState.Expired: "expire",
-                TradeOfferState.Canceled: "cancel",
-                TradeOfferState.Declined: "decline",
-                TradeOfferState.CanceledBySecondaryFactor: "cancel",
-            }[self]
-        except KeyError:
-            return None
-
 
 class ChatMemberRank(IntEnum):
     """The rank of a chat member."""
@@ -1212,6 +1197,12 @@ class ChatMemberRank(IntEnum):
     """Officer rank for a chat member."""
     Owner = 50
     """Owner rank for a chat member."""
+
+class ChatMemberJoinState(IntEnum):
+    """The join state of a chat member."""
+    Default = 0
+    NONE = 1
+    Joined = 2
 
 
 class ChatEntryType(IntEnum):
@@ -1560,6 +1551,8 @@ class AppType(Flags):
     """A comic."""
     Beta        = 1 << 16
     """A beta for a game."""
+    Media = 1 << 17
+    """Legacy Media"""
 
     Shortcut    = 1 << 30
     """A shortcut to another app, client side only."""
@@ -1567,7 +1560,7 @@ class AppType(Flags):
     """A placeholder since depots and apps share the same namespace."""
 
     @classmethod
-    def from_str(cls, name: str) -> Self:
+    def from_str(cls, name: str, /) -> Self:
         types = iter(name.split(","))
         type = next(types).strip().title()
         self = cls[TYPE_TRANSFORM_MAP.get(type, type)]
@@ -2088,6 +2081,7 @@ class ContentDescriptor(IntEnum):
     StrongSexualContent = 3
     AnyMatureContent = 5
 
+
 class has_associated_flag(int):
     flag: int
     def __new__(cls, value: int, flag: int) -> Self:
@@ -2135,12 +2129,12 @@ class UserNewsType(IntEnum):
     def __or__(self, other: SupportsInt) -> Self:
         cls = self.__class__
         value = self.flag | int(other) if not isinstance(other, cls) else self.flag | other.flag
-        return cls.__new__(cls, name=f"{self.name} | {getattr(other, 'name', other)}", value=has_associated_flag(-1, value))
+        return cls._new_member(name=f"{self.name} | {getattr(other, 'name', other)}", value=has_associated_flag(-1, value))
 
     def __and__(self, other: SupportsInt) -> Self:
         cls = self.__class__
         value = self.flag & int(other) if not isinstance(other, cls) else self.flag & other.flag
-        return cls.__new__(cls, name=f"{self.name} & {getattr(other, 'name', other)}", value=has_associated_flag(-1, value))
+        return cls._new_member(name=f"{self.name} & {getattr(other, 'name', other)}", value=has_associated_flag(-1, value))
 
     @classproperty
     def App(cls: type[Self]) -> Self: # type: ignore

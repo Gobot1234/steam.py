@@ -70,6 +70,16 @@ class Item(Asset, Description):
     """We combine Assets with their matching Description to form items."""
 
 
+class Inventory(TypedDict):
+    assets: list[Asset]
+    descriptions: list[Description]
+    total_inventory_count: int
+    last_assetid: str
+    more_items: bool
+    success: int  # Result
+    rwgrsn: int  # p. much always -2
+
+
 class TradeOffer(TypedDict):
     tradeofferid: str
     tradeid: str  # only used for receipts (it's not the useful one)

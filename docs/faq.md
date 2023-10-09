@@ -8,10 +8,6 @@
 
 Find answers to some common questions relating to steam.py and help in the [discord server](https://discord.gg/MQ68WUS).
 
-```{contents} Questions
-:local: true
-```
-
 ## General
 
 These are some general questions relating to steam.py
@@ -74,7 +70,7 @@ documentation and when debugging any issues in your code.
 
 ### How can I get help with my code?
 
-**Bad practices:**
+**Things to avoid:**
 
 - Truncate the traceback, as you might remove important parts from it. If it isn't something that should be kept
   private like your username, password etc. include it.
@@ -97,7 +93,7 @@ import steam
 from steam.ext import commands
 
 
-bot = commands.Bot(command_prefix="!")
+bot = commands.Bot(command_prefix="?")
 
 
 @bot.command
@@ -142,8 +138,10 @@ my_inventory = await client.user.inventory(game)
 their_inventory = await user.inventory(game)
 
 # we need to get the items to be included in the trade
-keys = my_inventory.filter_items("Mann Co. Supply Crate Key", limit=3)
-earbuds = their_inventory.get_item("Earbuds")
+keys = [item for item in my_inventory if item.name == "Mann Co. Supply Crate Key"][:3]
+earbuds = utils.get(their_inventory, name="Earbuds")
+
+...  # handle degenerate cases len() != 3 and earbuds are None
 
 # finally construct the trade
 trade = steam.TradeOffer(sending=keys, item_to_receive=earbuds, message="This trade was made using steam.py")

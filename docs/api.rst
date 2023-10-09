@@ -23,7 +23,6 @@ Version Related Info
 Client
 ------
 
-.. attributetable:: Client
 
 .. autoclass:: Client
     :members:
@@ -130,6 +129,8 @@ steam.py provides some utility functions.
 
 .. autofunction:: steam.utils.parse_id64
 
+.. autofunction:: steam.utils.id64_from_url
+
 .. autofunction:: steam.utils.parse_trade_url
 
 Then some functions from discord.py
@@ -155,7 +156,7 @@ Enumerations
     :undoc-members:
 
 .. autoclass:: PurchaseResult()
-    :member:
+    :members:
     :undoc-members:
 
 .. autoclass:: Universe()
@@ -313,26 +314,22 @@ Abstract Base Classes
 
 An :term:`abstract base class` (also known as an ``abc``) is a class that models can inherit their behaviour from.
 
-.. attributetable:: steam.abc.BaseUser
 
 .. autoclass:: steam.abc.BaseUser()
     :members:
     :undoc-members:
     :inherited-members:
 
-.. attributetable:: steam.abc.Channel
 
 .. autoclass:: steam.abc.Channel()
     :members:
     :inherited-members:
 
-.. attributetable:: steam.abc.Commentable
 
 .. autoclass:: steam.abc.Commentable()
     :members:
     :inherited-members:
 
-.. attributetable:: steam.abc.Messageable
 
 .. autoclass:: steam.abc.Messageable()
     :members:
@@ -346,43 +343,36 @@ These are not meant to be constructed by the user instead you receive them from 
 Achievements
 ~~~~~~~~~~~~~~~
 
-.. attributetable:: AppStat
 
 .. autoclass:: AppStat()
     :members:
     :inherited-members:
 
-.. attributetable:: UserAppStat
 
 .. autoclass:: UserAppStat()
     :members:
     :inherited-members:
 
-.. attributetable:: AppAchievement
 
 .. autoclass:: AppAchievement()
     :members:
     :inherited-members:
 
-.. attributetable:: AppStatAchievement
 
 .. autoclass:: AppStatAchievement()
     :members:
     :inherited-members:
 
-.. attributetable:: UserAppAchievement
 
 .. autoclass:: UserAppAchievement()
     :members:
     :inherited-members:
 
-.. attributetable:: AppStats
 
 .. autoclass:: AppStats()
     :members:
     :inherited-members:
 
-.. attributetable:: UserAppStats
 
 .. autoclass:: UserAppStats()
     :members:
@@ -391,7 +381,6 @@ Achievements
 Announcements
 ~~~~~~~~~~~~~~~
 
-.. attributetable:: Announcement
 
 .. autoclass:: Announcement
     :members:
@@ -401,22 +390,18 @@ Announcements
 Badge
 ~~~~~~~~~~~~~~~
 
-.. attributetable:: AppBadge
 
 .. autoclass:: AppBadge()
     :members:
 
-.. attributetable:: UserBadge
 
 .. autoclass:: UserBadge()
     :members:
 
-.. attributetable:: UserBadges
 
 .. autoclass:: UserBadges()
     :members:
 
-.. attributetable:: FavouriteBadge
 
 .. autoclass:: FavouriteBadge()
     :members:
@@ -424,7 +409,6 @@ Badge
 Ban
 ~~~~~~~~~~~~~~~
 
-.. attributetable:: Ban
 
 .. autoclass:: Ban()
     :members:
@@ -433,17 +417,14 @@ Ban
 Bundle
 ~~~~~~~~~~~~~~~
 
-.. attributetable:: Bundle
 
 .. autoclass:: Bundle()
     :members:
 
-.. attributetable:: PartialBundle
 
 .. autoclass:: PartialBundle()
     :members:
 
-.. attributetable:: FetchedBundle
 
 .. autoclass:: FetchedBundle()
     :members:
@@ -452,19 +433,16 @@ Bundle
 Channel
 ~~~~~~~~~~~~~~~
 
-.. attributetable:: UserChannel
 
 .. autoclass:: UserChannel()
     :members:
     :inherited-members:
 
-.. attributetable:: GroupChannel
 
 .. autoclass:: GroupChannel()
     :members:
     :inherited-members:
 
-.. attributetable:: ClanChannel
 
 .. autoclass:: ClanChannel()
     :members:
@@ -474,7 +452,6 @@ Channel
 Clan
 ~~~~~~~~~~~~~~~
 
-.. attributetable:: Clan
 
 .. autoclass:: Clan()
     :members:
@@ -484,7 +461,6 @@ Clan
 Comment
 ~~~~~~~~~~~~~~~
 
-.. attributetable:: Comment
 
 .. autoclass:: Comment()
     :members:
@@ -493,7 +469,6 @@ Comment
 Events
 ~~~~~~~~~~~~~~~
 
-.. attributetable:: Event
 
 .. autoclass:: Event()
     :members:
@@ -503,13 +478,11 @@ Events
 Game Servers
 ~~~~~~~~~~~~~~~
 
-.. attributetable:: GameServer
 
 .. autoclass:: GameServer()
     :members:
     :inherited-members:
 
-.. attributetable:: Query
 
 .. autoclass:: Query()
     :members:
@@ -518,7 +491,6 @@ Game Servers
 Group
 ~~~~~~~~~~~~~~~
 
-.. attributetable:: Group
 
 .. autoclass:: Group()
     :members:
@@ -527,13 +499,11 @@ Group
 Invite
 ~~~~~~~~~~~~~~~
 
-.. attributetable:: UserInvite
 
 .. autoclass:: UserInvite()
     :members:
     :inherited-members:
 
-.. attributetable:: ClanInvite
 
 .. autoclass:: ClanInvite()
     :members:
@@ -542,20 +512,17 @@ Invite
 Leaderboard
 ~~~~~~~~~~~~~~~
 
-.. attributetable:: Leaderboard
 
 .. autoclass:: Leaderboard()
     :members:
     :inherited-members:
 
-.. attributetable:: LeaderboardUser
 
 .. autoclass:: LeaderboardUser()
     :members:
     :undoc-members:
     :inherited-members:
 
-.. attributetable:: LeaderboardScoreUpdate
 
 .. autoclass:: LeaderboardScoreUpdate()
     :members:
@@ -563,45 +530,37 @@ Leaderboard
 Manifests
 ~~~~~~~~~~~~~~~
 
-.. attributetable:: Manifest
 
 .. autoclass:: Manifest()
    :members:
 
-.. attributetable:: ManifestPath
 
 .. autoclass:: ManifestPath()
    :members:
    :inherited-members:
 
-.. attributetable:: Branch
 
 .. autoclass:: Branch()
    :members:
 
-.. attributetable:: ManifestInfo
 
 .. autoclass:: ManifestInfo()
    :members:
 
-.. attributetable:: HeadlessDepot
 
 .. autoclass:: HeadlessDepot()
    :members:
 
-.. attributetable:: Depot
 
 .. autoclass:: Depot()
    :members:
    :inherited-members:
 
-.. attributetable:: AppInfo
 
 .. autoclass:: AppInfo()
    :members:
    :inherited-members:
 
-.. attributetable:: PackageInfo
 
 .. autoclass:: PackageInfo()
    :members:
@@ -610,24 +569,20 @@ Manifests
 Message
 ~~~~~~~~~~~~~~~
 
-.. attributetable:: Message
 
 .. autoclass:: Message()
     :members:
 
-.. attributetable:: UserMessage
 
 .. autoclass:: UserMessage()
     :members:
     :inherited-members:
 
-.. attributetable:: GroupMessage
 
 .. autoclass:: GroupMessage()
     :members:
     :inherited-members:
 
-.. attributetable:: ClanMessage
 
 .. autoclass:: ClanMessage()
     :members:
@@ -636,30 +591,25 @@ Message
 Package
 ~~~~~~~~~~~~~~~
 
-.. attributetable:: Package
 
 .. autoclass:: Package()
    :members:
 
-.. attributetable:: steam.package.PartialPackage
 
 .. autoclass:: steam.package.PartialPackage()
    :members:
    :inherited-members:
 
-.. attributetable:: steam.FetchedPackage
 
 .. autoclass:: steam.FetchedPackage()
    :members:
    :inherited-members:
 
-.. attributetable:: License
 
 .. autoclass:: License()
    :members:
    :inherited-members:
 
-.. attributetable:: FetchedAppPackage
 
 .. autoclass:: FetchedAppPackage()
    :members:
@@ -669,7 +619,6 @@ Package
 Post
 ~~~~~~~~~~~~~~~
 
-.. attributetable:: Post
 
 .. autoclass:: Post()
     :members:
@@ -679,7 +628,6 @@ Post
 PriceOverview
 ~~~~~~~~~~~~~~~
 
-.. attributetable:: PriceOverview
 
 .. autoclass:: PriceOverview()
     :members:
@@ -687,32 +635,26 @@ PriceOverview
 Profile
 ~~~~~~~~~~~~~~~
 
-.. attributetable:: ProfileInfo
 
 .. autoclass:: ProfileInfo()
     :members:
 
-.. attributetable:: ProfileItem
 
 .. autoclass:: ProfileItem()
     :members:
 
-.. attributetable:: OwnedProfileItems
 
 .. autoclass:: OwnedProfileItems()
     :members:
 
-.. attributetable:: EquippedProfileItems
 
 .. autoclass:: EquippedProfileItems()
     :members:
 
-.. attributetable:: ProfileShowcase
 
 .. autoclass:: ProfileShowcase()
     :members:
 
-.. attributetable:: Profile
 
 .. autoclass:: Profile()
     :members:
@@ -722,7 +664,6 @@ Profile
 PublishedFile
 ~~~~~~~~~~~~~~~
 
-.. attributetable:: PublishedFile
 
 .. autoclass:: PublishedFile()
     :members:
@@ -732,31 +673,26 @@ PublishedFile
 Store
 ~~~~~~~~~~~~~~~
 
-.. attributetable:: StoreItem
 
 .. autoclass:: StoreItem()
     :members:
     :inherited-members:
 
-.. attributetable:: AppStoreItem
 
 .. autoclass:: AppStoreItem()
     :members:
     :inherited-members:
 
-.. attributetable:: PackageStoreItem
 
 .. autoclass:: PackageStoreItem()
     :members:
     :inherited-members:
 
-.. attributetable:: BundleStoreItem
 
 .. autoclass:: BundleStoreItem()
     :members:
     :inherited-members:
 
-.. attributetable:: TransactionReceipt
 
 .. autoclass:: TransactionReceipt()
     :members:
@@ -765,28 +701,24 @@ Store
 App Tickets
 ~~~~~~~~~~~~~~~
 
-.. attributetable:: EncryptedTicket
 
 .. autoclass:: EncryptedTicket()
     :members:
     :inherited-members:
     :undoc-members:
 
-.. attributetable:: OwnershipTicket
 
 .. autoclass:: OwnershipTicket()
     :members:
     :inherited-members:
     :undoc-members:
 
-.. attributetable:: AuthenticationTicket
 
 .. autoclass:: AuthenticationTicket()
     :members:
     :inherited-members:
     :undoc-members:
 
-.. attributetable:: AuthenticationTicketVerificationResult
 
 .. autoclass:: AuthenticationTicketVerificationResult()
     :members:
@@ -796,24 +728,20 @@ App Tickets
 Trading
 ~~~~~~~~~~~~~~~
 
-.. attributetable:: Inventory
 
 .. autoclass:: Inventory()
     :members:
     :inherited-members:
 
-.. attributetable:: Item
 
 .. autoclass:: Item()
     :members:
     :inherited-members:
 
-.. attributetable:: Asset
 
 .. autoclass:: Asset()
     :members:
 
-.. attributetable:: MovedItem
 
 .. autoclass:: MovedItem()
     :members:
@@ -821,64 +749,65 @@ Trading
 Reactions
 ~~~~~~~~~~~~~~~
 
-.. attributetable:: Award
 
 .. autoclass:: Award()
     :members:
     :inherited-members:
 
-.. attributetable:: AwardReaction
 
 .. autoclass:: AwardReaction()
     :members:
     :inherited-members:
 
-.. attributetable:: PartialMessageReaction
 
 .. autoclass:: PartialMessageReaction()
     :members:
     :inherited-members:
 
-.. attributetable:: MessageReaction
 
 .. autoclass:: MessageReaction()
     :members:
     :inherited-members:
 
-.. attributetable:: Emoticon
 
 .. autoclass:: Emoticon()
     :members:
     :inherited-members:
 
-.. attributetable:: Sticker
 
 .. autoclass:: Sticker()
     :members:
     :inherited-members:
 
-.. attributetable:: ClientEmoticon
 
 .. autoclass:: ClientEmoticon()
     :members:
     :inherited-members:
 
-.. attributetable:: ClientSticker
 
 .. autoclass:: ClientSticker()
+    :members:
+    :inherited-members:
+
+.. attributetable:: ClientEffect
+
+.. autoclass:: ClientEffect()
+    :members:
+    :inherited-members:
+
+
+.. autoclass:: ClientEffect()
     :members:
     :inherited-members:
 
 Reviews
 ~~~~~~~~~~~~~~~
 
-.. attributetable:: Review
 
 .. autoclass:: Review()
     :members:
     :inherited-members:
 
-.. attributetable:: ReviewUser
 
 .. autoclass:: ReviewUser()
     :members:
@@ -888,12 +817,10 @@ Reviews
 Roles
 ~~~~~~~~~~~~~~~
 
-.. attributetable:: Role
 
 .. autoclass:: Role()
     :members:
 
-.. attributetable:: RolePermissions
 
 .. autoclass:: RolePermissions()
     :members:
@@ -901,7 +828,6 @@ Roles
 User News
 ~~~~~~~~~~~~~~~
 
-.. attributetable:: UserNews
 
 .. autoclass:: UserNews
     :members:
@@ -910,28 +836,24 @@ User News
 Users
 ~~~~~~~~~~~~~~~
 
-.. attributetable:: PartialUser
 
 .. autoclass:: PartialUser()
     :members:
     :undoc-members:
     :inherited-members:
 
-.. attributetable:: ClientUser
 
 .. autoclass:: ClientUser()
     :members:
     :undoc-members:
     :inherited-members:
 
-.. attributetable:: User
 
 .. autoclass:: User()
     :members:
     :undoc-members:
     :inherited-members:
 
-.. attributetable:: Friend
 
 .. autoclass:: Friend()
     :members:
@@ -941,7 +863,6 @@ Users
 Wallet
 ~~~~~~~~~~~~~~~
 
-.. attributetable:: Wallet
 
 .. autoclass:: Wallet()
 
@@ -954,7 +875,6 @@ There are a few classes that can be constructed by the user, these include.
 App
 ~~~~~~~~~~~~~~~
 
-.. attributetable:: App
 
 .. autoclass:: App
     :members:
@@ -984,80 +904,67 @@ Apps can be manually constructed using their app ID eg:
 
 .. autofunction:: CUSTOM_APP
 
-.. attributetable:: OwnershipTicket
 
 .. autoclass:: OwnershipTicket()
     :inherited-members:
     :members:
 
-.. attributetable:: AuthenticationTicket
 
 .. autoclass:: AuthenticationTicket()
     :inherited-members:
     :members:
 
-.. attributetable:: EncryptedTicket
 
 .. autoclass:: EncryptedTicket()
     :inherited-members:
     :members:
 
-.. attributetable:: AppShopItem
 
 .. autoclass:: AppShopItem
     :inherited-members:
     :members:
 
-.. attributetable:: AppShopItemTag
 
 .. autoclass:: AppShopItemTag
     :inherited-members:
     :members:
 
-.. attributetable:: AppShopItems
 
 .. autoclass:: AppShopItems
     :inherited-members:
     :members:
 
-.. attributetable:: CommunityItem
 
 .. autoclass:: CommunityItem
     :inherited-members:
     :members:
 
-.. attributetable:: RewardItem
 
 .. autoclass:: RewardItem
     :inherited-members:
     :members:
 
 
-.. attributetable:: steam.app.PartialApp
 
 .. autoclass:: steam.app.PartialApp()
     :inherited-members:
     :members:
 
-.. attributetable:: UserApp
 
 .. autoclass:: UserApp()
     :inherited-members:
     :members:
 
-.. attributetable:: WishlistApp
 
 .. autoclass:: WishlistApp()
     :inherited-members:
     :members:
 
-.. attributetable:: FetchedApp
 
 .. autoclass:: FetchedApp()
     :inherited-members:
     :members:
 
-.. attributetable:: DLC
 
 .. autoclass:: DLC()
     :inherited-members:
@@ -1067,7 +974,6 @@ Apps can be manually constructed using their app ID eg:
 Steam IDs
 ~~~~~~~~~~~~~~~
 
-.. attributetable:: ID
 
 .. autoclass:: ID
     :members:
@@ -1075,7 +981,6 @@ Steam IDs
 TradeOffers
 ~~~~~~~~~~~~~~~
 
-.. attributetable:: TradeOffer
 
 .. autoclass:: TradeOffer
     :members:
@@ -1084,7 +989,6 @@ TradeOffers
 Media
 ~~~~~~~~~~~~~~~
 
-.. attributetable:: Media
 
 .. autoclass:: Media
     :members:
@@ -1095,8 +999,6 @@ Exceptions
 The following exceptions are thrown by the library.
 
 .. autoexception:: SteamException
-
-.. autoexception:: ClientException
 
 .. autoexception:: LoginError
 
@@ -1131,12 +1033,11 @@ Exception Hierarchy
 
     - :exc:`Exception`
         - :exc:`SteamException`
-            - :exc:`ClientException`
-                - :exc:`AuthenticatorError`
-                    - :exc:`ConfirmationError`
-                - :exc:`LoginError`
-                    - :exc:`InvalidCredentials`
-                    - :exc:`NoCMsFound`
+              - :exc:`AuthenticatorError`
+                  - :exc:`ConfirmationError`
+              - :exc:`LoginError`
+                  - :exc:`InvalidCredentials`
+                  - :exc:`NoCMsFound`
             - :exc:`HTTPException`
                 - :exc:`Forbidden`
                 - :exc:`NotFound`

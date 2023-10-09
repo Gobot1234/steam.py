@@ -75,8 +75,8 @@ def test_flag_try_value() -> None:
 
 
 def test_intents():
-    assert Intents.Market & Intents.safe() == 0
-    assert Intents.Market | Intents.safe() == Intents.all()
+    assert Intents.Market & Intents.Safe == 0
+    assert Intents.Market | Intents.Safe == Intents.All
 
 
 def test_language_from_str() -> None:

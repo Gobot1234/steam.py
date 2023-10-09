@@ -7,8 +7,6 @@ import re
 import struct
 from typing import TYPE_CHECKING, Final, overload
 
-from typing_extensions import Self  # noqa: TCH002
-
 from ..._const import DOCS_BUILDING, MISSING, timeout
 from ..._gc import Client as Client_
 from ...app import CSGO
@@ -46,9 +44,13 @@ class Client(Client_):
 
     _APP: Final = CSGO
     _ClientUserCls = ClientUser
-    user: cached_property[Self, ClientUser]
-    _state: GCState
+    _state: GCState  # type: ignore  # PEP 705
     _GC_HEART_BEAT = 10.0
+    if TYPE_CHECKING:
+
+        @cached_property
+        def user(self) -> ClientUser:
+            ...
 
     @overload
     async def inspect_item(self, *, owner: IndividualID, asset_id: int, d: int) -> BaseInspectedItem:

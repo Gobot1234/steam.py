@@ -317,7 +317,11 @@ class FetchedAppPackage(PartialPackage[str]):
         super().__init__(state, name=name, id=data["packageid"])
         self._is_free = data["is_free_license"]
         self.price_overview = FetchedAppPackagePriceOverview(
-            int(re.search(r"-?(\d)", savings)[0]) if (savings := data["percent_savings_text"].strip()) else 0,
+            int(
+                re.search(r"-?(\d)", savings)[0],  # type: ignore
+            )
+            if (savings := data["percent_savings_text"].strip())
+            else 0,
             data["price_in_cents_with_discount"],  # this isn't always in cents
         )
 

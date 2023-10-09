@@ -38,15 +38,19 @@ class ClientUser(ClientUser_):
             ...
 
         @overload
-        async def inventory(self, app: App, *, language: Language_ | None = None) -> Inventory[Item[Self], Self]:
+        async def inventory(self, app: App, *, language: Language_ | None = None) -> Inventory[Item[Self], Self]:  # type: ignore
             ...
 
 
 class Client(Client_):
     _APP: Final = TF2
     _ClientUserCls = ClientUser
-    user: cached_property[Self, ClientUser]
-    _state: GCState
+    _state: GCState  # type: ignore  # PEP 705
+    if TYPE_CHECKING:
+
+        @cached_property
+        def user(self) -> ClientUser:
+            ...
 
     @property
     def schema(self) -> Schema:

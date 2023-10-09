@@ -35,7 +35,7 @@ from .gateway import CMServer, ConnectionClosed, Msgs, ProtoMsgs, SteamWebSocket
 from .group import Group, GroupMember
 from .guard import *
 from .id import _ID64_TO_ID32, ID, parse_id64
-from .invite import ClanInvite, UserInvite
+from .invite import ClanInvite, GroupInvite, UserInvite
 from .manifest import AppInfo, ContentServer, Manifest, PackageInfo
 from .market import Wallet
 from .message import *
@@ -74,6 +74,7 @@ from .protobufs import (
 from .published_file import PublishedFile
 from .reaction import (
     Award,
+    ClientEffect,
     ClientEmoticon,
     ClientSticker,
     Emoticon,
@@ -99,7 +100,7 @@ if TYPE_CHECKING:
     from .media import Media
     from .types import manifest, trade
     from .types.http import Coro
-    from .types.user import Author, AuthorT
+    from .types.user import Author, AuthorT, IndividualID
 
 
 log = logging.getLogger(__name__)
@@ -194,7 +195,7 @@ class ConnectionState:
         self.login_complete = asyncio.Event()
         self.handled_licenses = asyncio.Event()
         self.handled_wallet = asyncio.Event()
-        self.intents: Final = kwargs.get("intents", Intents.safe())
+        self.intents: Final = kwargs.get("intents", Intents.Safe)
         self.max_messages: int | None = kwargs.get("max_messages", 1000)
 
         app = kwargs.get("app")
@@ -222,8 +223,10 @@ class ConnectionState:
 
         self._messages: deque[Message] = deque(maxlen=self.max_messages or 0)
         self.invites: dict[ID64, UserInvite | ClanInvite] = {}
+
         self.emoticons: list[ClientEmoticon] = []
         self.stickers: list[ClientSticker] = []
+        self.effects: list[ClientEffect] = []
 
         self._trades: dict[TradeOfferID, TradeOffer[Item[User], Item[ClientUser], User]] = {}
         self._confirmations: dict[TradeOfferID, Confirmation] = {}
@@ -242,8 +245,6 @@ class ConnectionState:
         self._license_lock = asyncio.Lock()
         self.licenses_being_waited_for = weakref.WeakValueDictionary[PackageID, asyncio.Future[License]]()
         self._manifest_passwords: dict[AppID, dict[str, str]] = {}
-        self.cs_servers: list[ContentServer] = []
-        self.cs_servers_lock = asyncio.Lock()
 
         self._game_connect_bytes: list[
             bytes
@@ -324,7 +325,11 @@ class ConnectionState:
         return user
 
     async def fetch_users(self, user_id64s: Iterable[ID64]) -> Sequence[User]:
-        users = await self.ws.fetch_users(user_id64s)
+        user_id64s = list(user_id64s)
+        try:
+            users = [user async for user in self.ws.fetch_users(user_id64s)]
+        except asyncio.TimeoutError:
+            users = [User._dict_to_proto(user) async for user in self.http.get_users(user_id64s)]
         return [self._store_user(user) for user in users]
 
     async def _maybe_user(self, id: Intable) -> User:
@@ -431,7 +436,8 @@ class ConnectionState:
                             try:
                                 clan = await self.fetch_clan(id.id64)
                             except WSException:
-                                clan = PartialClan(self, id.id64)
+                                clan = cast(Clan, PartialClan(self, id.id64))
+                                log.info("Unknown clan %s invited us", clan)
                             self.invites[clan.id64] = invite = ClanInvite(
                                 self, self.user, author=invitee, clan=clan, relationship=relationship
                             )
@@ -932,12 +938,24 @@ class ConnectionState:
     def get_group(self, id: ChatGroupID) -> Group | None:
         return self._groups.get(id)
 
+    async def create_group(self, name: str, members: Iterable[IndividualID]) -> Group:
+        msg: chat.CreateChatRoomGroupResponse = await self.ws.send_um_and_wait(
+            chat.CreateChatRoomGroupRequest(name=name, steamid_invitees=[member.id64 for member in members])
+        )
+        group = Group(self, ChatGroupID(msg.chat_group_id))
+        group._update_header_state(msg.state.header_state)
+        group._update_channels(msg.state.chat_rooms, default_channel_id=msg.state.default_chat_id)
+        group._update_group_state(msg.state)
+        group._top_members = []
+        group.active_member_count = 0
+        return group
+
     def get_clan(self, id: ID32) -> Clan | None:
         return self._clans.get(id)
 
-    async def fetch_clan(self, id64: ID64, *, maybe_chunk: bool = True) -> Clan:
+    async def fetch_clan(self, id64: ID64, *, maybe_chunk: bool = True, create: bool = False) -> Clan:
         msg: chat.GetClanChatRoomInfoResponse = await self.ws.send_um_and_wait(
-            chat.GetClanChatRoomInfoRequest(steamid=id64)
+            chat.GetClanChatRoomInfoRequest(steamid=id64, autocreate=create)
         )
         if msg.result == Result.Busy:
             raise WSNotFound(msg)
@@ -947,6 +965,9 @@ class ConnectionState:
         clan = await Clan._from_proto(self, msg.chat_group_summary, maybe_chunk=maybe_chunk)
         self._clans[clan.id] = clan
         return clan
+
+    async def _maybe_clan(self, id: ID64, *, create: bool = False) -> Clan:
+        return self._clans.get(_ID64_TO_ID32(id)) or await self.fetch_clan(id, create=create)
 
     @cached_property
     def _chat_groups(self) -> utils.ChainMap[ChatGroupID, Group | Clan]:
@@ -975,6 +996,13 @@ class ConnectionState:
             chat.InviteFriendToChatRoomGroupRequest(chat_group_id=chat_group_id, steamid=user_id64)
         )
 
+        if msg.result == Result.InvalidParameter:
+            raise WSNotFound(msg)
+        elif msg.result != Result.OK:
+            raise WSException(msg)
+
+    async def revoke_chat_group_invite(self, user_id64: ID64, chat_group_id: ChatGroupID) -> None:
+        msg = await self.ws.send_um_and_wait(chat.RevokeInviteRequest(chat_group_id=chat_group_id, steamid=user_id64))
         if msg.result == Result.InvalidParameter:
             raise WSNotFound(msg)
         elif msg.result != Result.OK:
@@ -1019,6 +1047,7 @@ class ConnectionState:
         flags_changed = clan.flags != msg.clan_account_flags
         dispatch_update = user_counts or name_info or flags_changed
 
+        before = None
         if dispatch_update:
             before = copy(clan)
         if user_counts:
@@ -1033,6 +1062,7 @@ class ConnectionState:
             clan.flags = ClanAccountFlags.try_value(msg.clan_account_flags)
 
         if dispatch_update:
+            assert before is not None
             self.dispatch("clan_update", before, clan)
 
     @requires_intent(Intents.ChatGroups)
@@ -1078,6 +1108,7 @@ class ConnectionState:
     async def edit_chat_group(
         self, chat_group_id: ChatGroupID, name: str | None, tagline: str | None, avatar: Media | None
     ) -> None:
+        chat_group = self._chat_groups.get(chat_group_id)
         if name is not None:
             msg = await self.ws.send_um_and_wait(
                 chat.RenameChatRoomGroupRequest(
@@ -1089,18 +1120,22 @@ class ConnectionState:
                 raise WSNotFound(msg)
             elif msg.result != Result.OK:
                 raise WSException(msg)
+            if chat_group is not None:
+                chat_group.name = name
         if avatar is not None:
             sha = await self.http.upload_chat_icon(avatar)
             msg = await self.ws.send_um_and_wait(
                 chat.SetChatRoomGroupAvatarRequest(
                     chat_group_id=chat_group_id,
-                    avatar_sha=sha.encode(),  # TODO not sure if this is right
+                    avatar_sha=sha,
                 )
             )
             if msg.result == Result.InvalidParameter:
                 raise WSNotFound(msg)
             elif msg.result != Result.OK:
                 raise WSException(msg)
+            if chat_group is not None:
+                chat_group._avatar_sha = sha
         if tagline is not None:
             msg = await self.ws.send_um_and_wait(
                 chat.SetChatRoomGroupTaglineRequest(
@@ -1112,6 +1147,8 @@ class ConnectionState:
                 raise WSNotFound(msg)
             elif msg.result != Result.OK:
                 raise WSException(msg)
+            if chat_group is not None:
+                chat_group.tagline = tagline
 
     @requires_intent(Intents.ChatGroups)
     def handle_chat_group_update(self, msg: chat.ChatRoomHeaderStateNotification) -> None:
@@ -1291,7 +1328,12 @@ class ConnectionState:
         return Role(self, self._chat_groups[chat_group_id], role, msg.actions)
 
     async def edit_role(
-        self, chat_group_id: ChatGroupID, role_id: RoleID, name: str | None, permissions: RolePermissions | None
+        self,
+        chat_group_id: ChatGroupID,
+        role_id: RoleID,
+        name: str | None,
+        permissions: RolePermissions | None,
+        ordinal: int | None,
     ) -> None:
         if name is not None:
             msg = await self.ws.send_um_and_wait(
@@ -1313,10 +1355,14 @@ class ConnectionState:
                 raise WSNotFound(msg)
             elif msg.result != Result.OK:
                 raise WSException(msg)
-
-    # TODO no idea what this does
-    # async def edit_role_position(self, chat_group_id: ChatGroupID, role_id: RoleID, ordinal: int) -> None:
-    #     chat.ReorderRoleRequest(chat_group_id=chat_group_id, role_id=role_id, ordinal=ordinal)
+        if ordinal is not None:
+            msg = await self.ws.send_um_and_wait(
+                chat.ReorderRoleRequest(chat_group_id=chat_group_id, role_id=role_id, ordinal=ordinal)
+            )
+            if msg.result == Result.InvalidParameter:
+                raise WSNotFound(msg)
+            elif msg.result != Result.OK:
+                raise WSException(msg)
 
     async def delete_role(self, chat_group_id: ChatGroupID, role_id: RoleID) -> None:
         msg = await self.ws.send_um_and_wait(chat.DeleteRoleRequest(chat_group_id=chat_group_id, role_id=role_id))
@@ -1382,12 +1428,34 @@ class ConnectionState:
 
     def handle_chat_server_message(
         self, chat_group: Clan | Group, author: ClanMember | GroupMember | PartialMember, msg: chat.ServerMessage
-    ):
+    ) -> None:
+        if self.intents & Intents.Users & Intents.Chat > 0:
+            return
+        user_id = ID32(msg.accountid_param)
         match msg.message:
             case chat.EChatRoomServerMessage.Invited:
-                invite = ...
-                chat_group._invites[...] = ...
-                self.dispatch(f"{chat_group.__class__.__name__.lower()}_invite", invite)
+                invite = chat_group._invites[user_id] = (
+                    ClanInvite(
+                        self,
+                        chat_group._get_partial_member(user_id),
+                        author,
+                        FriendRelationship.RequestRecipient,
+                        clan=chat_group,
+                    )
+                    if isinstance(chat_group, Clan)
+                    else GroupInvite(
+                        self,
+                        chat_group._get_partial_member(user_id),
+                        author,
+                        FriendRelationship.RequestRecipient,
+                        group=chat_group,
+                    )
+                )
+                self.dispatch("invite", invite)
+            case chat.EChatRoomServerMessage.Joined:
+                invite = chat_group._invites.pop(user_id, None)
+                if invite is not None:
+                    self.dispatch("invite_accept", invite)
 
     @requires_intent(Intents.ChatGroups | Intents.Chat | Intents.Messages | Intents.Users)
     def handle_chat_message(self, msg: chat.IncomingChatMessageNotification) -> None:
@@ -1400,9 +1468,9 @@ class ConnectionState:
         channel._update(msg)
         author = chat_group._maybe_member(_ID64_TO_ID32(msg.steamid_sender))
         if msg.server_message:
-            return  # self.handle_chat_server_message(chat_group, author, msg.server_message)  # this needs to manually handle intents
+            return self.handle_chat_server_message(chat_group, author, msg.server_message)
 
-        (message_cls,) = channel._type_args
+        message_cls, *_ = channel._type_args
         message = message_cls(
             proto=msg,
             channel=channel,  # type: ignore  # type checkers aren't able to figure out this is ok
@@ -1441,7 +1509,7 @@ class ConnectionState:
         group = self._chat_groups[chat_group_id]
         channel = group._channels[chat_id]
         channel._update(proto)
-        (message_cls,) = channel._type_args
+        message_cls, *_ = channel._type_args
         message = message_cls(
             proto=proto,
             channel=channel,  # type: ignore  # type checkers can't figure out this is ok
@@ -1594,6 +1662,7 @@ class ConnectionState:
                 ordinal=ordinal,
                 reaction=reaction_name,
                 reaction_type=reaction_type,
+                limit=0xFFFFFFFF,
             )
         )
 
@@ -1842,6 +1911,11 @@ class ConnectionState:
 
     async def fetch_app_tag(self, *tag_ids: int, language: Language | None = None) -> list[store.StoreItem]:
         return await self._fetch_store_info([store.StoreItemId(tagid=tag_id) for tag_id in tag_ids], language)
+
+    async def fetch_app_categories(self, *category_ids: int, language: Language | None = None) -> list[store.StoreItem]:
+        return await self._fetch_store_info(
+            [store.StoreItemId(hubcategoryid=category_id) for category_id in category_ids], language
+        )
 
     async def fetch_app(self, app_id: AppID, language: Language | None) -> FetchedApp:
         resp = await self.http.get_app(app_id, language)
@@ -2140,7 +2214,7 @@ class ConnectionState:
             lambda ticket: crc32(ticket.auth_ticket) == msg.ticket_crc, self._active_auth_tickets.values()
         )
         if ticket is None:
-            return log.info("Got auth complete for unknown ticket %r disgaurding", msg.ticket_crc)
+            return log.info("Got auth complete for unknown ticket %r discarding", msg.ticket_crc)
 
         if msg.eauth_session_response != AuthSessionResponse.OK:
             del self._active_auth_tickets[ticket.app.id, ticket.user.id64]
@@ -2172,17 +2246,20 @@ class ConnectionState:
     async def fetch_item_info(
         self, app_id: AppID, items: Iterable[CacheKey], language: Language | None
     ) -> dict[CacheKey, econ.ItemDescription]:
-        msgs: list[econ.GetAssetClassInfoResponse] = await asyncio.gather(
-            *(
-                self.ws.send_um_and_wait(
-                    econ.GetAssetClassInfoRequest(
-                        language=(language or self.language).api_name,
-                        appid=app_id,
-                        classes=[econ.GetAssetClassInfoRequestClass(*item_info) for item_info in chunk],
+        msgs = cast(
+            list[econ.GetAssetClassInfoResponse],
+            await asyncio.gather(
+                *(
+                    self.ws.send_um_and_wait(
+                        econ.GetAssetClassInfoRequest(
+                            language=(language or self.language).api_name,
+                            appid=app_id,
+                            classes=[econ.GetAssetClassInfoRequestClass(*item_info) for item_info in chunk],
+                        )
                     )
+                    for chunk in utils.as_chunks(items, 100)
                 )
-                for chunk in utils.as_chunks(items, 100)
-            )
+            ),
         )
 
         return cast(
@@ -2272,7 +2349,7 @@ class ConnectionState:
 
     async def fetch_notifications(self) -> list[notifications.SteamNotificationData]:
         msg: notifications.GetSteamNotificationsResponse = await self.ws.send_um_and_wait(
-            notifications.GetSteamNotificationsRequest()
+            notifications.GetSteamNotificationsRequest(include_hidden=True)
         )
         if msg.result != Result.OK:
             raise WSException(msg)
@@ -2280,11 +2357,9 @@ class ConnectionState:
         return msg.notifications
 
     async def handle_notifications(self, msg: notifications.GetSteamNotificationsResponse) -> None:
-        comment_index = 0
         for notification in msg.notifications:
             match notification.notification_type:
                 case 3:  # comment
-                    comment_index += 1
                     body: dict[str, Any] = JSON_LOADS(notification.body_data)
                     forum_id = int(body["forum_id"])
                     partial_user = self.get_partial_user(body["owner_steam_id"])
@@ -2313,13 +2388,10 @@ class ConnectionState:
                         case _:
                             log.info("Unknown commentable type %d", type)
                             continue
-                    comments = [
-                        comment async for comment in commentable.comments(limit=comment_index)
-                    ]  # would be nice if steam gave the id so it could be directly fetched
                     try:
-                        self.dispatch("comment", comments[comment_index])
-                    except IndexError:
-                        pass
+                        self.dispatch("comment", await commentable.fetch_comment(int(body["cgid"])))
+                    except (WSException, KeyError):
+                        log.info("Failed to fetch comment %s", notification, exc_info=True)
                 case 9:  # trade, this is only going to happen at startup
                     await self.poll_trades()
 
@@ -2335,11 +2407,8 @@ class ConnectionState:
 
     @parser
     async def handle_comments(self, msg: client_server_2.CMsgClientCommentNotifications) -> None:
-        notifications = await self.fetch_notifications()
-        while all(notification.notification_type != 3 for notification in notifications):
+        while all(notification.notification_type != 3 for notification in await self.fetch_notifications()):
             await asyncio.sleep(5)  # steam takes a bit to put comments in your notifications
-            notifications = await self.fetch_notifications()
-        return
 
     @parser
     async def parse_notification(self, msg: client_server_2.CMsgClientUserNotifications) -> None:
@@ -2351,7 +2420,7 @@ class ConnectionState:
     def handle_emoticon_list(self, msg: friends.CMsgClientEmoticonList) -> None:
         self.emoticons = [ClientEmoticon(self, emoticon) for emoticon in msg.emoticons]
         self.stickers = [ClientSticker(self, sticker) for sticker in msg.stickers]
-        # self.effects = [ClientEffect(self, effect) for effect in msg.effects]  # TODO
+        self.effects = [ClientEffect(self, effect) for effect in msg.effects]
         self.handled_emoticons.set()
 
     async def add_award(self, awardable: Awardable, award: Award) -> None:
@@ -2398,6 +2467,25 @@ class ConnectionState:
             raise WSException(msg)
         return msg.servers
 
+    @utils.call_once(wait=True)
+    async def cs_servers(self) -> list[ContentServer]:
+        try:
+            return self._cs_servers
+        except AttributeError:
+            self._cs_servers = sorted(
+                (
+                    ContentServer(
+                        self,
+                        URL_.build(scheme=f"http{'s' * (server.https_support != 'none')}", host=server.vhost),
+                        server.weighted_load,
+                    )
+                    for server in await self.fetch_cs_list(limit=20)
+                    if server.type in {"CDN", "SteamCache"}
+                ),
+                key=attrgetter("weighted_load"),
+            )
+            return self._cs_servers
+
     async def fetch_manifest(
         self,
         app_id: AppID,
@@ -2407,27 +2495,14 @@ class ConnectionState:
         branch: str = "public",
         password_hash: str = "",
     ) -> Manifest:
-        async with self.cs_servers_lock:
-            if not self.cs_servers:
-                self.cs_servers = sorted(
-                    (
-                        ContentServer(
-                            self,
-                            URL_.build(scheme=f"http{'s' * (server.https_support != 'none')}", host=server.vhost),
-                            server.weighted_load,
-                        )
-                        for server in await self.fetch_cs_list(limit=20)
-                        if server.type in ("CDN", "SteamCache")
-                    ),
-                    key=attrgetter("weighted_load"),
-                )
+        servers = await self.cs_servers()
 
-        for server in tuple(self.cs_servers):
+        for server in tuple(servers):
             try:
                 return await server.fetch_manifest(app_id, id, depot_id, name, branch, password_hash)
             except HTTPException as exc:
                 if 500 <= exc.status <= 599:
-                    del self.cs_servers[0]
+                    del servers[0]
                 else:
                     raise
 

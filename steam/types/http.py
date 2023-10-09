@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from ipaddress import IPv4Address
-from typing import TYPE_CHECKING, Any, Generic, TypeAlias, TypeVar, final
+from typing import TYPE_CHECKING, Any, Generic, TypeAlias, TypeVar
 
 from typing_extensions import TypedDict
 from yarl import URL
@@ -14,7 +14,6 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 
 
-@final
 class ResponseDict(TypedDict, Generic[T]):
     response: T
 

@@ -14,7 +14,7 @@ from typing_extensions import Required, Self, TypeVar
 from yarl import URL as URL_
 
 from . import utils
-from ._const import HTML_PARSER, MISSING, STEAM_EPOCH, UNIX_EPOCH, URL, VDF_BINARY_LOADS
+from ._const import HTML_PARSER, MISSING, STEAM_EPOCH, UNIX_EPOCH, URL, VDF_BINARY_LOADS, ReadOnly
 from .achievement import UserAppAchievement, UserAppStats
 from .app import *
 from .badge import FavouriteBadge, UserBadges
@@ -23,6 +23,7 @@ from .errors import ConfirmationError, HTTPException, WSException
 from .id import ID
 from .models import Avatar, Ban
 from .profile import *
+from .protobufs import econ
 from .reaction import Award, AwardReaction, Emoticon, MessageReaction, PartialMessageReaction, Sticker
 from .trade import Asset, Inventory, Item, TradeOffer
 from .types.id import ID64, AppID, AssetID, CommentID, ContextID, Intable, PostID, PublishedFileID
@@ -32,8 +33,6 @@ from .utils import DateTime, classproperty, parse_bb_code
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Coroutine, Sequence
     from ipaddress import IPv4Address
-
-    import betterproto
 
     from .clan import Clan
     from .comment import Comment
@@ -110,7 +109,7 @@ class Commentable(Protocol):
         ):
             assert cls.__name__ in _CommentThreadType.__members__, f"{cls.__name__} is not a valid commentable type"
 
-    async def fetch_comment(self, id: int) -> Comment[Self]:
+    async def fetch_comment(self, id: int, /) -> Comment[Self]:
         """Fetch a comment by its ID.
 
         Parameters
@@ -131,7 +130,7 @@ class Commentable(Protocol):
             reactions=[AwardReaction(self._state, reaction) for reaction in comment.reactions],
         )
 
-    async def comment(self, content: str, *, subscribe: bool = True) -> Comment[Self, ClientUser]:
+    async def comment(self, content: str, /, *, subscribe: bool = True) -> Comment[Self, ClientUser]:
         """Post a comment to a comments section.
 
         Parameters
@@ -253,13 +252,16 @@ class _AwardableType(IntEnum):
     Comment = 5
 
 
-class Awardable(Protocol):
+IDT = TypeVar("IDT", bound=int, default=int, covariant=True)
+
+
+class Awardable(Protocol[IDT]):  # type: ignore  # ReadOnly (PEP 705) should save this
     """A mixin that implements award functionality."""
 
     __slots__ = ()
 
-    id: int
     _state: ConnectionState
+    id: ReadOnly[IDT]
 
     @classproperty
     def _AWARDABLE_TYPE(cls: type[Self]) -> _AwardableType:
@@ -269,7 +271,7 @@ class Awardable(Protocol):
         super().__init_subclass__()
         assert cls.__name__ in _AwardableType.__members__, f"{cls.__name__} is not a valid awardable type"
 
-    async def award(self, award: Award) -> None:
+    async def award(self, award: Award, /) -> None:
         """Add an :class:`Award` to this piece of user generated content.
 
         Parameters
@@ -402,7 +404,7 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
         ]
 
     async def inventory(
-        self, app: App, *, context_id: int | None = None, language: Language | None = None
+        self, app: App, /, *, context_id: int | None = None, language: Language | None = None
     ) -> Inventory[Item[Self], Self]:
         """Fetch a user's :class:`~steam.Inventory` for trading.
 
@@ -423,7 +425,9 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
         if context_id is None:
             context_id = 6 if app.name == "Steam" and context_id is None else 2
         context_id = ContextID(context_id)
-        resp = await self._state.fetch_user_inventory(self.id64, app.id, (context_id), language)
+        resp = econ.GetInventoryItemsWithDescriptionsResponse().from_dict(
+            await self._state.http.get_user_inventory(self.id64, app.id, context_id, language)
+        )
         return Inventory(state=self._state, proto=resp, owner=self, app=app, context_id=context_id, language=language)
 
     async def inventories(self) -> AsyncGenerator[Inventory[Item[Self], Self], None]:
@@ -453,7 +457,7 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
         apps = await self._state.http.get_user_recently_played_apps(self.id64)
         return [UserRecentlyPlayedApp(self._state, app) for app in apps]
 
-    async def app_stats(self, app: App, *, language: Language | None = None) -> UserAppStats:
+    async def app_stats(self, app: App, /, *, language: Language | None = None) -> UserAppStats:
         """Fetch the stats for the user in the app.
 
         Parameters
@@ -467,7 +471,7 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
         return UserAppStats(self._state, app, msg, data, language or self._state.language)
 
     # TODO find a better way to do this
-    async def achievements(self, app: App, *, language: Language | None = None) -> list[UserAppAchievement]:
+    async def achievements(self, app: App, /, *, language: Language | None = None) -> list[UserAppAchievement]:
         """Fetch the achievements for the user in the app.
 
         Parameters
@@ -630,11 +634,15 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
         :class:`~steam.Review`
         """
         from .review import Review
+        from .user import ClientUser, User
 
         pages = 1
         after = after or UNIX_EPOCH
         before = before or DateTime.now()
         yielded = 0
+        if type(self) is PartialUser:
+            self = await self._state._maybe_user(self.id64)
+        assert isinstance(self, (User, ClientUser))
 
         async def get_reviews(page_number: int = 1) -> AsyncGenerator[Review, None]:
             nonlocal yielded, pages
@@ -686,13 +694,19 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
             The apps to fetch the reviews for.
         """
         from .review import Review
+        from .user import ClientUser, User
 
         reviews = await self._state.fetch_user_reviews(self.id64, (app.id for app in apps))
+        if type(self) is PartialUser:
+            # this kinda sucks but it's the best thing I can think of until intersections are added
+            self = await self._state.fetch_user(self.id64)
+        assert isinstance(self, (User, ClientUser))
         return [Review._from_proto(self._state, review, self) for review in reviews]
 
     async def fetch_published_file(
         self,
         id: int,
+        /,
         *,
         revision: PublishedFileRevision = PublishedFileRevision.Default,
         language: Language | None = None,
@@ -781,7 +795,7 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
                 yield file
                 yielded += 1
 
-    async def fetch_post(self, id: int) -> Post[Self]:
+    async def fetch_post(self, id: int, /) -> Post[Self]:
         """Fetch a post by its id.
 
         Parameters
@@ -838,7 +852,7 @@ class BaseUser(PartialUser):
     """The last time the user logged into steam."""
     last_seen_online: datetime | None
     """The last time the user was seen online."""
-    app: PartialApp | None
+    app: PartialApp[str] | None
     """The app the user is currently in. Is ``None`` if the user isn't in an app."""
     state: PersonaState
     """The current persona state of the account (e.g. LookingToTrade)."""
@@ -904,7 +918,7 @@ class Messageable(Protocol[MessageT]):
     def _send_media(self, media: Media) -> Coroutine[Any, Any, None]:
         raise NotImplementedError
 
-    async def send(self, content: Any = None, *, media: Media | None = None) -> MessageT | None:
+    async def send(self, content: Any = MISSING, /, *, media: Media | None = None) -> MessageT | None:
         """Send a message to a certain destination.
 
         Parameters
@@ -929,7 +943,7 @@ class Messageable(Protocol[MessageT]):
         -------
         The sent message, only applicable if ``content`` is passed.
         """
-        message = None if content is None else await self._send_message(str(content))
+        message = None if content is MISSING else await self._send_message(str(content))
         if media is not None:
             await self._send_media(media)
 
@@ -988,12 +1002,16 @@ class Messageable(Protocol[MessageT]):
         )
 
 
+ClanT = TypeVar("ClanT", bound="Clan | None", default="Clan | None", covariant=True)
+GroupT = TypeVar("GroupT", bound="Group | None", default="Group | None", covariant=True)
+
+
 @dataclass(slots=True)
-class Channel(Messageable[MessageT]):
+class Channel(Messageable[MessageT], Generic[MessageT, ClanT, GroupT]):
     _state: ConnectionState
-    clan: Clan | None = None
+    clan: ClanT = cast(ClanT, None)
     """The clan this channel belongs to."""
-    group: Group | None = None
+    group: GroupT = cast(GroupT, None)
     """The group this channel belongs to."""
 
 
@@ -1001,7 +1019,10 @@ def _clean_up_content(content: str) -> str:  # steam does weird stuff with conte
     return content.replace(r"\[", "[").replace("\\\\", "\\")
 
 
-class Message(Generic[UserT], metaclass=abc.ABCMeta):
+ChannelT = TypeVar("ChannelT", bound=Channel, default=Channel, covariant=True)
+
+
+class Message(Generic[UserT, ChannelT], metaclass=abc.ABCMeta):
     """Represents a message from a :class:`~steam.User`. This is a base class from which all messages inherit.
 
     The following classes implement this:
@@ -1041,7 +1062,7 @@ class Message(Generic[UserT], metaclass=abc.ABCMeta):
     created_at: datetime
     """The time this message was sent at."""
 
-    def __init__(self, channel: Channel[Self], proto: Any):
+    def __init__(self, channel: ChannelT, proto: Any):
         self._state: ConnectionState = channel._state
         self.channel = channel
         """The channel the message was sent in."""
@@ -1078,7 +1099,7 @@ class Message(Generic[UserT], metaclass=abc.ABCMeta):
 
     @classmethod
     @abc.abstractmethod
-    def _from_history(cls, channel: Channel[Self], proto: betterproto.Message) -> Self:
+    def _from_history(cls, channel: ChannelT, proto: Any) -> Self:  # type: ignore  # it's a constructor so covariance is fine
         raise NotImplementedError
 
     @property
@@ -1097,7 +1118,7 @@ class Message(Generic[UserT], metaclass=abc.ABCMeta):
     async def _react(self, emoticon: Emoticon | Sticker, add: bool) -> None:
         raise NotImplementedError
 
-    async def add_emoticon(self, emoticon: Emoticon) -> None:
+    async def add_emoticon(self, emoticon: Emoticon, /) -> None:
         """Adds an emoticon to this message.
 
         Parameters
@@ -1107,7 +1128,7 @@ class Message(Generic[UserT], metaclass=abc.ABCMeta):
         """
         await self._react(emoticon, True)
 
-    async def remove_emoticon(self, emoticon: Emoticon) -> None:
+    async def remove_emoticon(self, emoticon: Emoticon, /) -> None:
         """Removes an emoticon from this message.
 
         Parameters
@@ -1117,7 +1138,7 @@ class Message(Generic[UserT], metaclass=abc.ABCMeta):
         """
         await self._react(emoticon, False)
 
-    async def add_sticker(self, sticker: Sticker) -> None:
+    async def add_sticker(self, sticker: Sticker, /) -> None:
         """Adds a sticker to this message.
 
         Parameters
@@ -1127,7 +1148,7 @@ class Message(Generic[UserT], metaclass=abc.ABCMeta):
         """
         await self._react(sticker, True)
 
-    async def remove_sticker(self, sticker: Sticker) -> None:
+    async def remove_sticker(self, sticker: Sticker, /) -> None:
         """Adds a sticker to this message.
 
         Parameters

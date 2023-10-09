@@ -29,7 +29,7 @@ class CraftResponse(GCMessage, msg=EMsg.CraftResponse):
     ids: tuple[AssetID, ...]
     being_used: bool
 
-    def parse(self, data: bytes) -> CraftResponse:
+    def parse(self, data: bytes, /) -> CraftResponse:  # type: ignore
         with StructIO(data) as io:
             self.recipe_id = io.read_i16()
             _ = io.read_u32()  # always 0 in mckay's experience

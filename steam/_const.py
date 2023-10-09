@@ -8,13 +8,15 @@ Licensed under The MIT License (MIT) - Copyright (c) 2020-present James H-B. See
 from __future__ import annotations
 
 import builtins
+import importlib.util
 import struct
 from collections.abc import Callable
 from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from functools import partial
 from io import BytesIO, StringIO
-from typing import TYPE_CHECKING, Any, Final, Literal, Protocol, TypeVar, cast, final
+from typing import TYPE_CHECKING, Any, Final, Literal, Protocol, TypeAlias, TypeVar, cast, final
 
 from multidict import MultiDict
 from yarl import URL as _URL
@@ -24,30 +26,33 @@ from .types.vdf import BinaryVDFDict, VDFDict
 if TYPE_CHECKING:
     from typing_extensions import Buffer
 
+    from .clan import Clan
+    from .group import Group
     from .state import ConnectionState
 
 DOCS_BUILDING: bool = getattr(builtins, "__sphinx__", False)
 
-
+HAS_ORJSON = False
 try:
     import orjson  # type: ignore
 except ModuleNotFoundError:
     import json
 
-    JSON_LOADS: Final = json.loads  # type: ignore
+    json_loads = json.loads
 
-    def dumps(
+    @partial(cast, Callable[[Any], str])
+    def json_dumps(
         obj: Any,
         __func: Callable[..., str] = json.dumps,
         /,
     ) -> str:
         return __func(obj, separators=(",", ":"), ensure_ascii=True)
 
-    JSON_DUMPS: Final = cast(Callable[[Any], str], dumps)  # type: ignore
 else:
-    JSON_LOADS: Final[Callable[[str | bytes], Any]] = orjson.loads  # type: ignore
+    json_loads = orjson.loads
 
-    def dumps(
+    @partial(cast, Callable[[Any], str])
+    def json_dumps(
         obj: Any,
         __func: Callable[[Any], bytes] = orjson.dumps,  # type: ignore
         __decoder: Callable[[bytes], str] = bytes.decode,
@@ -55,7 +60,9 @@ else:
     ) -> str:
         return __decoder(__func(obj))
 
-    JSON_DUMPS: Final = cast(Callable[[Any], str], dumps)
+
+JSON_LOADS: Final = cast(Callable[[str | bytes], Any], json_loads)
+JSON_DUMPS: Final = json_dumps
 
 
 try:
@@ -63,9 +70,9 @@ try:
 except ModuleNotFoundError:
     import vdf
 
-    def multi_dict_ify(
+    def _multi_dict_ify(
         x: Any,
-        __isinstance=isinstance,
+        __isinstance=isinstance,  # type: ignore
         __vdf_dict=vdf.VDFDict,
         __multi_dict: type[MultiDict[Any]] = MultiDict,
         /,
@@ -74,44 +81,38 @@ except ModuleNotFoundError:
             multi_dict = __multi_dict()
             adder = multi_dict.add
             for k, v in x.items():
-                adder(k, multi_dict_ify(v))
+                adder(k, _multi_dict_ify(v))
             return multi_dict
         return x
 
-    def loads(
+    def vdf_loads(
         s: str,
-        __func: Callable[..., Any] = vdf.parse,
+        __func: Callable[..., Any] = vdf.parse,  # type: ignore
         __mapper: type[vdf.VDFDict] = vdf.VDFDict,
-        __multi_dict_ify: Callable[[vdf.VDFDict], MultiDict[Any]] = multi_dict_ify,
+        __multi_dict_ify: Callable[[vdf.VDFDict], MultiDict[Any]] = _multi_dict_ify,
         __string_io: type[StringIO] = StringIO,
         /,
     ) -> VDFDict:
         return __multi_dict_ify(__func(__string_io(s), mapper=__mapper))
 
-    def binary_loads(
+    def vdf_binary_loads(
         s: bytes,
-        __func: Callable[..., Any] = vdf.binary_load,
+        __func: Callable[..., Any] = vdf.binary_load,  # type: ignore
         __mapper: type[vdf.VDFDict] = vdf.VDFDict,
-        __multi_dict_ify: Callable[[vdf.VDFDict], MultiDict[Any]] = multi_dict_ify,
+        __multi_dict_ify: Callable[[vdf.VDFDict], MultiDict[Any]] = _multi_dict_ify,
         __bytes_io: type[BytesIO] = BytesIO,
         /,
     ) -> BinaryVDFDict:
         return __multi_dict_ify(__func(__bytes_io(s), mapper=__mapper))
 
-    VDF_LOADS: Final = cast(Callable[[str], VDFDict], loads)  # type: ignore
-    VDF_BINARY_LOADS: Final = cast(Callable[[bytes], BinaryVDFDict], binary_loads)  # type: ignore
-
 else:
-    VDF_LOADS: Final[Callable[[str], VDFDict]] = orvdf.loads  # type: ignore
-    VDF_BINARY_LOADS: Final[Callable[[bytes], BinaryVDFDict]] = orvdf.binary_loads  # type: ignore
+    vdf_loads = orvdf.loads  # type: ignore
+    vdf_binary_loads = orvdf.binary_loads  # type: ignore
 
+VDF_LOADS: Final = cast(Callable[[str], VDFDict], vdf_loads)
+VDF_BINARY_LOADS: Final = cast(Callable[[bytes], BinaryVDFDict], vdf_binary_loads)
 
-try:
-    import lxml  # type: ignore
-except ModuleNotFoundError:
-    HTML_PARSER: Final = "html.parser"  # type: ignore
-else:
-    HTML_PARSER: Final = "lxml-xml"
+HTML_PARSER: Final = "lxml-xml" if importlib.util.find_spec("lxml") else "html.parser"
 
 try:
     from asyncio import TaskGroup as TaskGroup, timeout as timeout  # type: ignore
@@ -123,7 +124,9 @@ UNIX_EPOCH: Final = datetime(1970, 1, 1, tzinfo=timezone.utc)
 STEAM_EPOCH: Final = datetime(2003, 1, 1, tzinfo=timezone.utc)
 
 
-def READ_U32(s: Buffer, unpacker: Callable[[Buffer], tuple[int]] = struct.Struct("<I").unpack_from, /) -> int:
+def READ_U32(
+    s: Buffer, unpacker: Callable[[Buffer], tuple[int]] = cast(Any, struct.Struct("<I").unpack_from), /
+) -> int:
     (u32,) = unpacker(s)
     return u32
 
@@ -175,15 +178,17 @@ DEFAULT_AVATAR: Final = b"\xfe\xf4\x9e\x7f\xa7\xe1\x99s\x10\xd7\x05\xb2\xa6\x15\
 
 
 class _IDComparable(Protocol):
-    id: Any
+    @property
+    def id(self) -> Any:
+        ...
 
 
-TypeT = TypeVar("TypeT", bound=type[_IDComparable])
+_TT_IDComp = TypeVar("_TT_IDComp", bound=type[_IDComparable])
 
 
-def impl_eq_via_id(cls: TypeT) -> TypeT:
+def impl_eq_via_id(cls: _TT_IDComp) -> _TT_IDComp:
     def __eq__(self: _IDComparable, other: object, /) -> bool:
-        return isinstance(other, cls) and self.id == other.id
+        return isinstance(other, cls) and self.id == other.id  # type: ignore
 
     def __hash__(self: _IDComparable) -> int:
         return hash(self.id)
@@ -191,6 +196,33 @@ def impl_eq_via_id(cls: TypeT) -> TypeT:
     cls.__eq__ = __eq__
     cls.__hash__ = __hash__
     return cls
+
+
+class _HasChatGroupMixin(Protocol):
+    __slots__ = ()
+    clan: Clan | None
+    group: Group | None
+
+    @property
+    def _chat_group(self) -> Clan | Group:
+        chat_group = self.clan or self.group
+        assert chat_group is not None
+        return chat_group
+
+
+T_co = TypeVar("T_co", covariant=True)
+
+
+class _ReadOnlyProto(Protocol[T_co]):
+    def __get__(self, __instance: Any, __owner: type) -> T_co:
+        ...
+
+
+ReadOnly: TypeAlias = T_co | _ReadOnlyProto[T_co]
+"""PEP 705 style read only, should make things a easier transition when the feature gets added to nominal classes.
+
+Currently does not mean anything to a type checker really.
+"""
 
 
 @dataclass(frozen=True, slots=True)
@@ -205,8 +237,8 @@ STEAM_BADGES = (
     SteamBadge(
         "Years of Service",
         1,
-        "https://community.cloudflare.steamstatic.com/public/images/badges/02_years/steamyears19_80.png",
-        19,
+        "https://community.cloudflare.steamstatic.com/public/images/badges/02_years/steamyears20_80.png",
+        20,
     ),
     SteamBadge(
         "Community Ambassador",
@@ -549,83 +581,83 @@ STEAM_BADGES = (
 # default CMs if Steam API is down
 DEFAULT_CMS: Final = (
     "ext1-ams1.steamserver.net:27019",
-    "ext1-ams1.steamserver.net:27020",
-    "ext1-ams1.steamserver.net:27021",
+    "ext1-ams1.steamserver.net:27022",
+    "ext1-ams1.steamserver.net:27023",
+    "ext1-ams1.steamserver.net:27024",
     "ext1-ams1.steamserver.net:27025",
-    "ext1-ams1.steamserver.net:27031",
+    "ext1-ams1.steamserver.net:27029",
     "ext1-ams1.steamserver.net:27033",
-    "ext1-ams1.steamserver.net:27036",
+    "ext1-ams1.steamserver.net:27035",
     "ext1-ams1.steamserver.net:27038",
     "ext1-ams1.steamserver.net:443",
-    "ext1-fra2.steamserver.net:27020",
-    "ext1-fra2.steamserver.net:27025",
-    "ext1-fra2.steamserver.net:27031",
-    "ext1-fra2.steamserver.net:27035",
-    "ext1-fra2.steamserver.net:27037",
-    "ext1-fra2.steamserver.net:443",
-    "ext1-lhr1.steamserver.net:27022",
-    "ext1-lhr1.steamserver.net:27023",
+    "ext1-fra1.steamserver.net:27020",
+    "ext1-fra1.steamserver.net:27022",
+    "ext1-fra1.steamserver.net:27023",
+    "ext1-fra1.steamserver.net:27024",
+    "ext1-fra1.steamserver.net:27025",
+    "ext1-fra1.steamserver.net:27030",
+    "ext1-fra1.steamserver.net:27031",
+    "ext1-fra1.steamserver.net:27032",
+    "ext1-fra1.steamserver.net:27034",
+    "ext1-fra1.steamserver.net:27037",
+    "ext1-fra1.steamserver.net:27038",
+    "ext1-fra1.steamserver.net:443",
+    "ext1-lhr1.steamserver.net:27020",
+    "ext1-lhr1.steamserver.net:27021",
+    "ext1-lhr1.steamserver.net:27025",
     "ext1-lhr1.steamserver.net:27029",
+    "ext1-lhr1.steamserver.net:27030",
+    "ext1-lhr1.steamserver.net:27032",
+    "ext1-lhr1.steamserver.net:27034",
     "ext1-lhr1.steamserver.net:27036",
+    "ext1-lhr1.steamserver.net:27038",
     "ext1-lhr1.steamserver.net:443",
+    "ext1-par1.steamserver.net:27019",
     "ext1-par1.steamserver.net:27020",
     "ext1-par1.steamserver.net:27021",
+    "ext1-par1.steamserver.net:27022",
     "ext1-par1.steamserver.net:27023",
+    "ext1-par1.steamserver.net:27024",
     "ext1-par1.steamserver.net:27025",
-    "ext1-par1.steamserver.net:27028",
-    "ext1-par1.steamserver.net:27030",
-    "ext1-par1.steamserver.net:27032",
+    "ext1-par1.steamserver.net:27029",
+    "ext1-par1.steamserver.net:27031",
     "ext1-par1.steamserver.net:27033",
-    "ext1-par1.steamserver.net:27038",
+    "ext1-par1.steamserver.net:27035",
+    "ext1-par1.steamserver.net:27036",
     "ext1-par1.steamserver.net:443",
-    "ext2-ams1.steamserver.net:27019",
     "ext2-ams1.steamserver.net:27020",
-    "ext2-ams1.steamserver.net:27021",
     "ext2-ams1.steamserver.net:27022",
-    "ext2-ams1.steamserver.net:27024",
+    "ext2-ams1.steamserver.net:27023",
+    "ext2-ams1.steamserver.net:27025",
+    "ext2-ams1.steamserver.net:27028",
     "ext2-ams1.steamserver.net:27029",
+    "ext2-ams1.steamserver.net:27030",
+    "ext2-ams1.steamserver.net:27032",
     "ext2-ams1.steamserver.net:27033",
-    "ext2-ams1.steamserver.net:27036",
-    "ext2-ams1.steamserver.net:27037",
     "ext2-ams1.steamserver.net:27038",
     "ext2-ams1.steamserver.net:443",
-    "ext2-fra2.steamserver.net:27019",
-    "ext2-fra2.steamserver.net:27022",
-    "ext2-fra2.steamserver.net:27024",
-    "ext2-fra2.steamserver.net:27029",
-    "ext2-fra2.steamserver.net:27032",
-    "ext2-fra2.steamserver.net:27033",
-    "ext2-fra2.steamserver.net:27036",
-    "ext2-fra2.steamserver.net:27038",
-    "ext2-lhr1.steamserver.net:27020",
-    "ext2-lhr1.steamserver.net:27023",
-    "ext2-lhr1.steamserver.net:27024",
-    "ext2-lhr1.steamserver.net:27028",
-    "ext2-lhr1.steamserver.net:27029",
+    "ext2-fra1.steamserver.net:27032",
+    "ext2-fra1.steamserver.net:27036",
+    "ext2-lhr1.steamserver.net:27030",
+    "ext2-lhr1.steamserver.net:27033",
     "ext2-lhr1.steamserver.net:443",
-    "ext2-par1.steamserver.net:27020",
+    "ext2-par1.steamserver.net:27019",
     "ext2-par1.steamserver.net:27021",
     "ext2-par1.steamserver.net:27023",
-    "ext2-par1.steamserver.net:27025",
+    "ext2-par1.steamserver.net:27029",
     "ext2-par1.steamserver.net:27030",
     "ext2-par1.steamserver.net:27031",
-    "ext2-par1.steamserver.net:27032",
-    "ext2-par1.steamserver.net:27034",
-    "ext2-par1.steamserver.net:27035",
-    "ext2-par1.steamserver.net:27036",
-    "ext2-par1.steamserver.net:27037",
+    "ext2-par1.steamserver.net:27033",
+    "ext2-par1.steamserver.net:27038",
     "ext2-par1.steamserver.net:443",
-    "ext3-lhr1.steamserver.net:27019",
-    "ext3-lhr1.steamserver.net:27022",
-    "ext3-lhr1.steamserver.net:27031",
-    "ext3-lhr1.steamserver.net:27033",
-    "ext3-lhr1.steamserver.net:27037",
+    "ext3-lhr1.steamserver.net:27020",
+    "ext3-lhr1.steamserver.net:27025",
+    "ext3-lhr1.steamserver.net:27030",
+    "ext3-lhr1.steamserver.net:27038",
     "ext3-lhr1.steamserver.net:443",
-    "ext4-lhr1.steamserver.net:27019",
-    "ext4-lhr1.steamserver.net:27023",
-    "ext4-lhr1.steamserver.net:27024",
-    "ext4-lhr1.steamserver.net:27030",
-    "ext4-lhr1.steamserver.net:27032",
-    "ext4-lhr1.steamserver.net:27037",
+    "ext4-lhr1.steamserver.net:27022",
+    "ext4-lhr1.steamserver.net:27029",
+    "ext4-lhr1.steamserver.net:27031",
+    "ext4-lhr1.steamserver.net:27036",
     "ext4-lhr1.steamserver.net:443",
 )

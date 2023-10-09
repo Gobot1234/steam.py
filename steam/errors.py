@@ -23,7 +23,6 @@ __all__ = (
     "LoginError",
     "NoCMsFound",
     "HTTPException",
-    "ClientException",
     "ConfirmationError",
     "AuthenticatorError",
     "InvalidCredentials",
@@ -38,13 +37,6 @@ CODE_FINDER = re.compile(r"\S(\d+)\S")
 
 class SteamException(Exception):
     """Base exception class for steam.py."""
-
-
-class ClientException(SteamException):
-    """Exception that's thrown when something in the client fails.
-
-    Subclass of :exc:`SteamException`.
-    """
 
 
 class HTTPException(SteamException):
@@ -97,7 +89,10 @@ class HTTPException(SteamException):
             self.code = Result.try_value(int(code))
 
         super().__init__(
-            f"{response.status} {response.reason} (error code: {self.code}){f': {self.message}' if self.message else ''}"
+            (
+                f"{response.status} {response.reason}"  # type: ignore  # another aiohttp types bug fixed upstream
+                f"(error code: {self.code}){f': {self.message}' if self.message else ''}"
+            )
         )
 
 
@@ -163,7 +158,7 @@ class InvalidCredentials(LoginError):
     """
 
 
-class AuthenticatorError(ClientException):
+class AuthenticatorError(SteamException):
     """Exception that's thrown when Steam cannot authenticate your details.
 
     Subclass of :exc:`LoginError`.

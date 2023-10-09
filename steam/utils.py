@@ -64,7 +64,7 @@ from .enums import Type, _is_descriptor, classproperty as classproperty
 from .id import _URL_START, ID, id64_from_url as id64_from_url, parse_id64 as parse_id64
 
 if TYPE_CHECKING:
-    from typing_extensions import Self
+    from typing_extensions import Self, deprecated
 
     from .types.http import Coro, StrOrURL
     from .types.user import IndividualID
@@ -125,7 +125,7 @@ class TradeURLInfo:
         return self.url
 
 
-def parse_trade_url(url: StrOrURL) -> TradeURLInfo | None:
+def parse_trade_url(url: StrOrURL, /) -> TradeURLInfo | None:
     """Parses a trade URL for useful information.
 
     Parameters
@@ -212,6 +212,12 @@ class CachedSlotProperty(Generic[_SelfT, _T_co]):
         self.function = function
         self.__doc__: str | None = getattr(function, "__doc__", None)
         self.name = name
+        if __debug__:  # sanity check slots are present
+            try:
+                slots = sys._getframe(2).f_locals["__slots__"]
+            except KeyError:
+                slots = sys._getframe(3).f_locals["__slots__"]
+            assert name in slots, f"Slot {name} must exist"
 
     @overload
     def __get__(self, instance: None, _) -> Self:
@@ -241,21 +247,21 @@ F_wait = TypeVar("F_wait", bound="Callable[Concatenate[Any, ...], Awaitable[Any]
 
 
 @overload
-def call_once(func: F_no_wait) -> F_no_wait:
+def call_once(func: F_no_wait, /) -> F_no_wait:
     ...
 
 
 @overload
-def call_once(*, wait: Literal[False]) -> Callable[[F_no_wait], F_no_wait]:
+def call_once(*, wait: Literal[False] = False) -> Callable[[F_no_wait], F_no_wait]:
     ...
 
 
 @overload
-def call_once(*, wait: Literal[True] = ...) -> Callable[[F_wait], F_wait]:
+def call_once(*, wait: Literal[True]) -> Callable[[F_wait], F_wait]:
     ...
 
 
-def call_once(func: F_wait | None = None, *, wait: bool = False) -> F_wait | Callable[[F_wait], F_wait]:
+def call_once(func: F_wait | None = None, /, *, wait: bool = False) -> F_wait | Callable[[F_wait], F_wait]:
     def get_inner(func: F_wait) -> F_wait:
         locks = weakref.WeakKeyDictionary[object, asyncio.Lock]()
         being_called = weakref.WeakSet[object]()
@@ -367,7 +373,7 @@ class DateTime:
         return datetime.now(timezone.utc)
 
     @staticmethod
-    def from_timestamp(timestamp: float) -> datetime:
+    def from_timestamp(timestamp: float, /) -> datetime:
         # work around python/cpython#75395
         return UNIX_EPOCH + timedelta(seconds=timestamp)
 
@@ -379,7 +385,7 @@ class DateTime:
         return dt.replace(tzinfo=timezone.utc)
 
     @staticmethod  # TODO actually make this reliable for languages other than english
-    def parse_steam_date(input: str, *, full_month: bool = True) -> datetime | None:
+    def parse_steam_date(input: str, /, *, full_month: bool = True) -> datetime | None:
         if ", " not in input:
             input += f"{input}, {DateTime.now().year}"  # assume current year
 
@@ -425,7 +431,7 @@ PACK_FORMATS: Final = cast(Mapping[str, str], {
 class StructIOMeta(type):
     def __new__(mcs, name: str, bases: tuple[type, ...], namespace: dict[str, Any]) -> StructIOMeta:
         for method_name, format in PACK_FORMATS.items():
-            exec(f"def write_{method_name}(self, item): self.write_struct('<{format}', item)", {}, namespace)
+            exec(f"def write_{method_name}(self, item, /): self.write_struct('<{format}', item)", {}, namespace)
             exec(
                 textwrap.dedent(
                     f"""def read_{method_name}(self):
@@ -463,7 +469,7 @@ class StructIO(
     def __len__(self) -> int:
         return len(self.getbuffer())
 
-    def read_struct(self, format: str, position: int | None = None) -> tuple[Any, ...]:
+    def read_struct(self, format: str, /, position: int | None = None) -> tuple[Any, ...]:
         buffer = self.read(position or struct.calcsize(format))
         return struct.unpack(format, buffer)
 
@@ -471,7 +477,7 @@ class StructIO(
     def write_struct(self, format: str, to_write_1: Any, /, *to_write: Any) -> None:  # type: ignore
         ...
 
-    def write_struct(self, format: str, *to_write: Any) -> None:
+    def write_struct(self, format: str, /, *to_write: Any) -> None:
         self.write(struct.pack(format, *to_write))
 
     def read_cstring(self, terminator: bytes = b"\x00") -> bytes:
@@ -492,29 +498,29 @@ class StructIO(
         # added by the metaclass
         # fmt: off
         def read_i8(self) -> int: ...
-        def write_i8(self, item: int) -> None: ...
+        def write_i8(self, item: int, /) -> None: ...
         def read_u8(self) -> int: ...
-        def write_u8(self, item: int) -> None: ...
+        def write_u8(self, item: int, /) -> None: ...
         def read_i16(self) -> int: ...
-        def write_i16(self, item: int) -> None: ...
+        def write_i16(self, item: int, /) -> None: ...
         def read_u16(self) -> int: ...
-        def write_u16(self, item: int) -> None: ...
+        def write_u16(self, item: int, /) -> None: ...
         def read_i32(self) -> int: ...
-        def write_i32(self, item: int) -> None: ...
+        def write_i32(self, item: int, /) -> None: ...
         def read_u32(self) -> int: ...
-        def write_u32(self, item: int) -> None: ...
+        def write_u32(self, item: int, /) -> None: ...
         def read_i64(self) -> int: ...
-        def write_i64(self, item: int) -> None: ...
+        def write_i64(self, item: int, /) -> None: ...
         def read_u64(self) -> int: ...
-        def write_u64(self, item: int) -> None: ...
+        def write_u64(self, item: int, /) -> None: ...
         def read_f32(self) -> float: ...
-        def write_f32(self, item: float) -> None: ...
+        def write_f32(self, item: float, /) -> None: ...
         def read_f64(self) -> float: ...
-        def write_f64(self, item: float) -> None: ...
+        def write_f64(self, item: float, /) -> None: ...
         def read_long(self) -> int: ...
-        def write_long(self, item: int) -> None: ...
+        def write_long(self, item: int, /) -> None: ...
         def read_ulong(self) -> int: ...
-        def write_ulong(self, item: int) -> None: ...
+        def write_ulong(self, item: int, /) -> None: ...
         # fmt: on
 
 
@@ -579,7 +585,7 @@ class JWTToken(TypedDict):
     ip_confirmer: str
 
 
-def decode_jwt(token: str) -> JWTToken:
+def decode_jwt(token: str, /) -> JWTToken:
     try:
         _, jwt, _ = token.split(".")
     except TypeError:
@@ -631,7 +637,7 @@ BB_CODE_ATTRIBUTES_RE: Final = re.compile(
 )
 
 
-def parse_bb_code(string: str) -> BBCodeStr:
+def parse_bb_code(string: str, /) -> BBCodeStr:
     tags = list[BBCodeTag]()
     for match in BB_CODE_RE.finditer(string):
         tag = BBCodeTag(
@@ -674,8 +680,19 @@ CHAT_COMMANDS = "|".join(
 CHAT_COMMANDS_RE: Final = re.compile(rf"""/(?:{CHAT_COMMANDS})""")
 
 
-def contains_chat_command(string: str) -> bool:
+def contains_chat_command(string: str, /) -> bool:
     return bool(CHAT_COMMANDS_RE.match(string))
+
+
+if TYPE_CHECKING:
+    todo = deprecated("This method is not yet implemented")
+else:
+
+    def todo(func):
+        def wrapper(*args: Any, **kwargs: Any) -> None:
+            raise NotImplementedError(f"{func.__name__} is not yet implemented")
+
+        return wrapper
 
 
 # everything below here is directly from discord.py's utils
@@ -869,8 +886,9 @@ def get(iterable: _Iter[_T], /, **attrs: Any) -> _T | None | Coro[_T | None]:
 
 async def maybe_coroutine(
     func: Callable[_P, _T | Awaitable[_T]],
+    /,
     *args: _P.args,
     **kwargs: _P.kwargs,
 ) -> _T:
     value = func(*args, **kwargs)
-    return await value if isawaitable(value) else value  # type: ignore
+    return await value if isawaitable(value) else value

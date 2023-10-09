@@ -5,6 +5,7 @@ Licensed under The MIT License (MIT) - Copyright (c) 2020-present James H-B. See
 """
 
 import asyncio
+from itertools import takewhile
 from pathlib import Path
 from typing import Final
 
@@ -33,11 +34,8 @@ async def main() -> None:
     ws_list: list[str] = sorted(cm["endpoint"] for cm in default_cms["response"]["serverlist"])
 
     with CONST_FILE.open("r") as fp:
-        new_lines = list[str]()
-        for line in fp:
-            new_lines.append(line)
-            if line.strip() == "# default CMs if Steam API is down":
-                break
+        new_lines = list(takewhile(lambda line: line.strip() != "# default CMs if Steam API is down", fp))
+        new_lines.append("# default CMs if Steam API is down\n")
 
         new_lines.append(f"DEFAULT_CMS: Final = {black.format_str(str(tuple(ws_list)), mode=black.Mode())}")
 

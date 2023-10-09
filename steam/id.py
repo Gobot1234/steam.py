@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import abc
 import re
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from contextlib import nullcontext
 from types import GenericAlias
-from typing import TYPE_CHECKING, Any, Final, Generic, Literal, cast, overload
+from typing import TYPE_CHECKING, Final, Generic, Literal, cast
 
 import aiohttp
-from typing_extensions import Self, TypeVar
+from typing_extensions import TypeVar
 
 from ._const import JSON_LOADS, URL
 from .enums import Instance, Type, TypeChar, Universe
@@ -29,6 +29,7 @@ __all__ = ("ID",)
 
 def parse_id64(
     id: Intable,
+    /,
     *,
     type: Type | None = None,
     universe: Universe | None = None,
@@ -78,13 +79,15 @@ def parse_id64(
         # textual input e.g. [g:1:4]
         if not isinstance(id, str):
             raise InvalidID(id, type, universe, instance, "it cannot be parsed as an int or str") from None
-        result = ID.from_id2(id) or ID.from_id3(id) or ID.from_invite_code(id)
+        result = ID.from_id2(id) or ID.from_id3(id)
         if result is None:
             raise InvalidID(id, type, universe, instance, "it cannot be parsed") from None
         return result.id64
     else:
         # numeric input
-        if 0 <= id < 2**32:  # 32 bit
+        if id < 0:
+            raise InvalidID(id, type, universe, instance, "it is too small")
+        elif 0 <= id < 2**32:  # 32 bit
             type = type or Type.Individual
             universe = universe or Universe.Public
 
@@ -97,13 +100,13 @@ def parse_id64(
                 raise InvalidID(id, type, universe, instance, "type is bigger than 4 bits")
             if not (0 <= instance < 1 << 20):
                 raise InvalidID(id, type, universe, instance, "instance is bigger than 20 bits")
-        elif 0 <= id < 2**64:  # 64 bit
+        elif id < 2**64:  # 64 bit
             universe = Universe.try_value((id >> 56) & 0xFF)
             type = Type.try_value((id >> 52) & 0xF)
             instance = Instance.try_value((id >> 32) & 0xFFFFF)
             id &= 0xFFFFFFFF
         else:
-            raise InvalidID(id, type, universe, instance, f"it is too {'large' if id >= 2**64 else 'small'}")
+            raise InvalidID(id, type, universe, instance, "it is too large")
 
     return ID64(universe << 56 | type << 52 | instance << 32 | id)
 
@@ -147,63 +150,21 @@ def _invite_hex_sub(
 USER_URL_PATHS = frozenset({"id", "profiles", "user"})
 CLAN_URL_PATHS = frozenset({"gid", "groups", "app", "games"})
 URL_REGEX = re.compile(
-    rf"{_URL_START}(?P<clean_url>steamcommunity\.com/(?P<type>{'|'.join(USER_URL_PATHS | CLAN_URL_PATHS)})/(?P<value>.+))"
+    rf"{_URL_START}(?P<clean_url>steamcommunity\.com/(?P<type>{'|'.join(USER_URL_PATHS | CLAN_URL_PATHS)})/[^/]*)"
 )
 USER_ID64_FROM_URL_REGEX = re.compile(r"g_rgProfileData\s*=\s*(?P<json>{.*?});\s*")
 CLAN_ID64_FROM_URL_REGEX = re.compile(r"OpenGroupChat\(\s*'(?P<steamid>\d+)'\s*\)")
 
 
-async def id64_from_url(url: StrOrURL, session: aiohttp.ClientSession | None = None) -> ID64 | None:
-    """Takes a Steam Community url and returns 64-bit Steam ID or ``None``.
+async def id64_from_url(url: StrOrURL, /, session: aiohttp.ClientSession | None = None) -> ID64 | None:
+    """Fetches the 64-bit Steam ID from a Steam Community URL or ``None``.
 
-    Notes
-    -----
-    - Each call makes a http request to https://steamcommunity.com.
-
-    - Example URLs:
-
-        https://steamcommunity.com/gid/[g:1:4]
-
-        https://steamcommunity.com/gid/103582791429521412
-
-        https://steamcommunity.com/groups/Valve
-
-        https://steamcommunity.com/profiles/[U:1:12]
-
-        https://steamcommunity.com/profiles/76561197960265740
-
-        https://steamcommunity.com/id/johnc
-
-        https://steamcommunity.com/user/r
-
-        https://steamcommunity.com/app/570
-
-    Parameters
-    ----------
-    url
-        The Steam community url.
-    session
-        The session to make the request with. If this parameter is omitted a new one is generated.
-
-    Returns
-    -------
-    The found 64-bit ID or ``None`` if ``https://steamcommunity.com`` is down or no matching account is found.
+    See Also
+    --------
+    :meth:`ID.from_url` for more information.
     """
-
-    if not (search := URL_REGEX.match(str(url))):
-        return None
-
-    async with (
-        aiohttp.ClientSession() if session is None else nullcontext(session) as session,
-        session.get(f"https://{search['clean_url']}") as r,
-    ):
-        text = await r.text()
-
-    if search["type"] in USER_URL_PATHS:
-        data = JSON_LOADS(match["json"]) if (match := USER_ID64_FROM_URL_REGEX.search(text)) else None
-    else:
-        data = CLAN_ID64_FROM_URL_REGEX.search(text)
-    return ID64(int(data["steamid"])) if data else None
+    id = await ID.from_url(url, session=session)
+    return id.id64 if id is not None else None
 
 
 _ID64_TO_ID32: Final = cast(Callable[[int], ID32], 0xFFFFFFFF.__and__)
@@ -275,7 +236,7 @@ class ID(Generic[TypeT], metaclass=abc.ABCMeta):
     __slots__ = ("id64", "__weakref__")
     __class_getitem__ = classmethod(
         GenericAlias
-    )  # want the different behaviour between typing._GenericAlias todo with attribute forwarding
+    )  # want the different behaviour between typing._GenericAlias to do with attribute forwarding
 
     def __init__(
         self,
@@ -553,19 +514,56 @@ class ID(Generic[TypeT], metaclass=abc.ABCMeta):
 
     @staticmethod
     async def from_url(
-        url: StrOrURL, session: ClientSession | None = None
+        url: StrOrURL, /, session: ClientSession | None = None
     ) -> ID[Literal[Type.Individual, Type.Clan]] | None:
-        """A helper function creates a Steam ID instance from a Steam community url.
+        """Fetches the ID associated with a Steam Community URL or ``None``.
 
         Note
-        ----
-        See :func:`id64_from_url` for the full parameter list.
+        -----
+        Each call makes an HTTP request to https://steamcommunity.com.
+
+        Examples
+        --------
+        The following are valid calls:
+
+        .. code:: pycon
+
+            >>> await ID.from_url("https://steamcommunity.com/groups/Valve")
+            >>> await ID.from_url("https://steamcommunity.com/gid/103582791429521412")
+            >>> await ID.from_url("https://steamcommunity.com/gid/[g:1:4]")
+            ID(id=4, type=Type.Clan, universe=Universe.Public, instance=Instance.All)
+
+            >>> await ID.from_url("https://steamcommunity.com/id/johnc")
+            >>> await ID.from_url("https://steamcommunity.com/profiles/76561197960265740")
+            >>> await ID.from_url("https://steamcommunity.com/profiles/[U:1:12]")
+            >>> await ID.from_url("https://steamcommunity.com/user/r")
+            ID(id=12, type=Type.Individual, universe=Universe.Public, instance=Instance.Desktop)
+
+            >>> await ID.from_url("https://steamcommunity.com/app/570")
+            ID(id=3703047, type=Type.Clan, universe=Universe.Public, instance=Instance.All)
+
+        Parameters
+        ----------
+        url
+            The Steam Community URL.
+        session
+            The session to make the request with. If ``None``, one is generated.
         """
-        id64 = await id64_from_url(url, session)
-        if id64:
-            id = ID(id64)
-            assert id.type in (Type.Individual, Type.Clan)
-            return id
+
+        if not (search := URL_REGEX.match(str(url))):
+            return None
+
+        async with (
+            aiohttp.ClientSession() if session is None else nullcontext(session) as session,
+            session.get(f"https://{search['clean_url']}") as r,
+        ):
+            text = await r.text()
+
+        if search["type"] in USER_URL_PATHS:
+            data = JSON_LOADS(match["json"]) if (match := USER_ID64_FROM_URL_REGEX.search(text)) else None
+        else:
+            data = CLAN_ID64_FROM_URL_REGEX.search(text)
+        return ID[Literal[Type.Individual, Type.Clan]](int(data["steamid"])) if data else None
 
 
 ID_ZERO: Final = ID[Literal[Type.Individual]](0, type=Type.Individual)

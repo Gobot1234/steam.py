@@ -2,15 +2,19 @@
 
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
+import abc
+import re
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import timedelta
 from io import BytesIO
-from typing import TYPE_CHECKING, Any, Literal, ParamSpec, TypeVar, cast, runtime_checkable
+from typing import TYPE_CHECKING, Any, Literal, ParamSpec, TypedDict, TypeVar, cast, runtime_checkable
 
 from typing_extensions import Protocol
 
-from ._const import DEFAULT_AVATAR, URL
+from ._const import DEFAULT_AVATAR, URL, ReadOnly
+from .enums import Currency, PurchaseResult, Realm, Result
+from .market import PriceOverview
 from .media import Media
 from .types.id import AppID, ClassID
 
@@ -22,8 +26,7 @@ if TYPE_CHECKING:
     from yarl import URL as _URL
 
     from .app import PartialApp
-    from .enums import Currency
-    from .market import Listing, PriceHistory, PriceOverview
+    from .market import Listing, PriceHistory
     from .protobufs import econ
     from .state import ConnectionState
     from .types import user
@@ -137,23 +140,13 @@ class StreamReaderProto(Protocol):
         ...
 
 
-class _IOMixin:
+@runtime_checkable
+class _IOMixinNoOpen(Protocol):
     __slots__ = ()
 
-    if __debug__:
-
-        def __init_subclass__(cls) -> None:
-            if cls.open is _IOMixin.open and not hasattr(cls, "url") and not hasattr(cls, "_state"):
-                raise NotImplementedError("Missing required attributes for implicit _IOMixin.open()")
-
-    @asynccontextmanager
-    async def open(self, **kwargs: Any) -> AsyncGenerator[StreamReaderProto, None]:
-        """Open this file as and returns its contents as an :class:`aiohttp.StreamReader`."""
-        url = cast(str, self.url)  # type: ignore
-        state = cast("ConnectionState", self._state)  # type: ignore
-
-        async with state.http._session.get(url) as r:
-            yield r.content
+    @abc.abstractmethod
+    def open(self) -> AbstractAsyncContextManager[StreamReaderProto]:
+        raise NotImplementedError
 
     async def read(self, **kwargs: Any) -> bytes:
         """Read the whole contents of this file."""
@@ -184,21 +177,35 @@ class _IOMixin:
         return Media(BytesIO(await self.read()), spoiler=spoiler)
 
 
+@runtime_checkable
+class _IOMixin(_IOMixinNoOpen, Protocol):
+    __slots__ = ()
+    _state: ConnectionState
+    url: ReadOnly[str]
+
+    @asynccontextmanager
+    async def open(self) -> AsyncGenerator[StreamReaderProto, None]:
+        async with self._state.http._session.get(self.url) as r:
+            yield r.content
+
+
 class Avatar(_IOMixin):
     __slots__ = (
         "sha",
+        "_suffix",
         "_state",
     )
 
-    def __init__(self, state: ConnectionState, sha: bytes):
+    def __init__(self, state: ConnectionState, sha: bytes, suffix: str = "full"):
         sha = bytes(sha)
         self.sha = sha if sha != b"\x00" * 20 else DEFAULT_AVATAR
         self._state = state
+        self._suffix = suffix
 
     @property
     def url(self) -> str:
         """The URL of the avatar. Uses the large (184x184 px) image URL."""
-        return f"https://avatars.cloudflare.steamstatic.com/{self.sha.hex()}_full.jpg"
+        return f"https://avatars.cloudflare.steamstatic.com/{self.sha.hex()}_{self._suffix}.jpg"
 
     def __eq__(self, other: object) -> bool:
         return isinstance(other, self.__class__) and self.sha == other.sha
@@ -210,12 +217,33 @@ class Avatar(_IOMixin):
 @dataclass(slots=True, unsafe_hash=True)
 class CDNAsset(_IOMixin):
     _state: ConnectionState = field(repr=False, hash=False)
-    url: str = field()
+    url: ReadOnly[str] = field()
     """The URL of the asset."""
 
 
 @runtime_checkable
-class DescriptionMixin(Protocol):
+class AssetMixin(Protocol):
+    __slots__ = (
+        "_state",
+        "_app_id",
+        "class_id",
+    )
+
+    _state: ConnectionState
+    _app_id: AppID
+    class_id: ClassID
+    """The classid of the item."""
+
+    @property
+    def app(self) -> PartialApp[None]:
+        """The app the item is from."""
+        from .app import PartialApp
+
+        return PartialApp(self._state, id=self._app_id)
+
+
+@runtime_checkable
+class DescriptionMixin(AssetMixin, Protocol):
     __slots__ = SLOTS = (
         "name",
         "type",
@@ -230,6 +258,7 @@ class DescriptionMixin(Protocol):
         "actions",
         "owner_actions",
         "market_actions",
+        "market_fee",
         "_market_fee_app_id",
         "_is_tradable",
         "_is_marketable",
@@ -237,7 +266,6 @@ class DescriptionMixin(Protocol):
     if not TYPE_CHECKING:
         __slots__ = ()
 
-    _state: ConnectionState
     _app_id: AppID
     class_id: ClassID
     """The classid of the item."""
@@ -250,7 +278,8 @@ class DescriptionMixin(Protocol):
         """
         The displayed name of the item. This could be different to :attr:`Item.name` if the item is user re-nameable.
         """
-        self.market_hash_name = description.market_hash_name
+        self.market_hash_name = description.market_hash_name or self.name or self.display_name
+        """The market_hash_name of the item."""
         self.colour = int(description.name_color, 16) if description.name_color else None
         """The colour of the item."""
         self.descriptions = description.descriptions
@@ -276,6 +305,10 @@ class DescriptionMixin(Protocol):
         """The owner actions for the item."""
         self.market_actions = description.market_actions
         """The market actions for the item."""
+        self.market_fee = (
+            int(float(description.market_fee) * 100) if description.market_fee else 10
+        )  # if steam ever support currencies that have more than 2 decimals we're screwed
+        """The market fee percentage for the item."""
         self._app_id = AppID(description.appid)
         self._market_fee_app_id = AppID(description.market_fee_app)
         self._is_tradable = description.tradable
@@ -298,7 +331,8 @@ class DescriptionMixin(Protocol):
 
             await client.fetch_price(item.market_hash_name, item.app, currency)
         """
-        return await self._state.client.fetch_price(self.market_hash_name, self.app, currency)
+        price = await self._state.http.get_price(self._app_id, self.market_hash_name, currency)
+        return PriceOverview(price, currency or Currency.USD)
 
     async def price_history(self, *, currency: Currency | None = None) -> list[PriceHistory]:
         """Fetch the price history of this item on the Steam Community Market place.

@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Generic
 from bs4 import BeautifulSoup
 from yarl import URL as URL_
 
-from ._const import DEFAULT_AVATAR, impl_eq_via_id
+from ._const import DEFAULT_AVATAR, ReadOnly, impl_eq_via_id
 from .abc import Awardable, Commentable, PartialUser, _CommentableKwargs
 from .app import PartialApp
 from .enums import Language, PublishedFileRevision, PublishedFileType, PublishedFileVisibility
@@ -46,7 +46,7 @@ class DetailsPreview(_IOMixin):
     _state: ConnectionState
     id: int
     position: int
-    url: str
+    url: ReadOnly[str]
     size: int
     filename: str
     type: int
@@ -62,7 +62,7 @@ class PreviewInfo(_IOMixin):
     _state: ConnectionState
     ugc_id: int
     size: int
-    url: str
+    url: ReadOnly[str]
 
 
 @dataclass(slots=True)
@@ -112,7 +112,7 @@ class PublishedFileFile(_IOMixin):
     """The file's filename."""
     size: int
     """The file's size."""
-    url: str
+    url: ReadOnly[str]
     """The file's cdn_url."""
 
 
@@ -124,12 +124,12 @@ class PublishedFileImage(_IOMixin):
     """The file's image's width."""
     height: int
     """The file's image's height."""
-    url: str
+    url: ReadOnly[str]
     """The file's image's url."""
 
 
 @impl_eq_via_id
-class PublishedFile(Commentable, Awardable, Generic[UserT]):
+class PublishedFile(Commentable, Awardable[PublishedFileID], Generic[UserT]):
     """Represents a published file on SteamPipe."""
 
     __slots__ = (
@@ -201,7 +201,7 @@ class PublishedFile(Commentable, Awardable, Generic[UserT]):
 
     def __init__(self, state: ConnectionState, proto: PublishedFileDetails, author: UserT):
         self._state = state
-        self.id: PublishedFileID = PublishedFileID(proto.publishedfileid)
+        self.id = PublishedFileID(proto.publishedfileid)
         """The file's id."""
         self.name = proto.title
         """The file's name."""
@@ -444,7 +444,7 @@ class PublishedFile(Commentable, Awardable, Generic[UserT]):
         """Whether the client user is subscribed to this published file."""
         return await self._state.is_subscribed_to_published_file(self.id)
 
-    async def add_child(self, child: PublishedFile) -> None:
+    async def add_child(self, child: PublishedFile, /) -> None:
         """Adds a child to this published file.
 
         Parameters
@@ -454,7 +454,7 @@ class PublishedFile(Commentable, Awardable, Generic[UserT]):
         """
         await self._state.add_published_file_child(self.id, child.id)
 
-    async def remove_child(self, child: PublishedFile) -> None:
+    async def remove_child(self, child: PublishedFile, /) -> None:
         """Removes a child from this published file.
 
         Parameters

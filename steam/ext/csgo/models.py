@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import bisect
 import math
 from collections import Counter
 from dataclasses import dataclass
 from datetime import timedelta
 from operator import itemgetter
-from typing import TYPE_CHECKING, Generic, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Final, Generic, Mapping, TypeVar, cast, overload
 
 from ... import abc, user, utils
 from ..._const import timeout
@@ -16,6 +17,7 @@ from ...id import parse_id64
 from ...types.id import ID32
 from ...utils import DateTime
 from ..commands.converters import Converter, UserConverter
+from .enums import Rank
 from .protobufs import cstrike
 
 if TYPE_CHECKING:
@@ -115,6 +117,7 @@ class Match:
 
     @property
     def players(self) -> list[MatchPlayer]:
+        """All the players that appeared in the match."""
         return list(dict.fromkeys(player for round in reversed(self.rounds) for player in round.players))
 
     def __repr__(self) -> str:
@@ -178,7 +181,7 @@ class ClientUser(PartialUser, ClientUser_):
             ...
 
         @overload
-        async def inventory(self, app: App, *, language: Language | None = None) -> Inventory[Item[Self], Self]:
+        async def inventory(self, app: App, *, language: Language | None = None) -> Inventory[Item[Self], Self]:  # type: ignore
             ...
 
     async def csgo_profile(self) -> ProfileInfo[Self]:
@@ -196,6 +199,32 @@ class MatchPlayer(PartialUser, user.WrapsUser):
     enemy_kills: int
     enemy_head_shots: int
     mvp: bool
+
+
+LEVEL_MAP: Final = cast(Mapping[int, str], {
+    0: "Not Recruited",
+    1: "Recruit",  # 1-3
+    4: "Private",  # 4-7 etc.
+    8: "Corporal",
+    12: "Sergeant",
+    16: "Master Sergeant",
+    20: "Sergeant Major",
+    24: "Lieutenant",
+    28: "Captain",
+    32: "Major",
+    35: "Colonel",
+    36: "Brigadier General",
+    37: "Major General",
+    38: "Lieutenant General",
+    39: "General",
+    40: "Global General",
+})  # fmt: skip
+
+
+class Level(int):
+    @property
+    def name(self, levels: list[int] = list(LEVEL_MAP), names: list[str] = list(LEVEL_MAP.values()), /) -> str:
+        return names[bisect.bisect_left(levels, self)]
 
 
 class ProfileInfo(Generic[UserT]):
@@ -216,9 +245,9 @@ class ProfileInfo(Generic[UserT]):
         self.survey_vote = proto.survey_vote
         self.activity = proto.activity
         self.current_xp = proto.player_cur_xp
-        self.level = proto.player_level
+        self.level = Level(proto.player_level)
         self.xp_bonus_flags = proto.player_xp_bonus_flags
-        self.rankings = proto.rankings
+        self.rankings = Rank(proto.rankings)
 
     @property
     def percentage_of_current_level(self) -> int:

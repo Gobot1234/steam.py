@@ -6,20 +6,22 @@ import asyncio
 import weakref
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
+from functools import partial
 from ipaddress import IPv4Address
 from operator import attrgetter
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
-from . import utils
-from ._const import DOCS_BUILDING, UNIX_EPOCH, URL, TaskGroup
+from ._const import DOCS_BUILDING, MISSING, UNIX_EPOCH, URL, TaskGroup
 from .abc import BaseUser, Messageable
 from .app import PartialApp
 from .enums import Language, PersonaState, PersonaStateFlag, Type
 from .id import _ID64_TO_ID32, ID
 from .profile import ClientUserProfile, OwnedProfileItems, ProfileInfo, ProfileItem
 from .protobufs import friend_messages, player
+from .protobufs.friends import CMsgClientPersonaStateFriend as UserProto
 from .reaction import Emoticon, MessageReaction, Sticker
-from .types.id import ID32, AppID, Intable
+from .trade import Asset, Inventory, Item, TradeOffer
+from .types.id import ID32, AppID, ContextID
 from .utils import DateTime, cached_slot_property, parse_bb_code
 
 if TYPE_CHECKING:
@@ -32,9 +34,8 @@ if TYPE_CHECKING:
     from .friend import Friend
     from .media import Media
     from .message import UserMessage
-    from .protobufs.friends import CMsgClientPersonaStateFriend as UserProto
     from .state import ConnectionState
-    from .trade import Asset, Inventory, Item, TradeOffer
+    from .types import user
 
 __all__ = (
     "User",
@@ -63,7 +64,7 @@ class _BaseUser(BaseUser):
         super().__init__(state, proto.friendid)
         self._update(proto)
 
-    def _update(self, proto: UserProto) -> None:
+    def _update(self, proto: UserProto, /) -> None:
         self.name = proto.player_name
         """The user's username."""
         self._avatar_sha = proto.avatar_hash
@@ -111,6 +112,19 @@ class User(_BaseUser, Messageable["UserMessage"]):
 
     __slots__ = ("_cs_channel",)
 
+    @staticmethod
+    def _dict_to_proto(data: user.User) -> UserProto:
+        return UserProto(
+            player_name=data["personaname"],
+            friendid=int(data["steamid"]),
+            avatar_hash=bytes.fromhex(data["avatarhash"]) if "avatarhash" in data else b"\x00" * 20,
+            persona_state=data.get("personastate", 0),
+            game_played_app_id=int(data.get("gameid", 0)),
+            persona_state_flags=data.get("personastateflags", 0),
+            last_logoff=data.get("lastlogoff", 0),
+            game_name=data.get("gameextrainfo", 0),
+        )
+
     async def add(self) -> None:
         """Sends a friend invite to the user to your friends list."""
         await self._state.add_user(self.id64)
@@ -149,11 +163,12 @@ class User(_BaseUser, Messageable["UserMessage"]):
 
     async def send(
         self,
-        content: Any = None,
+        content: Any = MISSING,
+        /,
         *,
         trade: TradeOffer[Asset[User], Asset[ClientUser], Any] | None = None,
         media: Media | None = None,
-    ) -> UserMessage | None:
+    ) -> UserMessage[ClientUser] | None:
         """Send a message, trade or image to an :class:`User`.
 
         Parameters
@@ -181,8 +196,11 @@ class User(_BaseUser, Messageable["UserMessage"]):
         -------
         The sent message only applicable if ``content`` is passed.
         """
+        super_send = partial(
+            Messageable["UserMessage[ClientUser]"].send, cast("Messageable[UserMessage[ClientUser]]", self)
+        )  # done because calls to super() break in WrapsUser subclasses
 
-        message = await super().send(content, media=media)
+        message = await super_send(content, media=media)
         if trade is not None:
             await self._send_trade(trade)
 
@@ -325,21 +343,32 @@ class ClientUser(_BaseUser):
         """A list of the user's friends."""
         return list(self._friends.values())
 
-    def get_friend(self, id: Intable) -> Friend | None:
-        """Get a friend from the client user's friends list."""
-        id32 = _ID64_TO_ID32(utils.parse_id64(id, type=Type.Individual))
-        return self._friends.get(id32)
+    def get_friend(self, id: int, /) -> Friend | None:
+        """Get a friend from the client user's friends list.
+
+        Parameters
+        ----------
+        id
+            The ID64 of the friend to get.
+        """
+        return self._friends.get(_ID64_TO_ID32(id))
 
     async def inventory(
-        self, app: App, *, context_id: int | None = None, language: Language | None = None
+        self, app: App, /, *, context_id: int | None = None, language: Language | None = None
     ) -> Inventory[Item[Self], Self]:
         try:
             lock = self._inventory_locks[app.id]
         except KeyError:
             lock = self._inventory_locks[app.id] = asyncio.Lock()
 
+        if context_id is None:
+            context_id = 6 if app.name == "Steam" and context_id is None else 2
+        context_id = ContextID(context_id)
         async with lock:  # requires a per-app lock to avoid Result.DuplicateRequest
-            return await super().inventory(app, context_id=context_id, language=language)
+            resp = await self._state.fetch_user_inventory(
+                self.id64, app.id, context_id, language
+            )  # fast path for own account cause it works for this
+            return Inventory(self._state, resp, self, app, context_id, language)
 
     async def setup_profile(self) -> None:
         """Set up your profile if possible."""
@@ -449,7 +478,7 @@ class ClientUser(_BaseUser):
         if any((name, real_name, url, summary, country, state, city)):
             await self._state.http.edit_profile_info(name, real_name, url, summary, country, state, city)
         if avatar is not None:
-            await self._state.http.update_avatar(avatar)
+            await self._state.http.update_avatar(avatar, "player_avatar_image", sId=self.id64)
         # TODO privacy stuff
 
 
@@ -473,7 +502,7 @@ class WrapsUser(User if TYPE_CHECKING or DOCS_BUILDING else BaseUser, Messageabl
 
     __slots__ = ("_user", "_cs_channel")
 
-    def __init__(self, state: ConnectionState, user: User):
+    def __init__(self, state: ConnectionState, user: User | ClientUser):
         IndividualID.__init__(self, user.id64, type=Type.Individual)
         self._user = user
 

@@ -19,7 +19,7 @@ class DiscordBot(commands.Bot):
         await self.client.wait_until_ready()
         print("Ready")
 
-    async def start(self, token: str, username: str, password: str) -> None:
+    async def start(self, token: str, username: str, password: str) -> None:  # type: ignore
         await asyncio.gather(
             super().start(token),
             self.client.login(username, password),
@@ -38,12 +38,12 @@ class UserNotFound(commands.BadArgument):
         super().__init__(f"User {argument!r} not found.")
 
 
-class UserConverter(commands.Converter[steam.User]):
+class UserConverter:
     """Simple user converter"""
 
     async def convert(self, ctx: commands.Context[DiscordBot], argument: str) -> steam.User:
         try:
-            return await ctx.bot.client.fetch_user(argument)
+            return await ctx.bot.client.fetch_user(steam.utils.parse_id64(argument))
         except steam.InvalidID:
             id64 = await steam.utils.id64_from_url(argument)
             if id64 is None:

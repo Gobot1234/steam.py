@@ -9,7 +9,6 @@ The following section outlines the API of steam.py's CSGO extension module.
 Client
 ------
 
-.. attributetable:: Client
 
 .. autoclass:: Client
     :members:
@@ -42,7 +41,6 @@ Bot
 
 ``ext.csgo`` also provides a :class:`Bot` class, which is a subclass of :class:`Client` and :class:`steam.ext.commands.Bot`.
 
-.. attributetable:: steam.ext.csgo.Bot
 
 .. autoclass:: steam.ext.csgo.Bot
     :members:

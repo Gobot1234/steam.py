@@ -30,12 +30,11 @@ __all__ = (
 UserMessageAuthorT = TypeVar("UserMessageAuthorT", bound=BaseUser, default="User | Friend | ClientUser", covariant=True)
 
 
-class UserMessage(Message[UserMessageAuthorT]):
+class UserMessage(Message[UserMessageAuthorT, "UserChannel"]):
     """Represents a message from a user."""
 
     __slots__ = ()
 
-    channel: UserChannel
     mentions: None
 
     def __init__(
@@ -57,8 +56,8 @@ class UserMessage(Message[UserMessageAuthorT]):
         reaction = MessageReaction(
             self._state,
             self,
-            emoticon if isinstance(emoticon, Emoticon) else None,
-            emoticon if isinstance(emoticon, Sticker) else None,
+            emoticon if isinstance(emoticon, Emoticon) else None,  # type: ignore
+            emoticon if isinstance(emoticon, Sticker) else None,  # type: ignore
             self._state.user,
             DateTime.now(),
             self.ordinal,
@@ -85,12 +84,11 @@ GroupMessageAuthorT = TypeVar(
 )
 
 
-class GroupMessage(ChatMessage[GroupMessageAuthorT, "GroupMember"]):
+class GroupMessage(ChatMessage[GroupMessageAuthorT, "GroupMember", "GroupChannel"]):
     """Represents a message in a group."""
 
     __slots__ = ()
 
-    channel: GroupChannel
     group: Group
     clan: None
 
@@ -103,12 +101,11 @@ ClanMessageAuthorT = TypeVar(
 )
 
 
-class ClanMessage(ChatMessage[ClanMessageAuthorT, "ClanMember"]):
+class ClanMessage(ChatMessage[ClanMessageAuthorT, "ClanMember", "ClanChannel"]):
     """Represents a message in a clan."""
 
     __slots__ = ()
 
-    channel: ClanChannel
     clan: Clan
     group: None
 

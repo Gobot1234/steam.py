@@ -12,17 +12,18 @@ from .utils import DateTime
 if TYPE_CHECKING:
     from datetime import datetime
 
+    from ._const import ReadOnly
     from .app import PartialApp
     from .state import ConnectionState
     from .types.id import PostID
 
 
 @dataclass(repr=False, slots=True, unsafe_hash=True)
-class Post(Awardable, Commentable, Generic[UserT]):
+class Post(Awardable["PostID"], Commentable, Generic[UserT]):
     """Represents a post on Steam Community."""
 
     _state: ConnectionState = field(compare=False, hash=False)
-    id: PostID
+    id: ReadOnly[PostID]
     """The ID of this post."""
     content: str = field(compare=False, hash=False)
     """The content of this post."""

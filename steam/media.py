@@ -24,7 +24,7 @@ class MediaIO(Protocol):
     def seekable(self) -> bool:
         ...
 
-    def seek(self, __offset: int, __whence: int = ...) -> Any:
+    def seek(self, offset: int, whence: int = ..., /) -> Any:
         ...
 
     def tell(self) -> int:
@@ -33,7 +33,7 @@ class MediaIO(Protocol):
     def readable(self) -> bool:
         ...
 
-    def read(self, __size: int = ...) -> bytes:
+    def read(self, size: int = ..., /) -> bytes:
         ...
 
     def close(self) -> Any:
@@ -65,7 +65,7 @@ class Media:
         - OGV
     """
 
-    __slots__ = ("fp", "spoiler", "name", "width", "height", "type", "_cs_size", "_tell")
+    __slots__ = ("fp", "spoiler", "name", "width", "height", "type", "_size_cs", "_tell")
     fp: MediaIO
 
     def __init__(self, fp: MediaIO | StrOrBytesPath | int, *, spoiler: bool = False):

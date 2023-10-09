@@ -15,7 +15,6 @@ from .utils import DateTime
 
 if TYPE_CHECKING:
     from .achievement import UserNewsAchievement
-    from .comment import Comment
     from .event import Announcement, Event
     from .friend import Friend
     from .post import Post

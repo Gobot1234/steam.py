@@ -11,7 +11,7 @@ from datetime import date, datetime
 from http.cookies import SimpleCookie
 from random import randbytes
 from time import time
-from typing import TYPE_CHECKING, Any, Literal, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Literal, Mapping, TypeVar, cast
 
 import aiohttp
 from bs4 import BeautifulSoup, Tag
@@ -129,7 +129,7 @@ class HTTPClient:
         )
 
     async def request(
-        self, method: str, url: StrOrURL, api_needs_auth: bool = True, **kwargs: Any
+        self, method: str, url: StrOrURL, /, api_needs_auth: bool = True, **kwargs: Any
     ) -> Any:  # adapted from d.py
         kwargs["headers"] = {"User-Agent": self.user_agent, **kwargs.get("headers", {})}
         payload = kwargs.get("data")
@@ -148,6 +148,7 @@ class HTTPClient:
         elif url.host in (URL.COMMUNITY.host, URL.STORE.host, URL.HELP.host):
             await self.ensure_logged_in()
 
+        r = data = None
         for tries in range(5):
             async with self._session.request(method, url, **kwargs, proxy=self.proxy, proxy_auth=self.proxy_auth) as r:
                 log.debug("%s %s with PAYLOAD: %s has returned %d", method, r.url, payload, r.status)
@@ -196,6 +197,7 @@ class HTTPClient:
                 else:
                     raise errors.HTTPException(r, data)
 
+        assert r is not None
         # we've run out of retries, raise
         raise errors.HTTPException(r, data)
 
@@ -217,7 +219,7 @@ class HTTPClient:
 
     def connect_to_cm(self, cm: str) -> Coro[aiohttp.ClientWebSocketResponse]:
         headers = {"User-Agent": self.user_agent}
-        return self._session.ws_connect(
+        return self._session.ws_connect(  # type: ignore  # aiohttp types issue, fixed upstream
             f"wss://{cm}/cmsocket/", headers=headers, proxy=self.proxy, proxy_auth=self.proxy_auth
         )
 
@@ -226,8 +228,8 @@ class HTTPClient:
         jar = self._session.cookie_jar
         steam_login_secure = urllib.parse.quote(f"{self.user.id64}||{await self._client._state.ws.access_token()}")
         for url in (URL.COMMUNITY, URL.STORE, URL.HELP):
-            jar.update_cookies(SimpleCookie[str](f"steamLoginSecure={steam_login_secure}"), url)
-            jar.update_cookies(SimpleCookie[str](f"sessionid={self.session_id}"), url)
+            jar.update_cookies(SimpleCookie(f"steamLoginSecure={steam_login_secure}"), url)
+            jar.update_cookies(SimpleCookie(f"sessionid={self.session_id}"), url)
         self.logged_in = True
 
     async def ensure_logged_in(self) -> None:
@@ -271,9 +273,9 @@ class HTTPClient:
         await self._session.close()
 
     async def get_user(self, user_id64: ID64) -> user.User | None:
-        return await anext(self.get_users(user_id64), None)
+        return await anext(self.get_users((user_id64,)), None)
 
-    async def get_users(self, *user_id64s: ID64) -> AsyncGenerator[user.User, None]:
+    async def get_users(self, user_id64s: Iterable[ID64]) -> AsyncGenerator[user.User, None]:
         for data in await asyncio.gather(  # gather all the requests concurrently
             *(
                 self.get(
@@ -367,6 +369,26 @@ class HTTPClient:
                 yield app_id, data
             params["p"] += 1
 
+    async def get_user_inventory(
+        self, user_id64: int, app_id: int, context_id: int, language: Language | None
+    ) -> trade.Inventory:
+        count = 2000
+        ret: trade.Inventory = {"assets": [], "descriptions": [], "last_assetid": 0, "more_items": True}  # type: ignore
+        while ret["more_items"]:
+            params = {
+                "count": count,
+                "l": (language or self.language).api_name,
+                "start_assetid": ret["last_assetid"],
+            }
+            resp: trade.Inventory = await self.get(
+                URL.COMMUNITY / f"inventory/{user_id64}/{app_id}/{context_id}", params=params
+            )
+            ret["assets"].extend(resp["assets"])
+            ret["descriptions"].extend(resp["descriptions"])
+            ret["last_assetid"] = resp.get("last_assetid", 0)
+            ret["more_items"] = resp.get("more_items", False)
+        return ret
+
     async def get_user_inventory_info(self, user_id64: ID64) -> ValuesView[user.InventoryInfo]:
         resp = await self.get(URL.COMMUNITY / f"profiles/{user_id64}/inventory")
         soup = BeautifulSoup(resp, "html.parser")  # needs to be html
@@ -430,6 +452,7 @@ class HTTPClient:
             for key, value in page.items():
                 value_in_first_page = first_page[key]
                 if isinstance(value_in_first_page, list):
+                    assert isinstance(value, list)
                     value_in_first_page += value
 
             current_cursor = next_cursor
@@ -530,6 +553,79 @@ class HTTPClient:
         data: ResponseDict[trade.TradeStatus] = await self.get(api_route("IEconService/GetTradeStatus"), params=params)
         return data["response"]
 
+    async def check_availability(self, value: str, type: str) -> bool:
+        data = {
+            "xml": 1,
+            "type": type,
+            "value": value,
+        }
+        xml = await self.post(URL.COMMUNITY / "actions/AvailabilityCheck", data=data)
+        soup = BeautifulSoup(xml, "xml")
+        return soup.response.bResults.text == "1"  # type: ignore
+
+    async def create_clan(
+        self,
+        name: str,
+        abbreviation: str | None,
+        community_url_path: str | None,
+        public: bool,
+    ) -> ID64:
+        if not await self.check_availability(name, "groupName"):
+            raise ValueError("Name is not available")
+        abbreviation = abbreviation or name
+        if not 0 < len(abbreviation) < 12:
+            raise ValueError("Abbreviation must be between 1 and 12 characters")
+        if not await self.check_availability(abbreviation, "abbreviation"):
+            raise ValueError("Abbreviation is not available")
+        community_url_path = community_url_path or name
+        if not await self.check_availability(community_url_path, "groupLink"):
+            raise ValueError("Community URL path is not available")
+
+        data = {
+            "sessionID": self.session_id,
+            "step": 2,  # might need to be 1 then 2
+            "groupName": name,
+            "abbreviation": abbreviation or name,
+            "groupLink": community_url_path or name,
+            "bIsPublic": int(public),
+        }
+        edit_page = await self.post(URL.COMMUNITY / "actions/GroupCreate", data=data)
+        soup = BeautifulSoup(edit_page, "html.parser")
+        for element in soup.find_all("div", class_="formRow"):
+            row_title = element.find("div", class_="formRowTitle")
+            if row_title and "ID" in row_title.text.strip():
+                return parse_id64(element.find("div", class_="formRowFields").text.strip(), type=Type.Clan)
+        raise RuntimeError("Could not find ID should be unreachable")
+
+    async def edit_clan(
+        self,
+        clan_id64: ID64,
+        *,
+        abbreviation: str | None = None,
+        headline: str | None = None,
+        summary: str | None = None,
+        community_url_path: str | None = None,
+        language: Language | None = None,
+        country: str | None = None,
+        state: str | None = None,
+        city: str | None = None,
+        apps: Iterable[AppID] | None = None,
+    ) -> None:
+        data = {
+            "sessionID": self.session_id,
+            "type": "profileSave",
+            "abbreviation": abbreviation or "",
+            "headline": headline or "",
+            "summary": summary or "",
+            "customURL": community_url_path or "",
+            "language": language.api_name if language is not None else "",
+            "country": country or "",
+            "state": state or "",
+            "city": city or "",
+            "favorite_games": ",".join(map(str, apps)) if apps is not None else "",
+        }
+        return await self.post(f"{ID(clan_id64).community_url}/edit", data=data)
+
     def join_clan(self, clan_id64: ID64) -> Coro[None]:
         payload = {
             "sessionID": self.session_id,
@@ -576,17 +672,18 @@ class HTTPClient:
                     yield int(user["data-miniprofile"])  # type: ignore
             page += 1
 
-    async def get_clan_invitees(
-        self,
-    ) -> dict[ID64, ID64]:  # TODO what about the case where you've been invited by multiple peopl
+    async def get_clan_invitees(self) -> dict[ID64, ID64]:
+        # N.B. can only be invited by one person at a time
         resp = await self.get(URL.COMMUNITY / "my/groups/pending", params={"ajax": "1"})
         soup = BeautifulSoup(resp, HTML_PARSER)
         elements = soup.find_all("a", class_="linkStandard")
 
         return {
-            ID64(int(CLAN_ID64_FROM_URL_REGEX.search(clan_element)["steamid"])): parse_id64(
-                invitee_element["data-miniprofile"]
-            )
+            ID64(
+                int(
+                    CLAN_ID64_FROM_URL_REGEX.search(clan_element)["steamid"],  # type: ignore
+                )
+            ): parse_id64(invitee_element["data-miniprofile"])
             for (clan_element, invitee_element) in zip(
                 (element for element in elements if "steamLink" in element["class"]),
                 (element for element in elements if "data-miniprofile" in element.attrs),
@@ -629,7 +726,7 @@ class HTTPClient:
         event_id: int | None,
     ) -> Coro[str]:
         if start is None:
-            tz_offset = int((datetime.now().astimezone().tzinfo.utcoffset()).total_seconds())
+            tz_offset = int(datetime.now().astimezone().tzinfo.utcoffset(None).total_seconds())  # type: ignore  # PEP 696 should solve this in typeshed
             start_date = "MM/DD/YY"
             start_hour = "12"
             start_minute = "00"
@@ -638,9 +735,8 @@ class HTTPClient:
         else:
             if start.tzinfo is None:
                 start = start.astimezone()
-
-            offset = start.tzinfo.utcoffset(start)
-            tz_offset = int(offset.total_seconds())
+            assert start.tzinfo is not None
+            tz_offset = int(start.tzinfo.utcoffset(None).total_seconds())  # type: ignore
 
             start_date = f"{start:%m/%d/%y}"
             start_hour = f"{start:%I}"
@@ -824,7 +920,7 @@ class HTTPClient:
         }
         return self.get(URL.STORE / "api/dlcforapp", params=params)
 
-    async def get_app_asset_prices(self, app_id: AppID, currency: CurrencyCode | None = None) -> app.AssetPrices:
+    async def get_app_asset_prices(self, app_id: AppID, currency: Currency | None = None) -> app.AssetPrices:
         params = {
             "appid": app_id,
         }
@@ -837,6 +933,17 @@ class HTTPClient:
             api_route("ISteamEconomy/GetAssetPrices"), params=params
         )
         return data["result"]
+
+    def get_app_suggestions(
+        self, term: str, language: Language | None = None
+    ) -> Coro[list[dict[{"name": str, "id": str, "type": str}]]]:  # noqa: UP037, F821
+        params = {
+            "term": term,
+            "f": "json",
+            "cc": "en",
+            "l": (language or self.language).api_name,
+        }
+        return self.get(URL.STORE / "search/suggest", params=params)
 
     async def get_all_apps(
         self,
@@ -1189,18 +1296,17 @@ class HTTPClient:
 
         await self.post(f"{self.user.community_url}/edit", data=payload)
 
-    async def update_avatar(self, avatar: Media) -> None:
+    async def update_avatar(self, avatar: Media, type: str, *, params: Mapping[str, Any] = {}, **extras: Any) -> None:
         with avatar:
-            payload = aiohttp.FormData()
+            payload = aiohttp.FormData(fields=tuple(extras.items()))
             payload.add_field("MAX_FILE_SIZE", str(avatar.size))
-            payload.add_field("type", "player_avatar_image")
-            payload.add_field("sId", str(self.user.id64))
+            payload.add_field("type", type)
             payload.add_field("sessionid", self.session_id)
             payload.add_field("doSub", "1")
             payload.add_field(
                 "avatar", avatar.read(), filename=f"avatar.{avatar.type}", content_type=f"image/{avatar.type}"
             )
-            await self.post(URL.COMMUNITY / "actions/FileUploader", data=payload)
+            await self.post(URL.COMMUNITY / "actions/FileUploader", data=payload, params=params)
 
     async def send_media(self, media: Media, **kwargs: int) -> None:
         contents = media.read()
@@ -1219,7 +1325,7 @@ class HTTPClient:
         result = resp["result"]
         url = f'{"https" if result["use_https"] else "http"}://{result["url_host"]}{result["url_path"]}'
         headers = {header["name"]: header["value"] for header in result["request_headers"]}
-        await self.request("PUT", url=url, headers=headers, data=contents)
+        await self.request("PUT", url, headers=headers, data=contents)
 
         payload |= {
             "success": 1,
@@ -1238,12 +1344,10 @@ class HTTPClient:
         with media:
             await self.send_media(media, chat_group_id=chat_group_id, chat_id=chat_id)
 
-    async def upload_chat_icon(self, media: Media) -> str:
+    async def upload_chat_icon(self, media: Media) -> bytes:
         with media:
             payload = aiohttp.FormData()
             payload.add_field("sessionid", self.session_id)
-            payload.add_field(
-                "avatar", media.read(), filename=f"avatar.{media.type}", content_type=f"image/{media.type}"
-            )
-            resp = await self.post(URL.COMMUNITY / "chat/avatarfileupload")
-            return resp["sha"]
+            payload.add_field("avatar", media.read(), filename=media.name, content_type=f"image/{media.type}")
+            resp = await self.post(URL.COMMUNITY / "chat/avatarfileupload", data=payload)
+            return bytes.fromhex(resp["sha"])

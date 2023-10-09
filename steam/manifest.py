@@ -30,7 +30,7 @@ from .id import ID
 from .models import CDNAsset, _IOMixin
 from .package import PartialPackage
 from .protobufs.content_manifest import Metadata, Payload, PayloadFileMapping, PayloadFileMappingChunkData, Signature
-from .tag import PartialCategory
+from .tag import Category, Genre, Tag
 from .types.id import AppID, DepotID, ManifestID
 from .utils import DateTime, cached_slot_property
 
@@ -50,7 +50,7 @@ if TYPE_CHECKING:
 
     from .protobufs import app_info
     from .state import ConnectionState
-    from .types import manifest
+    from .types import manifest, manifest as manifest_
     from .types.vdf import VDFInt
 
 
@@ -69,7 +69,7 @@ __all__ = (
 log = logging.getLogger(__name__)
 
 
-def unzip(data: bytes) -> bytes:
+def unzip(data: bytes, /) -> bytes:
     if data[:2] == b"VZ":
         if data[-2:] != b"zv":
             raise RuntimeError(f"VZ: Invalid footer: {data[-2:]!r}")
@@ -181,11 +181,11 @@ class ManifestPathIO(AsyncStreamReaderMixin):
         return content
 
 
-def _manifest_parts(filename: str) -> list[str]:
+def _manifest_parts(filename: str, /) -> list[str]:
     return filename.rstrip("\x00 \n\t").split("\\")
 
 
-class ManifestPath(PurePathBase, _IOMixin):
+class ManifestPath(PurePathBase):
     """A :class:`pathlib.PurePath` subclass representing a binary file in a Manifest. This class is broadly compatible
     with :class:`pathlib.Path`.
 
@@ -220,7 +220,7 @@ class ManifestPath(PurePathBase, _IOMixin):
             return self
 
         def with_segments(self, *args: StrPath) -> Self:
-            return self._select_from_manifest(self._from_parts(self.parts + tuple(map(os.fspath, args))))
+            return self._select_from_manifest(self._from_parts(self.parts + tuple(os.fspath(arg) for arg in args)))
 
         def _select_from_manifest(self, new_self: Self) -> Self:
             try:
@@ -306,7 +306,7 @@ class ManifestPath(PurePathBase, _IOMixin):
         """This path's SHA1 filename hash."""
         return self._mapping.sha_filename
 
-    def is_dir(self) -> bool:  # TODO do these need to handle symlinks?
+    def is_dir(self) -> bool:
         """Whether the path is a directory."""
         return self.flags & DepotFileFlag.Directory > 0
 
@@ -451,7 +451,7 @@ class ManifestPath(PurePathBase, _IOMixin):
 
             paths += [path._make_child_relpath(d) for d in reversed(dirnames)]  # type: ignore
 
-    def glob(self, pattern: str) -> Generator[Self, None, None]:
+    def glob(self, pattern: str, /) -> Generator[Self, None, None]:
         """Perform a glob operation on this path. Similar to :meth:`pathlib.Path.glob`."""
         if not pattern:
             raise ValueError(f"Unacceptable pattern: {pattern!r}")
@@ -460,7 +460,7 @@ class ManifestPath(PurePathBase, _IOMixin):
             methodcaller("match", f"{self.as_posix().removesuffix('/')}/{pattern}"), self._manifest._paths.values()
         )
 
-    def rglob(self, pattern: str) -> Generator[Self, None, None]:
+    def rglob(self, pattern: str, /) -> Generator[Self, None, None]:
         """Perform a recursive glob operation on this path. Similar to :meth:`pathlib.Path.rglob`."""
         yield from self.glob(f"**/{pattern}")
 
@@ -487,10 +487,8 @@ class ManifestPath(PurePathBase, _IOMixin):
 
     read_bytes = _IOMixin.read
     """Read the contents of the file. Similar to :meth:`pathlib.Path.read_bytes`"""
-
-    async def read(self) -> Never:
-        """This method is not implemented. Use :meth:`read_bytes` instead."""
-        raise NotImplementedError("use read_bytes() instead of read()")
+    media = _IOMixin.media
+    save = _IOMixin.save
 
     async def read_text(self, encoding: str = MISSING, errors: str = MISSING) -> str:
         """Read the contents of the file. Similar to :meth:`pathlib.Path.read_text`"""
@@ -724,7 +722,7 @@ class Branch:
 
     async def fetch_manifests(self) -> list[Manifest]:
         """Fetch this branch's manifests. Similar to :meth:`PartialApp.manifests`."""
-        return await asyncio.gather(*(manifest.fetch() for manifest in self.manifests))  # type: ignore  # typeshed lies
+        return await asyncio.gather(*(manifest.fetch() for manifest in self.manifests))
 
 
 @dataclass(slots=True)
@@ -762,8 +760,8 @@ class PrivateManifestInfo(ManifestInfo):
         self.encrypted_id = encrypted_id
         self.branch = branch
 
-    @cached_slot_property  # type: ignore
-    def id(self) -> ManifestID:
+    @cached_slot_property
+    def id(self) -> ManifestID:  # type: ignore
         if self.branch.password is None:
             raise ValueError("Cannot access the id of this depot as the password is not set.")
         cipher = Cipher(algorithms.AES(self.branch.password.encode("UTF-8")), modes.ECB())
@@ -867,6 +865,7 @@ class AppInfo(ProductInfo, PartialApp[str]):
         "headless_depots",
         "type",
         "has_adult_content",
+        "has_adult_content_sex",
         "has_adult_content_violence",
         "market_presence",
         "workshop_visible",
@@ -875,10 +874,16 @@ class AppInfo(ProductInfo, PartialApp[str]):
         "publishers",
         "developers",
         "supported_languages",
+        "language_support",
+        "tags",
         "categories",
+        "genres",
         "created_at",
         "review_score",
         "review_percentage",
+        "metacritic_name",
+        "metacritic_score",
+        "metacritic_url",
         "partial_dlc",
         "icon",
         "logo",
@@ -907,6 +912,8 @@ class AppInfo(ProductInfo, PartialApp[str]):
         self.has_adult_content = common.get("has_adult_content", "0") == "1"
         """Whether this app has adult content according to Steam."""
         self.has_adult_content_violence = common.get("has_adult_content_violence", "0") == "1"
+        """Whether this app has adult sexual content according to Steam."""
+        self.has_adult_content_sex = common.get("has_adult_content_sex", "0") == "1"
         """Whether this app has adult violence according to Steam."""
         self.market_presence = common.get("market_presence", "0") == "1"
         """Whether this app has a market presence."""
@@ -932,17 +939,30 @@ class AppInfo(ProductInfo, PartialApp[str]):
             if developer["type"] == "developer"
         ]
         """This app's developers."""
-        self.supported_languages: list[Language] = [
+
+        self.supported_languages = [
             Language.from_str(language)
             for language, value in common.get("languages", MultiDict()).items()
             if value == "1"
         ]
         """This app's supported languages."""
-        self.categories = [
-            PartialCategory(id=int(name.removeprefix("category_"))) for name in common.get("category", ())
-        ]
 
-        # TODO genres
+        self.language_support = (
+            {Language.from_str(language): support for language, support in supported_languages.items()}
+            if isinstance(supported_languages := common.get("supported_languages"), MultiDict)
+            else {}
+        )
+        """This app's language support."""
+
+        self.categories = [
+            Category(state, id=int(name.removeprefix("category_"))) for name in common.get("category", ())
+        ]
+        """This app's supported categories."""
+        self.tags = [Tag(state, id=int(tag_id)) for tag_id in common.get("store_tags", MultiDict()).values()]
+        """This app's supported tags."""
+        self.genres = [Genre(state, id=int(genre_id)) for genre_id in common.get("genres", MultiDict()).values()]
+        """This app's supported genres."""
+
         self.created_at = (
             DateTime.from_timestamp(int(common["steam_release_date"])) if "steam_release_date" in common else None
         )
@@ -951,6 +971,13 @@ class AppInfo(ProductInfo, PartialApp[str]):
         """This app's review score."""
         self.review_percentage = int(common.get("review_percentage", 0))
         """This app's review percentage."""
+        self.metacritic_name = common.get("metacritic_name", None)
+        """This app's metacritic name."""
+        self.metacritic_score = int(common["metacritic_score"]) if "metacritic_score" in common else None
+        """This app's metacritic score."""
+        self.metacritic_url = common.get("metacritic_fullurl", None)
+        """This app's metacritic URL."""
+
         dlc = extended.get("listofdlc", "")
         self.partial_dlc = [PartialApp(state, id=int(id)) for id in dlc.split(",")] if dlc else []
         """This app's downloadable content."""
@@ -995,6 +1022,8 @@ class AppInfo(ProductInfo, PartialApp[str]):
 
         for key, depot in filter(is_depot, depots.items()):
             id = DepotID(int(key))
+            if not depot:
+                depot = cast("manifest_.Depot", MultiDict(name=f"{self.name} ({id}) Depot"))
             name = depot.get("name")
             config = depot.get("config", MultiDict())
             max_size = int(depot["maxsize"]) if "maxsize" in depot else None

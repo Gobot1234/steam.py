@@ -68,7 +68,7 @@ class Metal(Fraction):
     def __new__(cls, value: SupportsMetal, /) -> Self:  # type: ignore
         ...
 
-    def __new__(cls, value: SupportsMetal, /, *, _normalize: bool = ...) -> Self:
+    def __new__(cls, value: SupportsMetal, /, *, _normalize: bool = True) -> Self:
         return super().__new__(cls, cls.extract_scrap(value), 9)
 
     @classmethod
@@ -111,13 +111,13 @@ class Metal(Fraction):
     __rmul__ = __mul__  # type: ignore
     __rtruediv__ = __truediv__  # type: ignore
 
-    def __abs__(self) -> Fraction:
+    def __abs__(self) -> Metal:
         return Metal(super().__abs__())
 
-    def __pos__(self) -> Fraction:
+    def __pos__(self) -> Metal:
         return Metal(super().__pos__())
 
-    def __neg__(self) -> Fraction:
+    def __neg__(self) -> Metal:
         return Metal(super().__neg__())
 
     def __str__(self) -> str:
@@ -140,7 +140,7 @@ class Metal(Fraction):
         .. code:: py
 
             their_inventory = await user.inventory(steam.TF2)
-            their_metal = Metal.from_items(inventory)
+            their_metal = Metal.from_items(their_inventory)
             our_inventory = await client.user.inventory(steam.TF2)
             await user.send(f"I have {'more' if our_inventory.metal > their_metal else 'less'} metal than you")
         """

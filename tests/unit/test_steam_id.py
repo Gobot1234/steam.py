@@ -27,8 +27,6 @@ Mostly from https://github.com/ValvePython/steam/blob/master/tests/test_steamid.
 
 from __future__ import annotations
 
-from typing import Optional, Union
-
 import pytest
 
 from steam import ID, Instance, InvalidID, Type, Universe
@@ -52,6 +50,7 @@ def test_hash() -> None:
         [ID("12345678"), [12345678, Type.Individual, Universe.Public, Instance.Desktop]],
         [ID(0xFFFFFFFF), [0xFFFFFFFF, Type.Individual, Universe.Public, Instance.Desktop]],
         [ID(str(0xFFFFFFFF)), [0xFFFFFFFF, Type.Individual, Universe.Public, Instance.Desktop]],
+        [ID(0x100000000), [0, Type.Invalid, Universe.Invalid, Instance.Desktop]],
         [ID(76580280500085312), [123456, Type.Individual, Universe.Public, 4444]],
         [ID("76580280500085312"), [123456, Type.Individual, Universe.Public, 4444]],
         [ID(103582791429521412), [4, Type.Clan, Universe.Public, Instance.All]],

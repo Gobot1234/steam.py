@@ -20,6 +20,7 @@ from .types.id import ID32, AppID, AssetID, PublishedFileID
 if TYPE_CHECKING:
     from datetime import datetime
 
+    from ._const import ReadOnly
     from .abc import PartialUser
     from .badge import UserBadge
     from .clan import Clan, PartialClan
@@ -69,7 +70,7 @@ class ProfileInfo:
 class ProfileMovie(_IOMixin):
     __slots__ = ("url", "_state")
     _state: ConnectionState
-    url: str  # TODO add more attributes like maybe created_at?
+    url: ReadOnly[str]  # TODO add more attributes like maybe created_at?
 
 
 class SupportsEquip(Protocol):

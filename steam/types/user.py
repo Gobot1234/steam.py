@@ -44,10 +44,6 @@ class User(TypedDict):
     # unix timestamps
     timecreated: int
     lastlogoff: int
-    # we pass these ourselves
-    last_logon: int
-    last_seen_online: int
-    rich_presence: dict[str, str]
 
 
 class InventoryInfo(TypedDict):

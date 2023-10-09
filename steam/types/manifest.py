@@ -31,6 +31,7 @@ class Common(TypedVDFDict, total=False):
     type: Required[str]
     has_adult_content: VDFBool
     has_adult_content_violence: VDFBool
+    has_adult_content_sex: VDFBool
     market_presence: VDFBool
     workshop_visible: VDFBool
     community_hub_visible: VDFBool
@@ -39,6 +40,7 @@ class Common(TypedVDFDict, total=False):
     associations: VDFList[CommonAssociations]
     category: MultiDict[VDFBool]  # category_{id}: "1" cause lol valve
     languages: MultiDict[VDFBool]
+    supported_languages: MultiDict[LanguageSupport] | str  # This can occasionally be an empty string
     steam_release_date: str
     review_score: str
     review_percentage: str
@@ -51,13 +53,14 @@ class Common(TypedVDFDict, total=False):
     clienttga: str
     gameid: str
     genres: VDFList[VDFInt]
+    store_tags: VDFList[VDFInt]
     header_image: MultiDict[str]
     library_assets: CommonLibraryAssets
     linuxclienticon: str
     logo_small: str
     metacritic_fullurl: str
     metacritic_name: str
-    metacritic_score: str
+    metacritic_score: VDFInt
     metacritic_url: str
     primary_genre: str
     review_percentage: str
@@ -67,7 +70,6 @@ class Common(TypedVDFDict, total=False):
     steam_release_date: str
     store_asset_mtime: str
     store_tags: VDFList[VDFInt]
-    supported_languages: MultiDict[MultiDict[str]]
     sortas: str
     name_localized: Any
     releasestate: str
@@ -87,7 +89,6 @@ class Common(TypedVDFDict, total=False):
     freeondemand: VDFBool
     visibleonlyonavailableplatforms: str
     app_retired_publisher_request: str
-    has_adult_content_sex: str
     mastersubs_granting_app: str
     driverversion: str
     openvrsupport: str
@@ -312,3 +313,9 @@ class ExtendedPackageInfo(TypedVDFDict):
     excludefromsharing: NotRequired[int]
     allowpurchasefromrestrictedcountries: NotRequired[bool]
     purchaserestrictedcountries: NotRequired[str]
+
+
+class LanguageSupport(TypedVDFDict):
+    supported: NotRequired[str]
+    full_audio: NotRequired[str]
+    subtitles: NotRequired[str]

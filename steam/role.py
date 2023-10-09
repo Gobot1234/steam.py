@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast, overload
 
+from ._const import _HasChatGroupMixin
 from .enums import Type
 from .protobufs import chat
 from .types.id import RoleID
@@ -22,7 +23,7 @@ __all__ = (
 )
 
 
-class Role:
+class Role(_HasChatGroupMixin):
     """Represents a role in a chat group."""
 
     __slots__ = ("id", "name", "ordinal", "clan", "group", "permissions", "_state")
@@ -53,17 +54,13 @@ class Role:
         return f"<{self.__class__.__name__} name={self.name!r} id={self.id}>"
 
     @property
-    def _chat_group(self) -> Clan | Group:
-        chat_group = self.clan or self.group
-        assert chat_group is not None
-        return chat_group
-
-    @property
     def members(self) -> list[Member]:
         """The members that have this role."""
         return [m for m in self._chat_group.members if self in m.roles]
 
-    async def edit(self, *, name: str | None = None, permissions: RolePermissions | None = None) -> None:
+    async def edit(
+        self, *, name: str | None = None, permissions: RolePermissions | None = None, ordinal: int | None = None
+    ) -> None:
         """Edit this role.
 
         Parameters
@@ -72,8 +69,10 @@ class Role:
             The new name of the role.
         permissions
             The new permissions of the role.
+        ordinal
+            The new ordinal (position) of the role.
         """
-        await self._state.edit_role(self._chat_group._id, self.id, name=name, permissions=permissions)
+        await self._state.edit_role(self._chat_group._id, self.id, name=name, permissions=permissions, ordinal=ordinal)
 
     async def delete(self) -> None:
         """Delete this role."""

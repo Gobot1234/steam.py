@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Literal, NamedTuple, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Final, Literal, NamedTuple, Protocol, runtime_checkable
 
 from typing_extensions import TypeVar
 
@@ -31,14 +31,14 @@ AppT = TypeVar("AppT", bound="PartialApp", default="PartialApp", covariant=True)
 
 
 @runtime_checkable
-class BaseBadge(Protocol[AppT]):  # type: ignore  # this is safe
+class BaseBadge(Protocol[AppT]):
     __slots__ = ("id", "level", "app", "_state")
     _state: ConnectionState
     id: int
     """The badge's ID."""
     level: float
     """The badge's level. :class:`int` or ``float("inf")``"""
-    app: AppT
+    app: Final[AppT]
     """The app associated with the badge."""
 
     def __init__(self, state: ConnectionState, id: int, level: float, app: AppT) -> None:
@@ -103,9 +103,9 @@ class BadgeProgress(NamedTuple):
 
 
 @runtime_checkable
-class BaseOwnedBadge(BaseBadge[AppT], Protocol[AppT, UserT]):  # type: ignore
+class BaseOwnedBadge(BaseBadge[AppT], Protocol[AppT, UserT]):
     __slots__ = ("owner", "community_item_id")
-    owner: UserT
+    owner: Final[UserT]
     """The user who owns this badge."""
     community_item_id: AssetID | None
     r"""The badge's community item ID. By itself this doesn't correspond to anything in the :attr:`owner`\s inventory.

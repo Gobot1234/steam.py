@@ -15,8 +15,7 @@ from . import utils
 from ._const import URL
 from .app import App, PartialApp
 from .enums import Language, TradeOfferState
-from .errors import ClientException
-from .models import DescriptionMixin
+from .models import AssetMixin, DescriptionMixin
 from .protobufs import econ
 from .types.id import AppID, AssetID, ClassID, ContextID, InstanceID, TradeOfferID
 from .utils import DateTime
@@ -45,7 +44,7 @@ __all__ = (
 OwnerT = TypeVar("OwnerT", bound="PartialUser | None", default="BaseUser", covariant=True)
 
 
-class Asset(Generic[OwnerT]):
+class Asset(AssetMixin, Generic[OwnerT]):
     """Base most version of an item. This class should only be received when Steam fails to find a matching item for
     its class and instance IDs.
 
@@ -63,13 +62,10 @@ class Asset(Generic[OwnerT]):
     __slots__ = (
         "id",
         "amount",
-        "class_id",
         "instance_id",
         "context_id",
         # "post_rollback_id",
         "owner",
-        "_app_id",
-        "_state",
     )
     REPR_ATTRS = ("id", "class_id", "instance_id", "context_id", "amount", "owner", "app")  # "post_rollback_id"
 
@@ -81,8 +77,8 @@ class Asset(Generic[OwnerT]):
         self.instance_id = InstanceID(asset.instanceid)
         """The instanceid of the item."""
         self.class_id = ClassID(asset.classid)
-        """The classid of the item."""
         self.context_id = ContextID(asset.contextid)
+        """The contextid of the item."""
         # self.post_rollback_id = int(data["rollback_new_assetid"]) if "rollback_new_assetid" in data else None
         """The assetid of the item after a rollback (cancelled, etc.). ``None`` if not rolled back."""
         self.owner = owner
@@ -124,8 +120,6 @@ class Asset(Generic[OwnerT]):
             contextid=self.context_id,
         )
 
-    app = DescriptionMixin.app
-
     @property
     def url(self: Asset[PartialUser]) -> str:
         """The URL for the asset in the owner's inventory.
@@ -137,6 +131,7 @@ class Asset(Generic[OwnerT]):
     async def gift_to(
         self: Asset[ClientUser],
         recipient: Friend,
+        /,
         *,
         name: str | None = None,
         message: str,
@@ -297,7 +292,7 @@ class Inventory(Generic[ItemT, OwnerT], Sequence[ItemT]):
     def __contains__(self, item: object) -> bool:
         return item in self.items
 
-    def _update(self, proto: econ.GetInventoryItemsWithDescriptionsResponse) -> None:
+    def _update(self, proto: econ.GetInventoryItemsWithDescriptionsResponse, /) -> None:
         items: list[ItemT] = []
         ItemClass: type[ItemT]
         try:  # ideally one day this will just be ItemT.__value__ or something
@@ -556,7 +551,7 @@ class TradeOffer(Generic[ReceivingAssetT, SendingAssetT, UserT]):
                     for asset, description in cast("list[tuple[econ.Asset, econ.ItemDescription]]", receiving)
                 ]
                 return cast("TradeOffer[Item[UserT], Item[ClientUser], UserT]", self)
-            except ValueError:
+            except TypeError:
                 self.sending = [
                     Asset(self._state, asset=asset, owner=self._state.user)
                     for asset in cast("list[econ.Asset]", sending)
@@ -584,7 +579,7 @@ class TradeOffer(Generic[ReceivingAssetT, SendingAssetT, UserT]):
 
         Raises
         ------
-        steam.ClientException
+        ValueError
             The trade is not active.
         steam.ConfirmationError
             No matching confirmation could not be found.
@@ -605,15 +600,15 @@ class TradeOffer(Generic[ReceivingAssetT, SendingAssetT, UserT]):
 
         Raises
         ------
-        steam.ClientException
+        ValueError
             The trade is either not active, already accepted or not from the ClientUser.
-        steam.ConfirmationError
+        ConfirmationError
             No matching confirmation could not be found.
         """
         if self.state == TradeOfferState.Accepted:
-            raise ClientException("This trade has already been accepted")
+            raise ValueError("This trade has already been accepted")
         if self.is_our_offer():
-            raise ClientException("You cannot accept an offer the ClientUser has made")
+            raise ValueError("You cannot accept an offer the ClientUser has made")
         self._check_active()
         assert self.user is not None
         resp = await self._state.http.accept_user_trade(self.user.id64, self.id)
@@ -625,13 +620,13 @@ class TradeOffer(Generic[ReceivingAssetT, SendingAssetT, UserT]):
 
         Raises
         ------
-        :exc:`~steam.ClientException`
+        ValueError
             The trade is either not active, already declined or not from the ClientUser.
         """
         if self.state == TradeOfferState.Declined:
-            raise ClientException("This trade has already been declined")
+            raise ValueError("This trade has already been declined")
         if self.is_our_offer():
-            raise ClientException("You cannot decline an offer the ClientUser has made")
+            raise ValueError("You cannot decline an offer the ClientUser has made")
         self._check_active()
         await self._state.http.decline_user_trade(self.id)
 
@@ -640,11 +635,11 @@ class TradeOffer(Generic[ReceivingAssetT, SendingAssetT, UserT]):
 
         Raises
         ------
-        :exc:`~steam.ClientException`
+        ValueError
             The trade is either not active or already cancelled.
         """
         if self.state == TradeOfferState.Canceled:
-            raise ClientException("This trade has already been cancelled")
+            raise ValueError("This trade has already been cancelled")
         self._check_active()
         await self._state.http.cancel_user_trade(self.id)
 
@@ -681,6 +676,7 @@ class TradeOffer(Generic[ReceivingAssetT, SendingAssetT, UserT]):
     async def counter(
         self: TradeOffer[Asset[UserT], Asset[ClientUser], UserT],
         trade: TradeOffer[Asset[UserT], Asset[ClientUser], Any],
+        /,
     ) -> None:
         """Counter a trade offer from an :class:`User`.
 
@@ -691,12 +687,12 @@ class TradeOffer(Generic[ReceivingAssetT, SendingAssetT, UserT]):
 
         Raises
         ------
-        :exc:`~steam.ClientException`
+        ValueError
             The trade from the ClientUser or it isn't active.
         """
         self._check_active()
         if self.is_our_offer():
-            raise ClientException("You cannot counter an offer the ClientUser has made")
+            raise ValueError("You cannot counter an offer the ClientUser has made")
 
         assert self.user is not None
         await self.user._send_trade(trade, tradeofferid_countered=self.id)
@@ -716,4 +712,4 @@ class TradeOffer(Generic[ReceivingAssetT, SendingAssetT, UserT]):
 
     def _check_active(self) -> None:
         if self.state not in (TradeOfferState.Active, TradeOfferState.ConfirmationNeed) or not self._has_been_sent:
-            raise ClientException("This trade is not active")
+            raise ValueError("This trade is not active")

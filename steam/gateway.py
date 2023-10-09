@@ -36,7 +36,7 @@ from typing_extensions import TypeVar
 from . import utils
 from ._const import CLEAR_PROTO_BIT, DEFAULT_CMS, IS_PROTO, READ_U32, SET_PROTO_BIT
 from .enums import *
-from .errors import HTTPException, NoCMsFound, WSException
+from .errors import AuthenticatorError, HTTPException, NoCMsFound, WSException
 from .id import parse_id64
 from .models import return_true
 from .protobufs import (
@@ -324,23 +324,24 @@ class SteamWebSocket:
 
     @overload
     def wait_for(
-        self, *, emsg: EMsg | None, check: Callable[[ProtoMsgsT], bool] = return_true
+        self, /, *, emsg: EMsg | None, check: Callable[[ProtoMsgsT], bool] = return_true
     ) -> asyncio.Future[ProtoMsgsT]:
         ...
 
     @overload
-    def wait_for(self, msg: type[MsgT], *, check: Callable[[MsgT], bool] = return_true) -> asyncio.Future[MsgT]:
+    def wait_for(self, msg: type[MsgT], /, *, check: Callable[[MsgT], bool] = return_true) -> asyncio.Future[MsgT]:
         ...
 
     @overload
     def wait_for(
-        self, msg: type[ProtoMsgT], *, check: Callable[[ProtoMsgT], bool] = return_true
+        self, msg: type[ProtoMsgT], /, *, check: Callable[[ProtoMsgT], bool] = return_true
     ) -> asyncio.Future[ProtoMsgT]:
         ...
 
     def wait_for(
         self,
-        msg: type[ProtoMsgs] | None = None,
+        msg: type[ProtoMsgsT] | None = None,
+        /,
         *,
         emsg: EMsg | None = None,
         check: Callable[[ProtoMsgsT], bool] = return_true,
@@ -352,25 +353,26 @@ class SteamWebSocket:
 
     @overload
     def gc_wait_for(
-        self, *, emsg: IntEnum | None, app_id: AppID | None = None, check: Callable[[GCMsgsT], bool] = return_true
+        self, /, *, emsg: IntEnum | None, app_id: AppID | None = None, check: Callable[[GCMsgsT], bool] = return_true
     ) -> asyncio.Future[GCMsgsT]:
         ...
 
     @overload
     def gc_wait_for(
-        self, msg: type[GCMsgT], *, check: Callable[[GCMsgT], bool] = return_true
+        self, msg: type[GCMsgT], /, *, check: Callable[[GCMsgT], bool] = return_true
     ) -> asyncio.Future[GCMsgT]:
         ...
 
     @overload
     def gc_wait_for(
-        self, msg: type[GCMsgProtoT], *, check: Callable[[GCMsgProtoT], bool] = return_true
+        self, msg: type[GCMsgProtoT], /, *, check: Callable[[GCMsgProtoT], bool] = return_true
     ) -> asyncio.Future[GCMsgProtoT]:
         ...
 
     def gc_wait_for(
         self,
         msg: type[GCMsgsT] | None = None,
+        /,
         *,
         emsg: IntEnum | None = None,
         app_id: AppID | None = None,
@@ -407,7 +409,7 @@ class SteamWebSocket:
 
     @classmethod
     async def from_client(
-        cls, client: Client, refresh_token: str | None = None, cm_list: AsyncGenerator[CMServer, None] | None = None
+        cls, client: Client, /, refresh_token: str | None = None, cm_list: AsyncGenerator[CMServer, None] | None = None
     ) -> SteamWebSocket:
         state = client._state
         cm_list = cm_list or fetch_cm_list(state)
@@ -451,7 +453,7 @@ class SteamWebSocket:
                 self.connect_time = utils.DateTime.now()
                 self.session_id = msg.header.session_id
 
-                (us,) = await self.fetch_users((self.id64,))
+                us = await anext(self.fetch_users((self.id64,)))
                 client.http.user = ClientUser(state, us)
                 if hasattr(self._state, "_original_client_user_msg"):
                     self._state._original_client_user_msg = us  # type: ignore
@@ -511,7 +513,7 @@ class SteamWebSocket:
         )
 
         if not begin_resp.allowed_confirmations:
-            raise ValueError("No valid auth session guard type was found")
+            raise AuthenticatorError("No valid auth session guard type was found")
 
         code_task = email_code_task = asyncio.create_task(asyncio.sleep(float("inf")))
         schedule_poll = False
@@ -545,8 +547,10 @@ class SteamWebSocket:
                 (
                     code_task,
                     email_code_task,
-                    asyncio.create_task(
-                        self.poll_auth_status(begin_resp) if schedule_poll else asyncio.sleep(float("inf"))
+                    (
+                        asyncio.create_task(self.poll_auth_status(begin_resp))
+                        if schedule_poll
+                        else asyncio.Future[None]()
                     ),
                 ),
                 return_when=asyncio.FIRST_COMPLETED,
@@ -568,6 +572,7 @@ class SteamWebSocket:
         allowed_confirmation: auth.AllowedConfirmation,
     ) -> auth.PollAuthSessionStatusResponse:
         type = allowed_confirmation.confirmation_type
+        count = 0
         while True:
             code = await self._state.client.code()
             try:
@@ -582,6 +587,19 @@ class SteamWebSocket:
             except ConnectionClosed:
                 continue
             if code_msg.result == Result.TwoFactorCodeMismatch:
+                count += 1
+                if count > 3:
+                    exc = WSException(code_msg)
+                    if sys.version_info >= (3, 11):
+                        msg = (
+                            "Your clock is out of sync with the Steam servers or your shared secret is incorrect"
+                            if self._state.client.shared_secret is not None
+                            else "Your clock is likely out of sync with the Steam servers"
+                        )
+                        exc.add_note(msg)
+                    raise exc
+                if self._state.client.shared_secret is not None:
+                    await asyncio.sleep(2)
                 continue
             elif code_msg.result != Result.OK:
                 raise WSException(code_msg)
@@ -679,19 +697,19 @@ class SteamWebSocket:
     async def poll_event(self) -> None:
         try:
             message = await self.socket.receive()
-            if message.type is aiohttp.WSMsgType.BINARY:
-                return self.receive(bytearray(message.data))
-            if message.type is aiohttp.WSMsgType.ERROR:
+            if message.type is aiohttp.WSMsgType.BINARY:  # type: ignore
+                return self.receive(bytearray(message.data))  # type: ignore
+            if message.type is aiohttp.WSMsgType.ERROR:  # type: ignore
                 log.debug("Received %r", message)
-                raise message.data
-            if message.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.CLOSE, aiohttp.WSMsgType.CLOSING):
+                raise message.data  # type: ignore
+            if message.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.CLOSE, aiohttp.WSMsgType.CLOSING):  # type: ignore
                 log.debug("Received %r", message)
                 raise WebSocketClosure
             log.debug("Dropped unexpected message type: %r", message)
         except WebSocketClosure:
             await self._state.handle_close()
 
-    def parser_callback(self, task: asyncio.Task[Any]) -> None:
+    def parser_callback(self, task: asyncio.Task[Any], /) -> None:
         try:
             exc = task.exception()
         except asyncio.CancelledError:
@@ -760,19 +778,19 @@ class SteamWebSocket:
         for idx in reversed(removed):
             del self.listeners[idx]
 
-    async def send(self, data: bytes) -> None:
+    async def send(self, data: bytes, /) -> None:
         try:
             await self.socket.send_bytes(data)
         except ConnectionResetError:
             await self._state.handle_close()
 
-    async def send_proto(self, message: ProtoMsgs) -> None:
+    async def send_proto(self, message: ProtoMsgs, /) -> None:
         message.header.steam_id = self.id64
         message.header.session_id = self.session_id
 
         await self.send(bytes(message))
 
-    async def send_gc_message(self, msg: GCMsgs) -> int:  # for ext's to send GC messages
+    async def send_gc_message(self, msg: GCMsgs, /) -> int:  # for ext's to send GC messages
         app_id = msg.APP_ID
         message = client_server_2.CMsgGcClientToGC(
             appid=app_id,
@@ -802,7 +820,7 @@ class SteamWebSocket:
         self._gc_current_job_id = (self._gc_current_job_id + 1) % 10000 or 1
         return self._gc_current_job_id
 
-    async def send_um(self, um: UnifiedMessage) -> int:
+    async def send_um(self, um: UnifiedMessage, /) -> int:
         um.header.job_id_source = job_id = self.next_job_id
         await self.send_proto(um)
         return job_id
@@ -810,29 +828,33 @@ class SteamWebSocket:
     async def send_um_and_wait(
         self,
         um: UnifiedMessage,
-        check: Callable[[UnifiedMsgT], bool] = ...,  # type: ignore  # we rely on this not being solvable.
-        # I won't tell Eric if you won't. (This isn't part of PEP 696)
+        /,
+        check: Callable[[UnifiedMsgT], bool] | None = None,
     ) -> UnifiedMsgT:
         um.header.job_id_source = job_id = self.next_job_id
-        check = check if check is not ... else (lambda um: um.header.job_id_target == job_id)
+        check = check if check is not None else (lambda um: um.header.job_id_target == job_id)
         future = self.wait_for(emsg=EMsg.ServiceMethodSendToClient, check=check)
         await self.send_proto(um)
         return await future
 
-    async def send_proto_and_wait(self, msg: ProtoMsgs, check: Callable[[ProtoMsgsT], bool] = ...) -> ProtoMsgsT:  # type: ignore
+    async def send_proto_and_wait(
+        self, msg: ProtoMsgs, /, check: Callable[[ProtoMsgsT], bool] | None = None
+    ) -> ProtoMsgsT:
         msg.header.job_id_source = job_id = self.next_job_id
         future = self.wait_for(
-            emsg=None, check=check if check is not ... else (lambda msg: msg.header.job_id_target == job_id)
+            emsg=None, check=check if check is not None else (lambda msg: msg.header.job_id_target == job_id)
         )
         await self.send_proto(msg)
         return await future
 
-    async def send_gc_message_and_wait(self, msg: GCMsgs, check: Callable[[GCMsgProtoT], bool] = ...) -> GCMsgProtoT:  # type: ignore
+    async def send_gc_message_and_wait(
+        self, msg: GCMsgs, /, check: Callable[[GCMsgProtoT], bool] | None = None
+    ) -> GCMsgProtoT:
         msg.header.job_id_source = job_id = self.next_gc_job_id
         future = self.gc_wait_for(
             emsg=None,
             app_id=msg.APP_ID,
-            check=check if check is not ... else (lambda msg: msg.header.job_id_target == job_id),
+            check=check if check is not None else (lambda msg: msg.header.job_id_target == job_id),
         )
         await self.send_gc_message(msg)
         return await future
@@ -862,7 +884,7 @@ class SteamWebSocket:
         if state is not None or flags is not None:
             state_msg = friends.CMsgClientChangeStatus(
                 persona_state=state or self._state._state, persona_state_flags=flags or self._state._flags
-            )  # TODO what does need_persona_response do?
+            )
             log.debug("Sending %r to change state", state_msg)
             await self.send_proto(state_msg)
         if ui_mode is not None:
@@ -870,9 +892,10 @@ class SteamWebSocket:
             log.debug("Sending %r to change UI mode", ui_mode_msg)
             await self.send_proto(ui_mode_msg)
 
-    async def fetch_users(self, user_id64s: Iterable[ID64]) -> list[friends.CMsgClientPersonaStateFriend]:
+    async def fetch_users(
+        self, user_id64s: Iterable[ID64]
+    ) -> AsyncGenerator[friends.CMsgClientPersonaStateFriend, None]:
         futs: list[asyncio.Future[friends.CMsgClientPersonaState]] = []
-        users: list[friends.CMsgClientPersonaStateFriend] = []
         user_id64s = dict.fromkeys(user_id64s)
 
         def callback(msg: friends.CMsgClientPersonaState, user_id64: ID64) -> bool:
@@ -911,6 +934,6 @@ class SteamWebSocket:
             if msg.result not in (Result.OK, Result.Invalid):  # not sure if checking this is even useful
                 raise WSException(msg)
 
-            users += [user for user in msg.friends if user.friendid in user_id64s]
-
-        return users
+            for user in msg.friends:
+                if user.friendid in user_id64s:
+                    yield user

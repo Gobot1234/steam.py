@@ -80,14 +80,21 @@ class BackpackItem(Item[OwnerT]):
     REPR_ATTRS = (*Item.REPR_ATTRS, "position", "def_index")
     _state: GCState
 
-    position: int  #: The item's position in the backpack.
+    position: int
+    """The item's position in the backpack."""
 
-    account_id: int  #: Same as the :attr:`steam.SteamID.id` of the :attr:`steam.Client.user`.
-    inventory: int  #: The attribute the :attr:`position` is calculated from.
-    quantity: int  #: I think this should be the same as :attr:`amount`.
-    level: int  #: The item's level.
-    flags: ItemFlags  #: The item's flags.
-    origin: ItemOrigin  #: The item's origin.
+    account_id: int
+    """Same as the :attr:`steam.ID.id` of the :attr:`steam.Client.user`."""
+    inventory: int
+    """The attribute the :attr:`position` is calculated from."""
+    quantity: int
+    """I think this should be the same as :attr:`amount`."""
+    level: int
+    """The item's level."""
+    flags: ItemFlags
+    """The item's flags."""
+    origin: ItemOrigin
+    """The item's origin."""
     custom_name: str
     custom_description: str
     attribute: list[base.ItemAttribute]
@@ -170,6 +177,7 @@ class BackpackItem(Item[OwnerT]):
         position
             The position to set the item to. This is 0 indexed.
         """
+        assert self._state.backpack is not None
         await self._state.backpack.set_positions([(self, position)])
 
     async def set_style(self: BackpackItem[ClientUser], style: int) -> None:
@@ -186,8 +194,8 @@ class BackpackItem(Item[OwnerT]):
         """
         await self._state.ws.send_gc_message(struct_messages.DeliverGiftRequest(user_id64=user.id64, gift_id=self.id))
 
-    async def remove_attribute(self, attribute: Attribute) -> None:
-        await self._state.ws.remove_attribute
+    # async def remove_attribute(self, attribute: Attribute) -> None:
+    #     await self._state.ws.remove_attribute
 
     # methods similar to https://github.com/danocmx/node-tf2-item-format
 
@@ -234,7 +242,7 @@ class BackpackItem(Item[OwnerT]):
                         .replace("Craft_Item", "CraftItem")
                     ]
                 except KeyError:
-                    return ItemSlot.__new__(ItemSlot, name=tag.internal_name, value=-1)
+                    return ItemSlot._new_member(name=tag.internal_name, value=-1)
 
     @cached_slot_property
     def def_index(self) -> int:
@@ -263,15 +271,16 @@ class BackpackItem(Item[OwnerT]):
 
     @property
     def spells(self) -> list[str]:
-        ...
+        raise NotImplementedError
 
     @property
     def paint_colour(self) -> int | None:
-        ...
+        raise NotImplementedError
 
     @property
     def sku(self) -> str:
         """The item's SKU."""
+        raise NotImplementedError
         parts = [str(self.def_index), ";", self.quality.value]
 
         if self.effect:
@@ -323,6 +332,7 @@ class BackpackItem(Item[OwnerT]):
         ValueError
             The SKU is invalid.
         """
+        raise NotImplementedError
         self = cls.__new__(cls)
 
         data = SKU_RE.match(value)

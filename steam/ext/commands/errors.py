@@ -20,6 +20,8 @@ __all__ = (
     "UnmatchedKeyValuePair",
     "CheckFailure",
     "NotOwner",
+    "UserChannelOnly",
+    "ChatOnly",
     "CommandNotFound",
     "CommandDisabled",
     "CommandOnCooldown",
@@ -110,7 +112,7 @@ class CommandDisabled(CheckFailure):
 
 
 class NotOwner(CheckFailure):
-    """Exception raised the user does not own the bot.
+    """Exception raised if the user does not own the bot.
 
     Subclass of :exc:`CheckFailure`.
     """
@@ -120,13 +122,23 @@ class NotOwner(CheckFailure):
 
 
 class UserChannelOnly(CheckFailure):
-    """Exception raised the user does not own the bot.
+    """Exception raised if a command wasn't invoked in a DM.
 
     Subclass of :exc:`CheckFailure`.
     """
 
     def __init__(self):
         super().__init__("This command can only be used in DMs")
+
+
+class ChatOnly(CheckFailure):
+    """Exception raised if a command wasn't invoked in a chat group chat/channel.
+
+    Subclass of :exc:`CheckFailure`.
+    """
+
+    def __init__(self):
+        super().__init__("This command can only be used in chats")
 
 
 class CommandOnCooldown(CommandError):

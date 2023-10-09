@@ -5,7 +5,7 @@ import re
 import subprocess
 
 try:
-    import tomllib  # type: ignore
+    import tomllib
 except ImportError:
     import tomli as tomllib
 

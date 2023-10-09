@@ -6,12 +6,12 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
-from ._const import impl_eq_via_id
-from .abc import Awardable, Commentable, PartialUser, _CommentableKwargs
+from ._const import ReadOnly, impl_eq_via_id
+from .abc import Awardable, Commentable, _CommentableKwargs
 from .app import PartialApp
-from .chat import WrapsUser
 from .enums import Language, ReviewType
 from .reaction import AwardReaction
+from .user import ClientUser, User, WrapsUser
 from .utils import DateTime
 
 if TYPE_CHECKING:
@@ -19,7 +19,6 @@ if TYPE_CHECKING:
 
     from .protobufs.reviews import RecommendationDetails as ReviewProto
     from .state import ConnectionState
-    from .user import User
 
 __all__ = (
     "Review",
@@ -45,7 +44,7 @@ class ReviewUser(WrapsUser):
     last_played: datetime
 
     @classmethod
-    def _from_proto(cls, state: ConnectionState, user: User, review: ReviewProto) -> Self:
+    def _from_proto(cls, state: ConnectionState, user: User | ClientUser, review: ReviewProto) -> Self:
         review_user = cls(state, user)
         review_user.number_of_reviews = None
         review_user.number_of_apps_owned = None
@@ -56,7 +55,7 @@ class ReviewUser(WrapsUser):
         return review_user
 
     @classmethod
-    def _from_data(cls, state: ConnectionState, user: User, data: dict[str, Any]) -> Self:
+    def _from_data(cls, state: ConnectionState, user: User | ClientUser, data: dict[str, Any]) -> Self:
         review_user = cls(state, user)
         review_user.number_of_reviews = data["num_reviews"]
         review_user.number_of_apps_owned = data["num_games_owned"]
@@ -104,7 +103,7 @@ class Review(Commentable, Awardable):
     )
 
     _state: ConnectionState
-    id: int
+    id: ReadOnly[int]
     """The ID of the review."""
     author: ReviewUser
     """The author of the review."""
@@ -154,7 +153,7 @@ class Review(Commentable, Awardable):
         }
 
     @classmethod
-    def _from_proto(cls, state: ConnectionState, review: ReviewProto, user: User) -> Self:
+    def _from_proto(cls, state: ConnectionState, review: ReviewProto, user: User | ClientUser) -> Self:
         return cls(
             state,
             id=review.recommendationid,
@@ -224,6 +223,7 @@ class Review(Commentable, Awardable):
     async def edit(
         self,
         content: str,
+        /,
         *,
         public: bool = True,
         commentable: bool | None = None,
@@ -249,9 +249,8 @@ class Review(Commentable, Awardable):
             Whether the user received compensation for this review. Defaults to the current value.
         """
         if self.commentable is None and commentable is None:
-            raise ValueError(
-                "Pass an argument for commentable or use fetch_review to determine its current comment-ability."
-            )
+            review = await self.author.fetch_review(self.app)
+            commentable = review.commentable
         await self._state.edit_review(
             self.id,
             content,

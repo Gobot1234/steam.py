@@ -56,8 +56,6 @@ class BaseEvent(Commentable, utils.AsyncInit, Generic[EventTypeT, ClanT], metacl
         "upvotes",
         "downvotes",
         "comment_count",
-        "server_address",
-        "server_password",
         "_feature",
         "_feature2",
         "_state",
@@ -113,12 +111,6 @@ class BaseEvent(Commentable, utils.AsyncInit, Generic[EventTypeT, ClanT], metacl
         """The number of down votes on the event."""
         self.comment_count: int = data.get("comment_count", 0)
         """The number of comments on the event."""
-        self.server_address: IPv4Address | None = (
-            IPv4Address(data["server_address"]) if "server_address" in data else None
-        )
-        """The event's server address."""
-        self.server_password: str | None = data.get("server_password")
-        """The event's server password."""
 
         self._feature = int(data["gidfeature"])
         self._feature2 = int(data.get("gidfeature2", 0) or 0)
@@ -147,10 +139,18 @@ class BaseEvent(Commentable, utils.AsyncInit, Generic[EventTypeT, ClanT], metacl
 class Event(BaseEvent[EventTypeT, ClanT]):
     """Represents an event in a clan."""
 
-    __slots__ = ()
+    __slots__ = (
+        "server_address",
+        "server_password",
+    )
 
-    server_address: IPAdress | None
-    server_password: str
+    def __init__(self, state: ConnectionState, clan: ClanT, data: clan.Event):
+        super().__init__(state, clan, data)
+        server_address = data.get("server_address")
+        self.server_address: IPv4Address | None = IPv4Address(server_address) if server_address else None
+        """The event's server address."""
+        self.server_password: str | None = data.get("server_password")
+        """The event's server password."""
 
     @property
     def _commentable_kwargs(self) -> _CommentableKwargs:
@@ -294,8 +294,6 @@ class Announcement(BaseEvent[EventType, ClanT]):
         "tags",
     )
     # approved_by: User
-    server_ip: None
-    server_password: None
 
     def __init__(self, state: ConnectionState, clan: ClanT, data: clan.Event):
         super().__init__(state, clan, data)

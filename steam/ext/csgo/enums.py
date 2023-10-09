@@ -1,11 +1,16 @@
 """Licensed under The MIT License (MIT) - Copyright (c) 2020-present James H-B. See LICENSE"""
 
-from ...enums import Flags, IntEnum
+from collections.abc import Mapping
+
+from typing_extensions import Self
+
+from ...enums import Flags, IntEnum, classproperty
 
 __all__ = (
     "ItemQuality",
     "ItemFlags",
     "ItemOrigin",
+    "Rank",
 )
 
 # fmt: off
@@ -92,6 +97,57 @@ class ItemOrigin(IntEnum):
     QuestReward               = 23
     LevelUpReward             = 24
     Max                       = 25
+
+
+
+class Rank(IntEnum):
+    NotRanked                   = 0
+    SilverI                     = 1
+    SilverII                    = 2
+    SilverIII                   = 3
+    SilverIV                    = 4
+    SilverElite                 = 5
+    SilverEliteMaster           = 6
+    GoldNovaI                   = 7
+    GoldNovaII                  = 8
+    GoldNovaIII                 = 9
+    GoldNovaMaster              = 10
+    MasterGuardianI             = 11
+    MasterGuardianII            = 12
+    MasterGuardianElite         = 13
+    DistinguishedMasterGuardian = 14
+    LegendaryEagle              = 15
+    LegendaryEagleMaster        = 16
+    SupremeMasterFirstClass     = 17
+    TheGlobalElite              = 18
+
+    @classproperty
+    def DISPLAY_NAMES(cls: type[Self]) -> Mapping[Self, str]:  # type: ignore
+        return {
+            cls.NotRanked:                   "Not Ranked",
+            cls.SilverI:                     "Silver I",
+            cls.SilverII:                    "Silver II",
+            cls.SilverIII:                   "Silver III",
+            cls.SilverIV:                    "Silver IV",
+            cls.SilverElite:                 "Silver Elite",
+            cls.SilverEliteMaster:           "Silver Elite Master",
+            cls.GoldNovaI:                   "Gold Nova I",
+            cls.GoldNovaII:                  "Gold Nova II",
+            cls.GoldNovaIII:                 "Gold Nova III",
+            cls.GoldNovaMaster:              "Gold Nova Master",
+            cls.MasterGuardianI:             "Master Guardian I",
+            cls.MasterGuardianII:            "Master Guardian II",
+            cls.MasterGuardianElite:         "Master Guardian Elite",
+            cls.DistinguishedMasterGuardian: "Distinguished Master Guardian",
+            cls.LegendaryEagle:              "Legendary Eagle",
+            cls.LegendaryEagleMaster:        "Legendary Eagle Master",
+            cls.SupremeMasterFirstClass:     "Supreme Master First Class",
+            cls.TheGlobalElite:              "The Global Elite",
+        }
+
+    @property
+    def display_name(self) -> str:
+        return self.DISPLAY_NAMES[self]
 
 
 class EMsg(IntEnum):

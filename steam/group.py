@@ -21,10 +21,7 @@ if TYPE_CHECKING:
 __all__ = ("Group", "GroupMember")
 
 
-class GroupMember(Member):
-    group: Group
-    clan: None
-
+class GroupMember(Member[None, "Group"]):
     def __init__(self, state: ConnectionState, group: Group, user: User, proto: chat.Member):
         super().__init__(state, group, user, proto)
         self.group = group
@@ -50,7 +47,7 @@ class Group(ChatGroup[GroupMember, GroupChannel, Literal[Type.Chat]]):
             self._members[member.id] = member
         return await super().chunk()
 
-    def _get_partial_member(self, id: ID32) -> PartialMember:
+    def _get_partial_member(self, id: ID32, /) -> PartialMember:
         return PartialMember(self._state, group=self, member=self._partial_members[id])
 
     # TODO is this possible

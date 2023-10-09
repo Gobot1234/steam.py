@@ -27,11 +27,13 @@ __all__ = ("Client",)
 class ClientUser(ClientUser_):
     _state: GCState[Any]
 
-    async def inventory(self, app: App, *, language: Language | None = None) -> Inventory[Item[Self], Self]:
+    async def inventory(
+        self, app: App, *, context_id: int | None = None, language: Language | None = None
+    ) -> Inventory[Item[Self], Self]:
         return (
             self._state.backpacks[app.id]
             if app.id in self._state.backpacks and self._state._gc_ready.is_set()
-            else await super().inventory(app, language=language)
+            else await super().inventory(app, context_id=context_id, language=language)
         )
 
 

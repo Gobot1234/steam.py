@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from collections import deque
-from typing import TYPE_CHECKING, TypeVar, overload
+from collections.abc import Coroutine
+from typing import TYPE_CHECKING, Any, TypeAlias, TypeVar, overload
 
 from .errors import MissingClosingQuotation
 
@@ -13,6 +14,8 @@ if TYPE_CHECKING:
 _T = TypeVar("_T")
 _VT = TypeVar("_VT")
 
+Coro: TypeAlias = Coroutine[Any, Any, _T]
+
 
 class CaseInsensitiveDict(dict[str, _VT]):
     """A dictionary where keys are case insensitive."""
@@ -21,40 +24,42 @@ class CaseInsensitiveDict(dict[str, _VT]):
         super().__init__(**{k.lower(): v for k, v in kwargs.items()})
 
     def __repr__(self) -> str:
-        return f"CaseInsensitiveDict({', '.join(f'{k}={v!r}' for k, v in self.items())})"
+        return f"{self.__class__.__name__}({', '.join(f'{k}={v!r}' for k, v in self.items())})"
 
-    def __contains__(self, k: str) -> bool:
+    def __contains__(self, k: object, /) -> bool:
+        if not isinstance(k, str):
+            return False
         return super().__contains__(k.lower())
 
-    def __delitem__(self, k: str) -> None:
+    def __delitem__(self, k: str, /) -> None:
         super().__delitem__(k.lower())
 
-    def __getitem__(self, k: str) -> _VT:
+    def __getitem__(self, k: str, /) -> _VT:
         return super().__getitem__(k.lower())
 
-    def __setitem__(self, k: str, v: _VT) -> None:
+    def __setitem__(self, k: str, v: _VT, /) -> None:
         super().__setitem__(k.lower(), v)
 
     @overload
-    def get(self, k: str) -> _VT | None:
+    def get(self, k: str, /) -> _VT | None:
         ...
 
     @overload
-    def get(self, k: str, default: _T | None = None) -> _VT | _T | None:
+    def get(self, k: str, /, default: _T | None = None) -> _VT | _T | None:
         ...
 
-    def get(self, k: str, default: _T | None = None) -> _VT | _T | None:
+    def get(self, k: str, /, default: _T | None = None) -> _VT | _T | None:
         return super().get(k.lower(), default)
 
     @overload
-    def pop(self, k: str) -> _VT | None:
+    def pop(self, k: str, /) -> _VT | None:
         ...
 
     @overload
-    def pop(self, k: str, default: _T | None = None) -> _VT | _T | None:
+    def pop(self, k: str, /, default: _T | None = None) -> _VT | _T | None:
         ...
 
-    def pop(self, k: str, default: _T | None = None) -> _VT | _T | None:
+    def pop(self, k: str, /, default: _T | None = None) -> _VT | _T | None:
         return super().pop(k.lower())
 
 
@@ -96,7 +101,7 @@ class Shlex:
 
         while True:
             start = self.position
-            characters = []
+            characters: list[str] = []
 
             for character in self.in_stream[self.position :]:
                 self.position += 1
@@ -129,11 +134,7 @@ class Shlex:
         return self.in_stream[self.position :]
 
     def __repr__(self) -> str:
-        attrs = (
-            "in_stream",
-            "position",
-            "end",
-        )
+        attrs = ("in_stream", "position", "end")
         resolved = [f"{attr}={getattr(self, attr)!r}" for attr in attrs]
         return f"<{self.__class__.__class__} {' '.join(resolved)}>"
 

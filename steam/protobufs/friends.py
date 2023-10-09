@@ -22,7 +22,7 @@ class ClientGetFriendsWhoPlayGameResponse(Message, msg=EMsg.ClientGetFriendsWhoP
     app_id: int
     friends: list[int]
 
-    def parse(self, data: bytes) -> Self:
+    def parse(self, data: bytes) -> Self:  # type: ignore
         with StructIO(data) as io:
             self.eresult = io.read_u32()
             self.app_id = io.read_u64()
