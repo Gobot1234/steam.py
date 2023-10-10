@@ -21,6 +21,7 @@ class PlayerRankingInfo(GCProtobufMessage, msg=EMsg.ClientGetPlayerRankingInfoRe
     per_map_rank: "list[PerMapRank]" = betterproto.message_field(13)
     leaderboard_name_status: int = betterproto.uint32_field(14)
 
+    @dataclass(eq=False, repr=False)
     class PerMapRank(betterproto.Message):
         map_id: int = betterproto.uint32_field(1)
         rank_id: int = betterproto.uint32_field(2)
