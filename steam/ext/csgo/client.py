@@ -14,7 +14,7 @@ from ...enums import Type
 from ...ext import commands
 from ...id import ID, parse_id64
 from ...utils import cached_property  # noqa: TCH001
-from .backpack import BaseInspectedItem, Paint, Sticker
+from .backpack import InspectedItem, Paint, Sticker
 from .enums import ItemOrigin, ItemQuality
 from .models import ClientUser, Match, User
 from .protobufs import cstrike
@@ -108,7 +108,7 @@ class Client(Client_):
             cstrike.Client2GcEconPreviewDataBlockResponse,
             check=lambda msg: msg.iteminfo.itemid == asset_id,
         )
-        await self._state.ws.send_gc_message(
+        job_id = await self._state.ws.send_gc_message(
             cstrike.Client2GcEconPreviewDataBlockRequest(
                 param_s=owner.id64 if owner else 0,
                 param_a=asset_id,
@@ -123,7 +123,7 @@ class Client(Client_):
         # decode the wear
         packed_wear = struct.pack(">l", item.paintwear)
         (paint_wear,) = struct.unpack(">f", packed_wear)
-        return BaseInspectedItem(
+        return InspectedItem(
             id=item.itemid,
             def_index=item.defindex,
             paint=Paint(index=item.paintindex, wear=paint_wear, seed=item.paintseed),

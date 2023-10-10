@@ -227,6 +227,9 @@ OwnerT = TypeVar("OwnerT", bound="PartialUser", default="BaseUser", covariant=Tr
 class InspectedItem(Item[OwnerT], BaseInspectedItem):
     __slots__ = BaseInspectedItem.SLOTS
 
+    def __init__(self, **kwargs):
+        for slot in BaseInspectedItem.SLOTS:
+            setattr(self, slot, kwargs.get(slot))
 
 F = TypeVar("F", bound=Callable[..., object])
 
