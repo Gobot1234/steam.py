@@ -108,7 +108,7 @@ class Client(Client_):
             cstrike.Client2GcEconPreviewDataBlockResponse,
             check=lambda msg: msg.iteminfo.itemid == asset_id,
         )
-        job_id = await self._state.ws.send_gc_message(
+        await self._state.ws.send_gc_message(
             cstrike.Client2GcEconPreviewDataBlockRequest(
                 param_s=owner.id64 if owner else 0,
                 param_a=asset_id,

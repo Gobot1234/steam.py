@@ -231,6 +231,7 @@ class InspectedItem(Item[OwnerT], BaseInspectedItem):
         for slot in BaseInspectedItem.SLOTS:
             setattr(self, slot, kwargs.get(slot))
 
+
 F = TypeVar("F", bound=Callable[..., object])
 
 
