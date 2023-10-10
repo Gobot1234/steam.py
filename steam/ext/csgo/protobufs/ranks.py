@@ -7,7 +7,7 @@ from ..enums import EMsg
 
 
 @dataclass(eq=False, repr=False)
-class PlayerRankingInfo(betterproto.Message):
+class PlayerRankingInfo(GCProtobufMessage, msg=EMsg.ClientGetPlayerRankingInfoResponse):
     account_id: int = betterproto.uint32_field(1)
     rank_id: int = betterproto.uint32_field(2)
     wins: int = betterproto.uint32_field(3)
@@ -19,7 +19,7 @@ class PlayerRankingInfo(betterproto.Message):
     rank_if_win: int = betterproto.uint32_field(10)
     rank_if_lose: int = betterproto.uint32_field(11)
     rank_if_tie: int = betterproto.uint32_field(12)
-    per_map_rank: "list[PerMapRank]" = betterproto.message_field(13, repeated=True)
+    per_map_rank: "list[PerMapRank]" = betterproto.message_field(13)
     leaderboard_name_status: int = betterproto.uint32_field(14)
 
     @dataclass(eq=False, repr=False)

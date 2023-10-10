@@ -98,12 +98,12 @@ class ItemOrigin(IntEnum):
     LevelUpReward             = 24
     Max                       = 25
 
-class PerMapRankEnum(IntEnum):
+class PerMapRankEnum():
     MapID                     = 1
-    RANK_ID                   = 2
-    WINS                      = 3
+    RankID                    = 2
+    Wins                      = 3
 
-class PlayerRankingInfoEnum(IntEnum):
+class PlayerRankingInfoEnum():
     AccountID                   = 1
     RankID                      = 2
     Wins                        = 3
