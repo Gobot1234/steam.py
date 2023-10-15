@@ -247,7 +247,7 @@ class ProfileInfo(Generic[UserT]):
         self.current_xp = proto.player_cur_xp
         self.rank_if_win: int | None = proto.rank_if_win
         self.rank_if_lose: int | None = proto.rank_if_lose
-        self.rank_if_tie : int | None = proto.rank_if_tie
+        self.rank_if_tie: int | None = proto.rank_if_tie
         self.rank_type_id: int | None = getattr(proto, "rank_type_id", None)
         self.rank_change: int | None = getattr(proto, "rank_change", None)
         self.rank_window_stats: int | None = getattr(proto, "rank_window_stats", None)
