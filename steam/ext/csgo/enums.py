@@ -388,6 +388,4 @@ class EMsg(IntEnum):
     ClientRequestJoinFriendData            = 9163
     ClientRequestJoinServerData            = 9164
     ClientRequestNewMission                = 9165
-    ClientRequestPlayersProfilecs2         = 9166
     ClientGetPlayerRankingInfoResponse     = 9167
-    PlayersProfilecs2                      = 9168

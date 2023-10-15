@@ -245,9 +245,9 @@ class ProfileInfo(Generic[UserT]):
         self.survey_vote = proto.survey_vote
         self.activity = proto.activity
         self.current_xp = proto.player_cur_xp
-        self.rank_if_win = proto.rank_if_win
-        self.rank_if_lose = proto.rank_if_lose
-        self.rank_if_tie = proto.rank_if_tie
+        self.rank_if_win: int | None = proto.rank_if_win
+        self.rank_if_lose: int | None = proto.rank_if_lose
+        self.rank_if_tie : int | None = proto.rank_if_tie
         self.rank_type_id: int | None = getattr(proto, "rank_type_id", None)
         self.rank_change: int | None = getattr(proto, "rank_change", None)
         self.rank_window_stats: int | None = getattr(proto, "rank_window_stats", None)
@@ -255,7 +255,7 @@ class ProfileInfo(Generic[UserT]):
         self.level = Level(proto.player_level)
         self.xp_bonus_flags = proto.player_xp_bonus_flags
         self.rankings = Rank(proto.rankings)
-        self.per_map_rank = proto.per_map_rank
+        self.per_map_rank: list | None = proto.per_map_rank
 
     @property
     def percentage_of_current_level(self) -> int:
