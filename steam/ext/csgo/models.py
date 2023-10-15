@@ -137,7 +137,7 @@ class PartialUser(abc.PartialUser):
 
     async def csgo_profile(self) -> ProfileInfo[Self]:
         """Fetches this users CSGO profile info."""
-        msg = await self._state.fetch_user_csgo_profile(self.id)
+        msg = await self._state.fetch_user_cs_profile(self.id)
         if not msg.account_profiles:
             raise ValueError
         return ProfileInfo(self, msg.account_profiles[0])
@@ -245,6 +245,15 @@ class ProfileInfo(Generic[UserT]):
         self.survey_vote = proto.survey_vote
         self.activity = proto.activity
         self.current_xp = proto.player_cur_xp
+        self.wins = getattr(proto, "wins", None)
+        self.rank_if_win = getattr(proto, "rank_if_win", None)
+        self.rank_if_lose = getattr(proto, "rank_if_lose", None)
+        self.rank_if_tie = getattr(proto, "rank_if_tie", None)
+        self.rank_type_id = getattr(proto, "rank_type_id", None)
+        self.rank_change = getattr(proto, "rank_change", None)
+        self.rank_window_stats = getattr(proto, "rank_window_stats", None)
+        self.per_map_rank = getattr(proto, "per_map_rank", None)
+        self.leaderboard_name_status = getattr(proto, "leaderboard_name_status", None)
         self.level = Level(proto.player_level)
         self.xp_bonus_flags = proto.player_xp_bonus_flags
         self.rankings = Rank(proto.rankings)
