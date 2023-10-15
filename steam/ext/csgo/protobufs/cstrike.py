@@ -117,7 +117,6 @@ class OperationalStatisticsPacket(betterproto.Message):
     values: "list[OperationalStatisticElement]" = betterproto.message_field(3)
 
 
-
 @dataclass(eq=False, repr=False)
 class PlayerCommendationInfo(betterproto.Message):
     cmd_friendly: int = betterproto.uint32_field(1)
@@ -224,11 +223,13 @@ class PlayerRankingInfo(GCProtobufMessage, msg=EMsg.ClientGetPlayerRankingInfoRe
     per_map_rank: "list[PerMapRank]" = betterproto.message_field(13)
     leaderboard_name_status: int = betterproto.uint32_field(14)
 
+
 @dataclass(eq=False, repr=False)
 class PerMapRank(betterproto.Message):
     map_id: int = betterproto.uint32_field(1)
     rank_id: int = betterproto.uint32_field(2)
     wins: int = betterproto.uint32_field(3)
+
 
 @dataclass(eq=False, repr=False)
 class ScoreLeaderboardDataEntry(betterproto.Message):
@@ -730,7 +731,7 @@ class ClientRequestPlayersProfile(GCProtobufMessage, msg=EMsg.ClientRequestPlaye
     request_level: int = betterproto.uint32_field(4)
 
 
-#class ClientRequestPlayersProfilecs2(GCProtobufMessage, msg=EMsg.ClientRequestPlayersProfilecs2):
+# class ClientRequestPlayersProfilecs2(GCProtobufMessage, msg=EMsg.ClientRequestPlayersProfilecs2):
 #    request_id_deprecated: int = betterproto.uint32_field(1)
 #    account_ids_deprecated: list[int] = betterproto.uint32_field(2)
 #    account_id: int = betterproto.uint32_field(3)
@@ -768,10 +769,10 @@ class PlayersProfile(GCProtobufMessage, msg=EMsg.PlayersProfile):
     request_id: int = betterproto.uint32_field(1)
     account_profiles: "list[PlayersProfileProfile]" = betterproto.message_field(2)
 
+
 class PlayersProfilecs2(GCProtobufMessage, msg=EMsg.PlayersProfilecs2):
     request_id: int = betterproto.uint32_field(1)
     account_profiles_cs2: "list[PlayersProfileProfile]" = betterproto.message_field(2)
-
 
 
 @dataclass(eq=False, repr=False)
