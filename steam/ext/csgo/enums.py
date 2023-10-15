@@ -103,6 +103,7 @@ class PerMapRank(IntEnum):
     RankID                    = 2
     Wins                      = 3
 
+
 class PlayerRankingInfo(IntEnum):
     AccountID                   = 1
     RankID                      = 2
@@ -117,6 +118,7 @@ class PlayerRankingInfo(IntEnum):
     RankIfTie                   = 11
     PerMapRank                  = 12
     LeaderboardNameStatus       = 13
+
 
 class Rank(IntEnum):
     NotRanked                   = 0

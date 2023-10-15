@@ -209,13 +209,6 @@ class GCState(GCState_[Backpack]):
             check=lambda msg: msg.account_profiles[0].account_id == user_id,
         )
 
-    #    async def fetch_user_cs2_profile(self, user_id: int) -> cstrike.PlayersProfile:
-    #        await self.ws.send_gc_message(cstrike.ClientRequestPlayersProfilecs2(account_id=user_id, request_level=32))
-    #        return await self.ws.gc_wait_for(
-    #            cstrike.PlayersProfile,
-    #            check=lambda msg: msg.account_profiles[0].account_id == user_id,
-    #        )
-
     @parser
     async def handle_so_create(self, msg: sdk.SOCreate):
         if msg.type_id != 1 or not self.backpack:

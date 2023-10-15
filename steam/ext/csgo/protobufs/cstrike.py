@@ -731,13 +731,6 @@ class ClientRequestPlayersProfile(GCProtobufMessage, msg=EMsg.ClientRequestPlaye
     request_level: int = betterproto.uint32_field(4)
 
 
-# class ClientRequestPlayersProfilecs2(GCProtobufMessage, msg=EMsg.ClientRequestPlayersProfilecs2):
-#    request_id_deprecated: int = betterproto.uint32_field(1)
-#    account_ids_deprecated: list[int] = betterproto.uint32_field(2)
-#    account_id: int = betterproto.uint32_field(3)
-#    request_level: int = betterproto.uint32_field(4)
-
-
 @dataclass(eq=False, repr=False)
 class PlayersProfileProfile(betterproto.Message):
     account_id: int = betterproto.uint32_field(1)
