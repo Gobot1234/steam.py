@@ -115,7 +115,7 @@ class PlayerRankingInfo(IntEnum):
     RankIfWin                   = 9
     RankIfLose                  = 10
     RankIfTie                   = 11
-    PerMapRanking               = 12
+    PerMapRank                  = 12
     LeaderboardNameStatus       = 13
 
 class Rank(IntEnum):
@@ -386,3 +386,6 @@ class EMsg(IntEnum):
     ClientRequestJoinFriendData            = 9163
     ClientRequestJoinServerData            = 9164
     ClientRequestNewMission                = 9165
+    ClientRequestPlayersProfilecs2         = 9166
+    ClientGetPlayerRankingInfoResponse     = 9167
+    PlayersProfilecs2                      = 9168
