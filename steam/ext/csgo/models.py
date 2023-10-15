@@ -245,18 +245,17 @@ class ProfileInfo(Generic[UserT]):
         self.survey_vote = proto.survey_vote
         self.activity = proto.activity
         self.current_xp = proto.player_cur_xp
-        self.wins = getattr(proto, "wins", None)
-        self.rank_if_win = getattr(proto, "rank_if_win", None)
-        self.rank_if_lose = getattr(proto, "rank_if_lose", None)
-        self.rank_if_tie = getattr(proto, "rank_if_tie", None)
-        self.rank_type_id = getattr(proto, "rank_type_id", None)
-        self.rank_change = getattr(proto, "rank_change", None)
-        self.rank_window_stats = getattr(proto, "rank_window_stats", None)
-        self.per_map_rank = getattr(proto, "per_map_rank", None)
-        self.leaderboard_name_status = getattr(proto, "leaderboard_name_status", None)
+        self.rank_if_win = proto.rank_if_win
+        self.rank_if_lose = proto.rank_if_lose
+        self.rank_if_tie = proto.rank_if_tie
+        self.rank_type_id : int | None = getattr(proto, "rank_type_id", None)
+        self.rank_change : int | None = getattr(proto, "rank_change", None)
+        self.rank_window_stats : int | None = getattr(proto, "rank_window_stats", None)
+        self.leaderboard_name_status : int | None  = getattr(proto, "leaderboard_name_status", None)
         self.level = Level(proto.player_level)
         self.xp_bonus_flags = proto.player_xp_bonus_flags
         self.rankings = Rank(proto.rankings)
+        self.per_map_rank = proto.per_map_rank
 
     @property
     def percentage_of_current_level(self) -> int:
