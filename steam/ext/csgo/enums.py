@@ -98,28 +98,6 @@ class ItemOrigin(IntEnum):
     LevelUpReward             = 24
     Max                       = 25
 
-class PerMapRank(IntEnum):
-    MapID                     = 1
-    RankID                    = 2
-    Wins                      = 3
-
-
-class PlayerRankingInfo(IntEnum):
-    AccountID                   = 1
-    RankID                      = 2
-    Wins                        = 3
-    RankChange                  = 4
-    RankeTypeID                 = 5
-    TVControl                   = 6
-    RankWindowStats             = 7
-    LeaderboardName             = 8
-    RankIfWin                   = 9
-    RankIfLose                  = 10
-    RankIfTie                   = 11
-    PerMapRank                  = 12
-    LeaderboardNameStatus       = 13
-
-
 class Rank(IntEnum):
     NotRanked                   = 0
     SilverI                     = 1
@@ -388,4 +366,6 @@ class EMsg(IntEnum):
     ClientRequestJoinFriendData            = 9163
     ClientRequestJoinServerData            = 9164
     ClientRequestNewMission                = 9165
+    ClientRequestPlayersProfilecs2         = 9166
     ClientGetPlayerRankingInfoResponse     = 9167
+    PlayersProfilecs2                      = 9168
