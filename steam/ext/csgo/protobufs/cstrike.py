@@ -209,8 +209,6 @@ class ScoreLeaderboardData(betterproto.Message):
     matchentries: "list[ScoreLeaderboardDataEntry]" = betterproto.message_field(5)
 
 
-
-@dataclass(eq=False, repr=False)
 class PlayerRankingInfo(GCProtobufMessage, msg=EMsg.ClientGetPlayerRankingInfoResponse):
     account_id: int = betterproto.uint32_field(1)
     rank_id: int = betterproto.uint32_field(2)
@@ -759,6 +757,10 @@ class PlayersProfileProfile(betterproto.Message):
     player_level: int = betterproto.int32_field(17)
     player_cur_xp: int = betterproto.int32_field(18)
     player_xp_bonus_flags: int = betterproto.int32_field(19)
+    rank_if_win: int = betterproto.uint32_field(10)
+    rank_if_lose: int = betterproto.uint32_field(11)
+    rank_if_tie: int = betterproto.uint32_field(12)
+    per_map_rank: "list[PerMapRank]" = betterproto.message_field(13)
     rankings: "list[PlayerRankingInfo]" = betterproto.message_field(20)
 
 
