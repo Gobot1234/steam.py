@@ -202,7 +202,7 @@ class GCState(GCState_[Backpack]):
     def handle_matchmaking_client_hello(self, msg: cstrike.MatchmakingClientHello):
         self.client.user._profile_info_msg = msg
 
-    async def fetch_user_csgo_profile(self, user_id: int) -> cstrike.PlayersProfile:
+    async def fetch_user_cs_profile(self, user_id: int) -> cstrike.PlayersProfile:
         await self.ws.send_gc_message(cstrike.ClientRequestPlayersProfile(account_id=user_id, request_level=32))
         return await self.ws.gc_wait_for(
             cstrike.PlayersProfile,
