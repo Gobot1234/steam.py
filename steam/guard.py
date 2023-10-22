@@ -14,7 +14,7 @@ from .errors import ConfirmationError
 
 if TYPE_CHECKING:
     from .state import ConnectionState
-    from .types.id import TradeOfferID
+    from .types.id import ListingID, TradeOfferID
 
 
 __all__ = (
@@ -102,7 +102,7 @@ class Confirmation:
     _state: ConnectionState
     id: int
     nonce: int
-    creator_id: TradeOfferID  # this isn't really always the trade ID, but for our purposes this is fine
+    creator_id: TradeOfferID | ListingID  # this isn't really always the trade ID, but for our purposes this is fine
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} id={self.id} creator_id={self.creator_id}>"

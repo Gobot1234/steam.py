@@ -1088,59 +1088,46 @@ class HTTPClient:
 
         return self.post(URL.MARKET / "priceoverview", data=data)
 
-    def _convert_price_history(
-        self, snapshot_info: str, avg_price: float, quantity: str
-    ) -> tuple[datetime, int, float, int]:
-        month, day, year, snapshot_number, tz = snapshot_info.split()
-        date = datetime.strptime(f"{month} {day} {year} {tz.ljust(5, '0')}", "%b %d %Y %z")
-        return (date, int(snapshot_number.rstrip(":")), avg_price, int(quantity))
-
-    async def get_listings(self, app_id: AppID, item_name: str) -> list[market.Listing]:
-        headers = {"Referer": URL.MARKET / "search" % {"appid": app_id}}  # TODO use /render
+    async def get_item_name_id(self, app_id: AppID, item_name: str) -> int:
+        headers = {"Referer": URL.MARKET / "search" % {"appid": app_id}}
         resp = await self.get(URL.MARKET / f"listings/{app_id}/{item_name}", headers=headers)
         soup = BeautifulSoup(resp, "html.parser")  # needs to be html.parser
         tag = soup.find("div", class_="responsive_page_template_content", id="responsive_page_template_content")
         assert isinstance(tag, Tag)
         for script in tag.find_all("script", type="text/javascript"):
             if match := re.search(r"Market_LoadOrderSpread\s*\(\s*(?P<name_id>\d+)\s*\);?", script.text):
-                listings: list[market.Listing] = []
-                name_id = int(match["name_id"])
-                assets, listings_ = cast(
-                    tuple[
-                        dict[str, dict[str, dict[str, market.ListingAsset]]],
-                        dict[str, market._Listing],
-                    ],
-                    extract_js_variables(script.text, "g_rgAssets", "g_rgListingInfo"),
-                )
-                for idx, listing in enumerate(listings_.values(), start=1):
-                    asset = listing["asset"]
-                    history: list[market.ListingPriceHistory] = [
-                        self._convert_price_history(*price_history)
-                        for price_history in cast(
-                            list[market._ListingPriceHistory], *extract_js_variables(script.text, f"line{idx}")
-                        )
-                    ]
+                return int(match["name_id"])
+        raise ValueError("Item has no nameid")
 
-                    listings.append(
-                        {
-                            "id": int(listing["listingid"]),
-                            "currency_id": listing["currencyid"],
-                            "price": listing["price"],
-                            "fee": listing["fee"],
-                            "publisher_fee_app": listing["publisher_fee_app"],
-                            "publisher_fee_percent": round(float(listing["publisher_fee_percent"]), 4),
-                            "item": {
-                                "assetid": asset["id"],
-                                **assets[str(asset["appid"])][asset["contextid"]][asset["id"]],
-                                "name_id": name_id,
-                                "missing": False,
-                            },
-                            "price_history": history,
-                        }
-                    )
-
-                return listings
-        raise RuntimeError("unreachable")
+    async def get_listings(self, app_id: AppID, item_name: str) -> AsyncGenerator[market.Listing, None]:
+        headers = {"Referer": URL.MARKET / "search" % {"appid": app_id}}
+        params = {}
+        resp: market._Listings = await self.get(
+            URL.MARKET / f"listings/{app_id}/{item_name}/render", headers=headers, params=params
+        )
+        assets = resp["assets"]
+        for listing in resp["listinginfo"].values():
+            asset = listing["asset"]
+            yield {
+                "id": int(listing["listingid"]),
+                "price": listing["price"],
+                "fee": listing["fee"],
+                "publisher_fee_app": listing["publisher_fee_app"],
+                "publisher_fee_percent": round(float(listing["publisher_fee_percent"]), 4),
+                "currency_id": listing["currencyid"],
+                "item": cast(
+                    market.ListingItem,
+                    {
+                        "assetid": asset["id"],  # this is technically an added field, but who cares
+                        **asset,
+                        **assets[str(asset["appid"])][asset["contextid"]][asset["id"]],
+                        "missing": False,
+                        "amount": int(
+                            asset["amount"]
+                        ),  # this is overwritten from **asset to be an int to match contract
+                    },
+                ),
+            }
 
     async def get_market_filters(self, app_id: AppID) -> list[market.Filter]:
         data: market.AppFilters = await self.get(URL.MARKET / f"appfilters/{app_id}")
@@ -1169,8 +1156,8 @@ class HTTPClient:
         *,
         limit: int | None = None,
         search_descriptions: bool = False,
-        sort_column: market.SortColumn = "popular",
-        sort_descending: bool = True,
+        sort_by: market.SortBy = "popular",
+        reverse: bool = True,
         tags: Sequence[int] = (),
     ) -> AsyncGenerator[market.SearchResult, None]:
         "https://steamcommunity.com/market/search/render?q=&category_614910_collection%5B%5D=any&category_614910_color%5B%5D=tag_carrot&appid=0&norender=1"
@@ -1179,8 +1166,8 @@ class HTTPClient:
             "start": 0,
             "count": limit or 100,
             "search_descriptions": int(search_descriptions),
-            "sort_column": sort_column,
-            "sort_dir": "desc" if sort_descending else "asc",
+            "sort_column": sort_by,
+            "sort_dir": "desc" if reverse else "asc",
             "appid": app_id if app_id is not None else 0,
             "norender": 1,
             # TODO filters??
@@ -1249,14 +1236,24 @@ class HTTPClient:
 
     async def get_price_history(
         self, app_id: AppID, item_name: str, currency: Currency | None
-    ) -> list[tuple[datetime, int, float, int]]:
+    ) -> list[market.ListingPriceHistory]:
         params = {
             "appid": app_id,
             "market_hash_name": item_name,
             "currency": currency or self.currency,
         }
-        data = await self.get(URL.MARKET / "pricehistory", params=params)
-        return [self._convert_price_history(*snapshot) for snapshot in data["prices"]]
+        data: dict[
+            {"success": bool, "prices": list[market._ListingPriceHistory]}  # noqa: UP037, F821
+        ] = await self.get(URL.MARKET / "pricehistory", params=params)
+        if not data["success"]:
+            raise ValueError("item_name does not have a price history")
+        snapshots: list[market.ListingPriceHistory] = []
+        for snapshot in data["prices"]:
+            snapshot_info, avg_price, quantity = snapshot
+            month, day, year, snapshot_number, tz = snapshot_info.split()
+            date = datetime.strptime(f"{month} {day} {year} {tz.ljust(5, '0')}", "%b %d %Y %z")
+            snapshots.append((date, int(snapshot_number.rstrip(":")), avg_price, int(quantity)))
+        return snapshots
 
     async def edit_profile_info(
         self,

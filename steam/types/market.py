@@ -58,6 +58,19 @@ class ListingAsset(TypedDict, total=False):
     new_contextid: str
 
 
+class _Listings(TypedDict):
+    success: bool
+    start: int
+    pagesize: int
+    total_count: int
+    results_html: str
+    listinginfo: dict[str, _ListingInfo]
+    assets: dict[str, dict[str, dict[str, _SearchAssetDescription]]]
+    currency: list[Any]
+    hovers: str
+    app_data: AppData
+
+
 class _Listing(TypedDict):
     listingid: str
     price: int
@@ -74,7 +87,7 @@ ListingPriceHistory = tuple[datetime, int, float, int]
 
 
 class ListingItem(Item, total=False):
-    name_id: int
+    appid: str
     status: str
     original_amount: str
     unowned_id: str
@@ -93,7 +106,6 @@ class Listing(TypedDict):
     publisher_fee_app: int
     publisher_fee_percent: float  # make sure to round()
     currency_id: int
-    price_history: list[ListingPriceHistory]
     item: ListingItem
 
 
@@ -115,7 +127,7 @@ class AppFilters(TypedDict):
     facets: dict[str, _Filter]
 
 
-SortColumn = Literal["popular", "name", "quantity", "price"]
+SortBy = Literal["popular", "name", "quantity", "price"]
 
 
 class _Search(TypedDict):
@@ -174,10 +186,46 @@ class SearchResult(TypedDict):
     instanceid: str
     background_color: str
     icon_url: str
-    name: str
     name_color: str
     type: str
     market_name: str
     market_hash_name: str
     tradable: bool
     commodity: bool
+
+
+class _ListingInfo(TypedDict):
+    listingid: str
+    price: int
+    fee: int
+    publisher_fee_app: int
+    publisher_fee_percent: str
+    currencyid: int
+    steam_fee: int
+    publisher_fee: int
+    converted_price: int
+    converted_fee: int
+    converted_currencyid: int
+    converted_steam_fee: int
+    converted_publisher_fee: int
+    converted_price_per_unit: int
+    converted_fee_per_unit: int
+    converted_steam_fee_per_unit: int
+    converted_publisher_fee_per_unit: int
+    asset: Asset
+
+
+class Asset(TypedDict):
+    currency: int
+    appid: int
+    contextid: str
+    id: str
+    amount: str
+    market_actions: list[dict[{"link": str, "name": str}]]  # noqa: UP037, F821
+
+
+class AppData(TypedDict):
+    appid: int
+    name: str
+    icon: str
+    link: str

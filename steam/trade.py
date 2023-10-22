@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
     from .abc import BaseUser, PartialUser
     from .friend import Friend
-    from .market import Listing
+    from .market import MyListing
     from .state import ConnectionState
     from .types import trade
     from .user import ClientUser, User
@@ -62,7 +62,6 @@ class Asset(AssetMixin, Generic[OwnerT]):
     __slots__ = (
         "id",
         "amount",
-        "instance_id",
         "context_id",
         # "post_rollback_id",
         "owner",
@@ -75,7 +74,6 @@ class Asset(AssetMixin, Generic[OwnerT]):
         self.amount = asset.amount
         """The amount of the same asset there are in the inventory."""
         self.instance_id = InstanceID(asset.instanceid)
-        """The instanceid of the item."""
         self.class_id = ClassID(asset.classid)
         self.context_id = ContextID(asset.contextid)
         """The contextid of the item."""
@@ -163,14 +161,14 @@ class Asset(AssetMixin, Generic[OwnerT]):
         )
 
     @overload
-    async def sell(self: Asset[ClientUser], user_pays: int) -> Listing:
+    async def sell(self: Asset[ClientUser], user_pays: int) -> MyListing:
         ...
 
     @overload
-    async def sell(self: Asset[ClientUser], you_receive: int) -> Listing:
+    async def sell(self: Asset[ClientUser], you_receive: int) -> MyListing:
         ...
 
-    async def sell(self: Asset[ClientUser]) -> Listing:
+    async def sell(self: Asset[ClientUser]) -> MyListing:
         """List this item for sale on the Steam Community Market.
 
         |market_warning|
@@ -179,13 +177,16 @@ class Asset(AssetMixin, Generic[OwnerT]):
         self.to_dict() | {"price": 0.9} | {"sessionid": self.session_id}
 
 
-class Item(Asset[OwnerT], DescriptionMixin):
+ItemOwnerT = TypeVar("ItemOwnerT", bound="PartialUser", default="BaseUser", covariant=True)
+
+
+class Item(Asset[ItemOwnerT], DescriptionMixin):
     """Represents an item in a User's inventory."""
 
     __slots__ = DescriptionMixin.SLOTS
     REPR_ATTRS = ("name", *Asset.REPR_ATTRS)
 
-    def __init__(self, state: ConnectionState, asset: econ.Asset, description: econ.ItemDescription, owner: OwnerT):
+    def __init__(self, state: ConnectionState, asset: econ.Asset, description: econ.ItemDescription, owner: ItemOwnerT):
         super().__init__(state, asset, owner)
         DescriptionMixin.__init__(self, state, description)
 
@@ -217,7 +218,7 @@ class InventoryGenericAlias(types.GenericAlias):
 ItemT = TypeVar("ItemT", bound=Item["PartialUser"], default=Item["BaseUser"], covariant=True)
 
 
-class Inventory(Generic[ItemT, OwnerT], Sequence[ItemT]):
+class Inventory(Generic[ItemT, ItemOwnerT], Sequence[ItemT]):
     """Represents a User's inventory.
 
     .. container:: operations
@@ -254,7 +255,7 @@ class Inventory(Generic[ItemT, OwnerT], Sequence[ItemT]):
         self,
         state: ConnectionState,
         proto: econ.GetInventoryItemsWithDescriptionsResponse,
-        owner: OwnerT,
+        owner: ItemOwnerT,
         app: App,
         context_id: ContextID,
         language: Language | None,
@@ -320,12 +321,12 @@ class Inventory(Generic[ItemT, OwnerT], Sequence[ItemT]):
         self._update(proto)
 
 
-class TradeOfferReceipt(NamedTuple, Generic[OwnerT]):
+class TradeOfferReceipt(NamedTuple, Generic[ItemOwnerT]):
     sent: list[MovedItem[ClientUser]]
-    received: list[MovedItem[OwnerT]]
+    received: list[MovedItem[ItemOwnerT]]
 
 
-class MovedItem(Item[OwnerT]):
+class MovedItem(Item[ItemOwnerT]):
     """Represents an item that has moved from one inventory to another."""
 
     __slots__ = (
@@ -334,7 +335,7 @@ class MovedItem(Item[OwnerT]):
     )
     REPR_ATTRS = (*Item.REPR_ATTRS, "new_id", "new_context_id")
 
-    def __init__(self, state: ConnectionState, data: trade.TradeOfferReceiptItem, owner: OwnerT):
+    def __init__(self, state: ConnectionState, data: trade.TradeOfferReceiptItem, owner: ItemOwnerT):
         super().__init__(
             state,
             asset=econ.Asset().from_dict(data),

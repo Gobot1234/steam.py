@@ -48,7 +48,7 @@ from .gateway import *
 from .guard import get_authentication_code
 from .http import HTTPClient
 from .id import _ID64_TO_ID32
-from .market import Listing, PriceHistory, PriceOverview, Wallet
+from .market import HistogramEntry, Listing, MarketBuySellInfo, MarketSearchItem, PriceHistory, PriceOverview, Wallet
 from .models import CDNAsset, return_true
 from .package import FetchedPackage, License, Package, PartialPackage
 from .protobufs import store
@@ -1505,7 +1505,15 @@ class Client:
         prices = await self.http.get_price_history(app.id, name, currency)
         return [PriceHistory(*price) for price in prices]
 
-    async def fetch_listings(self, name: str, app: App) -> list[Listing]:
+    async def fetch_histogram(
+        self, name: str, app: App, name_id: int, currency: Currency | None = None
+    ) -> list[MarketBuySellInfo]:
+        data = await self.http.get_item_histogram(app.id, name, name_id, currency)
+        return [
+            MarketBuySellInfo(MarketBuySellInfo.Entry(*buys), MarketBuySellInfo.Entry(*sells)) for (buys, sells) in data
+        ]
+
+    async def fetch_listings(self, name: str, app: App) -> AsyncGenerator[Listing, None]:
         """Fetch the listings for an item.
 
         Parameters
@@ -1515,8 +1523,8 @@ class Client:
         app
             The app the item is from.
         """
-        listings = await self.http.get_listings(app.id, name)
-        return [Listing(self._state, listing) for listing in listings]
+        async for listing in self.http.get_listings(app.id, name):
+            yield Listing(self._state, listing)
 
     async def search_market(
         self,
@@ -1524,15 +1532,15 @@ class Client:
         *,
         limit: int | None = 100,
         search_description: bool = True,
-        sort_column: market.SortColumn = "popular",
-        sort_descending: bool = True,
-    ) -> AsyncGenerator[MarketSearch, None]:
-        "https://steamcommunity.com/market/search?q=&descriptions=1&category_570_Hero[]=any&category_570_Slot[]=any&category_570_Type[]=any&category_570_Quality[]=tag_unique&appid=570"
+        sort_by: market.SortBy = "popular",
+        reverse: bool = True,
+    ) -> AsyncGenerator[MarketSearchItem, None]:
+        "https://steamcommunity.com/market/search/render?q=&descriptions=1&category_570_Hero[]=any&category_570_Slot[]=any&category_570_Type[]=any&category_570_Quality[]=tag_unique&appid=570&norender=1"
         "https://steamcommunity.com/market/search?q=&category_614910_collection%5B%5D=any&category_614910_color%5B%5D=tag_carrot&appid=614910"
         async for search in self.http.search_market(
-            query=query,
+            query=query, limit=limit, search_descriptions=search_description, sort_by=sort_by, reverse=reverse
         ):
-            yield
+            yield MarketSearchItem(self._state, search)
 
     # events to be subclassed
 

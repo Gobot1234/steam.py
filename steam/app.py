@@ -506,7 +506,7 @@ class AppMarketFilterTag:
     display_name: str
     matches: int
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         ...
 
 
@@ -1216,8 +1216,8 @@ class PartialApp(App[NameT]):
         *,
         limit: int | None = 100,
         search_description: bool = True,
-        sort_column: market.SortColumn = "popular",
-        sort_descending: bool = True,
+        sort_by: market.SortBy = "popular",
+        reverse: bool = True,
         filters: Sequence[AppMarketFilter] = (),
     ) -> AsyncGenerator[MarketSearchListing, None]:
         """Fetch the Steam Community Market listings for this app.
@@ -1233,9 +1233,9 @@ class PartialApp(App[NameT]):
             all the app's listings, but this will be a very slow operation.
         search_description
             Whether to search in the description of the listing.
-        sort_column
+        sort_by
             The column to sort the listings by.
-        sort_descending
+        reverse
             Whether to sort the listings in descending order. Default is ``True``. If ``False`` the listings will be
             sorted in ascending order.
         filters
@@ -1248,8 +1248,8 @@ class PartialApp(App[NameT]):
             query,
             limit=limit,
             search_descriptions=search_description,
-            sort_column=sort_column,
-            sort_descending=sort_descending,
+            sort_by=sort_by,
+            reverse=reverse,
         ):
             yield MarketSearchListing(self._state, result)
 

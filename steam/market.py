@@ -11,7 +11,8 @@ from typing_extensions import TypeVar
 from .enums import Currency, PurchaseResult, Realm, Result
 from .models import DescriptionMixin
 from .protobufs import econ
-from .trade import Asset
+from .trade import Asset, Item
+from .types.id import ListingID
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -108,6 +109,15 @@ class PriceHistory(NamedTuple):
     quantity: int
 
 
+class MarketBuySellInfo(NamedTuple):
+    class Entry(NamedTuple):
+        price: float
+        number: int
+
+    buys: Entry
+    sells: Entry
+
+
 OwnerT = TypeVar("OwnerT", bound="PartialUser | None", default=None, covariant=True)
 
 
@@ -121,28 +131,34 @@ class MarketItem(Asset[OwnerT], DescriptionMixin):
     def __init__(self, state: ConnectionState, data: market.ListingItem, owner: OwnerT = None):
         super().__init__(state, econ.Asset().from_dict(data), owner)
         DescriptionMixin.__init__(self, state, econ.ItemDescription().from_dict(data))
-        self._name_id = int(data["name_id"]) if "name_id" in data else None
 
-    async def name_id(self) -> int:
-        return self._name_id
-
-    async def histogram(self, name_id: int | None = None):
-        return await self._state.client.fetch_histogram(self.app_id, name_id or self._name_id)
+    async def histogram(self, name_id: int | None = None) -> list[MarketBuySellInfo]:
+        return await self._state.client.fetch_histogram(
+            self.market_hash_name, self.app, name_id or await self.name_id()
+        )
 
 
 class Listing:
-    item: MarketItem[None]
-
     def __init__(self, state: ConnectionState, data: market.Listing):
-        self.id = data["id"]
+        self.id = ListingID(data["id"])
+        self.item = MarketItem(state, data["item"])
+
+    async def buy(self) -> Item[ClientUser]:
+        ...
 
 
-class MyListing(Listing):
-    id: int
-    created_at: datetime
-    item: MarketItem[ClientUser]  # type: ignore[reportIncompatibleVariableOverride]  # practicality beats purity here
+class MyListing:
+    def __init__(self, state: ConnectionState, data: market.Listing):
+        self.id = ListingID(data["id"])
+        self.item = MarketItem(state, data["item"], state.user)
+        self.created_at: datetime
 
 
-# Client.currency
-# Client.get_histogram
-# Listing -> {id: int, item: MarketItem, buy}
+class MarketSearchItem(DescriptionMixin):
+    def __init__(self, state: ConnectionState, data: market.SearchResult) -> None:
+        self._state = state
+        self.sell_listings = data["sell_listings"]
+        """The number of sell listings for the item"""
+        self.sell_price = data["sell_price"]
+        """The lowest sell price for the item."""
+        super().__init__(state, econ.ItemDescription().from_dict(data))

@@ -7,15 +7,15 @@ from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import timedelta
 from io import BytesIO
-from typing import TYPE_CHECKING, Any, Literal, ParamSpec, TypeVar, runtime_checkable
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, ParamSpec, TypeVar, runtime_checkable
 
 from typing_extensions import Protocol
 
+from . import utils
 from ._const import DEFAULT_AVATAR, URL, ReadOnly
-from .enums import Currency
 from .market import PriceOverview
 from .media import Media
-from .types.id import AppID, ClassID
+from .types.id import AppID, ClassID, InstanceID
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Callable
@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     from yarl import URL as _URL
 
     from .app import PartialApp
+    from .enums import Currency
     from .market import Listing, PriceHistory
     from .protobufs import econ
     from .state import ConnectionState
@@ -226,12 +227,15 @@ class AssetMixin(Protocol):
         "_state",
         "_app_id",
         "class_id",
+        "instance_id",
     )
 
     _state: ConnectionState
     _app_id: AppID
     class_id: ClassID
     """The classid of the item."""
+    instance_id: InstanceID
+    """The instanceid of the item."""
 
     @property
     def app(self) -> PartialApp[None]:
@@ -265,14 +269,16 @@ class DescriptionMixin(AssetMixin, Protocol):
     if not TYPE_CHECKING:
         __slots__ = ()
 
+    _NAME_IDS: ClassVar[dict[DescriptionMixin, int]] = {}
     _app_id: AppID
     class_id: ClassID
-    """The classid of the item."""
+    instance_id: InstanceID
 
     def __init__(self, state: ConnectionState, description: econ.ItemDescription):
         self.name = description.market_name
         """The market_name of the item."""
         self.class_id = ClassID(description.classid)
+        self.instance_id = InstanceID(description.instanceid)
         self.display_name = description.name or self.name
         """
         The displayed name of the item. This could be different to :attr:`Item.name` if the item is user re-nameable.
@@ -313,6 +319,17 @@ class DescriptionMixin(AssetMixin, Protocol):
         self._is_tradable = description.tradable
         self._is_marketable = description.marketable
 
+    def __eq__(self, value: object) -> bool:
+        return (
+            isinstance(value, DescriptionMixin)
+            and self._app_id == value._app_id
+            and self.class_id == value.class_id
+            and self.instance_id == value.instance_id
+        )
+
+    def __hash__(self) -> int:
+        return hash((self._app_id, self.class_id, self.instance_id))
+
     def is_tradable(self) -> bool:
         """Whether the item is tradable."""
         return self._is_tradable
@@ -320,6 +337,13 @@ class DescriptionMixin(AssetMixin, Protocol):
     def is_marketable(self) -> bool:
         """Whether the item is marketable."""
         return self._is_marketable
+
+    @property
+    def market_fee_app(self) -> PartialApp[None]:
+        """The app for which the Steam Community Market fee percentage is applied."""
+        from .app import PartialApp
+
+        return PartialApp(self._state, id=self._market_fee_app_id)
 
     async def price(self, *, currency: Currency | None = None) -> PriceOverview:
         """Fetch the price of this item on the Steam Community Market place.
@@ -331,7 +355,7 @@ class DescriptionMixin(AssetMixin, Protocol):
             await client.fetch_price(item.market_hash_name, item.app, currency)
         """
         price = await self._state.http.get_price(self._app_id, self.market_hash_name, currency)
-        return PriceOverview(price, currency or Currency.USD)
+        return PriceOverview(price, currency or self._state.http.currency)
 
     async def price_history(self, *, currency: Currency | None = None) -> list[PriceHistory]:
         """Fetch the price history of this item on the Steam Community Market place.
@@ -344,28 +368,21 @@ class DescriptionMixin(AssetMixin, Protocol):
         """
         return await self._state.client.fetch_price_history(self.market_hash_name, self.app, currency)
 
+    @utils.call_once(wait=True)  # this technically should be based on a class var lock but that's effort
     async def name_id(self) -> int:
         """Fetch the item_nameid of this item on the Steam Community Market place."""
-        listing, *_ = await self.listings()
-        return listing.item._name_id
+        try:
+            return self._NAME_IDS[self]
+        except KeyError:
+            name_id = await self._state.http.get_item_name_id(self._app_id, self.market_hash_name)
+            self._NAME_IDS[self] = name_id
+            return name_id
 
-    async def listings(self) -> list[Listing]:
+    def listings(self) -> AsyncGenerator[Listing, None]:
         """Fetch the listings of this item on the Steam Community Market place."""
-        return await self._state.client.fetch_listings(self.market_hash_name, self.app)
+        return self._state.client.fetch_listings(self.market_hash_name, self.app)
 
     async def histogram(self, name_id: int | None = None):
-        return await self._state.client.fetch_histogram(self.market_hash_name, self.app, name_id)
-
-    @property
-    def app(self) -> PartialApp[None]:
-        """The app the item is from."""
-        from .app import PartialApp
-
-        return PartialApp(self._state, id=self._app_id)
-
-    @property
-    def market_fee_app(self) -> PartialApp[None]:
-        """The app for which the Steam Community Market fee percentage is applied."""
-        from .app import PartialApp
-
-        return PartialApp(self._state, id=self._market_fee_app_id)
+        return await self._state.client.fetch_histogram(
+            self.market_hash_name, self.app, name_id or await self.name_id()
+        )
