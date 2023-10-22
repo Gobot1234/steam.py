@@ -151,7 +151,7 @@ def parse_trade_url(url: StrOrURL, /) -> TradeURLInfo | None:
     return TradeURLInfo(ID(match["user_id"], type=Type.Individual), match["token"] or None)
 
 
-_SelfT = TypeVar("_SelfT")
+_SelfT = TypeVar("_SelfT", covariant=True)
 _T_co = TypeVar("_T_co", covariant=True)
 
 
@@ -167,7 +167,7 @@ class cached_property(Generic[_SelfT, _T_co]):
         ...
 
     @overload
-    def __get__(self, instance: _SelfT, _) -> _T_co:
+    def __get__(self, instance: _SelfT, _) -> _T_co:  # type: ignore
         ...
 
     def __get__(self, instance: _SelfT | None, _) -> _T_co | Self:
@@ -224,7 +224,7 @@ class CachedSlotProperty(Generic[_SelfT, _T_co]):
         ...
 
     @overload
-    def __get__(self, instance: _SelfT, _) -> _T_co:
+    def __get__(self, instance: _SelfT, _) -> _T_co:  # type: ignore
         ...
 
     def __get__(self, instance: _SelfT | None, _) -> _T_co | Self:
