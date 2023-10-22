@@ -257,7 +257,7 @@ class Cog(Generic[BotT]):
     async def _eject(self, bot: Bot) -> None:
         for command in self.__commands__.values():
             if isinstance(command, Group):
-                command.recursively_remove_all_commands()
+                command.remove_all_commands()
             else:
                 bot.remove_command(command.name)
 
