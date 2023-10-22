@@ -318,21 +318,11 @@ def call_once(func: F_wait | None = None, /, *, wait: bool = False) -> F_wait | 
     return get_inner if func is None else get_inner(func)
 
 
-async def ainput(prompt: object = MISSING, /) -> str:
-    if prompt is not MISSING:
-        print(prompt, end="", flush=True)  # I'm not implementing aprint lol
-
-    queue = asyncio.Queue[str](1)
+async def ainput(prompt: object = "", /) -> str:
     loop = asyncio.get_running_loop()
-
-    def _read_line_from_stdin() -> None:
-        line = sys.stdin.readline()
-        if not line.endswith("\n"):
-            raise EOFError
-        asyncio.run_coroutine_threadsafe(queue.put(line.removesuffix("\n")), loop=loop).result()
-
-    threading.Thread(target=_read_line_from_stdin, daemon=True).start()
-    return await queue.get()
+    future = loop.create_future()
+    threading.Thread(target=lambda: loop.call_soon_threadsafe(future.set_result, input(prompt)), daemon=True).start()
+    return await future
 
 
 def _int_chunks(len: int, size: int) -> Generator[tuple[int, int], None, None]:
