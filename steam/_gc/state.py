@@ -107,7 +107,7 @@ class GCState(ConnectionState, Generic[Inv]):
     def backpack(self, value: Inv) -> None:
         self.backpacks[APP.get().id] = value  # type: ignore
 
-    def _get_gc_message(self) -> GCProtobufMessage | GCMessage:
+    def _get_gc_message(self) -> GCProtobufMessage | GCMessage | None:
         raise NotImplementedError()
 
     def parse_gc_message(self, msg: CMsgGcClientFromGC) -> None:

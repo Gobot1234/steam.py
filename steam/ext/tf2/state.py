@@ -39,8 +39,8 @@ class GCState(GCState_[Backpack]):
         # if language is not None:
         #     client.set_language(language)
 
-    def _get_gc_message(self) -> Any:
-        return False  # for now this isn't required
+    def _get_gc_message(self) -> None:
+        return
 
     @parser
     def parse_gc_client_connect(self, _: base.ClientWelcome | None = None) -> None:
