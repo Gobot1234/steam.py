@@ -959,6 +959,7 @@ class HTTPClient:
         }
         xml = await self.get(URL.COMMUNITY / f"stats/{app_id}/leaderboards", params=params)
         soup = BeautifulSoup(xml, HTML_PARSER)
+        assert soup.response is not None
 
         return [
             {
@@ -967,9 +968,9 @@ class HTTPClient:
                 "display_name": str(leaderboard.display_name.text),
                 "entry_count": int(leaderboard.entries.text),
                 "sort_method": int(leaderboard.sortmethod.text),
-                "display_method": int(leaderboard.displaytype.text),
+                "display_type": int(leaderboard.displaytype.text),
             }
-            for leaderboard in soup.response.find_all("leaderboard")  # type: ignore
+            for leaderboard in soup.response.find_all("leaderboard")
         ]
 
     async def verify_app_ticket(

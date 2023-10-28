@@ -68,15 +68,15 @@ __all__ = (
 
 T = TypeVar("T")
 
-T_co = TypeVar("T_co")
-TT_co = TypeVar("TT_co", bound="type[Any]")
+T_co = TypeVar("T_co", covariant=True)
+TT = TypeVar("TT", bound="type[Any]")
 
 
-class classproperty(Generic[TT_co, T_co]):
-    def __init__(self, func: Callable[[TT_co], T_co]):
+class classproperty(Generic[TT, T_co]):
+    def __init__(self, func: Callable[[TT], T_co]):
         self.__func__ = func
 
-    def __get__(self, instance: Any, type: TT_co) -> T_co:
+    def __get__(self, instance: Any, type: TT) -> T_co:
         return self.__func__(type)
 
 
