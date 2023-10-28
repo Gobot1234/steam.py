@@ -48,7 +48,7 @@ from .gateway import *
 from .guard import get_authentication_code
 from .http import HTTPClient
 from .id import _ID64_TO_ID32
-from .market import HistogramEntry, Listing, MarketBuySellInfo, MarketSearchItem, PriceHistory, PriceOverview, Wallet
+from .market import Listing, MarketBuySellInfo, MarketSearchItem, PriceHistory, PriceOverview, Wallet
 from .models import CDNAsset, return_true
 from .package import FetchedPackage, License, Package, PartialPackage
 from .protobufs import store

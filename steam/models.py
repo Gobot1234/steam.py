@@ -13,7 +13,6 @@ from typing_extensions import Protocol
 
 from . import utils
 from ._const import DEFAULT_AVATAR, URL, ReadOnly
-from .market import PriceOverview
 from .media import Media
 from .types.id import AppID, ClassID, InstanceID
 
@@ -26,7 +25,7 @@ if TYPE_CHECKING:
 
     from .app import PartialApp
     from .enums import Currency
-    from .market import Listing, PriceHistory
+    from .market import Listing, PriceHistory, PriceOverview
     from .protobufs import econ
     from .state import ConnectionState
     from .types import user
@@ -354,6 +353,8 @@ class DescriptionMixin(AssetMixin, Protocol):
 
             await client.fetch_price(item.market_hash_name, item.app, currency)
         """
+        from .market import PriceOverview
+
         price = await self._state.http.get_price(self._app_id, self.market_hash_name, currency)
         return PriceOverview(price, currency or self._state.http.currency)
 
