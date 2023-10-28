@@ -38,6 +38,7 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinxcontrib_trio",
     "myst_parser",
+    "sphinx_codeautolink",
     *(p.stem for p in Path("extensions").glob("*.py") if not p.stem.startswith("_")),
 ]
 
@@ -138,3 +139,24 @@ def isenumattribute(x: object) -> bool:
 
 sphinx.util.inspect.isenumclass = isenumclass
 sphinx.util.inspect.isenumattribute = isenumattribute
+
+codeautolink_global_preface = """\
+import steam
+from steam import utils, abc
+from steam.ext import commands
+
+client = steam.Client.__new__(steam.Client)
+bot = commands.Bot.__new__(commands.Bot)
+
+user = steam.User.__new__(steam.User)
+chat_group = steam.chat.ChatGroup.__new__(steam.chat.ChatGroup)
+clan = steam.Clan.__new__(steam.Clan)
+group = steam.Group.__new__(steam.Group)
+offer = trade = steam.TradeOffer.__new__(steam.TradeOffer)
+inventory = steam.Inventory.__new__(steam.Inventory)
+app = steam.PartialApp.__new__(steam.PartialApp)
+message = msg = steam.UserMessage.__new__(steam.UserMessage)
+channel = steam.UserChannel.__new__(steam.UserChannel)
+
+ctx = commands.Context.__new__(commands.Context)
+"""
