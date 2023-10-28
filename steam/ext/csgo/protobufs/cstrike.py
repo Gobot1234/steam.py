@@ -3,7 +3,7 @@
 # plugin: python-betterproto
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 import betterproto
 
@@ -814,8 +814,8 @@ class PreviewDataBlock(betterproto.Message):
     quality: int = betterproto.uint32_field(6)
     paintwear: int = betterproto.uint32_field(7)
     paintseed: int = betterproto.uint32_field(8)
-    killeaterscoretype: int | None = betterproto.uint32_field(9, optional=True, group="_killeaterscoretype")
-    killeatervalue: int | None = betterproto.uint32_field(10, optional=True, group="_killeatervalue")
+    killeaterscoretype: Union[int, None] = betterproto.uint32_field(9, optional=True, group="_killeaterscoretype")
+    killeatervalue: Union[int, None] = betterproto.uint32_field(10, optional=True, group="_killeatervalue")
     customname: str = betterproto.string_field(11)
     stickers: "list[PreviewDataBlockSticker]" = betterproto.message_field(12)
     inventory: int = betterproto.uint32_field(13)
