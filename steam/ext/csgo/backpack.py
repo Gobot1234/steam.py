@@ -82,7 +82,7 @@ class Paint:
 class BaseItem(metaclass=ABCMeta):
     """Represents an item received from the Game Coordinator."""
 
-    __slots__ = SLOTS = (
+    __slots__ = (
         "position",
         "paint",
         "tradable_after",
@@ -90,8 +90,6 @@ class BaseItem(metaclass=ABCMeta):
         "_state",
         *tuple(base.Item.__annotations__),
     )
-    if not TYPE_CHECKING:
-        __slots__ = ()
 
     _state: GCState
     position: int
@@ -163,10 +161,10 @@ class CasketItem(BaseItem):
 
 
 @dataclass(repr=False)
-class BaseInspectedItem:
+class BaseInspectedItem(metaclass=ABCMeta):
     """Represents an item received after inspecting an item."""
 
-    __slots__ = SLOTS = (
+    __slots__ = (
         "id",
         "def_index",
         "paint",
@@ -183,8 +181,6 @@ class BaseInspectedItem:
         "music_index",
         "ent_index",
     )
-    if not TYPE_CHECKING:
-        __slots__ = ()
 
     id: int
     """The item's asset ID."""
@@ -224,8 +220,24 @@ class BaseInspectedItem:
 OwnerT = TypeVar("OwnerT", bound="PartialUser", default="BaseUser", covariant=True)
 
 
-class InspectedItem(Item[OwnerT], BaseInspectedItem):
-    __slots__ = BaseInspectedItem.SLOTS
+if TYPE_CHECKING:  # avoid mro issues but keep types
+
+    class InspectedItem(Item[OwnerT], BaseInspectedItem):
+        __slots__ = ()
+
+    class BaseBackpackItem(Item[OwnerT], BaseItem):
+        __slots__ = ()
+        _state: GCState
+
+else:
+
+    @BaseInspectedItem.register
+    class InspectedItem(Item[OwnerT]):
+        __slots__ = BaseInspectedItem.__slots__
+
+    @BaseItem.register
+    class BaseBackpackItem(Item[OwnerT]):
+        __slots__ = BaseItem.__slots__
 
 
 F = TypeVar("F", bound=Callable[..., object])
@@ -242,10 +254,10 @@ def has_to_be_in_our_inventory(func: F) -> F:
     return func
 
 
-class BackpackItem(Item[OwnerT], BaseItem):
+class BackpackItem(BaseBackpackItem[OwnerT]):
     """A class to represent an item which can interact with the GC."""
 
-    __slots__ = tuple(set(BaseItem.SLOTS) - {"_state"})
+    __slots__ = ()
     _state: GCState
 
     REPR_ATTRS = (*Item.REPR_ATTRS, "position")
