@@ -146,7 +146,7 @@ keys = my_inventory.filter_items("Mann Co. Supply Crate Key", limit=3)
 earbuds = their_inventory.get_item("Earbuds")
 
 # finally construct the trade
-trade = steam.TradeOffer(sending=keys, item_to_receive=earbuds, message="This trade was made using steam.py")
+trade = steam.TradeOffer(sending=keys, receiving=earbuds, message="This trade was made using steam.py")
 await user.send(trade=trade)
 # you don't need to confirm the trade manually, the client will handle that for you
 ```

@@ -1104,8 +1104,6 @@ The following exceptions are thrown by the library.
 
 .. autoexception:: SteamException
 
-.. autoexception:: ClientException
-
 .. autoexception:: LoginError
 
 .. autoexception:: InvalidCredentials
@@ -1139,12 +1137,11 @@ Exception Hierarchy
 
     - :exc:`Exception`
         - :exc:`SteamException`
-            - :exc:`ClientException`
-                - :exc:`AuthenticatorError`
-                    - :exc:`ConfirmationError`
-                - :exc:`LoginError`
-                    - :exc:`InvalidCredentials`
-                    - :exc:`NoCMsFound`
+              - :exc:`AuthenticatorError`
+                  - :exc:`ConfirmationError`
+              - :exc:`LoginError`
+                  - :exc:`InvalidCredentials`
+                  - :exc:`NoCMsFound`
             - :exc:`HTTPException`
                 - :exc:`Forbidden`
                 - :exc:`NotFound`
