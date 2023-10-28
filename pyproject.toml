@@ -51,6 +51,7 @@ optional = true
 [tool.poetry.group.docs.dependencies]
 sphinx = "^7"
 myst-parser = "^2"
+lutra = { git = "https://github.com/pradyunsg/lutra", rev = "main" }
 sphinxcontrib_trio = "^1.1.2"
 sphinx-copybutton = "^0.5.0"
 sphinx-codeautolink = "^0.15"

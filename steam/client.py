@@ -48,7 +48,8 @@ from .gateway import *
 from .guard import get_authentication_code
 from .http import HTTPClient
 from .id import _ID64_TO_ID32
-from .models import CDNAsset, PriceOverview, Wallet, return_true
+from .market import HistogramEntry, Listing, MarketBuySellInfo, MarketSearchItem, PriceHistory, PriceOverview, Wallet
+from .models import CDNAsset, return_true
 from .package import FetchedPackage, License, Package, PartialPackage
 from .protobufs import store
 from .state import ConnectionState
@@ -80,6 +81,7 @@ if TYPE_CHECKING:
     from .published_file import PublishedFile
     from .reaction import ClientEffect, ClientEmoticon, ClientSticker, MessageReaction
     from .trade import Asset, Item, MovedItem, TradeOffer
+    from .types import market
     from .types.http import IPAdress
     from .types.user import IndividualID
     from .user import ClientUser, User
@@ -107,6 +109,7 @@ class ClientKwargs(TypedDict, total=False):
     flags: PersonaStateFlag
     force_kick: bool
     language: Language
+    currency: Currency
     auto_chunk_chat_groups: bool
 
 
@@ -757,7 +760,7 @@ class Client:
             avatar=avatar,
         )
         try:
-            await ChatGroup.join(clan)  # type: ignore  # should be removed one day
+            await ChatGroup.join(clan)
         except WSException:
             log.debug("Failed to join clan chat group", exc_info=True)
         return clan
@@ -1470,6 +1473,8 @@ class Client:
         """Waits until the client's internal cache is all ready."""
         await self._ready.wait()
 
+    # here be dragons
+
     async def fetch_price(self, name: str, app: App, currency: Currency | None = None) -> PriceOverview:
         """Fetch the :class:`PriceOverview` for an item.
 
@@ -1483,7 +1488,59 @@ class Client:
             The currency to fetch the price in.
         """
         price = await self.http.get_price(app.id, name, currency)
-        return PriceOverview(price, currency or Currency.USD)
+        return PriceOverview(price, currency or self.http.currency)
+
+    async def fetch_price_history(self, name: str, app: App, currency: Currency | None = None) -> list[PriceHistory]:
+        """Fetch the price history for an item.
+
+        Parameters
+        ----------
+        name
+            The name of the item.
+        app
+            The app the item is from.
+        currency
+            The currency to fetch the price in.
+        """
+        prices = await self.http.get_price_history(app.id, name, currency)
+        return [PriceHistory(*price) for price in prices]
+
+    async def fetch_histogram(
+        self, name: str, app: App, name_id: int, currency: Currency | None = None
+    ) -> list[MarketBuySellInfo]:
+        data = await self.http.get_item_histogram(app.id, name, name_id, currency)
+        return [
+            MarketBuySellInfo(MarketBuySellInfo.Entry(*buys), MarketBuySellInfo.Entry(*sells)) for (buys, sells) in data
+        ]
+
+    async def fetch_listings(self, name: str, app: App) -> AsyncGenerator[Listing, None]:
+        """Fetch the listings for an item.
+
+        Parameters
+        ----------
+        name
+            The name of the item.
+        app
+            The app the item is from.
+        """
+        async for listing in self.http.get_listings(app.id, name):
+            yield Listing(self._state, listing)
+
+    async def search_market(
+        self,
+        query: str = "",
+        *,
+        limit: int | None = 100,
+        search_description: bool = True,
+        sort_by: market.SortBy = "popular",
+        reverse: bool = True,
+    ) -> AsyncGenerator[MarketSearchItem, None]:
+        "https://steamcommunity.com/market/search/render?q=&descriptions=1&category_570_Hero[]=any&category_570_Slot[]=any&category_570_Type[]=any&category_570_Quality[]=tag_unique&appid=570&norender=1"
+        "https://steamcommunity.com/market/search?q=&category_614910_collection%5B%5D=any&category_614910_color%5B%5D=tag_carrot&appid=614910"
+        async for search in self.http.search_market(
+            query=query, limit=limit, search_descriptions=search_description, sort_by=sort_by, reverse=reverse
+        ):
+            yield MarketSearchItem(self._state, search)
 
     # events to be subclassed
 

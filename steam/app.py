@@ -31,7 +31,7 @@ from .badge import AppBadge
 from .enums import *
 from .id import _ID64_TO_ID32, id64_from_url
 from .models import CDNAsset, DescriptionMixin, _IOMixin
-from .protobufs import client_server, player
+from .protobufs import client_server, econ, player
 from .tag import Category, Tag
 from .types.id import *
 from .utils import DateTime
@@ -43,13 +43,12 @@ if TYPE_CHECKING:
     from .leaderboard import Leaderboard
     from .manifest import AppInfo, Depot, HeadlessDepot, Manifest
     from .package import FetchedAppPackage, License, PartialPackage
-    from .protobufs import econ
     from .protobufs.encrypted_app_ticket import EncryptedAppTicket as EncryptedAppTicketProto
     from .published_file import PublishedFile
     from .review import Review
     from .state import ConnectionState
     from .store import AppStoreItem
-    from .types import app
+    from .types import app, market
     from .types.user import Author
 
 __all__ = (
@@ -499,6 +498,41 @@ class AppShopItems(Sequence[AppShopItem]):
 
         def __getitem__(self, idx):
             return self.items[idx]
+
+
+@dataclass(slots=True)
+class AppMarketFilterTag:
+    name: str
+    display_name: str
+    matches: int
+
+    def to_dict(self) -> dict[str, Any]:
+        ...
+
+
+@dataclass(slots=True)
+class AppMarketFilter:
+    name: str
+    display_name: str
+    tags: list[AppMarketFilterTag]
+
+
+class MarketSearchListing(DescriptionMixin):
+    __slots__ = (
+        *DescriptionMixin.SLOTS,
+        "_state",
+        "class_id",
+        "app",
+    )
+    _state: ConnectionState
+    _app_id: AppID
+    class_id: ClassID
+
+    def __init__(self, state: ConnectionState, data: market.SearchResult):
+        super().__init__(state, econ.ItemDescription().from_dict(data))
+        self.app = PartialApp(state, id=data["appid"], name=data["app_name"])  # type: ignore
+        self.sell_listings = data["sell_listings"]
+        self.sell_price = data["sell_price"]
 
 
 AppT = TypeVar("AppT", bound="PartialApp", covariant=True)
@@ -1163,6 +1197,61 @@ class PartialApp(App[NameT]):
             ],
             tags,
         )
+
+    async def market_filters(self) -> list[AppMarketFilter]:
+        """Fetch the market filters for this app."""
+        filters = await self._state.http.get_market_filters(self.id)
+        return [
+            AppMarketFilter(
+                filter["name"],
+                filter["display_name"],
+                [AppMarketFilterTag(**tag) for tag in filter["tags"]],
+            )
+            for filter in filters
+        ]
+
+    async def search_market(
+        self,
+        query: str = "",
+        *,
+        limit: int | None = 100,
+        search_description: bool = True,
+        sort_by: market.SortBy = "popular",
+        reverse: bool = True,
+        filters: Sequence[AppMarketFilter] = (),
+    ) -> AsyncGenerator[MarketSearchListing, None]:
+        """Fetch the Steam Community Market listings for this app.
+
+        |market_warning|
+
+        Parameters
+        ----------
+        query
+            The query to search for.
+        limit
+            The maximum number of listings to search through. Default is ``100``. Setting this to ``None`` will fetch
+            all the app's listings, but this will be a very slow operation.
+        search_description
+            Whether to search in the description of the listing.
+        sort_by
+            The column to sort the listings by.
+        reverse
+            Whether to sort the listings in descending order. Default is ``True``. If ``False`` the listings will be
+            sorted in ascending order.
+        filters
+            The filters to apply to the search.
+        """
+        "https://steamcommunity.com/market/search?q=&descriptions=1&category_570_Hero[]=any&category_570_Slot[]=any&category_570_Type[]=any&category_570_Quality[]=tag_unique&appid=570"
+        "https://steamcommunity.com/market/search?q=&category_614910_collection%5B%5D=any&category_614910_color%5B%5D=tag_carrot&appid=614910"
+        async for result in self._state.http.search_market(
+            self.id,
+            query,
+            limit=limit,
+            search_descriptions=search_description,
+            sort_by=sort_by,
+            reverse=reverse,
+        ):
+            yield MarketSearchListing(self._state, result)
 
     async def community_items(
         self, *, type: CommunityDefinitionItemType = CommunityDefinitionItemType.NONE, language: Language | None = None

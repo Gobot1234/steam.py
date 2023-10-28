@@ -9,7 +9,6 @@ The following section outlines the API of steam.py's TF2 extension module.
 Client
 ------
 
-.. attributetable:: Client
 
 .. autoclass:: Client
     :members:
@@ -45,7 +44,6 @@ Bot
 
 ``ext.tf2`` also provides a :class:`Bot` class, which is a subclass of :class:`Client` and :class:`steam.ext.commands.Bot`.
 
-.. attributetable:: steam.ext.tf2.Bot
 
 .. autoclass:: steam.ext.tf2.Bot
     :members:

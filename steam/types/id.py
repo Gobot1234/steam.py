@@ -23,6 +23,7 @@ ClassID = _NewType("ClassID", int)
 InstanceID = _NewType("InstanceID", int)
 CacheKey: _TypeAlias = tuple[ClassID, InstanceID]
 TradeOfferID = _NewType("TradeOfferID", int)  # u64
+ListingID = _NewType("ListingID", int)  # u64
 
 
 class ChatGroupID(int):

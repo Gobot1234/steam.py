@@ -21,9 +21,9 @@ class Asset(TypedDict):
     # rollback_new_assetid: NotRequired[str]
 
 
-class ItemDescriptionLine(TypedDict):
+class ItemDescriptionLine(TypedDict, total=False):
     type: str
-    value: str
+    value: Required[str]
     color: str
     label: str
 
@@ -62,7 +62,7 @@ class Description(TypedDict, total=False):
     icon_url_large: str
     tradable: bool  # 1 vs 0
     marketable: bool  # same as above
-    commodity: int  # might be a bool
+    commodity: bool  # same again
     fraudwarnings: list[str]
 
 

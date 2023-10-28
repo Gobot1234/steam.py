@@ -4,17 +4,17 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 import re
 import urllib.parse
 from datetime import date, datetime
 from http.cookies import SimpleCookie
 from random import randbytes
-from sys import version_info
 from time import time
 from typing import TYPE_CHECKING, Any, Literal, Mapping, TypeVar, cast
 
 import aiohttp
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 from yarl import URL as URL_
 
 from . import errors, utils
@@ -22,13 +22,16 @@ from .__metadata__ import __version__
 from ._const import HTML_PARSER, JSON_DUMPS, JSON_LOADS, URL
 from .enums import Currency, Language, Result, Type
 from .id import CLAN_ID64_FROM_URL_REGEX, ID, parse_id64
-from .models import PriceOverviewDict, api_route
+from .models import api_route
+from .types import market
 from .types.id import ID32, ID64, AppID, AssetID, BundleID, ChatGroupID, ChatID, PackageID, PostID, TradeOfferID
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Callable, Iterable, Sequence, ValuesView
 
-    from .client import Client
+    from typing_extensions import Unpack
+
+    from .client import Client, ClientKwargs
     from .media import Media
     from .types import achievement, app, bundle, clan, guard, trade, user
     from .types.http import AddWalletCode, CMList, Coro, EResultSuccess, ResponseDict, StrOrURL
@@ -50,21 +53,69 @@ async def json_or_text(r: aiohttp.ClientResponse, *, loads: Callable[[str], Any]
     return text
 
 
+def extract_js_variables(script: str, *names: str, loads: Callable[[str], Any] = JSON_LOADS) -> list[Any]:
+    values: list[Any] = []
+    for name in names:
+        if match := re.search(
+            rf"(?:var|let|const)\s+{name}\s*=\s*", script
+        ):  # found decl rest may be on following lines
+            rest = script[match.end() :]
+            match looking_for := rest[0]:
+                case "{" | "[":
+                    # strings have to start and end on the same line so ensuring something is the last closing bracket
+                    # isn't too bad
+                    inverse = "}" if looking_for == "{" else "]"
+                    level = 0
+                    lines_to_load: list[str] = []
+                    done = False
+                    for line in rest.splitlines():
+                        if done:
+                            break  # named break one day
+                        in_str = False
+                        str_start = None
+                        for idx, char in enumerate(line):
+                            if char in {"'", '"'}:
+                                if not str_start:
+                                    str_start = char
+                                    in_str = True
+                                elif char == str_start and not (idx and line[idx - 1] == "\\"):
+                                    str_start = None
+                                    in_str = False
+
+                            elif char == looking_for and not in_str:
+                                level += 1
+                            elif char == inverse and not in_str:
+                                level -= 1
+                                if level == 0:
+                                    most = "\n".join(lines_to_load)
+                                    values.append(JSON_LOADS(f"{most}\n{line[:idx+1]}"))
+                                    done = True
+                                    break
+                        lines_to_load.append(line)
+
+                case _:  # could be string, number, bool, or null, all of which cannot be over multiple lines
+                    values.append(JSON_LOADS(*re.findall(r"""(['"].*?['"]|\d+(?:\.\d+)?|null|true|false)""", rest)))
+        else:
+            raise NameError(name)
+    return values
+
+
 class HTTPClient:
     """The HTTP Client that interacts with the Steam web API."""
 
-    def __init__(self, client: Client, **options: Any):
+    def __init__(self, client: Client, **options: Unpack[ClientKwargs]):
         self._session: aiohttp.ClientSession = None  # type: ignore  # filled in login
         self.user: ClientUser = None  # type: ignore
         self._client = client
 
         self.api_key: str | None = None
         self.language: Language = options.get("language", Language.English)
+        self.currency = options.get("currency", Currency.USD)
 
         self.logged_in = False
         self.user_agent = (
-            f"steam.py/{__version__} client (https://github.com/Gobot1234/steam.py), "
-            f"Python/{version_info.major}.{version_info.minor}, aiohttp/{aiohttp.__version__}"
+            "Mozilla/5.0 (Windows; U; Windows NT 10.0; en-US; Valve Steam Client/default/0; ) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.117 Safari/537.36"
         )
 
         self.proxy: str | None = options.get("proxy")
@@ -340,14 +391,14 @@ class HTTPClient:
 
     async def get_user_inventory_info(self, user_id64: ID64) -> ValuesView[user.InventoryInfo]:
         resp = await self.get(URL.COMMUNITY / f"profiles/{user_id64}/inventory")
-        soup = BeautifulSoup(resp, "html.parser")
+        soup = BeautifulSoup(resp, "html.parser")  # needs to be html
         for script in soup.find_all("script", type="text/javascript"):
-            if match := re.search(r"var\s+g_rgAppContextData\s*=\s*(?P<json>{.*?});\s*", script.text):
-                break
-        else:
-            raise ValueError("Could not find inventory info")
-
-        return JSON_LOADS(match["json"]).values()
+            try:
+                (info,) = extract_js_variables(script.text, "g_rgAppContextData")
+                return info.values()
+            except NameError:
+                pass
+        raise ValueError("Could not find inventory info")
 
     async def send_user_gift(
         self, user_id: ID32, asset_id: AssetID, name: str, message: str, closing_note: str, signature: str
@@ -602,16 +653,6 @@ class HTTPClient:
     def clear_nickname_history(self) -> Coro[None]:
         payload = {"sessionid": self.session_id}
         return self.post(URL.COMMUNITY / "my/ajaxclearaliashistory", data=payload)
-
-    def get_price(self, app_id: AppID, item_name: str, currency: Currency | None) -> Coro[PriceOverviewDict]:
-        payload = {
-            "appid": app_id,
-            "market_hash_name": item_name,
-        }
-        if currency is not None:
-            payload |= {"currency": currency}
-
-        return self.post(URL.COMMUNITY / "market/priceoverview", data=payload)
 
     async def get_clan_members(self, clan_id64: ID64) -> AsyncGenerator[ID32, None]:
         url = f"{ID(clan_id64).community_url}/members"
@@ -1038,6 +1079,182 @@ class HTTPClient:
             "sessionid": self.session_id,
         }
         return self.post(URL.COMMUNITY / "steamguard/phoneajax", data=data)
+
+    def get_price(self, app_id: AppID, item_name: str, currency: Currency | None) -> Coro[market.PriceOverview]:
+        data = {
+            "appid": app_id,
+            "market_hash_name": item_name,
+            "currency": currency or self.currency,
+        }
+
+        return self.post(URL.MARKET / "priceoverview", data=data)
+
+    async def get_item_name_id(self, app_id: AppID, item_name: str) -> int:
+        headers = {"Referer": URL.MARKET / "search" % {"appid": app_id}}
+        resp = await self.get(URL.MARKET / f"listings/{app_id}/{item_name}", headers=headers)
+        soup = BeautifulSoup(resp, "html.parser")  # needs to be html.parser
+        tag = soup.find("div", class_="responsive_page_template_content", id="responsive_page_template_content")
+        assert isinstance(tag, Tag)
+        for script in tag.find_all("script", type="text/javascript"):
+            if match := re.search(r"Market_LoadOrderSpread\s*\(\s*(?P<name_id>\d+)\s*\);?", script.text):
+                return int(match["name_id"])
+        raise ValueError("Item has no nameid")
+
+    async def get_listings(self, app_id: AppID, item_name: str) -> AsyncGenerator[market.Listing, None]:
+        headers = {"Referer": URL.MARKET / "search" % {"appid": app_id}}
+        params = {}
+        resp: market._Listings = await self.get(
+            URL.MARKET / f"listings/{app_id}/{item_name}/render", headers=headers, params=params
+        )
+        assets = resp["assets"]
+        for listing in resp["listinginfo"].values():
+            asset = listing["asset"]
+            yield {
+                "id": int(listing["listingid"]),
+                "price": listing["price"],
+                "fee": listing["fee"],
+                "publisher_fee_app": listing["publisher_fee_app"],
+                "publisher_fee_percent": round(float(listing["publisher_fee_percent"]), 4),
+                "currency_id": listing["currencyid"],
+                "item": cast(
+                    market.ListingItem,
+                    {
+                        "assetid": asset["id"],  # this is technically an added field, but who cares
+                        **asset,
+                        **assets[str(asset["appid"])][asset["contextid"]][asset["id"]],
+                        "missing": False,
+                        "amount": int(
+                            asset["amount"]
+                        ),  # this is overwritten from **asset to be an int to match contract
+                    },
+                ),
+            }
+
+    async def get_market_filters(self, app_id: AppID) -> list[market.Filter]:
+        data: market.AppFilters = await self.get(URL.MARKET / f"appfilters/{app_id}")
+        if not data["success"]:
+            raise ValueError("app_id does not have filters")
+        return [
+            {
+                "name": filter["name"],
+                "display_name": filter["localized_name"],
+                "tags": [
+                    {
+                        "name": name,
+                        "display_name": tag["localized_name"],
+                        "matches": int(tag["matches"].replace(",", "")),
+                    }
+                    for name, tag in filter["tags"].items()
+                ],
+            }
+            for filter in data["facets"].values()
+        ]
+
+    async def search_market(
+        self,
+        app_id: AppID | None = None,
+        query: str = "",
+        *,
+        limit: int | None = None,
+        search_descriptions: bool = False,
+        sort_by: market.SortBy = "popular",
+        reverse: bool = True,
+        tags: Sequence[int] = (),
+    ) -> AsyncGenerator[market.SearchResult, None]:
+        "https://steamcommunity.com/market/search/render?q=&category_614910_collection%5B%5D=any&category_614910_color%5B%5D=tag_carrot&appid=0&norender=1"
+        params = {
+            "query": query,
+            "start": 0,
+            "count": limit or 100,
+            "search_descriptions": int(search_descriptions),
+            "sort_column": sort_by,
+            "sort_dir": "desc" if reverse else "asc",
+            "appid": app_id if app_id is not None else 0,
+            "norender": 1,
+            # TODO filters??
+        }
+        if app_id is not None:
+            headers = {
+                "Referer": URL.MARKET / "search" % {"appid": app_id},
+            }
+        else:
+            headers = {
+                "Referer": URL.MARKET / "search?",
+            }
+
+        data: market._Search = await self.get(URL.MARKET / "search/render", params=params, headers=headers)
+
+        for result in data["results"]:
+            yield {
+                "app_name": result["app_name"],
+                "sell_price": result["sell_price"],
+                "sell_listings": result["sell_listings"],
+                "sale_price_text": result["sale_price_text"],
+                **result["asset_description"],
+            }
+            if limit is not None:
+                limit -= 1
+                if limit == 0:
+                    return
+
+        for start in range(100, math.ceil((data["total_count"] + 100) / 100) * 100, 100):
+            params["start"] = start
+            data = await self.get(URL.MARKET / "search/render", params=params)
+            for result in data["results"]:
+                yield {
+                    "app_name": result["app_name"],
+                    "sell_price": result["sell_price"],
+                    "sell_listings": result["sell_listings"],
+                    "sale_price_text": result["sale_price_text"],
+                    **result["asset_description"],
+                }
+                if limit is not None:
+                    limit -= 1
+                    if limit == 0:
+                        return
+
+    async def get_item_histogram(
+        self,
+        app_id: AppID,
+        item_name: str,
+        name_id: int,
+        currency: Currency | None,
+    ) -> tuple[list[tuple[float, int]], list[tuple[float, int]]]:
+        params = {
+            "country": "US",
+            "language": "english",
+            "currency": currency or self.currency,
+            "item_nameid": name_id,
+            "two_factor": 0,
+            "norender": 1,
+        }
+        data = await self.get(
+            URL.MARKET / "itemordershistogram",
+            params=params,
+            headers={"Referer": URL.MARKET / f"listings/{app_id}/{item_name}"},
+        )
+        return [order[:2] for order in data["buy_order_graph"]], [order[:2] for order in data["sell_order_graph"]]
+
+    async def get_price_history(
+        self, app_id: AppID, item_name: str, currency: Currency | None
+    ) -> list[market.ListingPriceHistory]:
+        params = {
+            "appid": app_id,
+            "market_hash_name": item_name,
+            "currency": currency or self.currency,
+        }
+        data: dict[
+            {"success": bool, "prices": list[market._ListingPriceHistory]}  # noqa: UP037, F821
+        ] = await self.get(URL.MARKET / "pricehistory", params=params)
+        if not data["success"]:
+            raise ValueError("item_name does not have a price history")
+        snapshots: list[market.ListingPriceHistory] = []
+        for snapshot in data["prices"]:
+            snapshot_info, avg_price, quantity = snapshot
+            month, day, year, snapshot_number, tz = snapshot_info.split()
+            date = datetime.strptime(f"{month} {day} {year} {tz.ljust(5, '0')}", "%b %d %Y %z")
+            snapshots.append((date, int(snapshot_number.rstrip(":")), avg_price, int(quantity)))
+        return snapshots
 
     async def edit_profile_info(
         self,

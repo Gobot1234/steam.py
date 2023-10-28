@@ -37,9 +37,9 @@ from .guard import *
 from .id import _ID64_TO_ID32, ID, parse_id64
 from .invite import ClanInvite, GroupInvite, UserInvite
 from .manifest import AppInfo, ContentServer, Manifest, PackageInfo
+from .market import Wallet
 from .message import *
 from .message import ClanMessage
-from .models import Wallet
 from .package import FetchedPackage, License
 from .protobufs import (
     SERVICE_EMSGS,
@@ -229,7 +229,7 @@ class ConnectionState:
         self.effects: list[ClientEffect] = []
 
         self._trades: dict[TradeOfferID, TradeOffer[Item[User], Item[ClientUser], User]] = {}
-        self._confirmations: dict[TradeOfferID, Confirmation] = {}
+        self._confirmations: dict[TradeOfferID | ListingID, Confirmation] = {}
         self.confirmation_generation_locks = defaultdict[Tags, asyncio.Lock](asyncio.Lock)
         self.trade_queue = Queue[TradeOffer[Item[User], Item[ClientUser], User]]()
         self._trades_to_watch: set[TradeOfferID] = set()
@@ -1793,7 +1793,7 @@ class ConnectionState:
         if msg.count_new_items:
             await self.poll_trades()
 
-    def get_confirmation(self, id: TradeOfferID) -> Confirmation | None:
+    def get_confirmation(self, id: TradeOfferID | ListingID) -> Confirmation | None:
         return self._confirmations.get(id)
 
     async def fill_confirmations(self) -> None:

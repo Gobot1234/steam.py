@@ -3,19 +3,19 @@
 from __future__ import annotations
 
 import abc
-import re
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import timedelta
 from io import BytesIO
-from typing import TYPE_CHECKING, Any, Literal, ParamSpec, TypedDict, TypeVar, runtime_checkable
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, ParamSpec, TypeVar, runtime_checkable
 
 from typing_extensions import Protocol
 
+from . import utils
 from ._const import DEFAULT_AVATAR, URL, ReadOnly
-from .enums import Currency, PurchaseResult, Realm, Result
+from .market import PriceOverview
 from .media import Media
-from .types.id import AppID, ClassID
+from .types.id import AppID, ClassID, InstanceID
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Callable
@@ -25,16 +25,16 @@ if TYPE_CHECKING:
     from yarl import URL as _URL
 
     from .app import PartialApp
+    from .enums import Currency
+    from .market import Listing, PriceHistory
     from .protobufs import econ
     from .state import ConnectionState
     from .types import user
 
 
 __all__ = (
-    "PriceOverview",
     "Ban",
     "Avatar",
-    "Wallet",
 )
 
 F = TypeVar("F", bound="Callable[..., Any]")
@@ -56,50 +56,6 @@ class _ReturnTrue:
 
 
 return_true = _ReturnTrue()
-
-
-PRICE_RE = re.compile(r"(^\D*(?P<price>[\d,.]*)\D*$)")
-
-
-class PriceOverviewDict(TypedDict):
-    success: bool
-    lowest_price: str
-    median_price: str
-    volume: str
-
-
-class PriceOverview:
-    """Represents the data received from the Steam Community Market."""
-
-    __slots__ = ("currency", "volume", "lowest_price", "median_price")
-
-    lowest_price: float | str
-    """The lowest price observed by the market."""
-    median_price: float | str
-    """The median price observed by the market."""
-
-    def __init__(self, data: PriceOverviewDict, currency: Currency) -> None:
-        lowest_price_ = PRICE_RE.search(data["lowest_price"])
-        median_price_ = PRICE_RE.search(data["median_price"])
-        assert lowest_price_ is not None
-        assert median_price_ is not None
-        lowest_price = lowest_price_["price"]
-        median_price = median_price_["price"]
-
-        try:
-            self.lowest_price = float(lowest_price.replace(",", "."))
-            self.median_price = float(median_price.replace(",", "."))
-        except ValueError:
-            self.lowest_price = lowest_price
-            self.median_price = median_price
-
-        self.volume: int = int(data["volume"].replace(",", ""))
-        """The number of items sold in the last 24 hours."""
-        self.currency = currency
-
-    def __repr__(self) -> str:
-        resolved = [f"{attr}={getattr(self, attr)!r}" for attr in self.__slots__]
-        return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
 
 class Ban:
@@ -265,61 +221,21 @@ class CDNAsset(_IOMixin):
     """The URL of the asset."""
 
 
-@dataclass(slots=True)
-class Wallet:
-    _state: ConnectionState
-    balance: int
-    """The balance of your wallet in its base most currency denomination.
-
-    E.g. $3.45 -> 345
-    """
-    currency: Currency
-    """The currency the balance is in."""
-    balance_delayed: int
-    """Your delayed balance if Steam is refunding something?"""
-    realm: Realm
-    """The realm this wallet is for."""
-
-    async def add(self, code: str) -> int:
-        """Add a wallet code to your wallet.
-
-        Parameters
-        ----------
-        code
-            The wallet code to redeem.
-
-        Raises
-        ------
-        ValueError
-            The code was invalid.
-
-        Returns
-        -------
-        The balance added to your account.
-        """
-        self._state.handled_wallet.clear()
-        resp = await self._state.http.add_wallet_code(code)
-        result = Result.try_value(resp["success"])
-        if result != Result.OK:
-            raise ValueError(
-                f"Activation of code failed with result {result} {PurchaseResult.try_value(resp['detail'])!r}"
-            )
-        await self._state.handled_wallet.wait()
-        return resp["amount"]
-
-
 @runtime_checkable
 class AssetMixin(Protocol):
     __slots__ = (
         "_state",
         "_app_id",
         "class_id",
+        "instance_id",
     )
 
     _state: ConnectionState
     _app_id: AppID
     class_id: ClassID
     """The classid of the item."""
+    instance_id: InstanceID
+    """The instanceid of the item."""
 
     @property
     def app(self) -> PartialApp[None]:
@@ -353,12 +269,16 @@ class DescriptionMixin(AssetMixin, Protocol):
     if not TYPE_CHECKING:
         __slots__ = ()
 
+    _NAME_IDS: ClassVar[dict[DescriptionMixin, int]] = {}
     _app_id: AppID
     class_id: ClassID
+    instance_id: InstanceID
 
     def __init__(self, state: ConnectionState, description: econ.ItemDescription):
         self.name = description.market_name
         """The market_name of the item."""
+        self.class_id = ClassID(description.classid)
+        self.instance_id = InstanceID(description.instanceid)
         self.display_name = description.name or self.name
         """
         The displayed name of the item. This could be different to :attr:`Item.name` if the item is user re-nameable.
@@ -399,6 +319,17 @@ class DescriptionMixin(AssetMixin, Protocol):
         self._is_tradable = description.tradable
         self._is_marketable = description.marketable
 
+    def __eq__(self, value: object) -> bool:
+        return (
+            isinstance(value, DescriptionMixin)
+            and self._app_id == value._app_id
+            and self.class_id == value.class_id
+            and self.instance_id == value.instance_id
+        )
+
+    def __hash__(self) -> int:
+        return hash((self._app_id, self.class_id, self.instance_id))
+
     def is_tradable(self) -> bool:
         """Whether the item is tradable."""
         return self._is_tradable
@@ -406,6 +337,13 @@ class DescriptionMixin(AssetMixin, Protocol):
     def is_marketable(self) -> bool:
         """Whether the item is marketable."""
         return self._is_marketable
+
+    @property
+    def market_fee_app(self) -> PartialApp[None]:
+        """The app for which the Steam Community Market fee percentage is applied."""
+        from .app import PartialApp
+
+        return PartialApp(self._state, id=self._market_fee_app_id)
 
     async def price(self, *, currency: Currency | None = None) -> PriceOverview:
         """Fetch the price of this item on the Steam Community Market place.
@@ -417,11 +355,34 @@ class DescriptionMixin(AssetMixin, Protocol):
             await client.fetch_price(item.market_hash_name, item.app, currency)
         """
         price = await self._state.http.get_price(self._app_id, self.market_hash_name, currency)
-        return PriceOverview(price, currency or Currency.USD)
+        return PriceOverview(price, currency or self._state.http.currency)
 
-    @property
-    def market_fee_app(self) -> PartialApp[None]:
-        """The app for which the Steam Community Market fee percentage is applied."""
-        from .app import PartialApp
+    async def price_history(self, *, currency: Currency | None = None) -> list[PriceHistory]:
+        """Fetch the price history of this item on the Steam Community Market place.
 
-        return PartialApp(self._state, id=self._market_fee_app_id)
+        Shorthand for:
+
+        .. code:: python
+
+            await client.fetch_price_history(item.market_hash_name, item.app, currency)
+        """
+        return await self._state.client.fetch_price_history(self.market_hash_name, self.app, currency)
+
+    @utils.call_once(wait=True)  # this technically should be based on a class var lock but that's effort
+    async def name_id(self) -> int:
+        """Fetch the item_nameid of this item on the Steam Community Market place."""
+        try:
+            return self._NAME_IDS[self]
+        except KeyError:
+            name_id = await self._state.http.get_item_name_id(self._app_id, self.market_hash_name)
+            self._NAME_IDS[self] = name_id
+            return name_id
+
+    def listings(self) -> AsyncGenerator[Listing, None]:
+        """Fetch the listings of this item on the Steam Community Market place."""
+        return self._state.client.fetch_listings(self.market_hash_name, self.app)
+
+    async def histogram(self, name_id: int | None = None):
+        return await self._state.client.fetch_histogram(
+            self.market_hash_name, self.app, name_id or await self.name_id()
+        )
