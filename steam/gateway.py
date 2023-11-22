@@ -415,7 +415,11 @@ class SteamWebSocket:
         cm_list = cm_list or fetch_cm_list(state)
         async for cm in cm_list:
             log.info("Attempting to create a websocket connection to %s (load: %f)", cm.url, cm.weighted_load)
-            socket = await cm.connect()
+            try:
+                socket = await cm.connect()
+            except aiohttp.ClientError:
+                continue
+
             log.debug("Connected to %s", cm.url)
 
             self = cls(state, socket, cm_list, cm)
@@ -425,13 +429,8 @@ class SteamWebSocket:
             async with self.poll():
                 await self.send_proto(login.CMsgClientHello(PROTOCOL_VERSION))
 
-                if refresh_token is None:
-                    self.refresh_token = refresh_token = await self.fetch_refresh_token()
-                    # id64 is set in fetch_refresh_token
-                    continue  # steam doesn't seem to like when I login in straight away
-                else:
-                    self.refresh_token = refresh_token
-                    self.id64 = parse_id64(utils.decode_jwt(refresh_token)["sub"])
+                self.refresh_token = refresh_token or await self.fetch_refresh_token()
+                self.id64 = parse_id64(utils.decode_jwt(self.refresh_token)["sub"])
 
                 msg: login.CMsgClientLogonResponse = await self.send_proto_and_wait(
                     login.CMsgClientLogon(
