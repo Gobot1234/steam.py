@@ -412,74 +412,74 @@ class SteamWebSocket:
         cls, client: Client, /, refresh_token: str | None = None, cm_list: AsyncGenerator[CMServer, None] | None = None
     ) -> SteamWebSocket:
         state = client._state
-        cm = await anext(cm_list or fetch_cm_list(state))
+        cm_list = cm_list or fetch_cm_list(state)
+        async for cm in cm_list:
+            log.info("Attempting to create a websocket connection to %s (load: %f)", cm.url, cm.weighted_load)
+            socket = await cm.connect()
+            log.debug("Connected to %s", cm.url)
 
-        log.info("Attempting to create a websocket connection to %s (load: %f)", cm.url, cm.weighted_load)
-        socket = await cm.connect()
-        log.debug("Connected to %s", cm.url)
+            self = cls(state, socket, cm_list, cm)
+            client.ws = self
+            self._dispatch("connect")
 
-        self = cls(state, socket, cm_list, cm)
-        client.ws = self
-        self._dispatch("connect")
+            async with self.poll():
+                await self.send_proto(login.CMsgClientHello(PROTOCOL_VERSION))
 
-        async with self.poll():
-            await self.send_proto(login.CMsgClientHello(PROTOCOL_VERSION))
+                self.refresh_token = refresh_token or await self.fetch_refresh_token()
+                self.id64 = parse_id64(utils.decode_jwt(self.refresh_token)["sub"])
 
-            self.refresh_token = refresh_token or await self.fetch_refresh_token()
-            self.id64 = parse_id64(utils.decode_jwt(self.refresh_token)["sub"])
+                msg: login.CMsgClientLogonResponse = await self.send_proto_and_wait(
+                    login.CMsgClientLogon(
+                        protocol_version=PROTOCOL_VERSION,
+                        client_package_version=1561159470,
+                        client_os_type=16,
+                        client_language=state.language.api_name,
+                        supports_rate_limit_response=True,
+                        chat_mode=2,
+                        access_token=self.refresh_token,  # lol
+                    ),
+                    check=lambda msg: isinstance(msg, login.CMsgClientLogonResponse),
+                )
+                if msg.result != Result.OK:
+                    log.debug("Failed to login with result: %r", msg.result)
+                    await self._state.handle_close()
 
-            msg: login.CMsgClientLogonResponse = await self.send_proto_and_wait(
-                login.CMsgClientLogon(
-                    protocol_version=PROTOCOL_VERSION,
-                    client_package_version=1561159470,
-                    client_os_type=16,
-                    client_language=state.language.api_name,
-                    supports_rate_limit_response=True,
-                    chat_mode=2,
-                    access_token=self.refresh_token,  # lol
-                ),
-                check=lambda msg: isinstance(msg, login.CMsgClientLogonResponse),
-            )
-            if msg.result != Result.OK:
-                log.debug("Failed to login with result: %r", msg.result)
-                await self._state.handle_close()
+                self.public_ip = IPv4Address(msg.public_ip.v4)
+                self.connect_time = utils.DateTime.now()
+                self.session_id = msg.header.session_id
 
-            self.public_ip = IPv4Address(msg.public_ip.v4)
-            self.connect_time = utils.DateTime.now()
-            self.session_id = msg.header.session_id
+                us = await anext(self.fetch_users((self.id64,)))
+                client.http.user = ClientUser(state, us)
+                if hasattr(self._state, "_original_client_user_msg"):
+                    self._state._original_client_user_msg = us  # type: ignore
+                state._users[client.user.id] = client.user  # type: ignore
+                self._state.cell_id = msg.cell_id
 
-            us = await anext(self.fetch_users((self.id64,)))
-            client.http.user = ClientUser(state, us)
-            if hasattr(self._state, "_original_client_user_msg"):
-                self._state._original_client_user_msg = us  # type: ignore
-            state._users[client.user.id] = client.user  # type: ignore
-            self._state.cell_id = msg.cell_id
+                self._keep_alive = KeepAliveHandler(
+                    ws=self, interval=msg.heartbeat_seconds, loop=asyncio.get_running_loop()
+                )
+                self._keep_alive.start()
+                log.debug("Heartbeat started.")
 
-            self._keep_alive = KeepAliveHandler(
-                ws=self, interval=msg.heartbeat_seconds, loop=asyncio.get_running_loop()
-            )
-            self._keep_alive.start()
-            log.debug("Heartbeat started.")
+                state.login_complete.set()
 
-            state.login_complete.set()
+                await self.send_um(chat.GetMyChatRoomGroupsRequest())
+                await self.send_proto(friends.CMsgClientGetEmoticonList())
+                await self._state.fetch_notifications()
+                await self.send_proto(
+                    login.CMsgClientServerTimestampRequest(client_request_timestamp=int(time.time() * 1000))
+                )
+                await self.change_presence(
+                    apps=self._state._apps,
+                    state=self._state._state,
+                    flags=self._state._flags,
+                    force_kick=self._state._force_kick,
+                )
 
-            await self.send_um(chat.GetMyChatRoomGroupsRequest())
-            await self.send_proto(friends.CMsgClientGetEmoticonList())
-            await self._state.fetch_notifications()
-            await self.send_proto(
-                login.CMsgClientServerTimestampRequest(client_request_timestamp=int(time.time() * 1000))
-            )
-            await self.change_presence(
-                apps=self._state._apps,
-                state=self._state._state,
-                flags=self._state._flags,
-                force_kick=self._state._force_kick,
-            )
+                self._dispatch("login")
+                log.debug("Logon completed")
 
-            self._dispatch("login")
-            log.debug("Logon completed")
-
-            return self
+                return self
         raise NoCMsFound("No CMs found could be connected to. Steam is likely down")
 
     async def fetch_refresh_token(self) -> str:
