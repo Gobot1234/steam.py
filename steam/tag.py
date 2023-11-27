@@ -55,7 +55,7 @@ class Category(Generic[NameT]):
 # GetStoreCategoriesRequest
 class AllCategoriesCategory(Category[str]):
     __slots__ = ()
-    # type: EStoreCategoryType
+    # f type: EStoreCategoryType
     internal_name: str
     display_name: str
     # image: Asset
