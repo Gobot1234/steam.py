@@ -1079,7 +1079,7 @@ class HTTPClient:
 
     async def update_avatar(self, avatar: Media, type: str, *, params: Mapping[str, Any] = {}, **extras: Any) -> None:
         with avatar:
-            payload = aiohttp.FormData(fields=tuple(extras.items()))
+            payload = aiohttp.FormData(fields={k: str(v) for k, v in extras.items()})
             payload.add_field("MAX_FILE_SIZE", str(avatar.size))
             payload.add_field("type", type)
             payload.add_field("sessionid", self.session_id)
