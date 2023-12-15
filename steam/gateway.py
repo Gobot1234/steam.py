@@ -29,12 +29,11 @@ from typing import TYPE_CHECKING, Any, Final, Generic, TypeAlias, overload
 from zlib import MAX_WBITS, decompress
 
 import aiohttp
-import async_timeout
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from typing_extensions import TypeVar
 
 from . import utils
-from ._const import CLEAR_PROTO_BIT, DEFAULT_CMS, IS_PROTO, READ_U32, SET_PROTO_BIT
+from ._const import CLEAR_PROTO_BIT, DEFAULT_CMS, IS_PROTO, READ_U32, SET_PROTO_BIT, timeout
 from .enums import *
 from .errors import AuthenticatorError, HTTPException, NoCMsFound, WSException
 from .id import parse_id64
@@ -119,7 +118,7 @@ class CMServer:
 
     async def ping(self) -> float:
         try:
-            async with async_timeout.timeout(5), self._state.http._session.get(f"https://{self.url}/cmping/") as resp:
+            async with timeout(5), self._state.http._session.get(f"https://{self.url}/cmping/") as resp:
                 if resp.status != 200:
                     raise KeyError
                 return int(resp.headers["X-Steam-CMLoad"])
