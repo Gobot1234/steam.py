@@ -738,10 +738,7 @@ class SteamWebSocket:
         try:
             event_parser = self._state.parsers[msg.MSG]
         except (KeyError, TypeError):
-            try:
-                log.debug("Ignoring %r as unhandled event", msg)
-            except Exception:
-                log.debug("Ignoring %r as unhandled unparseable event", msg.__class__)
+            log.debug("Ignoring %r, no event handler", msg)
         else:
             try:
                 result = event_parser(self._state, msg)
