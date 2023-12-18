@@ -4,7 +4,7 @@ import asyncio
 from pathlib import Path
 from typing import TYPE_CHECKING, Final, Literal, cast, overload
 
-from typing_extensions import Self  # noqa: TCH002
+from typing_extensions import Self
 
 from ..._const import DOCS_BUILDING, VDF_LOADS, timeout
 from ..._gc import Client as Client_
