@@ -102,7 +102,7 @@ class Commentable(Protocol):
         try:
             return _CommentThreadType[cls.__name__]
         except KeyError:
-            raise AttributeError(f"{cls.__name__} is not a valid commentable")
+            raise AttributeError(f"{cls.__name__} is not a valid commentable type")
 
     def __init_subclass__(cls) -> None:
         super().__init_subclass__()
@@ -268,7 +268,10 @@ class Awardable(Protocol[IDT]):  # type: ignore  # ReadOnly (PEP 705) should sav
 
     @classproperty
     def _AWARDABLE_TYPE(cls: type[Self]) -> _AwardableType:
-        return _AwardableType[cls.__name__]
+        try:
+            return _AwardableType[cls.__name__]
+        except KeyError:
+            raise AttributeError(f"{cls.__name__} is not a valid awardable type")
 
     def __init_subclass__(cls) -> None:
         super().__init_subclass__()
