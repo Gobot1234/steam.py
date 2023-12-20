@@ -925,7 +925,6 @@ class SteamWebSocket:
             )
 
         for msg in await asyncio.wait_for(asyncio.gather(*futs), timeout=60):
-            msg: friends.CMsgClientPersonaState
             if msg.result not in (Result.OK, Result.Invalid):  # not sure if checking this is even useful
                 raise WSException(msg)
 
