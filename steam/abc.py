@@ -99,7 +99,10 @@ class Commentable(Protocol):
 
     @classproperty
     def _COMMENTABLE_TYPE(cls: type[Self]) -> _CommentThreadType:
-        return _CommentThreadType[cls.__name__]
+        try:
+            return _CommentThreadType[cls.__name__]
+        except KeyError:
+            raise AttributeError(f"{cls.__name__} is not a valid commentable")
 
     def __init_subclass__(cls) -> None:
         super().__init_subclass__()
