@@ -158,7 +158,7 @@ async def fetch_cm_list(state: ConnectionState, cell_id: int = 0) -> AsyncGenera
         yield cm
 
 
-def unpack_multi(msg: CMsgMulti) -> bytearray | None:
+def unpack_multi(msg: CMsgMulti) -> bytes | None:
     data = msg.message_body
     if data[:2] != b"\037\213":
         return log.info("Received a file that's not GZipped")
@@ -183,7 +183,7 @@ def unpack_multi(msg: CMsgMulti) -> bytearray | None:
     if len(decompressed) != msg.size_unzipped:
         return log.info("Unzipped size mismatch for multi payload %r, discarding", msg)
 
-    return bytearray(decompressed)
+    return decompressed
 
 
 class ConnectionClosed(Exception):
@@ -696,7 +696,7 @@ class SteamWebSocket:
         try:
             message = await self.socket.receive()
             if message.type is aiohttp.WSMsgType.BINARY:  # type: ignore
-                return self.receive(bytearray(message.data))  # type: ignore
+                return self.receive(message.data)  # type: ignore
             if message.type is aiohttp.WSMsgType.ERROR:  # type: ignore
                 log.debug("Received %r", message)
                 raise message.data  # type: ignore
@@ -717,7 +717,7 @@ class SteamWebSocket:
                 self._state._task_error.set_exception(exc)
         self._pending_parsers.discard(task)
 
-    def receive(self, message: bytearray, /) -> None:
+    def receive(self, message: bytes, /) -> None:
         emsg_value = READ_U32(message)
         try:
             msg = (

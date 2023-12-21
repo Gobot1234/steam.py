@@ -3023,7 +3023,7 @@ class ConnectionState:
             case notifications.GetSteamNotificationsResponse():
                 await self.handle_notifications(msg)
             case _:
-                log.debug("No handler for UM: %r", msg.UM_NAME, msg)
+                log.debug("No handler for UM: %r %r", msg.UM_NAME, msg)
 
 
 ConnectionState.parsers = {}
