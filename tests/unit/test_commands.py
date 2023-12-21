@@ -291,6 +291,18 @@ async def test_positional_only_commands():
 
 @pytest.mark.asyncio
 async def test_group_commands() -> None:
+    @commands.group
+    async def foo(_):
+        ...
+
+    assert isinstance(foo, commands.Group)
+
+    @foo.command
+    async def bar(_):
+        ...
+
+    assert isinstance(bar, commands.Command)
+
     async with TheTestBot() as bot:
         cmd = None
 
