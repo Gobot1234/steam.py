@@ -886,8 +886,7 @@ def group(
     -------
     The created group command.
     """
-
-    return command(callback, name=name, cls=cls, **attrs)  # type: ignore
+    return command(callback, name=name, cls=cls or Group, **attrs)  # type: ignore
 
 
 def check(predicate: Callable[[Context], MaybeBool]) -> Check[MaybeBool]:
