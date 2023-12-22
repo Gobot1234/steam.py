@@ -167,11 +167,11 @@ class PartialUser(abc.PartialUser):
         return Matches([Match(self._state, match, players) for match in msg.matches], msg.streams, msg.tournamentinfo)
 
 
-class User(PartialUser, user.User):
+class User(PartialUser, user.User):  # type: ignore
     __slots__ = ()
 
 
-class ClientUser(PartialUser, ClientUser_):
+class ClientUser(PartialUser, ClientUser_):  # type: ignore
     __slots__ = ("_profile_info_msg",)
 
     if TYPE_CHECKING:
@@ -187,11 +187,12 @@ class ClientUser(PartialUser, ClientUser_):
     async def csgo_profile(self) -> ProfileInfo[Self]:
         return ProfileInfo(self, self._profile_info_msg)
 
+    @utils.todo
     async def live_games(self) -> ...:
         ...
 
 
-class MatchPlayer(PartialUser, user.WrapsUser):
+class MatchPlayer(PartialUser, user.WrapsUser):  # type: ignore
     kills: int
     assists: int
     deaths: int
@@ -227,6 +228,17 @@ class Level(int):
         return names[bisect.bisect_left(levels, self)]
 
 
+class Ranking:
+    __slots__ = ("rank", "id", "change", "wins", "tv_control")
+
+    def __init__(self, proto: cstrike.PlayerRankingInfo) -> None:
+        self.rank = Rank(proto.rank_type_id)
+        self.id = proto.rank_id
+        self.change = proto.rank_change
+        self.wins = proto.wins
+        self.tv_control = proto.tv_control
+
+
 class ProfileInfo(Generic[UserT]):
     def __init__(self, user: UserT, proto: cstrike.MatchmakingClientHello | cstrike.PlayersProfileProfile):
         self.user = user
@@ -235,7 +247,7 @@ class ProfileInfo(Generic[UserT]):
         self.penalty_seconds = proto.penalty_seconds
         self.penalty_reason = proto.penalty_reason
         self.vac_banned = proto.vac_banned
-        self.ranking = proto.ranking
+        self.ranking = Ranking(proto.ranking)
         self.commendation = proto.commendation
         self.medals = proto.medals
         self.current_event = proto.my_current_event
@@ -247,7 +259,7 @@ class ProfileInfo(Generic[UserT]):
         self.current_xp = proto.player_cur_xp
         self.level = Level(proto.player_level)
         self.xp_bonus_flags = proto.player_xp_bonus_flags
-        self.rankings = Rank(proto.rankings)
+        self.rankings = [Ranking(ranking) for ranking in proto.rankings]
 
     @property
     def percentage_of_current_level(self) -> int:
