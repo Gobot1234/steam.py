@@ -143,10 +143,11 @@ class BaseItem(metaclass=ABCMeta):
         return f"<{self.__class__.__name__} id={self.id} position={self.position}>"
 
 
-class CasketItem(BaseItem):
+@BaseItem.register
+class CasketItem(BaseItem if TYPE_CHECKING else object):
     """Represents an item in a :class:`Casket`."""
 
-    __slots__ = ("_casket_id",)
+    __slots__ = (*BaseItem.SLOTS, "_casket_id")
     _casket_id: AssetID
 
     @property
@@ -162,10 +163,8 @@ class CasketItem(BaseItem):
         return f"<{self.__class__.__name__} id={self.id} casket={self.casket}>"
 
 
-@dataclass(repr=False)
-class BaseInspectedItem:
-    """Represents an item received after inspecting an item."""
-
+@dataclass
+class _BaseInspectedItem(metaclass=ABCMeta):
     __slots__ = SLOTS = (
         "id",
         "def_index",
@@ -221,11 +220,21 @@ class BaseInspectedItem:
         return f"<{self.__class__.__name__} id={self.id}>"
 
 
+@dataclass(repr=False)
+@_BaseInspectedItem.register
+class BaseInspectedItem(_BaseInspectedItem if TYPE_CHECKING else object, metaclass=ABCMeta):
+    """Represents an item received after inspecting an item."""
+
+    __slots__ = _BaseInspectedItem.SLOTS
+    __annotations__ = _BaseInspectedItem.__annotations__
+
+
 OwnerT = TypeVar("OwnerT", bound="PartialUser", default="BaseUser", covariant=True)
 
 
-class InspectedItem(Item[OwnerT], BaseInspectedItem):
-    __slots__ = BaseInspectedItem.SLOTS
+@BaseInspectedItem.register
+class InspectedItem(Item[OwnerT], _BaseInspectedItem):
+    __slots__ = _BaseInspectedItem.SLOTS
 
 
 F = TypeVar("F", bound=Callable[..., object])
