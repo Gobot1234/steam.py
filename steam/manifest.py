@@ -219,10 +219,10 @@ class ManifestPath(PurePathBase):
                 self._mapping = mapping
             return self
 
-        def with_segments(self, *args: StrPath) -> Self:
+        def with_segments(self, *args: StrPath) -> ManifestPath:
             return self._select_from_manifest(self._from_parts(self.parts + tuple(os.fspath(arg) for arg in args)))
 
-        def _select_from_manifest(self, new_self: Self) -> Self:
+        def _select_from_manifest(self, new_self: ManifestPath) -> ManifestPath:
             try:
                 # try and return the actual path if exists
                 return self._manifest._paths[new_self.parts]
@@ -231,11 +231,11 @@ class ManifestPath(PurePathBase):
                 new_self._manifest = self._manifest
                 return new_self
 
-        def _from_parts(self, args: tuple[str, ...]) -> Self:
+        def _from_parts(self, args: tuple[str, ...]) -> ManifestPath:
             new_self = super()._from_parts(args)  # type: ignore
             return self._select_from_manifest(new_self)
 
-        def _from_parsed_parts(self, drv: str, root: str, parts: tuple[str, ...]) -> Self:
+        def _from_parsed_parts(self, drv: str, root: str, parts: tuple[str, ...]) -> ManifestPath:
             new_self = super()._from_parsed_parts(drv, root, parts)  # type: ignore
             return self._select_from_manifest(new_self)
 

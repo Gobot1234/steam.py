@@ -197,7 +197,7 @@ class ProtobufMessage(MessageMessageBase, ProtobufWrappedMessage):
         self.header.parse(data)
         if msg in SERVICE_EMSGS:
             try:
-                new_class = UMS[self.header.job_name_target][msg in RESPONSE_EMSGS]
+                new_class = UMS[self.header.job_name_target][msg in RESPONSE_EMSGS]  # type: ignore
             except KeyError:
                 log.debug("Received an unknown UM %r (%s)", self.header.job_name_target, data)
                 return self

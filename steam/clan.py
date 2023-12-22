@@ -303,7 +303,8 @@ class PartialClan(ID[Literal[Type.Clan]], Commentable):
         await self._state.http.create_clan_announcement(self.id64, name, content, hidden)
         async for entry in self._state.client.user_news(flags=UserNewsType.PostedAnnouncement):
             if entry.target == self._state.user and entry.actor == self:
-                announcement = await entry.announcement()
+                announcement = cast("Announcement[Self]", await entry.announcement())
+                entry.actor = self  # makes the above line safe
                 if announcement.name != name or announcement.content != content:
                     continue
                 self._state.dispatch("announcement_create", announcement)

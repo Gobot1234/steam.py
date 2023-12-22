@@ -131,7 +131,7 @@ class Metal(Fraction):
         return f"{self.__class__.__name__}({str(self)!r})"
 
     @classmethod
-    def from_items(cls, items: Iterable[Item]) -> Self:
+    def from_items(cls, items: Iterable[Item]) -> Metal:
         """The amount of metal in the items.
 
         Example

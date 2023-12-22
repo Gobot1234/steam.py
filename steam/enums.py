@@ -232,6 +232,9 @@ class IntEnum(Enum, int):
 
     if TYPE_CHECKING:
 
+        def __new__(cls, value: int) -> Self:
+            ...
+
         @classmethod
         def try_value(cls, value: int) -> Self:
             ...
@@ -243,7 +246,7 @@ class Flags(IntEnum):
         if value == 0:
             # causes flags to be iter(cls) does |= on every value (which is not 0) it always returns UnknownValue
             return super().try_value(value)
-        flags = (enum for enum in cls if enum.value & value)
+        flags: Generator[Self, None, None] = (enum for enum in cls if enum.value & value)  # type: ignore
         returning_flag = next(flags, None)
         if returning_flag is not None:
             for flag in flags:
@@ -751,14 +754,14 @@ class Language(IntEnum):
         return self.WEB_API_MAP[self]
 
     @classmethod
-    def from_str(cls, string: str, /) -> Self:
+    def from_str(cls, string: str, /) -> Language:
         try:
             return _REVERSE_API_LANGUAGE_MAP[string.lower()]
         except KeyError:
             return cls._new_member(name=string.title(), value=-1)
 
     @classmethod
-    def from_web_api_str(cls, string: str, /) -> Self:
+    def from_web_api_str(cls, string: str, /) -> Language:
         try:
             return _REVERSE_WEB_API_MAP[string]
         except KeyError:
@@ -1560,7 +1563,7 @@ class AppType(Flags):
     """A placeholder since depots and apps share the same namespace."""
 
     @classmethod
-    def from_str(cls, name: str, /) -> Self:
+    def from_str(cls, name: str, /) -> AppType:
         types = iter(name.split(","))
         type = next(types).strip().title()
         self = cls[TYPE_TRANSFORM_MAP.get(type, type)]
@@ -2137,7 +2140,7 @@ class UserNewsType(IntEnum):
         return cls._new_member(name=f"{self.name} & {getattr(other, 'name', other)}", value=has_associated_flag(-1, value))
 
     @classproperty
-    def App(cls: type[Self]) -> Self: # type: ignore
+    def App(cls: type[Self]) -> UserNewsType:  # type: ignore
         """Mimics the Steam Client's feed when an app is selected."""
         return (
             cls.AchievementUnlocked
@@ -2151,12 +2154,12 @@ class UserNewsType(IntEnum):
         )
 
     @classproperty
-    def Friend(cls: type[Self]) -> Self: # type: ignore
+    def Friend(cls: type[Self]) -> UserNewsType:  # type: ignore
         """Mimics the Steam Client's feed when in the friend activity tab."""
         return cls.FriendAdded | cls.App
 
     @classproperty
-    def All(cls: type[Self]) -> Self: # type: ignore
+    def All(cls: type[Self]) -> UserNewsType:  # type: ignore
         """Returns a member with every flag set."""
         return reduce(cls.__or__, (member for member in cls if member.flag != 0))
 

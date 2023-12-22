@@ -99,7 +99,7 @@ class GroupChannel(Chat[GroupMessage, None, "Group"]):
     __slots__ = ()
 
     def __init__(self, state: ConnectionState, group: Group, proto: GroupChannelProtos):
-        super().__init__(state, group, proto)
+        super().__init__(state, group, proto)  # type: ignore  # cbf fixing this
         self.group = group
 
 
@@ -109,5 +109,5 @@ class ClanChannel(Chat[ClanMessage, "Clan", None]):
     __slots__ = ()
 
     def __init__(self, state: ConnectionState, clan: Clan, proto: GroupChannelProtos):
-        super().__init__(state, clan, proto)
+        super().__init__(state, clan, proto)  # type: ignore
         self.clan = clan

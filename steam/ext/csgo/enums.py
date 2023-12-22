@@ -1,10 +1,15 @@
 """Licensed under The MIT License (MIT) - Copyright (c) 2020-present James H-B. See LICENSE"""
 
-from collections.abc import Mapping
+from __future__ import annotations
 
-from typing_extensions import Self
+from typing import TYPE_CHECKING
 
 from ...enums import Flags, IntEnum, classproperty
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from typing_extensions import Self
 
 __all__ = (
     "ItemQuality",
@@ -122,7 +127,7 @@ class Rank(IntEnum):
     TheGlobalElite              = 18
 
     @classproperty
-    def DISPLAY_NAMES(cls: type[Self]) -> Mapping[Self, str]:  # type: ignore
+    def DISPLAY_NAMES(cls: type[Self]) -> Mapping[Rank, str]:  # type: ignore
         return {
             cls.NotRanked:                   "Not Ranked",
             cls.SilverI:                     "Silver I",

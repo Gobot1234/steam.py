@@ -5,7 +5,7 @@ from __future__ import annotations
 import itertools
 import re
 import struct
-from typing import TYPE_CHECKING, Final, overload
+from typing import TYPE_CHECKING, Final, Literal, overload
 
 from ..._const import DOCS_BUILDING, MISSING, timeout
 from ..._gc import Client as Client_
@@ -94,7 +94,11 @@ class Client(Client_):
             if search is None:
                 raise ValueError("Inspect url is invalid")
 
-            owner = ID(int(search[1]), type=Type.Individual) if search[0].startswith("S") else 0
+            owner = (
+                ID[Literal[Type.Individual]](int(search[1]), type=Type.Individual)
+                if search[0].startswith("S")
+                else None
+            )
             market_id = int(search[1]) if search[0].startswith("M") else 0
             asset_id = int(search[2])
             d = int(search[3])

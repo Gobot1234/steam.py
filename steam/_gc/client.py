@@ -30,7 +30,7 @@ class ClientUser(ClientUser_):
     async def inventory(
         self, app: App, *, context_id: int | None = None, language: Language | None = None
     ) -> Inventory[Item[Self], Self]:
-        return (
+        return (  # type: ignore
             self._state.backpacks[app.id]
             if app.id in self._state.backpacks and self._state._gc_ready.is_set()
             else await super().inventory(app, context_id=context_id, language=language)

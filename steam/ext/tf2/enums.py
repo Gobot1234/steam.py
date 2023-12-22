@@ -333,7 +333,7 @@ class Spell(IntEnum):
     HeadlessHorseshoe       = 8920
 
     @classproperty
-    def indices(cls: type[Self]) -> dict[int, dict[int, Self]]:  # type: ignore
+    def indices(cls: type[Self]) -> dict[int, dict[int, Spell]]:  # type: ignore
         return {
             1004: {
                 0: cls.DieJob,
