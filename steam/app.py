@@ -1601,7 +1601,7 @@ class WishlistApp(PartialApp[str]):
         "review_status",
         "score",
         "screenshots",
-        "tags",
+        # "tags",
         "total_reviews",
         "type",
         "partial_packages",
@@ -1640,8 +1640,8 @@ class WishlistApp(PartialApp[str]):
         """The time that the app was added to their wishlist."""
         self.background = CDNAsset(state, data["background"])
         """The background of the app."""
-        self.tags = [Tag(state, int(tag)) for tag in data["tags"]]
-        """The tags of the app."""
+        # self.tags = [Tag(state, int(tag)) for tag in data["tags"]]
+        # """The tags of the app."""
         self.rank = data["rank"]
         """The global rank of the app by popularity."""
         self.partial_packages: list[PartialPackage] = []
