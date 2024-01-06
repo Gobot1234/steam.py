@@ -823,10 +823,10 @@ class ConnectionState:
             raise WSException(msg)
 
     async def block_user(self, user_id64: ID64) -> None:
-        await self._block_user(user_id64, True)
+        await self._block_user(user_id64, False)
 
     async def unblock_user(self, user_id64: ID64) -> None:
-        await self._block_user(user_id64, False)
+        await self._block_user(user_id64, True)
 
     async def fetch_user_inventory(
         self, user_id64: ID64, app_id: AppID, context_id: ContextID, language: Language | None
