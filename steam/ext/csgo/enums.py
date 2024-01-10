@@ -153,7 +153,7 @@ class Rank(IntEnum):
     @property
     def display_name(self) -> str:
         return self.DISPLAY_NAMES[self]
-    
+
 class RankType(IntEnum):
     Matchmaking          = 6
     Wingman              = 7
