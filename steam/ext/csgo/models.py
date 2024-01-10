@@ -234,7 +234,7 @@ class Ranking:
     def __init__(self, proto: cstrike.PlayerRankingInfo) -> None:
         self.rank = Rank(proto.rank_id) if proto.rank_type_id != 10 else proto.rank_id
         self.id = proto.rank_type_id
-        self.rank_type = RankType(proto.rank_type_id)
+        self.rank_type = RankType.try_value(proto.rank_type_id)
         self.change = proto.rank_change
         self.wins = proto.wins
         self.tv_control = proto.tv_control
