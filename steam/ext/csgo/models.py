@@ -17,7 +17,7 @@ from ...id import parse_id64
 from ...types.id import ID32
 from ...utils import DateTime
 from ..commands.converters import Converter, UserConverter
-from .enums import Rank
+from .enums import Rank, RankType
 from .protobufs import cstrike
 
 if TYPE_CHECKING:
@@ -229,11 +229,12 @@ class Level(int):
 
 
 class Ranking:
-    __slots__ = ("rank", "id", "change", "wins", "tv_control")
+    __slots__ = ("rank", "id", "rank_type", "change", "wins", "tv_control")
 
     def __init__(self, proto: cstrike.PlayerRankingInfo) -> None:
-        self.rank = Rank(proto.rank_type_id)
-        self.id = proto.rank_id
+        self.rank = Rank.try_value(proto.rank_id) if proto.rank_type_id != 10 else proto.rank_id
+        self.id = proto.rank_type_id
+        self.rank_type = RankType.try_value(proto.rank_type_id)
         self.change = proto.rank_change
         self.wins = proto.wins
         self.tv_control = proto.tv_control
