@@ -313,7 +313,7 @@ class Announcement(BaseEvent[EventType, ClanT]):
 
     @property
     def _commentable_kwargs(self) -> _CommentableKwargs:
-        from .clan import Clan  # noqa: F811
+        from .clan import Clan
 
         if isinstance(self.clan, Clan) and self.clan.is_ogg():
             raise NotImplementedError("Fetching an app announcement's comments is not currently supported")
