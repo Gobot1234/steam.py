@@ -42,7 +42,7 @@ vdf = "^3.4"
 optional = true
 [tool.poetry.group.speedups.dependencies]
 aiohttp = { version = "^3.8", extras = ["speedups"] }
-lxml = "^4.8.0"
+lxml = ">=4.8,<6.0"
 # orvdf = "^1.0.0"
 orjson = "^3.6.8"
 # betterproto = { git = "https://github.com/danielgtaylor/python-betterproto", rev = "master", extras = ["rust-codec"] }
