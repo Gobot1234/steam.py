@@ -23,4 +23,4 @@ jobs:
         run: poetry install --with dev,docs,speedups,examples
       - run: echo "$(poetry env info --path)/bin" >> $GITHUB_PATH
 
-      - uses: jakebailey/pyright-action@v1
+      - uses: jakebailey/pyright-action@v2
