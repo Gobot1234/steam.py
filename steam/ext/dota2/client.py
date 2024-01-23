@@ -59,29 +59,25 @@ class Client(Client_):
 
         Parameters
         ----------
-        search_key : :class: `str`, optional
-            Unknown purpose.
-        league_id : :class: `int`, optional
-            `league_id` for the professional tournament.
-        hero_id : :class: `int`, optional
-            `hero_id` to filter results by, just like in-client Watch Tab feature.
-        start_game : :class: `Literal[0, 10, 20, 30, 40, 50, 60, 70, 80, 90]`, optional, by default 0
+        league_id
+            The league ID for the professional tournament.
+        hero_id
+            `hero_id` to filter results by which can be found in the client Watch Tab feature.
+        start_game
             This argument controls how many responses the game coordinator should return.
             For example, `start_game=0` returns a list with 1 Response,
             `start_game=90` returns a list of 10 Responses.
-            Game coordinator fills each response in consequent manner with games that satisfy keyword arguments
+            The GC fills each response in consequent manner with games that satisfy keyword arguments
             or with currently live highest average MMR games in case no other argument was given.
-        game_list_index : :class: `int`, optional
-            Only get responses matching `game_list_index`. Responses from Game Coordinator change
+        game_list_index
+            Only get responses matching `game_list_index`. Responses from GC change
             from time to time. The `game_list_index` indicates that those responses belong to the same chunk.
-        lobby_ids : :class: `list[int]`, optional
-            Lobby ids to query against.
+        lobby_ids
+            The lobby IDs of the games to fetch.
 
         Returns
         -------
-        list[dota_gcmessages_client_watch.CMsgGCToClientFindTopSourceTVGamesResponse]
-            The list of responses from Dota 2 Coordinator.
-            Those are grouped into grouped into chunks of 10 games.
+        The responses from the GC. They are grouped into grouped into chunks of 10. games.
 
         Raises
         ------
