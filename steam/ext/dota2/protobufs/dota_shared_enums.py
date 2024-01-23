@@ -732,9 +732,7 @@ class CDOTASaveGameSaveInstance(betterproto.Message):
     game_time: int = betterproto.uint32_field(2)
     team1_score: int = betterproto.uint32_field(3)
     team2_score: int = betterproto.uint32_field(4)
-    player_positions: list[
-        CDOTASaveGameSaveInstancePlayerPositions
-    ] = betterproto.message_field(5)
+    player_positions: list[CDOTASaveGameSaveInstancePlayerPositions] = betterproto.message_field(5)
     save_id: int = betterproto.uint32_field(6)
     save_time: int = betterproto.uint32_field(7)
 

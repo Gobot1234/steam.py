@@ -88,7 +88,7 @@ class ESteamLearnInferenceMetadataResult(betterproto.Enum):
 
 @dataclass
 class CMsgSteamLearnDataSourceDescObject(betterproto.Message):
-    elements: list["CMsgSteamLearnDataSourceDescElement"] = betterproto.message_field(1)
+    elements: list[CMsgSteamLearnDataSourceDescElement] = betterproto.message_field(1)
 
 
 @dataclass
@@ -232,18 +232,18 @@ class CMsgSteamLearn_GetHMACKeys_Response(betterproto.Message):
 @dataclass
 class CMsgSteamLearn_Inference_Request(betterproto.Message):
     access_token: str = betterproto.string_field(1)
-    access_data: "CMsgSteamLearn_AccessData" = betterproto.message_field(2)
+    access_data: CMsgSteamLearn_AccessData = betterproto.message_field(2)
     project_id: int = betterproto.uint32_field(3)
     published_version: int = betterproto.uint32_field(4)
     override_train_id: int = betterproto.uint32_field(5)
-    data: "CMsgSteamLearnDataList" = betterproto.message_field(6)
+    data: CMsgSteamLearnDataList = betterproto.message_field(6)
     additional_data: list[float] = betterproto.float_field(7)
 
 
 @dataclass
 class CMsgSteamLearn_InferenceMetadata_Request(betterproto.Message):
     access_token: str = betterproto.string_field(1)
-    access_data: "CMsgSteamLearn_AccessData" = betterproto.message_field(2)
+    access_data: CMsgSteamLearn_AccessData = betterproto.message_field(2)
     project_id: int = betterproto.uint32_field(3)
     published_version: int = betterproto.uint32_field(4)
     override_train_id: int = betterproto.uint32_field(5)
@@ -257,13 +257,13 @@ class CMsgSteamLearn_InferenceMetadataBackend_Request(betterproto.Message):
 
 @dataclass
 class CMsgSteamLearn_InferenceMetadata_Response(betterproto.Message):
-    inference_metadata_result: "ESteamLearnInferenceMetadataResult" = betterproto.enum_field(1)
-    row_range: "CMsgSteamLearn_InferenceMetadata_ResponseRowRange" = betterproto.message_field(2)
-    ranges: list["CMsgSteamLearn_InferenceMetadata_ResponseRange"] = betterproto.message_field(3)
-    std_devs: list["CMsgSteamLearn_InferenceMetadata_ResponseStdDev"] = betterproto.message_field(4)
-    compact_tables: list["CMsgSteamLearn_InferenceMetadata_ResponseCompactTable"] = betterproto.message_field(5)
-    kmeans: list["CMsgSteamLearn_InferenceMetadata_ResponseKMeans"] = betterproto.message_field(6)
-    snapshot_histogram: "CMsgSteamLearn_InferenceMetadata_ResponseSnapshotHistogram" = betterproto.message_field(7)
+    inference_metadata_result: ESteamLearnInferenceMetadataResult = betterproto.enum_field(1)
+    row_range: CMsgSteamLearn_InferenceMetadata_ResponseRowRange = betterproto.message_field(2)
+    ranges: list[CMsgSteamLearn_InferenceMetadata_ResponseRange] = betterproto.message_field(3)
+    std_devs: list[CMsgSteamLearn_InferenceMetadata_ResponseStdDev] = betterproto.message_field(4)
+    compact_tables: list[CMsgSteamLearn_InferenceMetadata_ResponseCompactTable] = betterproto.message_field(5)
+    kmeans: list[CMsgSteamLearn_InferenceMetadata_ResponseKMeans] = betterproto.message_field(6)
+    snapshot_histogram: CMsgSteamLearn_InferenceMetadata_ResponseSnapshotHistogram = betterproto.message_field(7)
 
 
 @dataclass
@@ -289,11 +289,11 @@ class CMsgSteamLearn_InferenceMetadata_ResponseStdDev(betterproto.Message):
 @dataclass
 class CMsgSteamLearn_InferenceMetadata_ResponseCompactTable(betterproto.Message):
     name: str = betterproto.string_field(1)
-    map_values: list["CMsgSteamLearn_InferenceMetadata_ResponseCompactTableMapValuesEntry"] = betterproto.message_field(
+    map_values: list[CMsgSteamLearn_InferenceMetadata_ResponseCompactTableMapValuesEntry] = betterproto.message_field(
         2
     )
     map_mappings: list[
-        "CMsgSteamLearn_InferenceMetadata_ResponseCompactTableMapMappingsEntry"
+        CMsgSteamLearn_InferenceMetadata_ResponseCompactTableMapMappingsEntry
     ] = betterproto.message_field(3)
 
 
@@ -307,19 +307,19 @@ class CMsgSteamLearn_InferenceMetadata_ResponseCompactTableEntry(betterproto.Mes
 @dataclass
 class CMsgSteamLearn_InferenceMetadata_ResponseCompactTableMapValuesEntry(betterproto.Message):
     key: int = betterproto.uint32_field(1)
-    value: "CMsgSteamLearn_InferenceMetadata_ResponseCompactTableEntry" = betterproto.message_field(2)
+    value: CMsgSteamLearn_InferenceMetadata_ResponseCompactTableEntry = betterproto.message_field(2)
 
 
 @dataclass
 class CMsgSteamLearn_InferenceMetadata_ResponseCompactTableMapMappingsEntry(betterproto.Message):
     key: int = betterproto.uint32_field(1)
-    value: "CMsgSteamLearn_InferenceMetadata_ResponseCompactTableEntry" = betterproto.message_field(2)
+    value: CMsgSteamLearn_InferenceMetadata_ResponseCompactTableEntry = betterproto.message_field(2)
 
 
 @dataclass
 class CMsgSteamLearn_InferenceMetadata_ResponseKMeans(betterproto.Message):
     name: str = betterproto.string_field(1)
-    clusters: list["CMsgSteamLearn_InferenceMetadata_ResponseKMeansCluster"] = betterproto.message_field(2)
+    clusters: list[CMsgSteamLearn_InferenceMetadata_ResponseKMeansCluster] = betterproto.message_field(2)
 
 
 @dataclass
@@ -342,7 +342,7 @@ class CMsgSteamLearn_InferenceMetadata_ResponseSnapshotHistogram(betterproto.Mes
 
 @dataclass
 class CMsgSteamLearn_InferenceBackend_Response(betterproto.Message):
-    outputs: list["CMsgSteamLearn_InferenceBackend_ResponseOutput"] = betterproto.message_field(1)
+    outputs: list[CMsgSteamLearn_InferenceBackend_ResponseOutput] = betterproto.message_field(1)
 
 
 @dataclass

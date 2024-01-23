@@ -66,7 +66,7 @@ class CMsgGCConCommand(betterproto.Message):
 @dataclass
 class CMsgSDOAssert(betterproto.Message):
     sdo_type: int = betterproto.int32_field(1)
-    requests: list["CMsgSDOAssertRequest"] = betterproto.message_field(2)
+    requests: list[CMsgSDOAssertRequest] = betterproto.message_field(2)
 
 
 @dataclass
@@ -86,17 +86,17 @@ class CMsgSOSingleObject(betterproto.Message):
     type_id: int = betterproto.int32_field(2)
     object_data: bytes = betterproto.bytes_field(3)
     version: float = betterproto.fixed64_field(4)
-    owner_soid: "CMsgSOIDOwner" = betterproto.message_field(5)
+    owner_soid: CMsgSOIDOwner = betterproto.message_field(5)
     service_id: int = betterproto.uint32_field(6)
 
 
 @dataclass
 class CMsgSOMultipleObjects(betterproto.Message):
-    objects_modified: list["CMsgSOMultipleObjectsSingleObject"] = betterproto.message_field(2)
+    objects_modified: list[CMsgSOMultipleObjectsSingleObject] = betterproto.message_field(2)
     version: float = betterproto.fixed64_field(3)
-    objects_added: list["CMsgSOMultipleObjectsSingleObject"] = betterproto.message_field(4)
-    objects_removed: list["CMsgSOMultipleObjectsSingleObject"] = betterproto.message_field(5)
-    owner_soid: "CMsgSOIDOwner" = betterproto.message_field(6)
+    objects_added: list[CMsgSOMultipleObjectsSingleObject] = betterproto.message_field(4)
+    objects_removed: list[CMsgSOMultipleObjectsSingleObject] = betterproto.message_field(5)
+    owner_soid: CMsgSOIDOwner = betterproto.message_field(6)
     service_id: int = betterproto.uint32_field(7)
 
 
@@ -108,9 +108,9 @@ class CMsgSOMultipleObjectsSingleObject(betterproto.Message):
 
 @dataclass
 class CMsgSOCacheSubscribed(betterproto.Message):
-    objects: list["CMsgSOCacheSubscribedSubscribedType"] = betterproto.message_field(2)
+    objects: list[CMsgSOCacheSubscribedSubscribedType] = betterproto.message_field(2)
     version: float = betterproto.fixed64_field(3)
-    owner_soid: "CMsgSOIDOwner" = betterproto.message_field(4)
+    owner_soid: CMsgSOIDOwner = betterproto.message_field(4)
     service_id: int = betterproto.uint32_field(5)
     service_list: list[int] = betterproto.uint32_field(6)
     sync_version: float = betterproto.fixed64_field(7)
@@ -125,7 +125,7 @@ class CMsgSOCacheSubscribedSubscribedType(betterproto.Message):
 @dataclass
 class CMsgSOCacheSubscribedUpToDate(betterproto.Message):
     version: float = betterproto.fixed64_field(1)
-    owner_soid: "CMsgSOIDOwner" = betterproto.message_field(2)
+    owner_soid: CMsgSOIDOwner = betterproto.message_field(2)
     service_id: int = betterproto.uint32_field(3)
     service_list: list[int] = betterproto.uint32_field(4)
     sync_version: float = betterproto.fixed64_field(5)
@@ -133,13 +133,13 @@ class CMsgSOCacheSubscribedUpToDate(betterproto.Message):
 
 @dataclass
 class CMsgSOCacheUnsubscribed(betterproto.Message):
-    owner_soid: "CMsgSOIDOwner" = betterproto.message_field(2)
+    owner_soid: CMsgSOIDOwner = betterproto.message_field(2)
 
 
 @dataclass
 class CMsgSOCacheSubscriptionCheck(betterproto.Message):
     version: float = betterproto.fixed64_field(2)
-    owner_soid: "CMsgSOIDOwner" = betterproto.message_field(3)
+    owner_soid: CMsgSOIDOwner = betterproto.message_field(3)
     service_id: int = betterproto.uint32_field(4)
     service_list: list[int] = betterproto.uint32_field(5)
     sync_version: float = betterproto.fixed64_field(6)
@@ -147,7 +147,7 @@ class CMsgSOCacheSubscriptionCheck(betterproto.Message):
 
 @dataclass
 class CMsgSOCacheSubscriptionRefresh(betterproto.Message):
-    owner_soid: "CMsgSOIDOwner" = betterproto.message_field(2)
+    owner_soid: CMsgSOIDOwner = betterproto.message_field(2)
 
 
 @dataclass
@@ -172,7 +172,7 @@ class CGCToGCMsgMasterAck(betterproto.Message):
     dir_index: int = betterproto.int32_field(1)
     machine_name: str = betterproto.string_field(3)
     process_name: str = betterproto.string_field(4)
-    directory: list["CGCToGCMsgMasterAckProcess"] = betterproto.message_field(6)
+    directory: list[CGCToGCMsgMasterAckProcess] = betterproto.message_field(6)
 
 
 @dataclass
@@ -198,7 +198,7 @@ class CMsgGCToGCUniverseStartupResponse(betterproto.Message):
 
 @dataclass
 class CGCToGCMsgMasterStartupComplete(betterproto.Message):
-    gc_info: list["CGCToGCMsgMasterStartupCompleteGCInfo"] = betterproto.message_field(1)
+    gc_info: list[CGCToGCMsgMasterStartupCompleteGCInfo] = betterproto.message_field(1)
 
 
 @dataclass
@@ -222,7 +222,7 @@ class CGCToGCMsgRoutedReply(betterproto.Message):
 
 @dataclass
 class CMsgGCUpdateSubGCSessionInfo(betterproto.Message):
-    updates: list["CMsgGCUpdateSubGCSessionInfoCMsgUpdate"] = betterproto.message_field(1)
+    updates: list[CMsgGCUpdateSubGCSessionInfoCMsgUpdate] = betterproto.message_field(1)
 
 
 @dataclass
@@ -247,7 +247,7 @@ class CMsgGCRequestSubGCSessionInfoResponse(betterproto.Message):
 
 @dataclass
 class CMsgSOCacheHaveVersion(betterproto.Message):
-    soid: "CMsgSOIDOwner" = betterproto.message_field(1)
+    soid: CMsgSOIDOwner = betterproto.message_field(1)
     version: float = betterproto.fixed64_field(2)
     service_id: int = betterproto.uint32_field(3)
     cached_file_version: int = betterproto.uint32_field(4)
@@ -255,12 +255,12 @@ class CMsgSOCacheHaveVersion(betterproto.Message):
 
 class CMsgClientHello(GCProtobufMessage, msg=EGCBaseClientMsg.k_EMsgGCClientHello):
     version: int = betterproto.uint32_field(1)
-    socache_have_versions: list["CMsgSOCacheHaveVersion"] = betterproto.message_field(2)
+    socache_have_versions: list[CMsgSOCacheHaveVersion] = betterproto.message_field(2)
     client_session_need: int = betterproto.uint32_field(3)
-    client_launcher: "PartnerAccountType" = betterproto.enum_field(4)
+    client_launcher: PartnerAccountType = betterproto.enum_field(4)
     secret_key: str = betterproto.string_field(5)
     client_language: int = betterproto.uint32_field(6)
-    engine: "ESourceEngine" = betterproto.enum_field(7)
+    engine: ESourceEngine = betterproto.enum_field(7)
     steamdatagram_login: bytes = betterproto.bytes_field(8)
     platform_id: int = betterproto.uint32_field(9)
     game_msg: bytes = betterproto.bytes_field(10)
@@ -283,9 +283,9 @@ class CMsgClientHello(GCProtobufMessage, msg=EGCBaseClientMsg.k_EMsgGCClientHell
 class CMsgClientWelcome(betterproto.Message):
     version: int = betterproto.uint32_field(1)
     game_data: bytes = betterproto.bytes_field(2)
-    outofdate_subscribed_caches: list["CMsgSOCacheSubscribed"] = betterproto.message_field(3)
-    uptodate_subscribed_caches: list["CMsgSOCacheSubscriptionCheck"] = betterproto.message_field(4)
-    location: "CMsgClientWelcomeLocation" = betterproto.message_field(5)
+    outofdate_subscribed_caches: list[CMsgSOCacheSubscribed] = betterproto.message_field(3)
+    uptodate_subscribed_caches: list[CMsgSOCacheSubscriptionCheck] = betterproto.message_field(4)
+    location: CMsgClientWelcomeLocation = betterproto.message_field(5)
     save_game_key: bytes = betterproto.bytes_field(6)
     gc_socache_file_version: int = betterproto.uint32_field(9)
     txn_country_code: str = betterproto.string_field(10)
@@ -296,8 +296,8 @@ class CMsgClientWelcome(betterproto.Message):
     balance_url: str = betterproto.string_field(15)
     has_accepted_china_ssa: bool = betterproto.bool_field(16)
     is_banned_steam_china: bool = betterproto.bool_field(17)
-    additional_welcome_msgs: "CExtraMsgBlock" = betterproto.message_field(18)
-    steam_learn_server_info: "CMsgSteamLearnServerInfo" = betterproto.message_field(20)
+    additional_welcome_msgs: CExtraMsgBlock = betterproto.message_field(18)
+    steam_learn_server_info: CMsgSteamLearnServerInfo = betterproto.message_field(20)
 
 
 @dataclass
@@ -309,7 +309,7 @@ class CMsgClientWelcomeLocation(betterproto.Message):
 
 @dataclass
 class CMsgConnectionStatus(betterproto.Message):
-    status: "GCConnectionStatus" = betterproto.enum_field(1)
+    status: GCConnectionStatus = betterproto.enum_field(1)
     client_session_need: int = betterproto.uint32_field(2)
     queue_position: int = betterproto.int32_field(3)
     queue_size: int = betterproto.int32_field(4)
@@ -322,7 +322,7 @@ class CMsgGCToGCSOCacheSubscribe(betterproto.Message):
     subscriber: float = betterproto.fixed64_field(1)
     subscribe_to_id: float = betterproto.fixed64_field(2)
     sync_version: float = betterproto.fixed64_field(3)
-    have_versions: list["CMsgGCToGCSOCacheSubscribeCMsgHaveVersions"] = betterproto.message_field(4)
+    have_versions: list[CMsgGCToGCSOCacheSubscribeCMsgHaveVersions] = betterproto.message_field(4)
     subscribe_to_type: int = betterproto.uint32_field(5)
 
 
@@ -354,7 +354,7 @@ class CMsgGCToGCForwardAccountDetails(betterproto.Message):
 @dataclass
 class CMsgGCToGCLoadSessionSOCache(betterproto.Message):
     account_id: int = betterproto.uint32_field(1)
-    forward_account_details: "CMsgGCToGCForwardAccountDetails" = betterproto.message_field(2)
+    forward_account_details: CMsgGCToGCForwardAccountDetails = betterproto.message_field(2)
 
 
 @dataclass
@@ -378,7 +378,7 @@ class CMsgGCToClientRequestDropped(betterproto.Message):
 class CWorkshop_PopulateItemDescriptions_Request(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
     languages: list[
-        "CWorkshop_PopulateItemDescriptions_RequestItemDescriptionsLanguageBlock"
+        CWorkshop_PopulateItemDescriptions_RequestItemDescriptionsLanguageBlock
     ] = betterproto.message_field(2)
 
 
@@ -391,7 +391,7 @@ class CWorkshop_PopulateItemDescriptions_RequestSingleItemDescription(betterprot
 @dataclass
 class CWorkshop_PopulateItemDescriptions_RequestItemDescriptionsLanguageBlock(betterproto.Message):
     language: str = betterproto.string_field(1)
-    descriptions: list["CWorkshop_PopulateItemDescriptions_RequestSingleItemDescription"] = betterproto.message_field(2)
+    descriptions: list[CWorkshop_PopulateItemDescriptions_RequestSingleItemDescription] = betterproto.message_field(2)
 
 
 @dataclass
@@ -410,12 +410,12 @@ class CWorkshop_SetItemPaymentRules_Request(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
     gameitemid: int = betterproto.uint32_field(2)
     associated_workshop_files: list[
-        "CWorkshop_SetItemPaymentRules_RequestWorkshopItemPaymentRule"
+        CWorkshop_SetItemPaymentRules_RequestWorkshopItemPaymentRule
     ] = betterproto.message_field(3)
-    partner_accounts: list["CWorkshop_SetItemPaymentRules_RequestPartnerItemPaymentRule"] = betterproto.message_field(4)
+    partner_accounts: list[CWorkshop_SetItemPaymentRules_RequestPartnerItemPaymentRule] = betterproto.message_field(4)
     validate_only: bool = betterproto.bool_field(5)
     make_workshop_files_subscribable: bool = betterproto.bool_field(6)
-    associated_workshop_file_for_direct_payments: "CWorkshop_SetItemPaymentRules_RequestWorkshopDirectPaymentRule" = (
+    associated_workshop_file_for_direct_payments: CWorkshop_SetItemPaymentRules_RequestWorkshopDirectPaymentRule = (
         betterproto.message_field(7)
     )
 
@@ -483,7 +483,7 @@ class CCommunity_GetClanAnnouncements_Request(betterproto.Message):
 class CCommunity_GetClanAnnouncements_Response(betterproto.Message):
     maxchars: int = betterproto.uint32_field(1)
     strip_html: bool = betterproto.bool_field(2)
-    announcements: list["CCommunity_ClanAnnouncementInfo"] = betterproto.message_field(3)
+    announcements: list[CCommunity_ClanAnnouncementInfo] = betterproto.message_field(3)
 
 
 @dataclass
@@ -497,7 +497,7 @@ class CBroadcast_PostGameDataFrame_Request(betterproto.Message):
 @dataclass
 class CMsgSerializedSOCache(betterproto.Message):
     file_version: int = betterproto.uint32_field(1)
-    caches: list["CMsgSerializedSOCacheCache"] = betterproto.message_field(2)
+    caches: list[CMsgSerializedSOCacheCache] = betterproto.message_field(2)
     gc_socache_file_version: int = betterproto.uint32_field(3)
 
 
@@ -512,8 +512,8 @@ class CMsgSerializedSOCacheTypeCache(betterproto.Message):
 class CMsgSerializedSOCacheCache(betterproto.Message):
     type: int = betterproto.uint32_field(1)
     id: int = betterproto.uint64_field(2)
-    versions: list["CMsgSerializedSOCacheCacheVersion"] = betterproto.message_field(3)
-    type_caches: list["CMsgSerializedSOCacheTypeCache"] = betterproto.message_field(4)
+    versions: list[CMsgSerializedSOCacheCacheVersion] = betterproto.message_field(3)
+    type_caches: list[CMsgSerializedSOCacheTypeCache] = betterproto.message_field(4)
 
 
 @dataclass
@@ -564,7 +564,7 @@ class CMsgGCToGCMasterSubscribeToCacheResponse(betterproto.Message):
 
 @dataclass
 class CMsgGCToGCMasterSubscribeToCacheAsync(betterproto.Message):
-    subscribe_msg: "CMsgGCToGCMasterSubscribeToCache" = betterproto.message_field(1)
+    subscribe_msg: CMsgGCToGCMasterSubscribeToCache = betterproto.message_field(1)
 
 
 @dataclass
