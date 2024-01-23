@@ -45,17 +45,17 @@ class Client(Client_):
     ) -> list[CMsgGCToClientFindTopSourceTVGamesResponse]:
         """Fetch Top Source TV Games.
 
-        This functionality is somewhat identical to Watch Tab in normal Dota 2 application.
-        It fetches short data for the following currently on-going Dota 2 matches:
+        This functionality is similar to game list in the Watch Tab of Dota 2 game application.
+        It fetches summary data for the currently on-going Dota 2 matches from the following categories:
 
         * tournament games
-        * highest mmr games
+        * highest average mmr games
         * specific lobbies, like friends' games by their lobby_ids
 
         Note
         -------
-        Note that the following documentation for arguments to query against is rather observant
-        than from official sources. So, please, if you know more or description is incorrect, contact us.
+        Note that the following documentation for keyword arguments to query against is rather observant
+        than from official. So, please, if you know more or description is incorrect, contact us.
 
         Parameters
         ----------
@@ -65,7 +65,7 @@ class Client(Client_):
             `league_id` for the professional tournament.
         hero_id : :class: `int`, optional
             `hero_id` to filter results by, just like in-client Watch Tab feature.
-        start_game : :class: `Literal[0, 10, 20, 30, 40, 50, 60, 70, 80, 90]`, optional
+        start_game : :class: `Literal[0, 10, 20, 30, 40, 50, 60, 70, 80, 90]`, optional, by default 0
             This argument controls how many responses the game coordinator should return.
             For example, `start_game=0` returns a list with 1 Response,
             `start_game=90` returns a list of 10 Responses.
@@ -110,7 +110,7 @@ class Client(Client_):
         await self._state.ws.send_gc_message(CMsgClientToGCFindTopSourceTVGames(**kwargs))
 
         try:
-            async with timeout(10.0):
+            async with timeout(30.0):
                 return await asyncio.gather(*futures)
         except asyncio.TimeoutError:
             raise asyncio.TimeoutError(
