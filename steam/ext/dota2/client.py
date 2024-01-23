@@ -33,7 +33,7 @@ class Client(Client_):
     _APP: Final = DOTA2
     _state: GCState  # type: ignore  # PEP 705
 
-    async def fetch_top_source_tv_games(
+    async def top_source_tv_games(
         self,
         *,
         search_key: str = MISSING,
@@ -102,21 +102,15 @@ class Client(Client_):
         futures = [
             self._state.ws.gc_wait_for(
                 CMsgGCToClientFindTopSourceTVGamesResponse,
-                check=start_game_check(game_counter),
+                check=partial(lambda start_game, msg: msg.start_game == start_game, start_game),
             )
-            for game_counter in list(range(0, start_game + 1, 10))
-        ]
+            for start_game in range(0, start_game + 1, 10)
+		]
 
         await self._state.ws.send_gc_message(CMsgClientToGCFindTopSourceTVGames(**kwargs))
 
-        try:
-            async with timeout(30.0):
-                return await asyncio.gather(*futures)
-        except asyncio.TimeoutError:
-            raise asyncio.TimeoutError(
-                "Request time-outed. The reason might be inappropriate combination of keyword arguments, "
-                + "inappropriate argument values or simply Dota 2 Game Coordinator being down."
-            )
+        async with timeout(30.0):
+            return await asyncio.gather(*futures)
 
 
 class Bot(commands.Bot, Client):
