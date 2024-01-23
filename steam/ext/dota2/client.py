@@ -105,7 +105,7 @@ class Client(Client_):
                 check=partial(lambda start_game, msg: msg.start_game == start_game, start_game),
             )
             for start_game in range(0, start_game + 1, 10)
-		]
+        ]
 
         await self._state.ws.send_gc_message(CMsgClientToGCFindTopSourceTVGames(**kwargs))
 
