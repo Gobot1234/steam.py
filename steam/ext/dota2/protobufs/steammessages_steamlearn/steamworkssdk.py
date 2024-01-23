@@ -289,9 +289,7 @@ class CMsgSteamLearn_InferenceMetadata_ResponseStdDev(betterproto.Message):
 @dataclass
 class CMsgSteamLearn_InferenceMetadata_ResponseCompactTable(betterproto.Message):
     name: str = betterproto.string_field(1)
-    map_values: list[CMsgSteamLearn_InferenceMetadata_ResponseCompactTableMapValuesEntry] = betterproto.message_field(
-        2
-    )
+    map_values: list[CMsgSteamLearn_InferenceMetadata_ResponseCompactTableMapValuesEntry] = betterproto.message_field(2)
     map_mappings: list[
         CMsgSteamLearn_InferenceMetadata_ResponseCompactTableMapMappingsEntry
     ] = betterproto.message_field(3)
