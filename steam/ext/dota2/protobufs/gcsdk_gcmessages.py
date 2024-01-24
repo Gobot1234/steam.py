@@ -46,13 +46,6 @@ class CExtraMsgBlock(betterproto.Message):
 
 
 @dataclass
-class CMsgSteamLearnServerInfo(betterproto.Message):
-    enable_data_submission: bool = betterproto.bool_field(1)
-    enable_inferencing: bool = betterproto.bool_field(2)
-    hmac_keys: CMsgSteamLearnHMACKeys = betterproto.message_field(3)
-
-
-@dataclass
 class CMsgGCAssertJobData(betterproto.Message):
     message_type: str = betterproto.string_field(1)
     message_data: bytes = betterproto.bytes_field(2)
@@ -297,7 +290,7 @@ class CMsgClientWelcome(betterproto.Message):
     has_accepted_china_ssa: bool = betterproto.bool_field(16)
     is_banned_steam_china: bool = betterproto.bool_field(17)
     additional_welcome_msgs: CExtraMsgBlock = betterproto.message_field(18)
-    steam_learn_server_info: CMsgSteamLearnServerInfo = betterproto.message_field(20)
+    # steam_learn_server_info: CMsgSteamLearnServerInfo = betterproto.message_field(20)
 
 
 @dataclass
