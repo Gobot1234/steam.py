@@ -55,7 +55,7 @@ class Client(Client_):
             Filter matches by Hero.
             Note, in this case Game Coordinator will still use only current top100 live matches, i.e. requesting
             "filter by Muerta" will return only subset of those matches in which Muerta is currently being played.
-            It will not look into lower MMR games than top100.
+            It will not look into lower MMR games than top100. This behavior is consistent with how Watch Tab works.
         max_matches
             Maximum amount of matches to be fetched.
 

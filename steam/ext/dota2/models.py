@@ -122,6 +122,7 @@ class LiveMatch:
         self.tournament: TournamentMatch | None = None
         if proto.league_id:  # if it is 0 then all tournament related fields are going to be 0 as well
             battle_cup = None
+            # todo: check if battle cup has league_id, otherwise we need to separate tournament from battle_cup
             if proto.weekend_tourney_tournament_id:  # if it is 0 then all battle cup related fields are going to be 0
                 battle_cup = BattleCup(
                     proto.weekend_tourney_tournament_id,
