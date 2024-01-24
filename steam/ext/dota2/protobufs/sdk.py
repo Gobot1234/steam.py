@@ -6,7 +6,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-
 import betterproto
 
 from ....protobufs.msg import GCProtobufMessage

@@ -4,11 +4,9 @@
 
 from __future__ import annotations
 
-
 from typing import TYPE_CHECKING
 
-
-from ....enums import classproperty, IntEnum
+from ....enums import IntEnum, classproperty
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -44,7 +42,7 @@ class DOTAGameMode(IntEnum):
     TURBO             = 23
     MUTATION          = 24
     COACHES_CHALLENGE = 25
-    
+
     @classproperty
     def DISPLAY_NAMES(cls: type[Self]) -> Mapping[DOTAGameMode, str]:  # type: ignore
         return {
@@ -56,8 +54,8 @@ class DOTAGameMode(IntEnum):
                 cls.AR               : "All Random",
                 cls.INTRO            : "Intro",
                 cls.HW               : "Diretide",
-                cls.REVERSE_CM       : "Reverse Captains Mode",                
-                cls.XMAS             : "Frostivus",                
+                cls.REVERSE_CM       : "Reverse Captains Mode",
+                cls.XMAS             : "Frostivus",
                 cls.TUTORIAL         : "Tutorial",
                 cls.MO               : "Mid Only",
                 cls.LP               : "Least Played",

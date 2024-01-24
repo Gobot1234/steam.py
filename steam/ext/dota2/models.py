@@ -4,17 +4,17 @@ from __future__ import annotations
 
 import datetime
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, TypeVar, Generic, Self
+from typing import TYPE_CHECKING, Generic, Self, TypeVar
 
-from .enums import Hero
 from ... import abc
-from .protobufs.shared_enums import DOTAGameMode
+from .enums import Hero
 from .protobufs.lobby import CSODOTALobbyLobbyType
+from .protobufs.shared_enums import DOTAGameMode
 
 if TYPE_CHECKING:
+    from .protobufs.common import CMsgDOTAProfileCard
     from .protobufs.watch import CSourceTVGameSmall
     from .state import GCState
-    from .protobufs.common import CMsgDOTAProfileCard
 
 __all__ = ("LiveMatch",)
 

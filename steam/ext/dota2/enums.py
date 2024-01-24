@@ -15,8 +15,8 @@ if TYPE_CHECKING:
 # fmt: off
 class Hero(IntEnum):
     """Enum representing Dota 2 hero.
-    
-    Primarily, mapping hero_id to hero name. 
+
+    Primarily, mapping hero_id to hero name.
     """
     NONE              = 0
     AntiMage          = 1
@@ -273,14 +273,14 @@ class Hero(IntEnum):
             cls.PrimalBeast      : "Primal Beast",
             cls.Muerta           : "Muerta",
         }
-    
+
     @property
     def display_name(self) -> str:
         return self.DISPLAY_NAMES[self]
 
     @property
     def hero_id(self) -> int:
-        return self.value 
+        return self.value
 
 
 class EMsg(IntEnum):

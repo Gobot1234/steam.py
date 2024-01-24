@@ -11,13 +11,13 @@ from ..._gc import Client as Client_
 from ...app import DOTA2
 from ...ext import commands
 from ...utils import MISSING
+from .enums import Hero
 from .models import LiveMatch
 from .protobufs.watch import (
     CMsgClientToGCFindTopSourceTVGames,
     CMsgGCToClientFindTopSourceTVGamesResponse,
 )
 from .state import GCState  # noqa: TCH001
-from .enums import Hero
 
 __all__ = (
     "Client",
@@ -71,7 +71,7 @@ class Client(Client_):
             Request time-outed. The reason is usually Dota 2 Game Coordinator lagging or being down.
         """
 
-        if max_matches < 1 or 100 < max_matches:
+        if max_matches < 1 or max_matches > 100:
             raise ValueError("max_games value should be between 1 and 100.")
 
         # mini-math: max_matches 100 -> start_game 90, 91 -> 90, 90 -> 80

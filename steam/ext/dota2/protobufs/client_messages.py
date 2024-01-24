@@ -4,8 +4,8 @@
 
 from __future__ import annotations
 
-
 import betterproto
+
 from ....protobufs.msg import GCProtobufMessage
 from ..enums import EMsg
 

@@ -6,9 +6,9 @@ from typing import TYPE_CHECKING, Any
 
 from ..._gc import GCState as GCState_
 from ...app import DOTA2
-from .protobufs.sdk import CMsgClientHello
-from .protobufs.common import CMsgDOTAProfileCard
 from .protobufs.client_messages import CMsgClientToGCGetProfileCard
+from .protobufs.common import CMsgDOTAProfileCard
+from .protobufs.sdk import CMsgClientHello
 
 if TYPE_CHECKING:
     from .client import Client
