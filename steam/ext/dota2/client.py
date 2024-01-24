@@ -3,18 +3,21 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Final, Literal
+from functools import partial
+from typing import Final
 
 from ..._const import timeout
 from ..._gc import Client as Client_
 from ...app import DOTA2
 from ...ext import commands
 from ...utils import MISSING
-from .protobufs.dota_gcmessages_client_watch import (
+from .models import LiveMatch
+from .protobufs.watch import (
     CMsgClientToGCFindTopSourceTVGames,
     CMsgGCToClientFindTopSourceTVGamesResponse,
 )
 from .state import GCState  # noqa: TCH001
+from .enums import Hero
 
 __all__ = (
     "Client",
@@ -33,80 +36,136 @@ class Client(Client_):
     _APP: Final = DOTA2
     _state: GCState  # type: ignore  # PEP 705
 
-    async def top_source_tv_games(
+    async def top_live_matches(
         self,
-        *,
-        search_key: str = MISSING,
-        league_id: int = MISSING,
-        hero_id: int = MISSING,
-        start_game: Literal[0, 10, 20, 30, 40, 50, 60, 70, 80, 90] = 0,
-        game_list_index: int = MISSING,
-        lobby_ids: list[int] = MISSING,
-    ) -> list[CMsgGCToClientFindTopSourceTVGamesResponse]:
-        """Fetch Top Source TV Games.
+        hero: Hero = MISSING,
+        max_matches: int = 100,
+    ) -> list[LiveMatch]:
+        """Fetch top live matches
 
-        This functionality is similar to game list in the Watch Tab of Dota 2 game application.
-        It fetches summary data for the currently on-going Dota 2 matches from the following categories:
+        This is similar to game list in the Watch Tab of Dota 2 game app.
+        "Top matches" in this context means
 
-        * tournament games
-        * highest average mmr games
-        * specific lobbies, like friends' games by their lobby_ids
-
-        Note
-        -------
-        Note that the following documentation for keyword arguments to query against is rather observant
-        than from official. So, please, if you know more or description is incorrect, contact us.
+        * tournament matches
+        * highest average MMR matches
 
         Parameters
         ----------
-        league_id
-            The league ID for the professional tournament.
         hero_id
-            `hero_id` to filter results by which can be found in the client Watch Tab feature.
-        start_game
-            This argument controls how many responses the game coordinator should return.
-            For example, `start_game=0` returns a list with 1 Response,
-            `start_game=90` returns a list of 10 Responses.
-            The GC fills each response in consequent manner with games that satisfy keyword arguments
-            or with currently live highest average MMR games in case no other argument was given.
-        game_list_index
-            Only get responses matching `game_list_index`. Responses from GC change
-            from time to time. The `game_list_index` indicates that those responses belong to the same chunk.
-        lobby_ids
-            The lobby IDs of the games to fetch.
+            Filter matches by Hero.
+            Note, in this case Game Coordinator will still use only current top100 live matches, i.e. requesting
+            "filter by Muerta" will return only subset of those matches in which Muerta is currently being played.
+            It will not look into lower MMR games than top100.
+        max_matches
+            Maximum amount of matches to be fetched.
 
         Returns
         -------
-        The responses from the GC. They are grouped into grouped into chunks of 10. games.
+        List of currently live top matches.
 
         Raises
         ------
+        ValueError
+            `max_games` value should be between 1 and 100 inclusively.
         asyncio.TimeoutError
-            Request time-outed. The reason for this might be inappropriate combination of keyword arguments,
-            inappropriate argument values or simply Dota 2 Game Coordinator being down.
+            Request time-outed. The reason is usually Dota 2 Game Coordinator lagging or being down.
         """
-        kwargs = locals()
-        kwargs.pop("self")
-        kwargs = {key: value for key, value in kwargs.items() if value is not MISSING}
 
-        def start_game_check(start_game: int):
-            def predicate(msg: CMsgGCToClientFindTopSourceTVGamesResponse) -> bool:
-                return msg.start_game == start_game
+        if max_matches < 1 or 100 < max_matches:
+            raise ValueError("max_games value should be between 1 and 100.")
 
-            return predicate
+        # mini-math: max_matches 100 -> start_game 90, 91 -> 90, 90 -> 80
+        start_game = (max_matches - 1) // 10 * 10
+
+        def callback(start_game: int, msg: CMsgGCToClientFindTopSourceTVGamesResponse) -> bool:
+            return msg.start_game == start_game
 
         futures = [
             self._state.ws.gc_wait_for(
                 CMsgGCToClientFindTopSourceTVGamesResponse,
-                check=partial(lambda start_game, msg: msg.start_game == start_game, start_game),
+                check=partial(callback, start_game),
             )
             for start_game in range(0, start_game + 1, 10)
         ]
 
-        await self._state.ws.send_gc_message(CMsgClientToGCFindTopSourceTVGames(**kwargs))
+        if hero is MISSING:
+            await self._state.ws.send_gc_message(CMsgClientToGCFindTopSourceTVGames(start_game=start_game))
+        else:
+            await self._state.ws.send_gc_message(
+                CMsgClientToGCFindTopSourceTVGames(start_game=start_game, hero_id=hero.value)
+            )
 
         async with timeout(30.0):
-            return await asyncio.gather(*futures)
+            responses = await asyncio.gather(*futures)
+        live_matches = [
+            LiveMatch(self._state, match_info) for response in responses for match_info in response.game_list
+        ]
+        # still need to slice the list, i.e. in case user asks for 85 games, but live_matches above will have 90 matches
+        return live_matches[:max_matches]
+
+    async def tournament_live_games(
+        self,
+        # todo: league_id as integer is not human-readable/gettable thing, introduce methods to easily find those
+        league_id: int,
+    ) -> list[LiveMatch]:
+        """Fetch currently live tournament matches
+
+        Parameters
+        ----------
+        league_id
+            Tournament league_id
+
+        Returns
+        -------
+        List of currently live tournament matches.
+
+        Raises
+        ------
+        asyncio.TimeoutError
+            Request time-outed. The reason is usually Dota 2 Game Coordinator lagging or being down.
+        """
+
+        future = self._state.ws.gc_wait_for(
+            CMsgGCToClientFindTopSourceTVGamesResponse,
+            check=lambda msg: msg.league_id == league_id,
+        )
+        await self._state.ws.send_gc_message(CMsgClientToGCFindTopSourceTVGames(league_id=league_id))
+
+        async with timeout(30.0):
+            response = await future
+        return [LiveMatch(self._state, match_info) for match_info in response.game_list]
+
+    async def live_matches(
+        self,
+        # todo: lobby_ids is not easy to get by the user. Introduce methods to get it, i.e. from Rich Presence
+        lobby_ids: list[int],
+    ) -> list[LiveMatch]:
+        """Fetch currently live matches by lobby_ids
+
+        Parameters
+        ----------
+        lobby_ids
+            Lobby IDs
+
+        Returns
+        -------
+        List of live matches.
+
+        Raises
+        ------
+        asyncio.TimeoutError
+            Request time-outed. The reason is usually Dota 2 Game Coordinator lagging or being down.
+        """
+        future = self._state.ws.gc_wait_for(
+            CMsgGCToClientFindTopSourceTVGamesResponse,
+            check=lambda msg: msg.specific_games == True,
+        )
+        await self._state.ws.send_gc_message(CMsgClientToGCFindTopSourceTVGames(lobby_ids=lobby_ids))
+
+        async with timeout(30.0):
+            response = await future
+        # todo: test with more than 10 lobby_ids, Game Coordinator will probably chunk it wrongly or fail at all
+        return [LiveMatch(self._state, match_info) for match_info in response.game_list]
 
 
 class Bot(commands.Bot, Client):
