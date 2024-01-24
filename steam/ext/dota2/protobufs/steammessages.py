@@ -9,21 +9,21 @@ import betterproto
 
 
 class EGCPlatform(betterproto.Enum):
-    k_eGCPlatform_None = 0
-    k_eGCPlatform_PC = 1
-    k_eGCPlatform_Mac = 2
-    k_eGCPlatform_Linux = 3
-    k_eGCPlatform_Android = 4
-    k_eGCPlatform_iOS = 5
+    NONE = 0
+    PC = 1
+    Mac = 2
+    Linux = 3
+    Android = 4
+    iOS = 5
 
 
 class GCProtoBufMsgSrc(betterproto.Enum):
-    GCProtoBufMsgSrc_Unspecified = 0
-    GCProtoBufMsgSrc_FromSystem = 1
-    GCProtoBufMsgSrc_FromSteamID = 2
-    GCProtoBufMsgSrc_FromGC = 3
-    GCProtoBufMsgSrc_ReplySystem = 4
-    GCProtoBufMsgSrc_SpoofedSteamID = 5
+    Unspecified = 0
+    FromSystem = 1
+    FromSteamID = 2
+    FromGC = 3
+    ReplySystem = 4
+    SpoofedSteamID = 5
 
 
 @dataclass

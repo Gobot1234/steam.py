@@ -10,9 +10,9 @@ import betterproto
 
 if TYPE_CHECKING:
     from .dota_shared_enums import (
-        DOTA_GC_TEAM,
         CMsgPendingEventAward,
-        DOTA_GameMode,
+        DOTAGameMode,
+        DOTAGCTeam,
         EEvent,
         ELeaguePhase,
         ELeagueRegion,
@@ -21,129 +21,129 @@ if TYPE_CHECKING:
 
 
 class ESpecialPingValue(betterproto.Enum):
-    k_ESpecialPingValue_NoData = 16382
-    k_ESpecialPingValue_Failed = 16383
+    NoData = 16382
+    Failed = 16383
 
 
 class EDOTAGCSessionNeed(betterproto.Enum):
-    k_EDOTAGCSessionNeed_Unknown = 0
-    k_EDOTAGCSessionNeed_UserNoSessionNeeded = 100
-    k_EDOTAGCSessionNeed_UserInOnlineGame = 101
-    k_EDOTAGCSessionNeed_UserInLocalGame = 102
-    k_EDOTAGCSessionNeed_UserInUIWasConnected = 103
-    k_EDOTAGCSessionNeed_UserInUINeverConnected = 104
-    k_EDOTAGCSessionNeed_UserTutorials = 105
-    k_EDOTAGCSessionNeed_UserInUIWasConnectedIdle = 106
-    k_EDOTAGCSessionNeed_UserInUINeverConnectedIdle = 107
-    k_EDOTAGCSessionNeed_GameServerOnline = 200
-    k_EDOTAGCSessionNeed_GameServerLocal = 201
-    k_EDOTAGCSessionNeed_GameServerIdle = 202
-    k_EDOTAGCSessionNeed_GameServerRelay = 203
-    k_EDOTAGCSessionNeed_GameServerLocalUpload = 204
+    Unknown = 0
+    UserNoSessionNeeded = 100
+    UserInOnlineGame = 101
+    UserInLocalGame = 102
+    UserInUIWasConnected = 103
+    UserInUINeverConnected = 104
+    UserTutorials = 105
+    UserInUIWasConnectedIdle = 106
+    UserInUINeverConnectedIdle = 107
+    GameServerOnline = 200
+    GameServerLocal = 201
+    GameServerIdle = 202
+    GameServerRelay = 203
+    GameServerLocalUpload = 204
 
 
 class EDOTAMatchPlayerTimeCustomStat(betterproto.Enum):
-    k_EDOTA_MatchPlayerTimeCustomStat_HPRegenUnderT1Towers = 1
-    k_EDOTA_MatchPlayerTimeCustomStat_MagicDamageReducedWithNewFormula_Absolute = 2
-    k_EDOTA_MatchPlayerTimeCustomStat_MagicDamageReducedWithNewFormula_PercentOfTotalHP = 3
+    HPRegenUnderT1Towers = 1
+    MagicDamageReducedWithNewFormula_Absolute = 2
+    MagicDamageReducedWithNewFormula_PercentOfTotalHP = 3
 
 
-class DOTA_TournamentEvents(betterproto.Enum):
-    TE_FIRST_BLOOD = 0
-    TE_GAME_END = 1
-    TE_MULTI_KILL = 2
-    TE_HERO_DENY = 3
-    TE_AEGIS_DENY = 4
-    TE_AEGIS_STOLEN = 5
-    TE_GODLIKE = 6
-    TE_COURIER_KILL = 7
-    TE_ECHOSLAM = 8
-    TE_RAPIER = 9
-    TE_EARLY_ROSHAN = 10
-    TE_BLACK_HOLE = 11
+class DOTATournamentEvents(betterproto.Enum):
+    FIRST_BLOOD = 0
+    GAME_END = 1
+    MULTI_KILL = 2
+    HERO_DENY = 3
+    AEGIS_DENY = 4
+    AEGIS_STOLEN = 5
+    GODLIKE = 6
+    COURIER_KILL = 7
+    ECHOSLAM = 8
+    RAPIER = 9
+    EARLY_ROSHAN = 10
+    BLACK_HOLE = 11
 
 
 class EBroadcastTimelineEvent(betterproto.Enum):
-    EBroadcastTimelineEvent_MatchStarted = 1
-    EBroadcastTimelineEvent_GameStateChanged = 2
-    EBroadcastTimelineEvent_TowerDeath = 3
-    EBroadcastTimelineEvent_BarracksDeath = 4
-    EBroadcastTimelineEvent_AncientDeath = 5
-    EBroadcastTimelineEvent_RoshanDeath = 6
-    EBroadcastTimelineEvent_HeroDeath = 7
-    EBroadcastTimelineEvent_TeamFight = 8
-    EBroadcastTimelineEvent_FirstBlood = 9
+    MatchStarted = 1
+    GameStateChanged = 2
+    TowerDeath = 3
+    BarracksDeath = 4
+    AncientDeath = 5
+    RoshanDeath = 6
+    HeroDeath = 7
+    TeamFight = 8
+    FirstBlood = 9
 
 
 class ECustomGameWhitelistState(betterproto.Enum):
-    CUSTOM_GAME_WHITELIST_STATE_UNKNOWN = 0
-    CUSTOM_GAME_WHITELIST_STATE_APPROVED = 1
-    CUSTOM_GAME_WHITELIST_STATE_REJECTED = 2
+    UNKNOWN = 0
+    APPROVED = 1
+    REJECTED = 2
 
 
 class EDOTATriviaQuestionCategory(betterproto.Enum):
-    k_EDOTATriviaQuestionCategory_AbilityIcon = 0
-    k_EDOTATriviaQuestionCategory_AbilityCooldown = 1
-    k_EDOTATriviaQuestionCategory_HeroAttributes = 2
-    k_EDOTATriviaQuestionCategory_HeroMovementSpeed = 3
-    k_EDOTATriviaQuestionCategory_TalentTree = 4
-    k_EDOTATriviaQuestionCategory_HeroStats = 5
-    k_EDOTATriviaQuestionCategory_ItemPrice = 6
-    k_EDOTATriviaQuestionCategory_AbilitySound = 7
-    k_EDOTATriviaQuestionCategory_InvokerSpells = 8
-    k_EDOTATriviaQuestionCategory_AbilityManaCost = 9
-    k_EDOTATriviaQuestionCategory_HeroAttackSound = 10
-    k_EDOTATriviaQuestionCategory_AbilityName = 11
-    k_EDOTATriviaQuestionCategory_ItemComponents = 12
-    k_EDOTATriviaQuestionCategory_ItemLore = 13
-    k_EDOTATriviaQuestionCategory_ItemPassives = 14
-    k_EDOTATriviaQuestionCategory_STATIC_QUESTIONS_END = 15
-    k_EDOTATriviaQuestionCategory_DYNAMIC_QUESTIONS_START = 99
-    k_EDOTATriviaQuestionCategory_Dynamic_ItemBuild = 100
+    AbilityIcon = 0
+    AbilityCooldown = 1
+    HeroAttributes = 2
+    HeroMovementSpeed = 3
+    TalentTree = 4
+    HeroStats = 5
+    ItemPrice = 6
+    AbilitySound = 7
+    InvokerSpells = 8
+    AbilityManaCost = 9
+    HeroAttackSound = 10
+    AbilityName = 11
+    ItemComponents = 12
+    ItemLore = 13
+    ItemPassives = 14
+    STATIC_QUESTIONS_END = 15
+    DYNAMIC_QUESTIONS_START = 99
+    Dynamic_ItemBuild = 100
 
 
 class EOverwatchConviction(betterproto.Enum):
-    k_EOverwatchConviction_None = 0
-    k_EOverwatchConviction_NotGuilty = 1
-    k_EOverwatchConviction_GuiltUnclear = 2
-    k_EOverwatchConviction_Guilty = 3
+    NONE = 0
+    NotGuilty = 1
+    GuiltUnclear = 2
+    Guilty = 3
 
 
 class EHeroRelicRarity(betterproto.Enum):
-    HERO_RELIC_RARITY_INVALID = -1
-    HERO_RELIC_RARITY_COMMON = 0
-    HERO_RELIC_RARITY_RARE = 1
+    INVALID = -1
+    COMMON = 0
+    RARE = 1
 
 
 class EStickerbookAuditAction(betterproto.Enum):
-    STICKERBOOK_AUDIT_CREATE_PAGE = 0
-    STICKERBOOK_AUDIT_DELETE_PAGE = 1
-    STICKERBOOK_AUDIT_STICK_STICKERS = 2
-    STICKERBOOK_AUDIT_REPLACE_STICKERS = 3
-    STICKERBOOK_AUDIT_HERO_STICKER = 4
+    CREATE_PAGE = 0
+    DELETE_PAGE = 1
+    STICK_STICKERS = 2
+    REPLACE_STICKERS = 3
+    HERO_STICKER = 4
 
 
 class EStickerbookPageType(betterproto.Enum):
-    STICKER_PAGE_GENERIC = 0
-    STICKER_PAGE_TEAM = 1
-    STICKER_PAGE_TALENT = 2
+    GENERIC = 0
+    TEAM = 1
+    TALENT = 2
 
 
 class CMsgDOTAProfileCardEStatID(betterproto.Enum):
-    k_eStat_Wins = 3
-    k_eStat_Commends = 4
-    k_eStat_GamesPlayed = 5
-    k_eStat_FirstMatchDate = 6
-    k_eStat_PreviousSeasonRank = 7
-    k_eStat_GamesMVP = 8
+    Wins = 3
+    Commends = 4
+    GamesPlayed = 5
+    FirstMatchDate = 6
+    PreviousSeasonRank = 7
+    GamesMVP = 8
 
 
 class CMsgGCRerollPlayerChallengeResponseEResult(betterproto.Enum):
-    eResult_Success = 0
-    eResult_Dropped = 1
-    eResult_NotFound = 2
-    eResult_CantReroll = 3
-    eResult_ServerError = 4
+    Success = 0
+    Dropped = 1
+    NotFound = 2
+    CantReroll = 3
+    ServerError = 4
 
 
 class CMsgDOTARealtimeGameStatsGraphDataeStat(betterproto.Enum):
@@ -219,22 +219,22 @@ class CMsgDOTASeasonPredictionsPredictionEAnswerType(betterproto.Enum):
 
 
 class CMsgDOTAMatchReplayState(betterproto.Enum):
-    REPLAY_AVAILABLE = 0
-    REPLAY_NOT_RECORDED = 1
-    REPLAY_EXPIRED = 2
+    AVAILABLE = 0
+    NOT_RECORDED = 1
+    EXPIRED = 2
 
 
 class CMsgDOTAMatchPlayerHeroDamageType(betterproto.Enum):
-    HERO_DAMAGE_PHYSICAL = 0
-    HERO_DAMAGE_MAGICAL = 1
-    HERO_DAMAGE_PURE = 2
+    PHYSICAL = 0
+    MAGICAL = 1
+    PURE = 2
 
 
 class CMsgServerToGCRequestPlayerRecentAccomplishmentsResponseEResponse(betterproto.Enum):
-    k_eInternalError = 0
-    k_eSuccess = 1
-    k_eTooBusy = 2
-    k_eDisabled = 3
+    InternalError = 0
+    Success = 1
+    TooBusy = 2
+    Disabled = 3
 
 
 @dataclass
@@ -1030,7 +1030,7 @@ class CMsgDOTAMatch(betterproto.Message):
     dire_team_logo_url: str = betterproto.string_field(55)
     radiant_team_complete: int = betterproto.uint32_field(27)
     dire_team_complete: int = betterproto.uint32_field(28)
-    game_mode: DOTA_GameMode = betterproto.enum_field(31)
+    game_mode: DOTAGameMode = betterproto.enum_field(31)
     picks_bans: list[CMatchHeroSelectEvent] = betterproto.message_field(32)
     match_seq_num: int = betterproto.uint64_field(33)
     replay_state: CMsgDOTAMatchReplayState = betterproto.enum_field(34)
@@ -1127,7 +1127,7 @@ class CMsgDOTAMatchPlayer(betterproto.Message):
     lane_selection_flags: int = betterproto.uint32_field(75)
     bounty_runes: int = betterproto.uint32_field(77)
     outposts_captured: int = betterproto.uint32_field(78)
-    team_number: DOTA_GC_TEAM = betterproto.enum_field(80)
+    team_number: DOTAGCTeam = betterproto.enum_field(80)
     team_slot: int = betterproto.uint32_field(81)
 
 
@@ -1281,7 +1281,7 @@ class CMsgSuccessfulHero(betterproto.Message):
 @dataclass
 class CMsgRecentMatchInfo(betterproto.Message):
     match_id: int = betterproto.uint64_field(1)
-    game_mode: DOTA_GameMode = betterproto.enum_field(2)
+    game_mode: DOTAGameMode = betterproto.enum_field(2)
     kills: int = betterproto.uint32_field(3)
     deaths: int = betterproto.uint32_field(4)
     assists: int = betterproto.uint32_field(5)
@@ -1311,7 +1311,7 @@ class CMsgDOTAMatchMinimal(betterproto.Message):
     match_id: int = betterproto.uint64_field(1)
     start_time: float = betterproto.fixed32_field(2)
     duration: int = betterproto.uint32_field(3)
-    game_mode: DOTA_GameMode = betterproto.enum_field(4)
+    game_mode: DOTAGameMode = betterproto.enum_field(4)
     players: list[CMsgDOTAMatchMinimalPlayer] = betterproto.message_field(6)
     tourney: CMsgDOTAMatchMinimalTourney = betterproto.message_field(7)
     match_outcome: EMatchOutcome = betterproto.enum_field(8)
@@ -1331,7 +1331,7 @@ class CMsgDOTAMatchMinimalPlayer(betterproto.Message):
     player_slot: int = betterproto.uint32_field(7)
     pro_name: str = betterproto.string_field(8)
     level: int = betterproto.uint32_field(9)
-    team_number: DOTA_GC_TEAM = betterproto.enum_field(10)
+    team_number: DOTAGCTeam = betterproto.enum_field(10)
 
 
 @dataclass

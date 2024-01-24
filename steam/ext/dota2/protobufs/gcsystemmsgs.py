@@ -6,27 +6,27 @@ import betterproto
 
 
 class ESOMsg(betterproto.Enum):
-    k_ESOMsg_Create = 21
-    k_ESOMsg_Update = 22
-    k_ESOMsg_Destroy = 23
-    k_ESOMsg_CacheSubscribed = 24
-    k_ESOMsg_CacheUnsubscribed = 25
-    k_ESOMsg_UpdateMultiple = 26
-    k_ESOMsg_CacheSubscriptionRefresh = 28
-    k_ESOMsg_CacheSubscribedUpToDate = 29
+    Create = 21
+    Update = 22
+    Destroy = 23
+    CacheSubscribed = 24
+    CacheUnsubscribed = 25
+    UpdateMultiple = 26
+    CacheSubscriptionRefresh = 28
+    CacheSubscribedUpToDate = 29
 
 
 class EGCBaseClientMsg(betterproto.Enum):
-    k_EMsgGCPingRequest = 3001
-    k_EMsgGCPingResponse = 3002
-    k_EMsgGCToClientPollConvarRequest = 3003
-    k_EMsgGCToClientPollConvarResponse = 3004
-    k_EMsgGCCompressedMsgToClient = 3005
-    k_EMsgGCCompressedMsgToClient_Legacy = 523
-    k_EMsgGCToClientRequestDropped = 3006
-    k_EMsgGCClientWelcome = 4004
-    k_EMsgGCServerWelcome = 4005
-    k_EMsgGCClientHello = 4006
-    k_EMsgGCServerHello = 4007
-    k_EMsgGCClientConnectionStatus = 4009
-    k_EMsgGCServerConnectionStatus = 4010
+    GCPingRequest = 3001
+    GCPingResponse = 3002
+    GCToClientPollConvarRequest = 3003
+    GCToClientPollConvarResponse = 3004
+    GCCompressedMsgToClient = 3005
+    GCCompressedMsgToClient_Legacy = 523
+    GCToClientRequestDropped = 3006
+    GCClientWelcome = 4004
+    GCServerWelcome = 4005
+    GCClientHello = 4006
+    GCServerHello = 4007
+    GCClientConnectionStatus = 4009
+    GCServerConnectionStatus = 4010

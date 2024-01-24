@@ -88,7 +88,7 @@ class CSourceTVGameSmallPlayer(betterproto.Message):
     team: int = betterproto.uint32_field(4)
 
 
-class CMsgClientToGCFindTopSourceTVGames(GCProtobufMessage, msg=EDOTAGCMsg.k_EMsgClientToGCFindTopSourceTVGames):
+class CMsgClientToGCFindTopSourceTVGames(GCProtobufMessage, msg=EDOTAGCMsg.ClientToGCFindTopSourceTVGames):
     search_key: str = betterproto.string_field(1)
     league_id: int = betterproto.uint32_field(2)
     hero_id: int = betterproto.uint32_field(3)
@@ -98,7 +98,7 @@ class CMsgClientToGCFindTopSourceTVGames(GCProtobufMessage, msg=EDOTAGCMsg.k_EMs
 
 
 class CMsgGCToClientFindTopSourceTVGamesResponse(
-    GCProtobufMessage, msg=EDOTAGCMsg.k_EMsgGCToClientFindTopSourceTVGamesResponse
+    GCProtobufMessage, msg=EDOTAGCMsg.GCToClientFindTopSourceTVGamesResponse
 ):
     search_key: str = betterproto.string_field(1)
     league_id: int = betterproto.uint32_field(2)

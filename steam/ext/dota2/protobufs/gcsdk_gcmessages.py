@@ -13,28 +13,27 @@ from .gcsystemmsgs import EGCBaseClientMsg
 
 if TYPE_CHECKING:
     from .steammessages import CGCSystemMsg_GetAccountDetails_Response
-    from .steammessages_steamlearn.steamworkssdk import CMsgSteamLearnHMACKeys
 
 
 class ESourceEngine(betterproto.Enum):
-    k_ESE_Source1 = 0
-    k_ESE_Source2 = 1
+    Source1 = 0
+    Source2 = 1
 
 
 class PartnerAccountType(betterproto.Enum):
-    PARTNER_NONE = 0
-    PARTNER_PERFECT_WORLD = 1
-    PARTNER_INVALID = 3
+    NONE = 0
+    PERFECT_WORLD = 1
+    INVALID = 3
 
 
 class GCConnectionStatus(betterproto.Enum):
-    GCConnectionStatus_HAVE_SESSION = 0
-    GCConnectionStatus_GC_GOING_DOWN = 1
-    GCConnectionStatus_NO_SESSION = 2
-    GCConnectionStatus_NO_SESSION_IN_LOGON_QUEUE = 3
-    GCConnectionStatus_NO_STEAM = 4
-    GCConnectionStatus_SUSPENDED = 5
-    GCConnectionStatus_STEAM_GOING_DOWN = 6
+    HAVE_SESSION = 0
+    GC_GOING_DOWN = 1
+    NO_SESSION = 2
+    NO_SESSION_IN_LOGON_QUEUE = 3
+    NO_STEAM = 4
+    SUSPENDED = 5
+    STEAM_GOING_DOWN = 6
 
 
 @dataclass
@@ -246,7 +245,7 @@ class CMsgSOCacheHaveVersion(betterproto.Message):
     cached_file_version: int = betterproto.uint32_field(4)
 
 
-class CMsgClientHello(GCProtobufMessage, msg=EGCBaseClientMsg.k_EMsgGCClientHello):
+class CMsgClientHello(GCProtobufMessage, msg=EGCBaseClientMsg.GCClientHello):
     version: int = betterproto.uint32_field(1)
     socache_have_versions: list[CMsgSOCacheHaveVersion] = betterproto.message_field(2)
     client_session_need: int = betterproto.uint32_field(3)
