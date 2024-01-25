@@ -6,6 +6,7 @@ import asyncio
 from functools import partial
 from typing import Final
 
+
 from ..._const import timeout
 from ..._gc import Client as Client_
 from ...app import DOTA2
@@ -15,6 +16,7 @@ from .enums import Hero
 from .models import LiveMatch
 from .protobufs import watch
 from .state import GCState  # noqa: TCH001
+
 
 __all__ = (
     "Client",
@@ -95,9 +97,7 @@ class Client(Client_):
 
         async with timeout(30.0):
             responses = await asyncio.gather(*futures)
-        live_matches = [
-            LiveMatch(self._state, match_info) for response in responses for match_info in response.game_list
-        ]
+        live_matches = [LiveMatch(self._state, match) for response in responses for match in response.game_list]
         # still need to slice the list, i.e. in case user asks for 85 games, but live_matches above will have 90 matches
         return live_matches[:limit]
 
@@ -131,7 +131,7 @@ class Client(Client_):
 
         async with timeout(30.0):
             response = await future
-        return [LiveMatch(self._state, match_info) for match_info in response.game_list]
+        return [LiveMatch(self._state, match) for match in response.game_list]
 
     async def live_matches(
         self,
@@ -163,7 +163,8 @@ class Client(Client_):
         async with timeout(30.0):
             response = await future
         # todo: test with more than 10 lobby_ids, Game Coordinator will probably chunk it wrongly or fail at all
-        return [LiveMatch(self._state, match_info) for match_info in response.game_list]
+
+        return [LiveMatch(self._state, match) for match in response.game_list]
 
 
 class Bot(commands.Bot, Client):

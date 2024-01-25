@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from operator import attrgetter
 from typing import TYPE_CHECKING, Generic, Self, TypeVar
 
+
 from ... import abc, user
 from ...utils import DateTime
 from .enums import GameMode, Hero, LobbyType
@@ -18,12 +19,6 @@ if TYPE_CHECKING:
 __all__ = ("LiveMatch",)
 
 UserT = TypeVar("UserT", bound=abc.PartialUser)
-
-
-@dataclass(slots=True)
-class LivePlayer:
-    user: PartialUser
-    hero: Hero
 
 
 @dataclass(slots=True)
@@ -151,13 +146,12 @@ class LiveMatch:
         # why valve chose to introduce extra bytes fields instead of resorting it once after player selection - no clue
         sorted_players = sorted(proto.players, key=attrgetter("team", "team_slot"))
 
-        self.players = [
-            LivePlayer(
-                user=PartialUser(self._state, p.account_id),
-                hero=Hero.try_value(p.hero_id),
-            )
-            for p in sorted_players
-        ]
+        self.players: list[LiveMatchPlayer] = []
+        for player in sorted_players:
+            live_match_player = LiveMatchPlayer(self._state, player.account_id)
+            live_match_player.hero = Hero.try_value(player.hero_id)
+            self.players.append(live_match_player)
+
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} id={self.id} server_steam_id={self.server_steam_id}>"
@@ -175,6 +169,13 @@ class PartialUser(abc.PartialUser):
 
 class User(PartialUser, user.User):  # type: ignore
     __slots__ = ()
+
+
+class LiveMatchPlayer(PartialUser):
+    hero: Hero
+
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__} id={self.id} hero={self.hero!r}>"
 
 
 class ProfileCard(Generic[UserT]):
