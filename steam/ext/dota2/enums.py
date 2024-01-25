@@ -11,6 +11,11 @@ if TYPE_CHECKING:
 
     from typing_extensions import Self
 
+__all__ = (
+    "Hero",
+    "GameMode",
+    "LobbyType",
+)
 
 # fmt: off
 class Hero(IntEnum):

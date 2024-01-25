@@ -16,7 +16,16 @@ if TYPE_CHECKING:
     from .protobufs import common, watch
     from .state import GCState
 
-__all__ = ("LiveMatch",)
+__all__ = (
+    "BattleCup",
+    "TournamentTeam",
+    "TournamentMatch",
+    "LiveMatch",
+    "LiveMatchPlayer",
+    "PartialUser",
+    "User",
+    "ProfileCard",
+)
 
 UserT = TypeVar("UserT", bound=abc.PartialUser)
 
@@ -37,7 +46,7 @@ class TournamentTeam:
 
 
 @dataclass(slots=True)
-class TournamentMatch:
+class TournamentMatch:  # should this be named LiveTournamentMatch ? Idk how fast I gonna break all these namings,
     league_id: int  # todo: can I get more info like name of the tournament
     series_id: int
     teams: tuple[TournamentTeam, TournamentTeam]
