@@ -6,7 +6,6 @@ import asyncio
 from functools import partial
 from typing import Final
 
-
 from ..._const import timeout
 from ..._gc import Client as Client_
 from ...app import DOTA2
@@ -16,7 +15,6 @@ from .enums import Hero
 from .models import LiveMatch
 from .protobufs import watch
 from .state import GCState  # noqa: TCH001
-
 
 __all__ = (
     "Client",
