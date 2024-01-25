@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from operator import attrgetter
 from typing import TYPE_CHECKING, Generic, Self, TypeVar
 
-
 from ... import abc, user
 from ...utils import DateTime
 from .enums import GameMode, Hero, LobbyType
