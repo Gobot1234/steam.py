@@ -152,6 +152,10 @@ class LiveMatch:
             live_match_player.hero = Hero.try_value(player.hero_id)
             self.players.append(live_match_player)
 
+    @property
+    def heroes(self) -> list[Hero]:
+        """List of heroes in the match. The list is sorted by their player's colour."""
+        return [p.hero for p in self.players]
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} id={self.id} server_steam_id={self.server_steam_id}>"
