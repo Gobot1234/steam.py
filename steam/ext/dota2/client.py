@@ -50,9 +50,9 @@ class Client(Client_):
         Parameters
         ----------
         hero
-            Filter matches by Hero. Note, in this case Game Coordinator will still use only current top100 live matches, 
-            i.e. requesting "filter by Muerta" will return only subset of those matches in which 
-            Muerta is currently being played. It will not look into lower MMR match than top100 to extend the return 
+            Filter matches by Hero. Note, in this case Game Coordinator will still use only current top100 live matches,
+            i.e. requesting "filter by Muerta" will return only subset of those matches in which
+            Muerta is currently being played. It will not look into lower MMR match than top100 to extend the return
             list to number of games from `limit` argument. This behavior is consistent with how Watch Tab works.
         limit
             Maximum amount of matches to be fetched.
