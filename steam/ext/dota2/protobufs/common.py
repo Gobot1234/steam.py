@@ -12,15 +12,13 @@ from ....protobufs.msg import GCProtobufMessage
 from ..enums import EMsg
 
 
-# fmt: off
 class ProfileCardEStatID(betterproto.Enum):
-    Wins               = 3
-    Commends           = 4
-    GamesPlayed        = 5
-    FirstMatchDate     = 6
+    Wins = 3
+    Commends = 4
+    GamesPlayed = 5
+    FirstMatchDate = 6
     PreviousSeasonRank = 7
-    GamesMVP           = 8
-# fmt: on
+    GamesMVP = 8
 
 
 @dataclass(eq=False, repr=False)

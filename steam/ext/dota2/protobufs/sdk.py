@@ -12,27 +12,25 @@ from ....protobufs.msg import GCProtobufMessage
 from ..enums import EMsg
 
 
-# fmt: off
 class ESourceEngine(betterproto.Enum):
     Source1 = 0
     Source2 = 1
 
 
 class PartnerAccountType(betterproto.Enum):
-    NONE          = 0
-    PerfectWorld  = 1
-    Invalid       = 3
+    NONE = 0
+    PerfectWorld = 1
+    Invalid = 3
 
 
 class GCConnectionStatus(betterproto.Enum):
-    HaveSession           = 0
-    GcGoingDown           = 1
-    NoSession             = 2
+    HaveSession = 0
+    GcGoingDown = 1
+    NoSession = 2
     NoSessionInLogonQueue = 3
-    NoSteam               = 4
-    Suspended             = 5
-    SteamGoingDown        = 6
-# fmt: on
+    NoSteam = 4
+    Suspended = 5
+    SteamGoingDown = 6
 
 
 @dataclass(eq=False, repr=False)
