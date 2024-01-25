@@ -293,15 +293,15 @@ class GameMode(IntEnum):  # source: dota_shared_enums.proto
     Intro               = 6
     Diretide            = 7
     ReverseCaptainsMode = 8
-    Xmas                = 9
+    Frostivus           = 9
     Tutorial            = 10
     MidOnly             = 11
     LeastPlayed         = 12
     NewPlayerMode       = 13
-    FH                  = 14
+    CompendiumMatch     = 14
     Custom              = 15
     CaptainsDraft       = 16
-    BD                  = 17
+    BalancedDraft       = 17
     AbilityDraft        = 18
     Event               = 19
     AllRandomDeathMatch = 20
@@ -323,15 +323,15 @@ class GameMode(IntEnum):  # source: dota_shared_enums.proto
                 cls.Intro              : "Intro",
                 cls.Diretide           : "Diretide",
                 cls.ReverseCaptainsMode: "Reverse Captains Mode",
-                cls.Xmas               : "Frostivus",
+                cls.Frostivus          : "Frostivus",
                 cls.Tutorial           : "Tutorial",
                 cls.MidOnly            : "Mid Only",
                 cls.LeastPlayed        : "Least Played",
                 cls.NewPlayerMode      : "New Player Mode",
-                cls.FH                 : "Compendium Match",
+                cls.CompendiumMatch    : "Compendium Match",
                 cls.Custom             : "Custom Game",
                 cls.CaptainsDraft      : "Captains Draft",
-                cls.BD                 : "Balanced Draft",
+                cls.BalancedDraft      : "Balanced Draft",
                 cls.AbilityDraft       : "Ability Draft",
                 cls.Event              : "Event Game",
                 cls.AllRandomDeathMatch: "All Random DeathMatch",
@@ -349,31 +349,31 @@ class GameMode(IntEnum):  # source: dota_shared_enums.proto
 
 class LobbyType(IntEnum):  # source: dota_gcmessages_common_lobby.proto
     Invalid          = -1
-    CasualMatch      = 0
+    Unranked         = 0
     Practice         = 1
     CoopBotMatch     = 4
-    CompetitiveMatch = 7
-    WeekendTourney   = 9
+    Ranked           = 7
+    BattleCup        = 9
     LocalBotMatch    = 10
     Spectator        = 11
-    EventMatch       = 12
-    NewPlayerPool    = 14
-    FeaturedGamemode = 15
+    EventGameMode    = 12
+    NewPlayerMode    = 14
+    FeaturedGameMode = 15
 
     @classproperty
     def DISPLAY_NAMES(cls: type[Self]) -> Mapping[LobbyType, str]:  # type: ignore
         return {
             cls.Invalid         : "Invalid",
-            cls.CasualMatch     : "Unranked",
+            cls.Unranked        : "Unranked",
             cls.Practice        : "Practice",
             cls.CoopBotMatch    : "Coop Bots",
-            cls.CompetitiveMatch: "Ranked",
-            cls.WeekendTourney  : "Battle Cup",
+            cls.Ranked          : "Ranked",
+            cls.BattleCup       : "Battle Cup",
             cls.LocalBotMatch   : "Local Bot Match",
             cls.Spectator       : "Spectator",
-            cls.EventMatch      : "Event",
-            cls.NewPlayerPool   : "New Player Mode",
-            cls.FeaturedGamemode: "Featured Gamemode",
+            cls.EventGameMode   : "Event",
+            cls.NewPlayerMode   : "New Player Mode",
+            cls.FeaturedGameMode: "Featured Gamemode",
         }
 
     @property
