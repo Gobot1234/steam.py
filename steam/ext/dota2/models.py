@@ -101,9 +101,9 @@ class LiveMatch:
     """
 
     def __init__(self, state: GCState, proto: CSourceTVGameSmall) -> None:
-        self._state: GCState = state
+        self._state = state
 
-        self.match_id: int = proto.match_id
+        self.id = proto.match_id
         self.server_steam_id: int = proto.match_id
         self.lobby_id: int = proto.lobby_id
 
@@ -140,17 +140,17 @@ class LiveMatch:
                 battle_cup,
             )
 
-        self.radiant_lead: int = proto.radiant_lead
-        self.radiant_score: int = proto.radiant_score
-        self.dire_score: int = proto.dire_score
-        self.building_state: float = proto.building_state  # todo: helper function to decode this into human-readable
+        self.radiant_lead = proto.radiant_lead
+        self.radiant_score = proto.radiant_score
+        self.dire_score = proto.dire_score
+        self.building_state = proto.building_state  # todo: helper function to decode this into human-readable
 
-        self.custom_game_difficulty: int = proto.custom_game_difficulty
+        self.custom_game_difficulty = proto.custom_game_difficulty
 
         # Since Immortal Draft update, players come from the proto message in a wrong order
         # which can be fixed back with extra fields that they introduced later: `team`, `team_slot`
         # why valve chose to introduce extra bytes fields instead of resorting it once after player selection - no clue
-        sorted_players = [p for p in sorted(proto.players, key=lambda player: (player.team, player.team_slot))]
+        sorted_players = sorted(proto.players, key=attrgetter("team", "team_slot"))
 
         self.players = [
             LivePlayer(
@@ -176,7 +176,6 @@ class PartialUser(abc.PartialUser):
 
 class ProfileCard(Generic[UserT]):
     def __init__(self, user: UserT, proto: CMsgDOTAProfileCard):
-        print(proto)
         self.user = user
         self.slots = proto.slots
         self.badge_points = proto.badge_points
