@@ -13,7 +13,7 @@ from ..enums import EMsg
 
 
 @dataclass(eq=False, repr=False)
-class CSourceTVGameSmall(betterproto.Message):
+class SourceTVGameSmall(betterproto.Message):
     activate_time: int = betterproto.uint32_field(1)
     deactivate_time: int = betterproto.uint32_field(2)
     server_steam_id: int = betterproto.uint64_field(3)
@@ -38,7 +38,7 @@ class CSourceTVGameSmall(betterproto.Message):
     radiant_lead: int = betterproto.int32_field(19)
     radiant_score: int = betterproto.uint32_field(20)
     dire_score: int = betterproto.uint32_field(21)
-    players: list[CSourceTVGameSmallPlayer] = betterproto.message_field(22)
+    players: list[SourceTVGameSmallPlayer] = betterproto.message_field(22)
     building_state: float = betterproto.fixed32_field(23)
     weekend_tourney_tournament_id: int = betterproto.uint32_field(26)
     weekend_tourney_division: int = betterproto.uint32_field(27)
@@ -48,7 +48,7 @@ class CSourceTVGameSmall(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class CSourceTVGameSmallPlayer(betterproto.Message):
+class SourceTVGameSmallPlayer(betterproto.Message):
     account_id: int = betterproto.uint32_field(1)
     hero_id: int = betterproto.uint32_field(2)
     team_slot: int = betterproto.uint32_field(3)
@@ -71,6 +71,6 @@ class GCToClientFindTopSourceTVGamesResponse(GCProtobufMessage, msg=EMsg.GCToCli
     start_game: int = betterproto.uint32_field(4)
     num_games: int = betterproto.uint32_field(5)
     game_list_index: int = betterproto.uint32_field(6)
-    game_list: list[CSourceTVGameSmall] = betterproto.message_field(7)
+    game_list: list[SourceTVGameSmall] = betterproto.message_field(7)
     specific_games: bool = betterproto.bool_field(8)
-    bot_game: CSourceTVGameSmall = betterproto.message_field(9)
+    bot_game: SourceTVGameSmall = betterproto.message_field(9)

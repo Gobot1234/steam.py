@@ -55,7 +55,9 @@ class Client(Client_):
             Muerta is currently being played. It will not look into lower MMR match than top100 to extend the return
             list to number of games from `limit` argument. This behavior is consistent with how Watch Tab works.
         limit
-            Maximum amount of matches to be fetched.
+            Maximum amount of matches to fetch. This works rather as a boundary limit than "number of matches" to
+            fetch, i.e. Dota 2 will sometimes give 90 matches when `limit` is 100.
+            Or even "successfully" return 0 matches.
 
         Returns
         -------
@@ -95,8 +97,9 @@ class Client(Client_):
 
         async with timeout(30.0):
             responses = await asyncio.gather(*futures)
+        # each response.game_list is 10 games (except possibly last one if filtered by hero)
         live_matches = [LiveMatch(self._state, match) for response in responses for match in response.game_list]
-        # still need to slice the list, i.e. in case user asks for 85 games, but live_matches above will have 90 matches
+        # still need to slice the list, i.e. limit = 85, but live_matches above will have 90 matches
         return live_matches[:limit]
 
     async def tournament_live_matches(

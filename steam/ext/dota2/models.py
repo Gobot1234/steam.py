@@ -102,7 +102,7 @@ class LiveMatch:
         Custom Game Difficulty
     """
 
-    def __init__(self, state: GCState, proto: watch.CSourceTVGameSmall) -> None:
+    def __init__(self, state: GCState, proto: watch.SourceTVGameSmall) -> None:
         self._state = state
 
         self.id = proto.match_id
