@@ -283,115 +283,213 @@ class Hero(IntEnum):
         return self.value
 
 
-class EMsg(IntEnum):
-    # EGCBaseClientMsg - gcsystemmsgs.proto
-    GCPingRequest                  = 3001
-    GCPingResponse                 = 3002
-    GCToClientPollConvarRequest    = 3003
-    GCToClientPollConvarResponse   = 3004
-    GCCompressedMsgToClient        = 3005
-    GCCompressedMsgToClient_Legacy = 523
-    GCToClientRequestDropped       = 3006
-    GCClientWelcome                = 4004
-    GCServerWelcome                = 4005
-    GCClientHello                  = 4006
-    GCServerHello                  = 4007
-    GCClientConnectionStatus       = 4009
-    GCServerConnectionStatus       = 4010
+class GameMode(IntEnum):  # source: dota_shared_enums.proto
+    NONE                = 0
+    AllPick             = 1
+    CaptainsMode        = 2
+    RandomDraft         = 3
+    SingleDraft         = 4
+    AllRandom           = 5
+    Intro               = 6
+    Diretide            = 7
+    ReverseCaptainsMode = 8
+    Xmas                = 9
+    Tutorial            = 10
+    MidOnly             = 11
+    LeastPlayed         = 12
+    NewPlayerMode       = 13
+    FH                  = 14
+    Custom              = 15
+    CaptainsDraft       = 16
+    BD                  = 17
+    AbilityDraft        = 18
+    Event               = 19
+    AllRandomDeathMatch = 20
+    Mid1v1              = 21
+    AllDraft            = 22
+    Turbo               = 23
+    Mutation            = 24
+    CoachesChallenge    = 25
 
-    # EDOTAGCMsg - dota_gcmessages_msgid.proto
-    GCDOTABase                                                   = 7000
-    GCGameMatchSignOut                                           = 7004
-    GCGameMatchSignOutResponse                                   = 7005
-    GCJoinChatChannel                                            = 7009
-    GCJoinChatChannelResponse                                    = 7010
-    GCOtherJoinedChannel                                         = 7013
-    GCOtherLeftChannel                                           = 7014
+    @classproperty
+    def DISPLAY_NAMES(cls: type[Self]) -> Mapping[GameMode, str]:  # type: ignore
+        return {
+                cls.NONE               : "None",
+                cls.AllPick            : "All Pick",
+                cls.CaptainsMode       : "Captains Mode",
+                cls.RandomDraft        : "Random Draft",
+                cls.SingleDraft        : "Single Draft",
+                cls.AllRandom          : "All Random",
+                cls.Intro              : "Intro",
+                cls.Diretide           : "Diretide",
+                cls.ReverseCaptainsMode: "Reverse Captains Mode",
+                cls.Xmas               : "Frostivus",
+                cls.Tutorial           : "Tutorial",
+                cls.MidOnly            : "Mid Only",
+                cls.LeastPlayed        : "Least Played",
+                cls.NewPlayerMode      : "New Player Mode",
+                cls.FH                 : "Compendium Match",
+                cls.Custom             : "Custom Game",
+                cls.CaptainsDraft      : "Captains Draft",
+                cls.BD                 : "Balanced Draft",
+                cls.AbilityDraft       : "Ability Draft",
+                cls.Event              : "Event Game",
+                cls.AllRandomDeathMatch: "All Random DeathMatch",
+                cls.Mid1v1             : "1v1 Mid Only",
+                cls.AllDraft           : "All Pick",
+                cls.Turbo              : "Turbo",
+                cls.Mutation           : "Mutation",
+                cls.CoachesChallenge   : "Coaches Challenge",
+        }
+
+    @property
+    def display_name(self) -> str:
+        return self.DISPLAY_NAMES[self]
+
+
+class LobbyType(IntEnum):  # source: dota_gcmessages_common_lobby.proto
+    Invalid          = -1
+    CasualMatch      = 0
+    Practice         = 1
+    CoopBotMatch     = 4
+    CompetitiveMatch = 7
+    WeekendTourney   = 9
+    LocalBotMatch    = 10
+    Spectator        = 11
+    EventMatch       = 12
+    NewPlayerPool    = 14
+    FeaturedGamemode = 15
+
+    @classproperty
+    def DISPLAY_NAMES(cls: type[Self]) -> Mapping[LobbyType, str]:  # type: ignore
+        return {
+            cls.Invalid         : 'Invalid',
+            cls.CasualMatch     : 'Unranked',
+            cls.Practice        : 'Practice',
+            cls.CoopBotMatch    : 'Coop Bots',
+            cls.CompetitiveMatch: 'Ranked',
+            cls.WeekendTourney  : 'Battle Cup',
+            cls.LocalBotMatch   : 'Local Bot Match',
+            cls.Spectator       : 'Spectator',
+            cls.EventMatch      : 'Event',
+            cls.NewPlayerPool   : 'New Player Mode',
+            cls.FeaturedGamemode: 'Featured Gamemode',
+        }
+
+    @property
+    def display_name(self) -> str:
+        return self.DISPLAY_NAMES[self]
+
+
+class EMsg(IntEnum):
+    # EGCBaseClientMsg - source: gcsystemmsgs.proto
+    PingRequest                  = 3001
+    PingResponse                 = 3002
+    GCToClientPollConvarRequest  = 3003
+    GCToClientPollConvarResponse = 3004
+    CompressedMsgToClient        = 3005
+    CompressedMsgToClient_Legacy = 523
+    GCToClientRequestDropped     = 3006
+    ClientWelcome                = 4004
+    ServerWelcome                = 4005
+    ClientHello                  = 4006
+    ServerHello                  = 4007
+    ClientConnectionStatus       = 4009
+    ServerConnectionStatus       = 4010
+
+    # EDOTAGCMsg - source: dota_gcmessages_msgid.proto
+    DOTABase                                                     = 7000
+    GameMatchSignOut                                             = 7004
+    GameMatchSignOutResponse                                     = 7005
+    JoinChatChannel                                              = 7009
+    JoinChatChannelResponse                                      = 7010
+    OtherJoinedChannel                                           = 7013
+    OtherLeftChannel                                             = 7014
     ServerToGCRequestStatus                                      = 7026
-    GCStartFindingMatch                                          = 7033
-    GCConnectedPlayers                                           = 7034
-    GCAbandonCurrentGame                                         = 7035
-    GCStopFindingMatch                                           = 7036
-    GCPracticeLobbyCreate                                        = 7038
-    GCPracticeLobbyLeave                                         = 7040
-    GCPracticeLobbyLaunch                                        = 7041
-    GCPracticeLobbyList                                          = 7042
-    GCPracticeLobbyListResponse                                  = 7043
-    GCPracticeLobbyJoin                                          = 7044
-    GCPracticeLobbySetDetails                                    = 7046
-    GCPracticeLobbySetTeamSlot                                   = 7047
-    GCInitialQuestionnaireResponse                               = 7049
-    GCPracticeLobbyResponse                                      = 7055
-    GCBroadcastNotification                                      = 7056
-    GCLiveScoreboardUpdate                                       = 7057
-    GCRequestChatChannelList                                     = 7060
-    GCRequestChatChannelListResponse                             = 7061
-    GCReadyUp                                                    = 7070
-    GCKickedFromMatchmakingQueue                                 = 7071
-    GCLeaverDetected                                             = 7072
-    GCSpectateFriendGame                                         = 7073
-    GCSpectateFriendGameResponse                                 = 7074
-    GCReportsRemainingRequest                                    = 7076
-    GCReportsRemainingResponse                                   = 7077
-    GCSubmitPlayerReport                                         = 7078
-    GCSubmitPlayerReportResponse                                 = 7079
-    GCPracticeLobbyKick                                          = 7081
-    GCSubmitPlayerReportV2                                       = 7082
-    GCSubmitPlayerReportResponseV2                               = 7083
-    GCRequestSaveGames                                           = 7084
-    GCRequestSaveGamesServer                                     = 7085
-    GCRequestSaveGamesResponse                                   = 7086
-    GCLeaverDetectedResponse                                     = 7087
-    GCPlayerFailedToConnect                                      = 7088
-    GCGCToRelayConnect                                           = 7089
-    GCGCToRelayConnectresponse                                   = 7090
-    GCWatchGame                                                  = 7091
-    GCWatchGameResponse                                          = 7092
-    GCBanStatusRequest                                           = 7093
-    GCBanStatusResponse                                          = 7094
-    GCMatchDetailsRequest                                        = 7095
-    GCMatchDetailsResponse                                       = 7096
-    GCCancelWatchGame                                            = 7097
-    GCPopup                                                      = 7102
-    GCFriendPracticeLobbyListRequest                             = 7111
-    GCFriendPracticeLobbyListResponse                            = 7112
-    GCPracticeLobbyJoinResponse                                  = 7113
-    GCCreateTeam                                                 = 7115
-    GCCreateTeamResponse                                         = 7116
-    GCTeamInvite_InviterToGC                                     = 7122
-    GCTeamInvite_GCImmediateResponseToInviter                    = 7123
-    GCTeamInvite_GCRequestToInvitee                              = 7124
-    GCTeamInvite_InviteeResponseToGC                             = 7125
-    GCTeamInvite_GCResponseToInviter                             = 7126
-    GCTeamInvite_GCResponseToInvitee                             = 7127
-    GCKickTeamMember                                             = 7128
-    GCKickTeamMemberResponse                                     = 7129
-    GCLeaveTeam                                                  = 7130
-    GCLeaveTeamResponse                                          = 7131
-    GCApplyTeamToPracticeLobby                                   = 7142
-    GCTransferTeamAdmin                                          = 7144
-    GCPracticeLobbyJoinBroadcastChannel                          = 7149
-    GC_TournamentItemEvent                                       = 7150
-    GC_TournamentItemEventResponse                               = 7151
+    StartFindingMatch                                            = 7033
+    ConnectedPlayers                                             = 7034
+    AbandonCurrentGame                                           = 7035
+    StopFindingMatch                                             = 7036
+    PracticeLobbyCreate                                          = 7038
+    PracticeLobbyLeave                                           = 7040
+    PracticeLobbyLaunch                                          = 7041
+    PracticeLobbyList                                            = 7042
+    PracticeLobbyListResponse                                    = 7043
+    PracticeLobbyJoin                                            = 7044
+    PracticeLobbySetDetails                                      = 7046
+    PracticeLobbySetTeamSlot                                     = 7047
+    InitialQuestionnaireResponse                                 = 7049
+    PracticeLobbyResponse                                        = 7055
+    BroadcastNotification                                        = 7056
+    LiveScoreboardUpdate                                         = 7057
+    RequestChatChannelList                                       = 7060
+    RequestChatChannelListResponse                               = 7061
+    ReadyUp                                                      = 7070
+    KickedFromMatchmakingQueue                                   = 7071
+    LeaverDetected                                               = 7072
+    SpectateFriendGame                                           = 7073
+    SpectateFriendGameResponse                                   = 7074
+    ReportsRemainingRequest                                      = 7076
+    ReportsRemainingResponse                                     = 7077
+    SubmitPlayerReport                                           = 7078
+    SubmitPlayerReportResponse                                   = 7079
+    PracticeLobbyKick                                            = 7081
+    SubmitPlayerReportV2                                         = 7082
+    SubmitPlayerReportResponseV2                                 = 7083
+    RequestSaveGames                                             = 7084
+    RequestSaveGamesServer                                       = 7085
+    RequestSaveGamesResponse                                     = 7086
+    LeaverDetectedResponse                                       = 7087
+    PlayerFailedToConnect                                        = 7088
+    GCToRelayConnect                                             = 7089
+    GCToRelayConnectresponse                                     = 7090
+    WatchGame                                                    = 7091
+    WatchGameResponse                                            = 7092
+    BanStatusRequest                                             = 7093
+    BanStatusResponse                                            = 7094
+    MatchDetailsRequest                                          = 7095
+    MatchDetailsResponse                                         = 7096
+    CancelWatchGame                                              = 7097
+    Popup                                                        = 7102
+    FriendPracticeLobbyListRequest                               = 7111
+    FriendPracticeLobbyListResponse                              = 7112
+    PracticeLobbyJoinResponse                                    = 7113
+    CreateTeam                                                   = 7115
+    CreateTeamResponse                                           = 7116
+    TeamInviteInviterToGC                                        = 7122
+    TeamInviteImmediateResponseToInviter                         = 7123
+    TeamInviteRequestToInvitee                                   = 7124
+    TeamInviteInviteeResponseToGC                                = 7125
+    TeamInviteResponseToInviter                                  = 7126
+    TeamInviteResponseToInvitee                                  = 7127
+    KickTeamMember                                               = 7128
+    KickTeamMemberResponse                                       = 7129
+    LeaveTeam                                                    = 7130
+    LeaveTeamResponse                                            = 7131
+    ApplyTeamToPracticeLobby                                     = 7142
+    TransferTeamAdmin                                            = 7144
+    PracticeLobbyJoinBroadcastChannel                            = 7149
+    TournamentItemEvent                                          = 7150
+    TournamentItemEventResponse                                  = 7151
     TeamFanfare                                                  = 7156
     ResponseTeamFanfare                                          = 7157
-    GC_GameServerUploadSaveGame                                  = 7158
-    GC_GameServerSaveGameResult                                  = 7159
-    GC_GameServerGetLoadGame                                     = 7160
-    GC_GameServerGetLoadGameResult                               = 7161
-    GCEditTeamDetails                                            = 7166
-    GCEditTeamDetailsResponse                                    = 7167
-    GCReadyUpStatus                                              = 7170
+    GameServerUploadSaveGame                                     = 7158
+    GameServerSaveGameResult                                     = 7159
+    GameServerGetLoadGame                                        = 7160
+    GameServerGetLoadGameResult                                  = 7161
+    EditTeamDetails                                              = 7166
+    EditTeamDetailsResponse                                      = 7167
+    ReadyUpStatus                                                = 7170
     GCToGCMatchCompleted                                         = 7186
-    GCBalancedShuffleLobby                                       = 7188
-    GCMatchmakingStatsRequest                                    = 7197
-    GCMatchmakingStatsResponse                                   = 7198
-    GCBotGameCreate                                              = 7199
-    GCSetMatchHistoryAccess                                      = 7200
-    GCSetMatchHistoryAccessResponse                              = 7201
+    BalancedShuffleLobby                                         = 7188
+    MatchmakingStatsRequest                                      = 7197
+    MatchmakingStatsResponse                                     = 7198
+    BotGameCreate                                                = 7199
+    SetMatchHistoryAccess                                        = 7200
+    SetMatchHistoryAccessResponse                                = 7201
     UpgradeLeagueItem                                            = 7203
     UpgradeLeagueItemResponse                                    = 7204
-    GCWatchDownloadedReplay                                      = 7206
+    WatchDownloadedReplay                                        = 7206
     ClientsRejoinChatChannels                                    = 7217
     GCToGCGetUserChatInfo                                        = 7218
     GCToGCGetUserChatInfoResponse                                = 7219
@@ -408,32 +506,32 @@ class EMsg(IntEnum):
     GCToGCValidateTeamResponse                                   = 7242
     GCToGCGetLeagueAdmin                                         = 7255
     GCToGCGetLeagueAdminResponse                                 = 7256
-    GCLeaveChatChannel                                           = 7272
-    GCChatMessage                                                = 7273
-    GCGetHeroStandings                                           = 7274
-    GCGetHeroStandingsResponse                                   = 7275
-    GCItemEditorReservationsRequest                              = 7283
-    GCItemEditorReservationsResponse                             = 7284
-    GCItemEditorReserveItemDef                                   = 7285
-    GCItemEditorReserveItemDefResponse                           = 7286
-    GCItemEditorReleaseReservation                               = 7287
-    GCItemEditorReleaseReservationResponse                       = 7288
-    GCRewardTutorialPrizes                                       = 7289
-    GCFantasyLivePlayerStats                                     = 7308
-    GCFantasyFinalPlayerStats                                    = 7309
-    GCFlipLobbyTeams                                             = 7320
+    LeaveChatChannel                                             = 7272
+    ChatMessage                                                  = 7273
+    GetHeroStandings                                             = 7274
+    GetHeroStandingsResponse                                     = 7275
+    ItemEditorReservationsRequest                                = 7283
+    ItemEditorReservationsResponse                               = 7284
+    ItemEditorReserveItemDef                                     = 7285
+    ItemEditorReserveItemDefResponse                             = 7286
+    ItemEditorReleaseReservation                                 = 7287
+    ItemEditorReleaseReservationResponse                         = 7288
+    RewardTutorialPrizes                                         = 7289
+    FantasyLivePlayerStats                                       = 7308
+    FantasyFinalPlayerStats                                      = 7309
+    FlipLobbyTeams                                               = 7320
     GCToGCEvaluateReportedPlayer                                 = 7322
     GCToGCEvaluateReportedPlayerResponse                         = 7323
     GCToGCProcessPlayerReportForTarget                           = 7324
     GCToGCProcessReportSuccess                                   = 7325
-    GCNotifyAccountFlagsChange                                   = 7326
-    GCSetProfilePrivacy                                          = 7327
-    GCSetProfilePrivacyResponse                                  = 7328
-    GCClientSuspended                                            = 7342
-    GCPartyMemberSetCoach                                        = 7343
-    GCPracticeLobbySetCoach                                      = 7346
-    GCChatModeratorBan                                           = 7359
-    GCLobbyUpdateBroadcastChannelInfo                            = 7367
+    NotifyAccountFlagsChange                                     = 7326
+    SetProfilePrivacy                                            = 7327
+    SetProfilePrivacyResponse                                    = 7328
+    ClientSuspended                                              = 7342
+    PartyMemberSetCoach                                          = 7343
+    PracticeLobbySetCoach                                        = 7346
+    ChatModeratorBan                                             = 7359
+    LobbyUpdateBroadcastChannelInfo                              = 7367
     GCToGCGrantTournamentItem                                    = 7372
     GCToGCUpgradeTwitchViewerItems                               = 7375
     GCToGCGetLiveMatchAffiliates                                 = 7376
@@ -441,17 +539,17 @@ class EMsg(IntEnum):
     GCToGCUpdatePlayerPennantCounts                              = 7378
     GCToGCGetPlayerPennantCounts                                 = 7379
     GCToGCGetPlayerPennantCountsResponse                         = 7380
-    GCGameMatchSignOutPermissionRequest                          = 7381
-    GCGameMatchSignOutPermissionResponse                         = 7382
-    DOTAAwardEventPoints                                         = 7384
-    DOTAGetEventPoints                                           = 7387
-    DOTAGetEventPointsResponse                                   = 7388
-    GCPartyLeaderWatchGamePrompt                                 = 7397
-    GCCompendiumSetSelection                                     = 7405
-    GCCompendiumDataRequest                                      = 7406
-    GCCompendiumDataResponse                                     = 7407
-    DOTAGetPlayerMatchHistory                                    = 7408
-    DOTAGetPlayerMatchHistoryResponse                            = 7409
+    GameMatchSignOutPermissionRequest                            = 7381
+    GameMatchSignOutPermissionResponse                           = 7382
+    AwardEventPoints                                             = 7384
+    GetEventPoints                                               = 7387
+    GetEventPointsResponse                                       = 7388
+    PartyLeaderWatchGamePrompt                                   = 7397
+    CompendiumSetSelection                                       = 7405
+    CompendiumDataRequest                                        = 7406
+    CompendiumDataResponse                                       = 7407
+    GetPlayerMatchHistory                                        = 7408
+    GetPlayerMatchHistoryResponse                                = 7409
     GCToGCMatchmakingAddParty                                    = 7410
     GCToGCMatchmakingRemoveParty                                 = 7411
     GCToGCMatchmakingRemoveAllParties                            = 7412
@@ -464,30 +562,30 @@ class EMsg(IntEnum):
     ServerToGCEvaluateToxicChat                                  = 7419
     ServerToGCEvaluateToxicChatResponse                          = 7420
     GCToGCProcessMatchLeaver                                     = 7426
-    GCNotificationsRequest                                       = 7427
-    GCNotificationsResponse                                      = 7428
+    NotificationsRequest                                         = 7427
+    NotificationsResponse                                        = 7428
     GCToGCModifyNotification                                     = 7429
-    GCLeagueAdminList                                            = 7434
-    GCNotificationsMarkReadRequest                               = 7435
+    LeagueAdminList                                              = 7434
+    NotificationsMarkReadRequest                                 = 7435
     ServerToGCRequestBatchPlayerResources                        = 7450
     ServerToGCRequestBatchPlayerResourcesResponse                = 7451
-    GCCompendiumSetSelectionResponse                             = 7453
-    GCPlayerInfoSubmit                                           = 7456
-    GCPlayerInfoSubmitResponse                                   = 7457
+    CompendiumSetSelectionResponse                               = 7453
+    PlayerInfoSubmit                                             = 7456
+    PlayerInfoSubmitResponse                                     = 7457
     GCToGCGetAccountLevel                                        = 7458
     GCToGCGetAccountLevelResponse                                = 7459
     DOTAGetWeekendTourneySchedule                                = 7464
     DOTAWeekendTourneySchedule                                   = 7465
-    GCJoinableCustomGameModesRequest                             = 7466
-    GCJoinableCustomGameModesResponse                            = 7467
-    GCJoinableCustomLobbiesRequest                               = 7468
-    GCJoinableCustomLobbiesResponse                              = 7469
-    GCQuickJoinCustomLobby                                       = 7470
-    GCQuickJoinCustomLobbyResponse                               = 7471
+    JoinableCustomGameModesRequest                               = 7466
+    JoinableCustomGameModesResponse                              = 7467
+    JoinableCustomLobbiesRequest                                 = 7468
+    JoinableCustomLobbiesResponse                                = 7469
+    QuickJoinCustomLobby                                         = 7470
+    QuickJoinCustomLobbyResponse                                 = 7471
     GCToGCGrantEventPointAction                                  = 7472
     GCToGCSetCompendiumSelection                                 = 7478
-    GCHasItemQuery                                               = 7484
-    GCHasItemResponse                                            = 7485
+    HasItemQuery                                                 = 7484
+    HasItemResponse                                              = 7485
     GCToGCGrantEventPointActionMsg                               = 7488
     GCToGCGetCompendiumSelections                                = 7492
     GCToGCGetCompendiumSelectionsResponse                        = 7493
@@ -499,9 +597,9 @@ class EMsg(IntEnum):
     SignOutDraftInfo                                             = 7502
     ClientToGCEmoticonDataRequest                                = 7503
     GCToClientEmoticonData                                       = 7504
-    GCPracticeLobbyToggleBroadcastChannelCameramanStatus         = 7505
-    DOTARedeemItem                                               = 7518
-    DOTARedeemItemResponse                                       = 7519
+    PracticeLobbyToggleBroadcastChannelCameramanStatus           = 7505
+    RedeemItem                                                   = 7518
+    RedeemItemResponse                                           = 7519
     ClientToGCGetAllHeroProgress                                 = 7521
     ClientToGCGetAllHeroProgressResponse                         = 7522
     GCToGCGetServerForClient                                     = 7523
@@ -530,7 +628,7 @@ class EMsg(IntEnum):
     ServerToGCRequestStatus_Response                             = 7546
     ClientToGCCreateHeroStatue                                   = 7547
     GCToClientHeroStatueCreateResult                             = 7548
-    GCGCToLANServerRelayConnect                                  = 7549
+    GCToLANServerRelayConnect                                    = 7549
     ClientToGCAcknowledgeBattleReport                            = 7550
     ClientToGCAcknowledgeBattleReportResponse                    = 7551
     ClientToGCGetBattleReportMatchHistory                        = 7552
@@ -550,7 +648,7 @@ class EMsg(IntEnum):
     GCToGCSendAccountsEventPoints                                = 7583
     ClientToGCRerollPlayerChallenge                              = 7584
     ServerToGCRerollPlayerChallenge                              = 7585
-    GCRerollPlayerChallengeResponse                              = 7586
+    RerollPlayerChallengeResponse                                = 7586
     SignOutUpdatePlayerChallenge                                 = 7587
     ClientToGCSetPartyLeader                                     = 7588
     ClientToGCCancelPartyInvites                                 = 7589
@@ -572,13 +670,13 @@ class EMsg(IntEnum):
     SQLSetIsLeagueAdmin                                          = 7630
     GCToGCGetLiveLeagueMatches                                   = 7631
     GCToGCGetLiveLeagueMatchesResponse                           = 7632
-    DOTALeagueInfoListAdminsRequest                              = 7633
-    DOTALeagueInfoListAdminsReponse                              = 7634
+    LeagueInfoListAdminsRequest                                  = 7633
+    LeagueInfoListAdminsReponse                                  = 7634
     GCToGCLeagueMatchStarted                                     = 7645
     GCToGCLeagueMatchCompleted                                   = 7646
     GCToGCLeagueMatchStartedResponse                             = 7647
-    DOTALeagueAvailableLobbyNodesRequest                         = 7650
-    DOTALeagueAvailableLobbyNodes                                = 7651
+    LeagueAvailableLobbyNodesRequest                             = 7650
+    LeagueAvailableLobbyNodes                                    = 7651
     GCToGCLeagueRequest                                          = 7652
     GCToGCLeagueResponse                                         = 7653
     GCToGCLeagueNodeGroupRequest                                 = 7654
@@ -622,19 +720,19 @@ class EMsg(IntEnum):
     ServerToGCLockCharmTrading                                   = 8004
     ClientToGCPlayerStatsRequest                                 = 8006
     GCToClientPlayerStatsResponse                                = 8007
-    GCClearPracticeLobbyTeam                                     = 8008
+    ClearPracticeLobbyTeam                                       = 8008
     ClientToGCFindTopSourceTVGames                               = 8009
     GCToClientFindTopSourceTVGamesResponse                       = 8010
-    GCLobbyList                                                  = 8011
-    GCLobbyListResponse                                          = 8012
-    GCPlayerStatsMatchSignOut                                    = 8013
+    LobbyList                                                    = 8011
+    LobbyListResponse                                            = 8012
+    PlayerStatsMatchSignOut                                      = 8013
     ClientToGCSocialFeedPostCommentRequest                       = 8016
     GCToClientSocialFeedPostCommentResponse                      = 8017
     ClientToGCCustomGamesFriendsPlayedRequest                    = 8018
     GCToClientCustomGamesFriendsPlayedResponse                   = 8019
     ClientToGCFriendsPlayedCustomGameRequest                     = 8020
     GCToClientFriendsPlayedCustomGameResponse                    = 8021
-    GCTopCustomGamesList                                         = 8024
+    TopCustomGamesList                                           = 8024
     ClientToGCSetPartyOpen                                       = 8029
     ClientToGCMergePartyInvite                                   = 8030
     GCToClientMergeGroupInviteReply                              = 8031
@@ -649,15 +747,15 @@ class EMsg(IntEnum):
     GCToServerRealtimeStatsStartStop                             = 8042
     GCToGCGetServersForClients                                   = 8045
     GCToGCGetServersForClientsResponse                           = 8046
-    GCPracticeLobbyKickFromTeam                                  = 8047
-    DOTAChatGetMemberCount                                       = 8048
-    DOTAChatGetMemberCountResponse                               = 8049
+    PracticeLobbyKickFromTeam                                    = 8047
+    ChatGetMemberCount                                           = 8048
+    ChatGetMemberCountResponse                                   = 8049
     ClientToGCSocialFeedPostMessageRequest                       = 8050
     GCToClientSocialFeedPostMessageResponse                      = 8051
     CustomGameListenServerStartedLoading                         = 8052
     CustomGameClientFinishedLoading                              = 8053
-    GCPracticeLobbyCloseBroadcastChannel                         = 8054
-    GCStartFindingMatchResponse                                  = 8055
+    PracticeLobbyCloseBroadcastChannel                           = 8054
+    StartFindingMatchResponse                                    = 8055
     SQLGCToGCGrantAccountFlag                                    = 8057
     GCToClientTopLeagueMatchesResponse                           = 8061
     GCToClientTopFriendMatchesResponse                           = 8062
@@ -675,8 +773,8 @@ class EMsg(IntEnum):
     ClientToGCGetQuestProgressResponse                           = 8079
     SignOutXPCoins                                               = 8080
     GCToClientMatchSignedOut                                     = 8081
-    GCGetHeroStatsHistory                                        = 8082
-    GCGetHeroStatsHistoryResponse                                = 8083
+    GetHeroStatsHistory                                          = 8082
+    GetHeroStatsHistoryResponse                                  = 8083
     ClientToGCPrivateChatInvite                                  = 8084
     ClientToGCPrivateChatKick                                    = 8088
     ClientToGCPrivateChatPromote                                 = 8089
@@ -709,14 +807,14 @@ class EMsg(IntEnum):
     ClientToGCVoteForArcanaResponse                              = 8129
     ClientToGCRequestArcanaVotesRemaining                        = 8130
     ClientToGCRequestArcanaVotesRemainingResponse                = 8131
-    GCTransferTeamAdminResponse                                  = 8132
+    TransferTeamAdminResponse                                    = 8132
     GCToClientTeamInfo                                           = 8135
     GCToClientTeamsInfo                                          = 8136
     ClientToGCMyTeamInfoRequest                                  = 8137
     ClientToGCPublishUserStat                                    = 8140
     GCToGCSignoutSpendWager                                      = 8141
-    GCSubmitLobbyMVPVote                                         = 8144
-    GCSubmitLobbyMVPVoteResponse                                 = 8145
+    SubmitLobbyMVPVote                                           = 8144
+    SubmitLobbyMVPVoteResponse                                   = 8145
     SignOutCommunityGoalProgress                                 = 8150
     GCToClientLobbyMVPAwarded                                    = 8152
     GCToClientQuestProgressUpdated                               = 8153
@@ -747,8 +845,8 @@ class EMsg(IntEnum):
     ClientToGCSetPlayerCardRosterResponse                        = 8181
     ServerToGCCloseCompendiumInGamePredictionVotingResponse      = 8183
     LobbyBattleCupVictory                                        = 8186
-    GCGetPlayerCardItemInfo                                      = 8187
-    GCGetPlayerCardItemInfoResponse                              = 8188
+    GetPlayerCardItemInfo                                        = 8187
+    GetPlayerCardItemInfoResponse                                = 8188
     ClientToGCRequestSteamDatagramTicket                         = 8189
     ClientToGCRequestSteamDatagramTicketResponse                 = 8190
     GCToClientBattlePassRollupRequest                            = 8191
@@ -757,21 +855,21 @@ class EMsg(IntEnum):
     ClientToGCTransferSeasonalMMRResponse                        = 8194
     GCToGCPublicChatCommunicationBan                             = 8195
     GCToGCUpdateAccountInfo                                      = 8196
-    GCChatReportPublicSpam                                       = 8197
+    ChatReportPublicSpam                                         = 8197
     ClientToGCSetPartyBuilderOptions                             = 8198
     ClientToGCSetPartyBuilderOptionsResponse                     = 8199
     GCToClientPlaytestStatus                                     = 8200
     ClientToGCJoinPlaytest                                       = 8201
     ClientToGCJoinPlaytestResponse                               = 8202
     LobbyPlaytestDetails                                         = 8203
-    DOTASetFavoriteTeam                                          = 8204
+    SetFavoriteTeam                                              = 8204
     GCToClientBattlePassRollupListRequest                        = 8205
     GCToClientBattlePassRollupListResponse                       = 8206
-    DOTAClaimEventAction                                         = 8209
-    DOTAClaimEventActionResponse                                 = 8210
-    DOTAGetPeriodicResource                                      = 8211
-    DOTAGetPeriodicResourceResponse                              = 8212
-    DOTAPeriodicResourceUpdated                                  = 8213
+    ClaimEventAction                                             = 8209
+    ClaimEventActionResponse                                     = 8210
+    GetPeriodicResource                                          = 8211
+    GetPeriodicResourceResponse                                  = 8212
+    PeriodicResourceUpdated                                      = 8213
     ServerToGCSpendWager                                         = 8214
     GCToGCSignoutSpendWagerToken                                 = 8215
     SubmitTriviaQuestionAnswer                                   = 8216
@@ -896,8 +994,8 @@ class EMsg(IntEnum):
     DevDeleteEventActionsResponse                                = 8366
     GCToGCGetAllHeroCurrent                                      = 8635
     GCToGCGetAllHeroCurrentResponse                              = 8636
-    GCSubmitPlayerAvoidRequest                                   = 8637
-    GCSubmitPlayerAvoidRequestResponse                           = 8638
+    SubmitPlayerAvoidRequest                                     = 8637
+    SubmitPlayerAvoidRequestResponse                             = 8638
     GCToClientNotificationsUpdated                               = 8639
     GCtoGCAssociatedExploiterAccountInfo                         = 8640
     GCtoGCAssociatedExploiterAccountInfoResponse                 = 8641

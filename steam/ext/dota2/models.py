@@ -4,16 +4,15 @@ from __future__ import annotations
 
 import datetime
 from dataclasses import dataclass
+from operator import attrgetter
 from typing import TYPE_CHECKING, Generic, Self, TypeVar
 
-from ... import abc
-from .enums import Hero
-from .protobufs.lobby import CSODOTALobbyLobbyType
-from .protobufs.shared_enums import DOTAGameMode
+from ... import abc, user
+from ...utils import DateTime
+from .enums import GameMode, Hero, LobbyType
 
 if TYPE_CHECKING:
-    from .protobufs.common import CMsgDOTAProfileCard
-    from .protobufs.watch import CSourceTVGameSmall
+    from .protobufs import common, watch
     from .state import GCState
 
 __all__ = ("LiveMatch",)
@@ -44,9 +43,9 @@ class TournamentTeam:
 
 @dataclass(slots=True)
 class TournamentMatch:
-    league_id: int
+    league_id: int  # todo: can I get more info like name of the tournament
     series_id: int
-    teams: list[TournamentTeam]
+    teams: tuple[TournamentTeam, TournamentTeam]
     battle_cup_info: BattleCup | None
 
 
@@ -100,24 +99,24 @@ class LiveMatch:
         Custom Game Difficulty
     """
 
-    def __init__(self, state: GCState, proto: CSourceTVGameSmall) -> None:
+    def __init__(self, state: GCState, proto: watch.CSourceTVGameSmall) -> None:
         self._state = state
 
         self.id = proto.match_id
-        self.server_steam_id: int = proto.match_id
-        self.lobby_id: int = proto.lobby_id
+        self.server_steam_id = proto.server_steam_id
+        self.lobby_id = proto.lobby_id
 
-        self.lobby_type = CSODOTALobbyLobbyType.try_value(proto.lobby_type)
-        self.game_mode = DOTAGameMode.try_value(proto.game_mode)
-        self.average_mmr: int = proto.average_mmr
-        self.sort_score: int = proto.sort_score
-        self.spectators: int = proto.spectators
+        self.lobby_type = LobbyType.try_value(proto.lobby_type)
+        self.game_mode = GameMode.try_value(proto.game_mode)
+        self.average_mmr = proto.average_mmr
+        self.sort_score = proto.sort_score
+        self.spectators = proto.spectators
 
-        self.start_time = datetime.datetime.fromtimestamp(proto.activate_time, datetime.timezone.utc)
+        self.start_time = DateTime.from_timestamp(proto.activate_time)
         self.game_time = datetime.timedelta(seconds=proto.game_time)
         self.end_time = datetime.timedelta(seconds=proto.deactivate_time)
         self.delay = datetime.timedelta(seconds=proto.delay)
-        self.last_update_time = datetime.datetime.fromtimestamp(proto.last_update_time, datetime.timezone.utc)
+        self.last_update_time = DateTime.from_timestamp(proto.last_update_time)
 
         self.tournament: TournamentMatch | None = None
         if proto.league_id:  # if it is 0 then all tournament related fields are going to be 0 as well
@@ -133,10 +132,10 @@ class LiveMatch:
             self.tournament = TournamentMatch(
                 proto.league_id,
                 proto.series_id,
-                [
+                (
                     TournamentTeam(proto.team_id_radiant, proto.team_name_radiant, proto.team_logo_radiant),
                     TournamentTeam(proto.team_id_dire, proto.team_name_dire, proto.team_logo_dire),
-                ],
+                ),
                 battle_cup,
             )
 
@@ -161,7 +160,7 @@ class LiveMatch:
         ]
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} match_id={self.match_id} server_steam_id={self.server_steam_id}>"
+        return f"<{self.__class__.__name__} id={self.id} server_steam_id={self.server_steam_id}>"
 
 
 class PartialUser(abc.PartialUser):
@@ -174,8 +173,12 @@ class PartialUser(abc.PartialUser):
         return ProfileCard(self, msg)
 
 
+class User(PartialUser, user.User):  # type: ignore
+    __slots__ = ()
+
+
 class ProfileCard(Generic[UserT]):
-    def __init__(self, user: UserT, proto: CMsgDOTAProfileCard):
+    def __init__(self, user: UserT, proto: common.ProfileCard):
         self.user = user
         self.slots = proto.slots
         self.badge_points = proto.badge_points

@@ -10,5 +10,5 @@ from ....protobufs.msg import GCProtobufMessage
 from ..enums import EMsg
 
 
-class CMsgClientToGCGetProfileCard(GCProtobufMessage, msg=EMsg.ClientToGCGetProfileCard):
+class ClientToGCGetProfileCard(GCProtobufMessage, msg=EMsg.ClientToGCGetProfileCard):
     account_id: int = betterproto.uint32_field(1)

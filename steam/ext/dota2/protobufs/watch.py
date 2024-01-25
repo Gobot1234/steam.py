@@ -12,7 +12,7 @@ from ....protobufs.msg import GCProtobufMessage
 from ..enums import EMsg
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSourceTVGameSmall(betterproto.Message):
     activate_time: int = betterproto.uint32_field(1)
     deactivate_time: int = betterproto.uint32_field(2)
@@ -47,7 +47,7 @@ class CSourceTVGameSmall(betterproto.Message):
     custom_game_difficulty: int = betterproto.uint32_field(32)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class CSourceTVGameSmallPlayer(betterproto.Message):
     account_id: int = betterproto.uint32_field(1)
     hero_id: int = betterproto.uint32_field(2)
@@ -55,7 +55,7 @@ class CSourceTVGameSmallPlayer(betterproto.Message):
     team: int = betterproto.uint32_field(4)
 
 
-class CMsgClientToGCFindTopSourceTVGames(GCProtobufMessage, msg=EMsg.ClientToGCFindTopSourceTVGames):
+class ClientToGCFindTopSourceTVGames(GCProtobufMessage, msg=EMsg.ClientToGCFindTopSourceTVGames):
     search_key: str = betterproto.string_field(1)
     league_id: int = betterproto.uint32_field(2)
     hero_id: int = betterproto.uint32_field(3)
@@ -64,7 +64,7 @@ class CMsgClientToGCFindTopSourceTVGames(GCProtobufMessage, msg=EMsg.ClientToGCF
     lobby_ids: list[int] = betterproto.uint64_field(6)
 
 
-class CMsgGCToClientFindTopSourceTVGamesResponse(GCProtobufMessage, msg=EMsg.GCToClientFindTopSourceTVGamesResponse):
+class GCToClientFindTopSourceTVGamesResponse(GCProtobufMessage, msg=EMsg.GCToClientFindTopSourceTVGamesResponse):
     search_key: str = betterproto.string_field(1)
     league_id: int = betterproto.uint32_field(2)
     hero_id: int = betterproto.uint32_field(3)

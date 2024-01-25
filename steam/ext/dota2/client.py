@@ -13,10 +13,7 @@ from ...ext import commands
 from ...utils import MISSING
 from .enums import Hero
 from .models import LiveMatch
-from .protobufs.watch import (
-    CMsgClientToGCFindTopSourceTVGames,
-    CMsgGCToClientFindTopSourceTVGamesResponse,
-)
+from .protobufs import watch
 from .state import GCState  # noqa: TCH001
 
 __all__ = (
@@ -38,8 +35,9 @@ class Client(Client_):
 
     async def top_live_matches(
         self,
+        *,
         hero: Hero = MISSING,
-        max_matches: int = 100,
+        limit: int = 100,
     ) -> list[LiveMatch]:
         """Fetch top live matches
 
@@ -66,33 +64,33 @@ class Client(Client_):
         Raises
         ------
         ValueError
-            `max_games` value should be between 1 and 100 inclusively.
+            `limit` value should be between 1 and 100 inclusively.
         asyncio.TimeoutError
             Request time-outed. The reason is usually Dota 2 Game Coordinator lagging or being down.
         """
 
-        if max_matches < 1 or max_matches > 100:
-            raise ValueError("max_games value should be between 1 and 100.")
+        if limit < 1 or limit > 100:
+            raise ValueError("limit value should be between 1 and 100 inclusively.")
 
-        # mini-math: max_matches 100 -> start_game 90, 91 -> 90, 90 -> 80
-        start_game = (max_matches - 1) // 10 * 10
+        # mini-math: limit 100 -> start_game 90, 91 -> 90, 90 -> 80
+        start_game = (limit - 1) // 10 * 10
 
-        def callback(start_game: int, msg: CMsgGCToClientFindTopSourceTVGamesResponse) -> bool:
+        def callback(start_game: int, msg: watch.GCToClientFindTopSourceTVGamesResponse) -> bool:
             return msg.start_game == start_game
 
         futures = [
             self._state.ws.gc_wait_for(
-                CMsgGCToClientFindTopSourceTVGamesResponse,
+                watch.GCToClientFindTopSourceTVGamesResponse,
                 check=partial(callback, start_game),
             )
             for start_game in range(0, start_game + 1, 10)
         ]
 
         if hero is MISSING:
-            await self._state.ws.send_gc_message(CMsgClientToGCFindTopSourceTVGames(start_game=start_game))
+            await self._state.ws.send_gc_message(watch.ClientToGCFindTopSourceTVGames(start_game=start_game))
         else:
             await self._state.ws.send_gc_message(
-                CMsgClientToGCFindTopSourceTVGames(start_game=start_game, hero_id=hero.value)
+                watch.ClientToGCFindTopSourceTVGames(start_game=start_game, hero_id=hero.value)
             )
 
         async with timeout(30.0):
@@ -101,7 +99,7 @@ class Client(Client_):
             LiveMatch(self._state, match_info) for response in responses for match_info in response.game_list
         ]
         # still need to slice the list, i.e. in case user asks for 85 games, but live_matches above will have 90 matches
-        return live_matches[:max_matches]
+        return live_matches[:limit]
 
     async def tournament_live_games(
         self,
@@ -126,10 +124,10 @@ class Client(Client_):
         """
 
         future = self._state.ws.gc_wait_for(
-            CMsgGCToClientFindTopSourceTVGamesResponse,
+            watch.GCToClientFindTopSourceTVGamesResponse,
             check=lambda msg: msg.league_id == league_id,
         )
-        await self._state.ws.send_gc_message(CMsgClientToGCFindTopSourceTVGames(league_id=league_id))
+        await self._state.ws.send_gc_message(watch.ClientToGCFindTopSourceTVGames(league_id=league_id))
 
         async with timeout(30.0):
             response = await future
@@ -157,10 +155,10 @@ class Client(Client_):
             Request time-outed. The reason is usually Dota 2 Game Coordinator lagging or being down.
         """
         future = self._state.ws.gc_wait_for(
-            CMsgGCToClientFindTopSourceTVGamesResponse,
+            watch.GCToClientFindTopSourceTVGamesResponse,
             check=lambda msg: msg.specific_games == True,
         )
-        await self._state.ws.send_gc_message(CMsgClientToGCFindTopSourceTVGames(lobby_ids=lobby_ids))
+        await self._state.ws.send_gc_message(watch.ClientToGCFindTopSourceTVGames(lobby_ids=lobby_ids))
 
         async with timeout(30.0):
             response = await future

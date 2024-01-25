@@ -13,7 +13,7 @@ from ..enums import EMsg
 
 
 # fmt: off
-class CMsgDOTAProfileCardEStatID(betterproto.Enum):
+class ProfileCardEStatID(betterproto.Enum):
     Wins               = 3
     Commends           = 4
     GamesPlayed        = 5
@@ -23,8 +23,8 @@ class CMsgDOTAProfileCardEStatID(betterproto.Enum):
 # fmt: on
 
 
-@dataclass
-class CMsgBattleCupVictory(betterproto.Message):
+@dataclass(eq=False, repr=False)
+class BattleCupVictory(betterproto.Message):
     account_id: int = betterproto.uint32_field(1)
     win_date: int = betterproto.uint32_field(2)
     valid_until: int = betterproto.uint32_field(3)
@@ -36,59 +36,59 @@ class CMsgBattleCupVictory(betterproto.Message):
     trophy_id: int = betterproto.uint32_field(9)
 
 
-@dataclass
-class CMsgDOTAProfileCardSlot(betterproto.Message):
+@dataclass(eq=False, repr=False)
+class ProfileCardSlot(betterproto.Message):
     slot_id: int = betterproto.uint32_field(1)
-    trophy: CMsgDOTAProfileCardSlotTrophy = betterproto.message_field(2)
-    stat: CMsgDOTAProfileCardSlotStat = betterproto.message_field(3)
-    item: CMsgDOTAProfileCardSlotItem = betterproto.message_field(4)
-    hero: CMsgDOTAProfileCardSlotHero = betterproto.message_field(5)
-    emoticon: CMsgDOTAProfileCardSlotEmoticon = betterproto.message_field(6)
-    team: CMsgDOTAProfileCardSlotTeam = betterproto.message_field(7)
+    trophy: ProfileCardSlotTrophy = betterproto.message_field(2)
+    stat: ProfileCardSlotStat = betterproto.message_field(3)
+    item: ProfileCardSlotItem = betterproto.message_field(4)
+    hero: ProfileCardSlotHero = betterproto.message_field(5)
+    emoticon: ProfileCardSlotEmoticon = betterproto.message_field(6)
+    team: ProfileCardSlotTeam = betterproto.message_field(7)
 
 
-@dataclass
-class CMsgDOTAProfileCardSlotTrophy(betterproto.Message):
+@dataclass(eq=False, repr=False)
+class ProfileCardSlotTrophy(betterproto.Message):
     trophy_id: int = betterproto.uint32_field(1)
     trophy_score: int = betterproto.uint32_field(2)
 
 
-@dataclass
-class CMsgDOTAProfileCardSlotStat(betterproto.Message):
-    stat_id: CMsgDOTAProfileCardEStatID = betterproto.enum_field(1)
+@dataclass(eq=False, repr=False)
+class ProfileCardSlotStat(betterproto.Message):
+    stat_id: ProfileCardEStatID = betterproto.enum_field(1)
     stat_score: int = betterproto.uint32_field(2)
 
 
-@dataclass
-class CMsgDOTAProfileCardSlotItem(betterproto.Message):
+@dataclass(eq=False, repr=False)
+class ProfileCardSlotItem(betterproto.Message):
     serialized_item: bytes = betterproto.bytes_field(1)
     item_id: int = betterproto.uint64_field(2)
 
 
-@dataclass
-class CMsgDOTAProfileCardSlotHero(betterproto.Message):
+@dataclass(eq=False, repr=False)
+class ProfileCardSlotHero(betterproto.Message):
     hero_id: int = betterproto.uint32_field(1)
     hero_wins: int = betterproto.uint32_field(2)
     hero_losses: int = betterproto.uint32_field(3)
 
 
-@dataclass
-class CMsgDOTAProfileCardSlotEmoticon(betterproto.Message):
+@dataclass(eq=False, repr=False)
+class ProfileCardSlotEmoticon(betterproto.Message):
     emoticon_id: int = betterproto.uint32_field(1)
 
 
-@dataclass
-class CMsgDOTAProfileCardSlotTeam(betterproto.Message):
+@dataclass(eq=False, repr=False)
+class ProfileCardSlotTeam(betterproto.Message):
     team_id: int = betterproto.uint32_field(1)
 
 
-class CMsgDOTAProfileCard(GCProtobufMessage, msg=EMsg.ClientToGCGetProfileCardResponse):
+class ProfileCard(GCProtobufMessage, msg=EMsg.ClientToGCGetProfileCardResponse):
     account_id: int = betterproto.uint32_field(1)
-    slots: list[CMsgDOTAProfileCardSlot] = betterproto.message_field(3)
+    slots: list[ProfileCardSlot] = betterproto.message_field(3)
     badge_points: int = betterproto.uint32_field(4)
     event_points: int = betterproto.uint32_field(5)
     event_id: int = betterproto.uint32_field(6)
-    recent_battle_cup_victory: CMsgBattleCupVictory = betterproto.message_field(7)
+    recent_battle_cup_victory: BattleCupVictory = betterproto.message_field(7)
     rank_tier: int = betterproto.uint32_field(8)
     leaderboard_rank: int = betterproto.uint32_field(9)
     is_plus_subscriber: bool = betterproto.bool_field(10)
