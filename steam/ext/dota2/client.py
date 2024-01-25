@@ -101,7 +101,7 @@ class Client(Client_):
         # still need to slice the list, i.e. in case user asks for 85 games, but live_matches above will have 90 matches
         return live_matches[:limit]
 
-    async def tournament_live_games(
+    async def tournament_live_matches(
         self,
         # todo: league_id as integer is not human-readable/gettable thing, introduce methods to easily find those
         league_id: int,

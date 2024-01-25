@@ -279,7 +279,7 @@ class Hero(IntEnum):
         return self.DISPLAY_NAMES[self]
 
     @property
-    def hero_id(self) -> int:
+    def id(self) -> int:
         return self.value
 
 
