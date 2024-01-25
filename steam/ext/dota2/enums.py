@@ -363,17 +363,17 @@ class LobbyType(IntEnum):  # source: dota_gcmessages_common_lobby.proto
     @classproperty
     def DISPLAY_NAMES(cls: type[Self]) -> Mapping[LobbyType, str]:  # type: ignore
         return {
-            cls.Invalid         : 'Invalid',
-            cls.CasualMatch     : 'Unranked',
-            cls.Practice        : 'Practice',
-            cls.CoopBotMatch    : 'Coop Bots',
-            cls.CompetitiveMatch: 'Ranked',
-            cls.WeekendTourney  : 'Battle Cup',
-            cls.LocalBotMatch   : 'Local Bot Match',
-            cls.Spectator       : 'Spectator',
-            cls.EventMatch      : 'Event',
-            cls.NewPlayerPool   : 'New Player Mode',
-            cls.FeaturedGamemode: 'Featured Gamemode',
+            cls.Invalid         : "Invalid",
+            cls.CasualMatch     : "Unranked",
+            cls.Practice        : "Practice",
+            cls.CoopBotMatch    : "Coop Bots",
+            cls.CompetitiveMatch: "Ranked",
+            cls.WeekendTourney  : "Battle Cup",
+            cls.LocalBotMatch   : "Local Bot Match",
+            cls.Spectator       : "Spectator",
+            cls.EventMatch      : "Event",
+            cls.NewPlayerPool   : "New Player Mode",
+            cls.FeaturedGamemode: "Featured Gamemode",
         }
 
     @property
