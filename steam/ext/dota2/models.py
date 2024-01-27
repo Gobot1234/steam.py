@@ -8,8 +8,10 @@ from operator import attrgetter
 from typing import TYPE_CHECKING, Generic, Self, TypeVar
 
 from ... import abc, user
+from ..._gc.client import ClientUser as ClientUser_
 from ...utils import DateTime
 from .enums import GameMode, Hero, LobbyType
+from .protobufs import client_messages
 
 if TYPE_CHECKING:
     from .protobufs import common, watch
@@ -179,15 +181,57 @@ class PartialUser(abc.PartialUser):
         return ProfileCard(self, msg)
 
 
-class User(PartialUser, user.User):  # type: ignore
-    __slots__ = ()
-
-
 class LiveMatchPlayer(PartialUser):
     hero: Hero
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} id={self.id} hero={self.hero!r}>"
+
+
+class User(PartialUser, user.User):  # type: ignore
+    __slots__ = ()
+
+
+class ClientUser(PartialUser, ClientUser_):  # type: ignore
+    # todo: if TYPE_CHECKING: for inventory
+
+    async def glicko_rating(self):
+        """Request Glicko Rank Information."""
+        future = self._state.ws.gc_wait_for(client_messages.CMsgGCToClientRankResponse)
+        await self._state.ws.send_gc_message(
+            client_messages.CMsgClientToGCRankRequest(rank_type=client_messages.ERankType.RankedGlicko)
+        )
+        resp = await future
+        return GlickoRating(
+            mmr=resp.rank_value, deviation=resp.rank_data1, volatility=resp.rank_data2, const=resp.rank_data3
+        )
+
+    async def behavior_summary(self) -> BehaviorSummary:
+        future = self._state.ws.gc_wait_for(client_messages.CMsgGCToClientRankResponse)
+        await self._state.ws.send_gc_message(
+            client_messages.CMsgClientToGCRankRequest(rank_type=client_messages.ERankType.BehaviorPublic)
+        )
+        resp = await future
+        return BehaviorSummary(behavior_score=resp.rank_value, communication_score=resp.rank_data1)
+
+
+@dataclass(slots=True)
+class GlickoRating:
+    mmr: int
+    deviation: int
+    volatility: int  # the numbers, mason, what do they mean
+    const: int  # todo: confirm all those names somehow or leave a note in doc that I'm clueless
+
+    @property
+    def confidence(self):
+        # todo: rofl, confirm this please :D
+        return self.deviation / self.volatility
+
+
+@dataclass(slots=True)
+class BehaviorSummary:
+    behavior_score: int
+    communication_score: int
 
 
 class ProfileCard(Generic[UserT]):

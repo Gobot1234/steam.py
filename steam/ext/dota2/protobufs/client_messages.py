@@ -12,3 +12,35 @@ from ..enums import EMsg
 
 class ClientToGCGetProfileCard(GCProtobufMessage, msg=EMsg.ClientToGCGetProfileCard):
     account_id: int = betterproto.uint32_field(1)
+
+
+class ERankType(betterproto.Enum):
+    Invalid = 0
+    Casual = 1
+    Ranked = 2
+    CasualLegacy = 3
+    RankedLegacy = 4
+    CasualGlicko = 5
+    RankedGlicko = 6
+    RankMax = 7
+    BehaviorPrivate = 100
+    BehaviorPublic = 101
+    Max = 102
+
+
+class CMsgClientToGCRankRequest(GCProtobufMessage, msg=EMsg.ClientToGCRankRequest):
+    rank_type: ERankType = betterproto.enum_field(1)
+
+
+class CMsgGCToClientRankResponseEResultCode(betterproto.Enum):
+    k_Succeeded = 0
+    k_Failed = 1
+    k_InvalidRankType = 2
+
+
+class CMsgGCToClientRankResponse(GCProtobufMessage, msg=EMsg.GCToClientRankResponse):
+    result_enum: CMsgGCToClientRankResponseEResultCode = betterproto.enum_field(1)
+    rank_value: int = betterproto.uint32_field(2)
+    rank_data1: int = betterproto.uint32_field(3)
+    rank_data2: int = betterproto.uint32_field(4)
+    rank_data3: int = betterproto.uint32_field(5)

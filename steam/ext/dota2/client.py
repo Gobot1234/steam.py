@@ -4,17 +4,22 @@ from __future__ import annotations
 
 import asyncio
 from functools import partial
-from typing import Final
+from typing import TYPE_CHECKING, Final
 
-from ..._const import timeout
+from ..._const import DOCS_BUILDING, timeout
 from ..._gc import Client as Client_
 from ...app import DOTA2
 from ...ext import commands
+from ...utils import cached_property  # noqa: TCH001
 from ...utils import MISSING
 from .enums import Hero
-from .models import LiveMatch
+from .models import ClientUser, LiveMatch
 from .protobufs import watch
 from .state import GCState  # noqa: TCH001
+
+if TYPE_CHECKING:
+    from ...types.id import Intable
+    from .models import User
 
 __all__ = (
     "Client",
@@ -31,14 +36,16 @@ class Client(Client_):
     """
 
     _APP: Final = DOTA2
+    _ClientUserCls = ClientUser
     _state: GCState  # type: ignore  # PEP 705
 
-    async def top_live_matches(
-        self,
-        *,
-        hero: Hero = MISSING,
-        limit: int = 100,
-    ) -> list[LiveMatch]:
+    if TYPE_CHECKING:
+
+        @cached_property
+        def user(self) -> ClientUser:
+            ...
+
+    async def top_live_matches(self, *, hero: Hero = MISSING, limit: int = 100) -> list[LiveMatch]:
         """Fetch top live matches
 
         This is similar to game list in the Watch Tab of Dota 2 game app.
@@ -166,6 +173,14 @@ class Client(Client_):
         # todo: test with more than 10 lobby_ids, Game Coordinator will probably chunk it wrongly or fail at all
 
         return [LiveMatch(self._state, match) for match in response.game_list]
+
+    if TYPE_CHECKING or DOCS_BUILDING:
+
+        def get_user(self, id: Intable) -> User | None:
+            ...
+
+        async def fetch_user(self, id: Intable) -> User:
+            ...
 
 
 class Bot(commands.Bot, Client):
