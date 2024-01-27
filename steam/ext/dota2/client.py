@@ -10,8 +10,10 @@ from ..._const import DOCS_BUILDING, timeout
 from ..._gc import Client as Client_
 from ...app import DOTA2
 from ...ext import commands
-from ...utils import cached_property  # noqa: TCH001
-from ...utils import MISSING
+from ...utils import (
+    MISSING,
+    cached_property,
+)
 from .enums import Hero
 from .models import ClientUser, LiveMatch
 from .protobufs import watch
