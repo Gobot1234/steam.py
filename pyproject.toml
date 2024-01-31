@@ -32,7 +32,7 @@ generate-setup-file = false
 python = "^3.11"
 aiohttp = "^3.8"
 beautifulsoup4 = "^4.10"
-cryptography = "^41"
+cryptography = ">=41,<43"
 betterproto = "2.0.0b6"
 typing-extensions = "4.9.0"
 vdf = "^3.4"
