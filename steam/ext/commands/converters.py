@@ -160,8 +160,9 @@ class Converter(ConverterBase[T_co], ABC):
     .. code:: python
 
         @bot.command
-        async def command(ctx, user: steam.User):
-            ...  # this will tell the parser to convert user from a str to a steam.User object.
+        async def command(
+            ctx, user: steam.User
+        ): ...  # this will tell the parser to convert user from a str to a steam.User object.
 
 
         # invoked as
@@ -205,14 +206,12 @@ class Converter(ConverterBase[T_co], ABC):
         .. code:: python
 
             class CustomUserConverter(commands.Converter[steam.User]):
-                async def convert(self, ctx: commands.Context, argument: str) -> steam.User:
-                    ...
+                async def convert(self, ctx: commands.Context, argument: str) -> steam.User: ...
 
 
             @bot.command
             @CustomUserConverter.register
-            async def is_cool(ctx, user: steam.User):
-                ...
+            async def is_cool(ctx, user: steam.User): ...
 
         In this example ``is_cool``'s user parameter would be registered to the ``CustomUserConverter`` rather than
         the global :class:`UserConverter`.
@@ -411,8 +410,7 @@ class Default(Protocol, Any if TYPE_CHECKING else object):
     .. code:: python
 
         @bot.command()
-        async def info(ctx, user=DefaultAuthor):
-            ...  # if no user is passed it will be ctx.author
+        async def info(ctx, user=DefaultAuthor): ...  # if no user is passed it will be ctx.author
 
     A custom default:
 
@@ -425,8 +423,7 @@ class Default(Protocol, Any if TYPE_CHECKING else object):
 
         # then later
         @bot.command
-        async def source(ctx: commands.Context, command: commands.Command = CurrentCommand):
-            ...  # command would now be source
+        async def source(ctx: commands.Context, command: commands.Command = CurrentCommand): ...  # command would now be source
 
 
         # this could also be mixed in with a converter to convert a string to a command.
