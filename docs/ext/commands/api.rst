@@ -91,8 +91,7 @@ Example:
 
 
     @bot.command()
-    async def command(ctx, argument_1, argument_2):
-        ...
+    async def command(ctx, argument_1, argument_2): ...
 
 An invocation of ``!command some string`` would pass ``"some"`` to ``argument_1`` and ``"string"`` to ``argument_2``.
 
@@ -107,8 +106,7 @@ Example:
 .. code-block:: python
 
     @bot.command()
-    async def command(ctx, argument_1, *arguments):
-        ...
+    async def command(ctx, argument_1, *arguments): ...
 
 An invocation of ``!command some longer string`` would pass ``"some"`` to ``argument_1`` and ``("longer", "string")``
 to ``arguments``.
@@ -128,8 +126,7 @@ Example:
 .. code-block:: python
 
     @bot.command()
-    async def command(ctx, argument_1, *, argument_2):
-        ...
+    async def command(ctx, argument_1, *, argument_2): ...
 
 An invocation of ``!command some longer string`` would pass ``"some"`` to ``argument_1`` and ``"longer string"`` to
 ``argument_2``.
@@ -150,8 +147,7 @@ Example:
 .. code-block:: python
 
     @bot.command()
-    async def command(ctx, argument_1, **arguments):
-        ...
+    async def command(ctx, argument_1, **arguments): ...
 
 An invocation of ``!command some string=long`` would pass ``"some"`` to ``argument_1`` and ``{"string": "long"}`` to
 ``**arguments``.
