@@ -18,10 +18,10 @@ if TYPE_CHECKING:
     from .state import GCState
 
 __all__ = (
-    "BattleCup",
-    "TournamentTeam",
-    "TournamentMatch",
     "LiveMatch",
+    "TournamentMatch",
+    "TournamentTeam",
+    "BattleCup",
     "LiveMatchPlayer",
     "PartialUser",
     "User",
@@ -31,27 +31,78 @@ __all__ = (
 UserT = TypeVar("UserT", bound=abc.PartialUser)
 
 
-@dataclass(slots=True)
-class BattleCup:
-    tournament_id: int
-    division: int
-    skill_level: int
-    bracket_round: int
+class PartialMatch:
+    def __init__(self, state: GCState, id: int):
+        self._state = state
+        self.id = id
+
+    async def details(self):
+        """Fetch Match Details.
+
+        Raises
+        ------
+        asyncio.TimeoutError
+            Request time-outed. Potential reasons:
+                * Match ID is incorrect.
+                * This match is still live.
+                * Dota 2 Game Coordinator lagging or being down.
+        """
+        proto = await self._state.fetch_match_details(self.id)
+        proto.match
 
 
-@dataclass(slots=True)
-class TournamentTeam:
-    id: int
-    name: str
-    logo: float  # todo: can I get more info on logo than float nonsense ?
+class MatchDetails:
+    def __init__(self, state: GCState, proto: common.Match) -> None:
+        self._state = state
 
-
-@dataclass(slots=True)
-class TournamentMatch:  # should this be named LiveTournamentMatch ? Idk how fast I gonna break all these namings,
-    league_id: int  # todo: can I get more info like name of the tournament
-    series_id: int
-    teams: tuple[TournamentTeam, TournamentTeam]
-    battle_cup_info: BattleCup | None
+        self.id = proto.match_id
+        self.duration = datetime.timedelta(seconds=proto.duration)
+        self.start_time = DateTime.from_timestamp(proto.starttime)
+        self.human_players_amount = proto.human_players
+        self.players = proto.players  # todo: modelize
+        self.tower_status = proto.tower_status  # todo: decipher
+        self.barracks_status = proto.barracks_status  # todo: decipher
+        self.cluster = proto.cluster
+        self.first_blood_time = proto.first_blood_time
+        self.replay_salt = proto.replay_salt
+        self.server_port = proto.server_port
+        self.lobby_type = proto.lobby_type  # todo: use enum
+        self.server_ip = proto.server_ip
+        self.average_skill = proto.average_skill
+        self.game_balance = proto.game_balance
+        self.radiant_team_id = proto.radiant_team_id
+        self.dire_team_id = proto.dire_team_id
+        self.league_id = proto.leagueid
+        self.radiant_team_name = proto.radiant_team_name
+        self.dire_team_name = proto.dire_team_name
+        self.radiant_team_logo = proto.radiant_team_logo
+        self.dire_team_logo = proto.dire_team_logo
+        self.radiant_team_logo_url = proto.radiant_team_logo_url
+        self.dire_team_logo_url = proto.dire_team_logo_url
+        self.radiant_team_complete = proto.radiant_team_complete
+        self.dire_team_complete = proto.dire_team_complete
+        self.game_mode = proto.game_mode  # todo: use enum
+        self.picks_bans = proto.picks_bans  # todo: modelize
+        self.match_seq_num = proto.match_seq_num
+        self.replay_state = proto.replay_state
+        self.radiant_guild_id = proto.radiant_guild_id
+        self.dire_guild_id = proto.dire_guild_id
+        self.radiant_team_tag = proto.radiant_team_tag
+        self.dire_team_tag: str = proto.dire_team_tag
+        self.series_id = proto.series_id
+        self.series_type = proto.series_type
+        self.broadcaster_channels = proto.broadcaster_channels  # todo: modelize
+        self.engine = proto.engine
+        self.custom_game_data = proto.custom_game_data  # todo: ???
+        self.match_flags = proto.match_flags  # todo: ???
+        self.private_metadata_key = proto.private_metadata_key  # todo: ???
+        self.radiant_team_score = proto.radiant_team_score
+        self.dire_team_score = proto.dire_team_score
+        self.match_outcome = proto.match_outcome  # todo: enumize
+        self.tournament_id = proto.tournament_id
+        self.tournament_round = proto.tournament_round
+        self.pre_game_duration = proto.pre_game_duration
+        self.coaches = proto.coaches  # todo: modelize
 
 
 class LiveMatch:
@@ -59,7 +110,7 @@ class LiveMatch:
 
     Attributes
     -----------
-    match_id
+    id
         Match ID.
     server_steam_id
         Server Steam ID.
@@ -92,6 +143,10 @@ class LiveMatch:
         Time the data was updated last by the Game Coordinator.
     tournament
         Tournament information, if the match is a tournament game.
+        Includes information about tournament teams.
+    battle_cup
+        Battle Cup information, if the match is a battle cup game.
+        Includes information about tournament teams.
     radiant_lead
         Amount of gold lead Radiant team has. Negative value in case Dire is leading.
     radiant_score
@@ -123,26 +178,32 @@ class LiveMatch:
         self.delay = datetime.timedelta(seconds=proto.delay)
         self.last_update_time = DateTime.from_timestamp(proto.last_update_time)
 
-        self.tournament: TournamentMatch | None = None
-        if proto.league_id:  # if it is 0 then all tournament related fields are going to be 0 as well
-            battle_cup = None
-            # todo: check if battle cup has league_id, otherwise we need to separate tournament from battle_cup
-            if proto.weekend_tourney_tournament_id:  # if it is 0 then all battle cup related fields are going to be 0
-                battle_cup = BattleCup(
-                    proto.weekend_tourney_tournament_id,
-                    proto.weekend_tourney_division,
-                    proto.weekend_tourney_skill_level,
-                    proto.weekend_tourney_bracket_round,
-                )
-            self.tournament = TournamentMatch(
+        self.tournament = (
+            TournamentMatch(
                 proto.league_id,
                 proto.series_id,
                 (
                     TournamentTeam(proto.team_id_radiant, proto.team_name_radiant, proto.team_logo_radiant),
                     TournamentTeam(proto.team_id_dire, proto.team_name_dire, proto.team_logo_dire),
                 ),
-                battle_cup,
             )
+            if proto.league_id  # if it is 0 then all tournament related fields are going to be 0 as well
+            else None
+        )
+        self.battle_cup = (
+            BattleCup(
+                proto.weekend_tourney_tournament_id,
+                proto.weekend_tourney_division,
+                proto.weekend_tourney_skill_level,
+                proto.weekend_tourney_bracket_round,
+                (
+                    TournamentTeam(proto.team_id_radiant, proto.team_name_radiant, proto.team_logo_radiant),
+                    TournamentTeam(proto.team_id_dire, proto.team_name_dire, proto.team_logo_dire),
+                ),
+            )
+            if proto.weekend_tourney_tournament_id  # if it is 0 then all battle cup related fields are going to be 0
+            else None
+        )
 
         self.radiant_lead = proto.radiant_lead
         self.radiant_score = proto.radiant_score
@@ -171,6 +232,29 @@ class LiveMatch:
         return f"<{self.__class__.__name__} id={self.id} server_steam_id={self.server_steam_id}>"
 
 
+@dataclass(slots=True)
+class TournamentMatch:  # should this be named LiveTournamentMatch ? Idk how fast I gonna break all these namings,
+    league_id: int  # todo: can I get more info like name of the tournament
+    series_id: int
+    teams: tuple[TournamentTeam, TournamentTeam]
+
+
+@dataclass(slots=True)
+class TournamentTeam:
+    id: int
+    name: str
+    logo: float  # todo: can I get more info on logo than float nonsense ?
+
+
+@dataclass(slots=True)
+class BattleCup:
+    tournament_id: int
+    division: int
+    skill_level: int
+    bracket_round: int
+    teams: tuple[TournamentTeam, TournamentTeam]
+
+
 class PartialUser(abc.PartialUser):
     __slots__ = ()
     _state: GCState
@@ -197,19 +281,23 @@ class ClientUser(PartialUser, ClientUser_):  # type: ignore
 
     async def glicko_rating(self):
         """Request Glicko Rank Information."""
-        future = self._state.ws.gc_wait_for(client_messages.CMsgGCToClientRankResponse)
+        future = self._state.ws.gc_wait_for(client_messages.GCToClientRankResponse)
         await self._state.ws.send_gc_message(
-            client_messages.CMsgClientToGCRankRequest(rank_type=client_messages.ERankType.RankedGlicko)
+            client_messages.ClientToGCRankRequest(rank_type=client_messages.ERankType.RankedGlicko)
         )
         resp = await future
         return GlickoRating(
-            mmr=resp.rank_value, deviation=resp.rank_data1, volatility=resp.rank_data2, const=resp.rank_data3
+            mmr=resp.rank_value,
+            deviation=resp.rank_data1,
+            volatility=resp.rank_data2,
+            const=resp.rank_data3,
         )
 
     async def behavior_summary(self) -> BehaviorSummary:
-        future = self._state.ws.gc_wait_for(client_messages.CMsgGCToClientRankResponse)
+        """Request Behavior Summary."""
+        future = self._state.ws.gc_wait_for(client_messages.GCToClientRankResponse)
         await self._state.ws.send_gc_message(
-            client_messages.CMsgClientToGCRankRequest(rank_type=client_messages.ERankType.BehaviorPublic)
+            client_messages.ClientToGCRankRequest(rank_type=client_messages.ERankType.BehaviorPublic)
         )
         resp = await future
         return BehaviorSummary(behavior_score=resp.rank_value, communication_score=resp.rank_data1)

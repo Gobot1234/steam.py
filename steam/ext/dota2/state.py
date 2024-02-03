@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from ..._const import timeout
 from ..._gc import GCState as GCState_
 from ...app import DOTA2
 from ...id import _ID64_TO_ID32
@@ -58,12 +59,20 @@ class GCState(GCState_[Any]):  # todo: implement basket-analogy for dota2
     def _get_gc_message(self) -> sdk.ClientHello:
         return sdk.ClientHello()
 
-    async def fetch_user_dota2_profile_card(self, user_id: int):
+    async def fetch_user_dota2_profile_card(self, user_id: int) -> common.ProfileCard:
         await self.ws.send_gc_message(client_messages.ClientToGCGetProfileCard(account_id=user_id))
         return await self.ws.gc_wait_for(
             common.ProfileCard,
             check=lambda msg: msg.account_id == user_id,
         )
+
+    async def fetch_match_details(self, match_id: int) -> client_messages.MatchDetailsResponse:
+        await self.ws.send_gc_message(client_messages.MatchDetailsRequest(match_id=match_id))
+        async with timeout(15.0):
+            return await self.ws.gc_wait_for(
+                client_messages.MatchDetailsResponse,
+                check=lambda msg: msg.match.match_id == match_id,
+            )
 
     @parser
     def parse_client_goodbye(self, msg: sdk.ConnectionStatus | None = None) -> None:

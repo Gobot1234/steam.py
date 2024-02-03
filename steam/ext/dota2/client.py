@@ -14,13 +14,13 @@ from ...utils import (
     MISSING,
     cached_property,
 )
-from .enums import Hero
-from .models import ClientUser, LiveMatch
-from .protobufs import watch
+from .models import ClientUser, LiveMatch, MatchDetails
+from .protobufs import client_messages, watch
 from .state import GCState  # noqa: TCH001
 
 if TYPE_CHECKING:
     from ...types.id import Intable
+    from .enums import Hero
     from .models import User
 
 __all__ = (
@@ -104,7 +104,7 @@ class Client(Client_):
                 watch.ClientToGCFindTopSourceTVGames(start_game=start_game, hero_id=hero.value)
             )
 
-        async with timeout(30.0):
+        async with timeout(15.0):
             responses = await asyncio.gather(*futures)
         # each response.game_list is 10 games (except possibly last one if filtered by hero)
         live_matches = [LiveMatch(self._state, match) for response in responses for match in response.game_list]
@@ -139,7 +139,7 @@ class Client(Client_):
         )
         await self._state.ws.send_gc_message(watch.ClientToGCFindTopSourceTVGames(league_id=league_id))
 
-        async with timeout(30.0):
+        async with timeout(15.0):
             response = await future
         return [LiveMatch(self._state, match) for match in response.game_list]
 
@@ -170,11 +170,26 @@ class Client(Client_):
         )
         await self._state.ws.send_gc_message(watch.ClientToGCFindTopSourceTVGames(lobby_ids=lobby_ids))
 
-        async with timeout(30.0):
+        async with timeout(15.0):
             response = await future
         # todo: test with more than 10 lobby_ids, Game Coordinator will probably chunk it wrongly or fail at all
 
         return [LiveMatch(self._state, match) for match in response.game_list]
+
+    async def match_details(self, match_id: int) -> MatchDetails:
+        proto = await self._state.fetch_match_details(match_id)
+        if proto.eresult == 1:
+            return MatchDetails(self._state, proto.match)
+        else:
+            msg = f"Failed to get match_details for {match_id}"
+            raise ValueError(msg)
+
+    async def matchmaking_stats(self):
+        future = self._state.ws.gc_wait_for(client_messages.MatchmakingStatsResponse)
+        await self._state.ws.send_gc_message(client_messages.MatchmakingStatsRequest())
+        async with timeout(15.0):
+            return await future
+        # return BehaviorSummary(behavior_score=resp.rank_value, communication_score=resp.rank_data1)
 
     if TYPE_CHECKING or DOCS_BUILDING:
 
