@@ -78,8 +78,7 @@ class Cog(Generic[BotT]):
 
         .. code:: python
 
-            class MyCog(commands.Cog, name="SpecialCogName"):
-                ...
+            class MyCog(commands.Cog, name="SpecialCogName"): ...
 
         Defaults to ``Cog.__name__``.
 
