@@ -79,7 +79,7 @@ class GCState(GCState_[Backpack]):
             ...
 
     def _get_gc_message(self) -> sdk.ClientHello:
-        return sdk.ClientHello()
+        return sdk.ClientHello(version=2000202)
 
     async def wait_for_casket_item(self, asset_id: AssetID) -> CasketItem:
         try:
