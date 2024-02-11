@@ -36,8 +36,7 @@ if TYPE_CHECKING:
 
 
 class NullIO(io.IOBase):
-    def write(self, *_, **__) -> None:
-        ...
+    def write(self, *_, **__) -> None: ...
 
 
 options = Options()

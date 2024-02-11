@@ -441,13 +441,15 @@ class AppShopItem(DescriptionMixin):
         """The prices of the asset in the store."""
         self.original_prices = cast(
             Mapping[Currency, int] | None,
-            {
-                Currency.try_name(name): price
-                for name, price in data["original_prices"].items()
-                if data["prices"][name] < price
-            }
-            if "original_prices" in data
-            else None,
+            (
+                {
+                    Currency.try_name(name): price
+                    for name, price in data["original_prices"].items()
+                    if data["prices"][name] < price
+                }
+                if "original_prices" in data
+                else None
+            ),
         )
         """The original prices of any items if the price in ``prices`` is reduced."""
         try:

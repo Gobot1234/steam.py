@@ -120,7 +120,7 @@ help = "A base64 encoded protobufs message from Steam to decode"
 
 [tool.black]
 line-length = 120
-python_version = "py310"
+target-version = ["py310"]
 
 [tool.blacken-docs]
 line-length = 120

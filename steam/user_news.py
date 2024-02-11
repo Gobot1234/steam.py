@@ -42,9 +42,11 @@ class UserNews:
         actor = ID(news.steamid_actor)
         self.target = cast(
             "Friend | PartialUser | PartialClan | None",
-            (state._maybe_friend(target.id) if target.type is Type.Individual else PartialClan(state, target.id64))
-            if news.steamid_target
-            else None,
+            (
+                (state._maybe_friend(target.id) if target.type is Type.Individual else PartialClan(state, target.id64))
+                if news.steamid_target
+                else None
+            ),
         )
         """The target of the news entry."""
         self.actor = cast(
