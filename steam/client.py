@@ -59,6 +59,7 @@ from .utils import DateTime, TradeURLInfo
 
 if TYPE_CHECKING:
     import datetime
+    from ssl import SSLContext
 
     import aiohttp
     from typing_extensions import Self, Unpack
@@ -108,6 +109,7 @@ class ClientKwargs(TypedDict, total=False):
     force_kick: bool
     language: Language
     auto_chunk_chat_groups: bool
+    ssl: SSLContext | Literal[False] | aiohttp.Fingerprint
 
 
 class Client:
@@ -154,6 +156,10 @@ class Client:
     auto_chunk_chat_groups
         Whether to automatically call chunk on clans and groups filling :attr:`ChatGroup.members`. Setting this to
         ``True`` isn't recommend unless you have a good internet connection and good hardware.
+    ssl
+        Any ``ssl`` parameters to pass to the underlying :class:`~aiohttp.ClientSession`.
+
+        .. versionadded:: 1.0.1
     """
 
     def __init__(self, **options: Unpack[ClientKwargs]):
