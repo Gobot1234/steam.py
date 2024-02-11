@@ -71,8 +71,7 @@ CoroFuncT = TypeVar("CoroFuncT", bound=CoroFunc)
 
 
 class CommandDeco(Protocol):
-    def __call__(self, command: MaybeCommandT, /) -> MaybeCommandT:
-        ...
+    def __call__(self, command: MaybeCommandT, /) -> MaybeCommandT: ...
 
 
 MaybeBool = TypeVar("MaybeBool", bound=bool | Coro[bool], default=bool | Coro[bool], covariant=True)
@@ -82,12 +81,10 @@ class Check(Protocol[MaybeBool]):
     predicate: Callable[[Context[Any]], Coro[bool]]
 
     @overload
-    def __call__(self, context: Context[Any], /) -> MaybeBool:
-        ...
+    def __call__(self, context: Context[Any], /) -> MaybeBool: ...
 
     @overload
-    def __call__(self, command: MaybeCommandT, /) -> MaybeCommandT:
-        ...
+    def __call__(self, command: MaybeCommandT, /) -> MaybeCommandT: ...
 
 
 @converters.converter
@@ -692,18 +689,16 @@ class GroupMixin(Generic[CogT]):
         return command
 
     @overload
-    def command(self, callback: CallbackT[CogT, P, R], /) -> Command[CogT, P, R]:
-        ...
+    def command(self, callback: CallbackT[CogT, P, R], /) -> Command[CogT, P, R]: ...
 
     @overload  # this needs higher kinded types as cls should be type[C[P]] | None
-    def command(
-        self, **kwargs: Unpack[CommandKwargsNoCls]
-    ) -> Callable[[CallbackT[CogT, P, R]], Command[CogT, P, R],]:
-        ...
+    def command(self, **kwargs: Unpack[CommandKwargsNoCls]) -> Callable[
+        [CallbackT[CogT, P, R]],
+        Command[CogT, P, R],
+    ]: ...
 
     @overload  # this also needs higher kinded types as cls should be type[C[P]] | None
-    def command(self, **kwargs: Unpack[CommandKwargs[C]]) -> Callable[[CallbackT[CogT, P, R]], C]:
-        ...
+    def command(self, **kwargs: Unpack[CommandKwargs[C]]) -> Callable[[CallbackT[CogT, P, R]], C]: ...
 
     def command(  # type: ignore
         self,
@@ -740,16 +735,13 @@ class GroupMixin(Generic[CogT]):
         return decorator(callback) if callback is not None else decorator
 
     @overload
-    def group(self, callback: CallbackT[CogT, P, R], /) -> Group[CogT, P, R]:
-        ...
+    def group(self, callback: CallbackT[CogT, P, R], /) -> Group[CogT, P, R]: ...
 
     @overload
-    def group(self, **kwargs: Unpack[CommandKwargsNoCls]) -> Callable[[CallbackT[CogT, P, R]], Group[CogT, P, R]]:
-        ...
+    def group(self, **kwargs: Unpack[CommandKwargsNoCls]) -> Callable[[CallbackT[CogT, P, R]], Group[CogT, P, R]]: ...
 
     @overload
-    def group(self, **kwargs: Unpack[CommandKwargs[G]]) -> Callable[[CallbackT[CogT, P, R]], G]:
-        ...
+    def group(self, **kwargs: Unpack[CommandKwargs[G]]) -> Callable[[CallbackT[CogT, P, R]], G]: ...
 
     def group(  # type: ignore
         self,
@@ -796,18 +788,15 @@ class Group(GroupMixin[CogT], Command[CogT, P, R]):
 
 
 @overload
-def command(callback: CallbackT[CogT, P, R], /) -> Command[CogT, P, R]:
-    ...
+def command(callback: CallbackT[CogT, P, R], /) -> Command[CogT, P, R]: ...
 
 
 @overload
-def command(**kwargs: Unpack[CommandKwargsNoCls]) -> Callable[[CallbackT[CogT, P, R]], Command[CogT, P, R]]:
-    ...
+def command(**kwargs: Unpack[CommandKwargsNoCls]) -> Callable[[CallbackT[CogT, P, R]], Command[CogT, P, R]]: ...
 
 
 @overload
-def command(**kwargs: Unpack[CommandKwargs[C]]) -> Callable[[CallbackT[CogT, P, R]], C]:
-    ...
+def command(**kwargs: Unpack[CommandKwargs[C]]) -> Callable[[CallbackT[CogT, P, R]], C]: ...
 
 
 def command(  # type: ignore
@@ -848,18 +837,15 @@ G = TypeVar("G", bound="Group[Any]", default="Group[Any]")
 
 
 @overload
-def group(callback: CallbackT[CogT, P, R], /) -> Group[CogT, P, R]:
-    ...
+def group(callback: CallbackT[CogT, P, R], /) -> Group[CogT, P, R]: ...
 
 
 @overload
-def group(**kwargs: Unpack[CommandKwargsNoCls]) -> Callable[[CallbackT[CogT, P, R]], Group[CogT, P, R]]:
-    ...
+def group(**kwargs: Unpack[CommandKwargsNoCls]) -> Callable[[CallbackT[CogT, P, R]], Group[CogT, P, R]]: ...
 
 
 @overload
-def group(**kwargs: Unpack[CommandKwargs[G]]) -> Callable[[CallbackT[CogT, P, R]], G]:
-    ...
+def group(**kwargs: Unpack[CommandKwargs[G]]) -> Callable[[CallbackT[CogT, P, R]], G]: ...
 
 
 def group(
@@ -906,8 +892,7 @@ def check(predicate: Callable[[Context], MaybeBool]) -> Check[MaybeBool]:
 
         @is_mod
         @bot.command
-        async def kick(ctx: commands.Context, user: steam.User) -> None:
-            ...
+        async def kick(ctx: commands.Context, user: steam.User) -> None: ...
 
     This will raise an :exc:`steam.ext.commands.CheckFailure` if the user is not an a mod in the clan.
 
@@ -918,12 +903,10 @@ def check(predicate: Callable[[Context], MaybeBool]) -> Check[MaybeBool]:
     """
 
     @overload
-    def inner(func: Context, /) -> MaybeBool:
-        ...
+    def inner(func: Context, /) -> MaybeBool: ...
 
     @overload
-    def inner(func: MaybeCommandT, /) -> MaybeCommandT:
-        ...
+    def inner(func: MaybeCommandT, /) -> MaybeCommandT: ...
 
     @functools.partial(cast, Check[MaybeBool])
     def inner(func: Context | MaybeCommandT, /) -> MaybeBool | MaybeCommandT:
@@ -1009,8 +992,9 @@ def cooldown(rate: int, per: float, type: BucketType = BucketType.Default) -> Co
 
         @bot.command
         @commands.cooldown(rate=1, per=10, type=commands.BucketType.User)
-        async def once_every_ten_seconds(ctx: commands.Context) -> None:
-            ...  # this can only be invoked a user every ten seconds.
+        async def once_every_ten_seconds(
+            ctx: commands.Context,
+        ) -> None: ...  # this can only be invoked a user every ten seconds.
     """
 
     def decorator(command: MaybeCommandT) -> MaybeCommandT:

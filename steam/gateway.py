@@ -324,18 +324,15 @@ class SteamWebSocket:
     @overload
     def wait_for(
         self, /, *, emsg: EMsg | None, check: Callable[[ProtoMsgsT], bool] = return_true
-    ) -> asyncio.Future[ProtoMsgsT]:
-        ...
+    ) -> asyncio.Future[ProtoMsgsT]: ...
 
     @overload
-    def wait_for(self, msg: type[MsgT], /, *, check: Callable[[MsgT], bool] = return_true) -> asyncio.Future[MsgT]:
-        ...
+    def wait_for(self, msg: type[MsgT], /, *, check: Callable[[MsgT], bool] = return_true) -> asyncio.Future[MsgT]: ...
 
     @overload
     def wait_for(
         self, msg: type[ProtoMsgT], /, *, check: Callable[[ProtoMsgT], bool] = return_true
-    ) -> asyncio.Future[ProtoMsgT]:
-        ...
+    ) -> asyncio.Future[ProtoMsgT]: ...
 
     def wait_for(
         self,
@@ -353,20 +350,17 @@ class SteamWebSocket:
     @overload
     def gc_wait_for(
         self, /, *, emsg: IntEnum | None, app_id: AppID | None = None, check: Callable[[GCMsgsT], bool] = return_true
-    ) -> asyncio.Future[GCMsgsT]:
-        ...
+    ) -> asyncio.Future[GCMsgsT]: ...
 
     @overload
     def gc_wait_for(
         self, msg: type[GCMsgT], /, *, check: Callable[[GCMsgT], bool] = return_true
-    ) -> asyncio.Future[GCMsgT]:
-        ...
+    ) -> asyncio.Future[GCMsgT]: ...
 
     @overload
     def gc_wait_for(
         self, msg: type[GCMsgProtoT], /, *, check: Callable[[GCMsgProtoT], bool] = return_true
-    ) -> asyncio.Future[GCMsgProtoT]:
-        ...
+    ) -> asyncio.Future[GCMsgProtoT]: ...
 
     def gc_wait_for(
         self,

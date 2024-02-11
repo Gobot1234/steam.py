@@ -28,8 +28,7 @@ F = TypeVar("F", bound=UnboundListenerType)
 
 class CogCommands:
     @overload
-    def __get__(self, instance: None, owner: type[Cog]) -> set[Command[None]]:
-        ...
+    def __get__(self, instance: None, owner: type[Cog]) -> set[Command[None]]: ...
 
     @overload
     def __get__(self, instance: CogT, owner: type[CogT]) -> set[Command[CogT]]:  # type: ignore
@@ -49,8 +48,7 @@ class CogListeners:
         ...
 
     @overload
-    def __get__(self, instance: Cog, owner: type[Cog]) -> list[tuple[str, ListenerType]]:
-        ...
+    def __get__(self, instance: Cog, owner: type[Cog]) -> list[tuple[str, ListenerType]]: ...
 
     def __get__(self, instance: Cog | None, owner: type[Cog]) -> Any:
         if instance is None:
@@ -78,8 +76,7 @@ class Cog(Generic[BotT]):
 
         .. code:: python
 
-            class MyCog(commands.Cog, name="SpecialCogName"):
-                ...
+            class MyCog(commands.Cog, name="SpecialCogName"): ...
 
         Defaults to ``Cog.__name__``.
 
@@ -159,13 +156,11 @@ class Cog(Generic[BotT]):
 
     @classmethod
     @overload
-    def listener(cls, coro: F, /) -> F:
-        ...
+    def listener(cls, coro: F, /) -> F: ...
 
     @classmethod
     @overload
-    def listener(cls, name: str | None = None, /) -> Callable[[F], F]:
-        ...
+    def listener(cls, name: str | None = None, /) -> Callable[[F], F]: ...
 
     @classmethod
     def listener(cls, name: F | str | None = None, /) -> Callable[[F], F] | F:

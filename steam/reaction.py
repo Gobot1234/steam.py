@@ -145,8 +145,7 @@ class PartialMessageReaction:
             ...
 
         @overload
-        def __init__(self, _state: ConnectionState, message: Message, emoticon: None, sticker: Sticker) -> None:
-            ...
+        def __init__(self, _state: ConnectionState, message: Message, emoticon: None, sticker: Sticker) -> None: ...
 
     def __repr__(self) -> str:
         return (
@@ -177,8 +176,7 @@ class MessageReaction(PartialMessageReaction):
             user: Author,
             created_at: datetime | None = None,
             ordinal: int | None = None,
-        ) -> None:
-            ...
+        ) -> None: ...
 
         @overload
         def __init__(
@@ -190,8 +188,7 @@ class MessageReaction(PartialMessageReaction):
             user: Author,
             created_at: datetime | None = None,
             ordinal: int | None = None,
-        ) -> None:
-            ...
+        ) -> None: ...
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, self.__class__):
@@ -359,8 +356,7 @@ class ClientSticker(BaseClientEmoticon, Sticker):
         return PartialApp(self._state, id=self._app_id)  # no point fetching cause endpoint doesn't return name
 
 
-class Effect(BaseEmoticon):
-    ...
+class Effect(BaseEmoticon): ...
 
 
 class ClientEffect(Effect):

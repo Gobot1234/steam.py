@@ -41,23 +41,19 @@ class CaseInsensitiveDict(dict[str, _VT]):
         super().__setitem__(k.lower(), v)
 
     @overload
-    def get(self, k: str, /) -> _VT | None:
-        ...
+    def get(self, k: str, /) -> _VT | None: ...
 
     @overload
-    def get(self, k: str, /, default: _T | None = None) -> _VT | _T | None:
-        ...
+    def get(self, k: str, /, default: _T | None = None) -> _VT | _T | None: ...
 
     def get(self, k: str, /, default: _T | None = None) -> _VT | _T | None:
         return super().get(k.lower(), default)
 
     @overload
-    def pop(self, k: str, /) -> _VT | None:
-        ...
+    def pop(self, k: str, /) -> _VT | None: ...
 
     @overload
-    def pop(self, k: str, /, default: _T | None = None) -> _VT | _T | None:
-        ...
+    def pop(self, k: str, /, default: _T | None = None) -> _VT | _T | None: ...
 
     def pop(self, k: str, /, default: _T | None = None) -> _VT | _T | None:
         return super().pop(k.lower())
