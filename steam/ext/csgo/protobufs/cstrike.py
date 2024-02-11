@@ -834,6 +834,8 @@ class PreviewDataBlockSticker(betterproto.Message):
     scale: float = betterproto.float_field(4)
     rotation: float = betterproto.float_field(5)
     tint_id: int = betterproto.uint32_field(6)
+    offset_x: float = betterproto.float_field(7)
+    offset_y: float = betterproto.float_field(8)
 
 
 @dataclass(eq=False, repr=False)
