@@ -892,8 +892,7 @@ def check(predicate: Callable[[Context], MaybeBool]) -> Check[MaybeBool]:
 
         @is_mod
         @bot.command
-        async def kick(ctx: commands.Context, user: steam.User) -> None:
-            ...
+        async def kick(ctx: commands.Context, user: steam.User) -> None: ...
 
     This will raise an :exc:`steam.ext.commands.CheckFailure` if the user is not an a mod in the clan.
 
@@ -993,8 +992,9 @@ def cooldown(rate: int, per: float, type: BucketType = BucketType.Default) -> Co
 
         @bot.command
         @commands.cooldown(rate=1, per=10, type=commands.BucketType.User)
-        async def once_every_ten_seconds(ctx: commands.Context) -> None:
-            ...  # this can only be invoked a user every ten seconds.
+        async def once_every_ten_seconds(
+            ctx: commands.Context,
+        ) -> None: ...  # this can only be invoked a user every ten seconds.
     """
 
     def decorator(command: MaybeCommandT) -> MaybeCommandT:
