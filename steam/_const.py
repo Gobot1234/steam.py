@@ -178,8 +178,7 @@ DEFAULT_AVATAR: Final = b"\xfe\xf4\x9e\x7f\xa7\xe1\x99s\x10\xd7\x05\xb2\xa6\x15\
 
 class _IDComparable(Protocol):
     @property
-    def id(self) -> Any:
-        ...
+    def id(self) -> Any: ...
 
 
 _TT_IDComp = TypeVar("_TT_IDComp", bound=type[_IDComparable])
@@ -213,8 +212,7 @@ T_co = TypeVar("T_co", covariant=True)
 
 
 class _ReadOnlyProto(Protocol[T_co]):
-    def __get__(self, __instance: Any, __owner: type) -> T_co:
-        ...
+    def __get__(self, __instance: Any, __owner: type) -> T_co: ...
 
 
 ReadOnly: TypeAlias = T_co | _ReadOnlyProto[T_co]

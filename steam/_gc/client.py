@@ -92,8 +92,7 @@ class Client(Client_):
         *,
         shared_secret: str = ...,
         identity_secret: str = ...,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @overload
     async def login(
@@ -102,8 +101,7 @@ class Client(Client_):
         refresh_token: str,
         shared_secret: str = ...,
         identity_secret: str = ...,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     async def login(self, *args: Any, **kwargs: Any) -> None:
         await asyncio.gather(super().login(*args, **kwargs), self._ping_gc())

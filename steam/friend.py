@@ -99,5 +99,4 @@ class Friend(WrapsUser):
 
     if TYPE_CHECKING:
 
-        def is_friend(self) -> Literal[True]:
-            ...
+        def is_friend(self) -> Literal[True]: ...

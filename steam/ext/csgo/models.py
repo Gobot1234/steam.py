@@ -46,8 +46,7 @@ __all__ = (
 )
 
 
-class MatchWatchInfo:
-    ...
+class MatchWatchInfo: ...
 
 
 @dataclass(slots=True)
@@ -188,8 +187,7 @@ class ClientUser(PartialUser, ClientUser_):  # type: ignore
         return ProfileInfo(self, self._profile_info_msg)
 
     @utils.todo
-    async def live_games(self) -> ...:
-        ...
+    async def live_games(self) -> ...: ...
 
 
 class MatchPlayer(PartialUser, user.WrapsUser):  # type: ignore

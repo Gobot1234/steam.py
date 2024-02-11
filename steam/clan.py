@@ -200,8 +200,7 @@ class PartialClan(ID[Literal[Type.Clan]], Commentable):
         app: App,
         server_address: IPAdress | str | None = ...,
         server_password: str | None = ...,
-    ) -> Event[Literal[EventType.Game], Self]:
-        ...
+    ) -> Event[Literal[EventType.Game], Self]: ...
 
     @overload
     async def create_event(
@@ -211,8 +210,7 @@ class PartialClan(ID[Literal[Type.Clan]], Commentable):
         *,
         type: BoringEventT = EventType.Other,
         starts_at: datetime | None = None,
-    ) -> Event[BoringEventT, Self]:
-        ...
+    ) -> Event[BoringEventT, Self]: ...
 
     async def create_event(
         self,

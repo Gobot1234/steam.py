@@ -71,8 +71,7 @@ Converters: TypeAlias = "ConverterBase[Any] | BasicConverter[Any] | Callable[[st
 class BasicConverter(Protocol[T]):
     converter_for: type[T]
 
-    def __call__(self, arg: str, /) -> T:
-        ...
+    def __call__(self, arg: str, /) -> T: ...
 
 
 CONVERTERS = defaultdict[type, list[Converters]](list)

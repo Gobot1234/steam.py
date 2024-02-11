@@ -1181,12 +1181,10 @@ class PackageInfo(ProductInfo, PartialPackage):
         return f"<{self.__class__.__name__} {' '.join(resolved)}>"
 
     @overload
-    async def apps(self, *, language: Language) -> list[PartialApp[str]]:
-        ...
+    async def apps(self, *, language: Language) -> list[PartialApp[str]]: ...
 
     @overload
-    async def apps(self, *, language: None = ...) -> list[PartialApp[None]]:
-        ...
+    async def apps(self, *, language: None = ...) -> list[PartialApp[None]]: ...
 
     async def apps(  # type: ignore[reportIncompatibleMethodOverride]
         self,

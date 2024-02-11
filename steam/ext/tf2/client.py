@@ -49,8 +49,7 @@ class Client(Client_):
     if TYPE_CHECKING:
 
         @cached_property
-        def user(self) -> ClientUser:
-            ...
+        def user(self) -> ClientUser: ...
 
     @property
     def schema(self) -> Schema:

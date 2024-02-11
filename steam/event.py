@@ -187,8 +187,7 @@ class Event(BaseEvent[EventTypeT, ClanT]):
         starts_at: datetime | None = ...,
         server_address: str | None = ...,
         server_password: str | None = ...,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @overload
     async def edit(
@@ -198,8 +197,7 @@ class Event(BaseEvent[EventTypeT, ClanT]):
         *,
         type: BoringEvents | None = None,
         starts_at: datetime | None = None,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @overload
     async def edit(
@@ -212,8 +210,7 @@ class Event(BaseEvent[EventTypeT, ClanT]):
         app: App,
         server_address: IPAdress | str | None = ...,
         server_password: str | None = ...,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     async def edit(
         self,

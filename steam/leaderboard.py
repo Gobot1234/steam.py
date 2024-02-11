@@ -104,14 +104,12 @@ class Leaderboard(Generic[AppT, DisplayNameT]):
         limit: int | None = None,
         type: Literal[LeaderboardDataRequest.Users],
         users: Sequence[IndividualID],
-    ) -> AsyncGenerator[LeaderboardUser, None]:
-        ...
+    ) -> AsyncGenerator[LeaderboardUser, None]: ...
 
     @overload
     async def entries(
         self, *, limit: int | None = None, type: LeaderboardDataRequest = LeaderboardDataRequest.Global
-    ) -> AsyncGenerator[LeaderboardUser, None]:
-        ...
+    ) -> AsyncGenerator[LeaderboardUser, None]: ...
 
     async def entries(
         self,

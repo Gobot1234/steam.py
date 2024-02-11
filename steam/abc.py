@@ -820,8 +820,7 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
             PartialApp(self._state, id=post.appid) if post.appid else None,
         )
 
-    async def invite_to(self, app: App) -> AppInvite:
-        ...
+    async def invite_to(self, app: App) -> AppInvite: ...
 
     def is_friend(self) -> bool:
         """Whether the user is in the :class:`ClientUser`'s friends."""

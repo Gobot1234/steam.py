@@ -393,12 +393,10 @@ class Bot(GroupMixin, Client):
             pass
 
     @overload
-    def listen(self, coro: CoroFuncT, /) -> CoroFuncT:
-        ...
+    def listen(self, coro: CoroFuncT, /) -> CoroFuncT: ...
 
     @overload
-    def listen(self, name: str | None = None, /) -> Callable[[F], F]:
-        ...
+    def listen(self, name: str | None = None, /) -> Callable[[F], F]: ...
 
     def listen(self, name: F | str | None = None, /) -> Callable[[F], F] | F:
         """|maybecallabledeco|

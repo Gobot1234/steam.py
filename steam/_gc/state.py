@@ -64,8 +64,7 @@ class GCState(ConnectionState, Generic[Inv]):
     if TYPE_CHECKING:
 
         @cached_property
-        def user(self) -> ClientUser:
-            ...
+        def user(self) -> ClientUser: ...
 
     def __init__(self, client: Client, **kwargs: Any):
         self._gc_connected = MultiEvent(len(client._GC_APPS))
@@ -188,9 +187,9 @@ class GCState(ConnectionState, Generic[Inv]):
             future.set_result(item)
 
     async def wait_for_item(self, id: AssetID) -> Item[ClientUser]:  # No intersection :( Item[ClientUser] & Any
-        self.items_waiting[
-            (APP.get().id, id)
-        ] = future = asyncio.get_running_loop().create_future()  # TODO does this need to use ContextID as well?
+        self.items_waiting[(APP.get().id, id)] = future = (
+            asyncio.get_running_loop().create_future()
+        )  # TODO does this need to use ContextID as well?
         return await future
 
 

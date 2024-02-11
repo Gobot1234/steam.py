@@ -89,8 +89,7 @@ class Genre(Generic[NameT]):
 
 
 @dataclass(slots=True)
-class StoreGenre(Genre[str]):
-    ...
+class StoreGenre(Genre[str]): ...
 
 
 @impl_eq_via_id
@@ -127,5 +126,4 @@ class StoreTag(Tag[str]):
 
 
 # https://store.steampowered.com/tagdata/populartags/english
-class PopularTag(Tag[str]):
-    ...
+class PopularTag(Tag[str]): ...

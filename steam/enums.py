@@ -232,12 +232,10 @@ class IntEnum(Enum, int):
 
     if TYPE_CHECKING:
 
-        def __new__(cls, value: int) -> Self:
-            ...
+        def __new__(cls, value: int) -> Self: ...
 
         @classmethod
-        def try_value(cls, value: int) -> Self:
-            ...
+        def try_value(cls, value: int) -> Self: ...
 
 
 class Flags(IntEnum):

@@ -28,11 +28,9 @@ class VDFList(MultiDict[T]):
     # to represent them, so prevent people doing daft things like use .keys() and iterating over it
     # for now using __getitem__ is fine, but I might remove this at some point
 
-    def keys(self) -> Never:
-        ...
+    def keys(self) -> Never: ...
 
-    def __iter__(self) -> Never:
-        ...
+    def __iter__(self) -> Never: ...
 
 
 if TYPE_CHECKING:
