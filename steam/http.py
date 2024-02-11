@@ -607,14 +607,14 @@ class HTTPClient:
         return self.post(URL.COMMUNITY / "my/ajaxclearaliashistory", data=payload)
 
     def get_price(self, app_id: AppID, item_name: str, currency: Currency | None) -> Coro[PriceOverviewDict]:
-        payload = {
+        params = {
             "appid": app_id,
             "market_hash_name": item_name,
         }
         if currency is not None:
-            payload |= {"currency": currency}
+            params |= {"currency": currency}
 
-        return self.post(URL.COMMUNITY / "market/priceoverview", data=payload)
+        return self.get(URL.COMMUNITY / "market/priceoverview", params=params)
 
     async def get_clan_members(self, clan_id64: ID64) -> AsyncGenerator[ID32, None]:
         url = f"{ID(clan_id64).community_url}/members"
