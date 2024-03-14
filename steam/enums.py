@@ -756,14 +756,14 @@ class Language(IntEnum):
         try:
             return _REVERSE_API_LANGUAGE_MAP[string.lower()]
         except KeyError:
-            return cls._new_member(name=string.title(), value=-1)
+            return cls._new_member(name=string.title(), value=hash(string.title()))
 
     @classmethod
     def from_web_api_str(cls, string: str, /) -> Language:
         try:
             return _REVERSE_WEB_API_MAP[string]
         except KeyError:
-            return cls._new_member(name=string, value=-1)
+            return cls._new_member(name=string, value=hash(string))
 
 
 _REVERSE_API_LANGUAGE_MAP: Final = cast(
@@ -876,7 +876,7 @@ class Currency(IntEnum):
         try:
             return cls._member_map_[name]
         except (KeyError, TypeError):
-            return cls._new_member(name=name, value=-1)
+            return cls._new_member(name=name, value=hash(name))
 
 
 class Realm(IntEnum):
