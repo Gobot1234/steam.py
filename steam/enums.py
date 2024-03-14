@@ -876,7 +876,7 @@ class Currency(IntEnum):
         try:
             return cls._member_map_[name]
         except (KeyError, TypeError):
-            return cls._new_member(name=name, value=-1)
+            return cls._new_member(name=name, value=hash(name))
 
 
 class Realm(IntEnum):
