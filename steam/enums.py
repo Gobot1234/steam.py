@@ -763,7 +763,7 @@ class Language(IntEnum):
         try:
             return _REVERSE_WEB_API_MAP[string]
         except KeyError:
-            return cls._new_member(name=string, value=hash(string.title()))
+            return cls._new_member(name=string, value=hash(string))
 
 
 _REVERSE_API_LANGUAGE_MAP: Final = cast(
