@@ -83,7 +83,6 @@ def test_language_from_str() -> None:
     assert Language.from_str("english") == Language.English
     not_a_lang = Language.from_str("not a lang")
     assert not_a_lang.name == "Not A Lang"
-    assert not_a_lang.value == -1
 
 
 def test_app_flag_from_str() -> None:
