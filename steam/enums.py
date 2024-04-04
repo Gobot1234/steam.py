@@ -2080,6 +2080,7 @@ class ContentDescriptor(IntEnum):
     FrequentNudityOrSexualContent = 1
     FrequentViolenceOrGore = 2
     StrongSexualContent = 3
+    GratuitousSexualContent = 4
     AnyMatureContent = 5
 
 
