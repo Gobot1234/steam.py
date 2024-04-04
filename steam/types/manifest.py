@@ -32,6 +32,7 @@ class Common(TypedVDFDict, total=False):
     has_adult_content: VDFBool
     has_adult_content_violence: VDFBool
     has_adult_content_sex: VDFBool
+    content_descriptors: MultiDict[str]
     market_presence: VDFBool
     workshop_visible: VDFBool
     community_hub_visible: VDFBool

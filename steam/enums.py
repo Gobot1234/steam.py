@@ -2077,9 +2077,12 @@ class AuthSessionResponse(IntEnum):
 
 
 class ContentDescriptor(IntEnum):
+    NudityOrSexualContent = 1
     FrequentNudityOrSexualContent = 1
     FrequentViolenceOrGore = 2
+    AdultOnlySexualContent = 3
     StrongSexualContent = 3
+    GratuitousSexualContent = 4
     AnyMatureContent = 5
 
 

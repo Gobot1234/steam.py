@@ -25,7 +25,16 @@ from multidict import MultiDict
 from . import utils
 from ._const import MISSING, URL, VDF_LOADS, VDFDict, impl_eq_via_id
 from .app import PartialApp
-from .enums import AppType, BillingType, DepotFileFlag, Language, LicenseType, PackageStatus, ReviewType
+from .enums import (
+    AppType,
+    BillingType,
+    ContentDescriptor,
+    DepotFileFlag,
+    Language,
+    LicenseType,
+    PackageStatus,
+    ReviewType,
+)
 from .id import ID
 from .models import CDNAsset, _IOMixin
 from .package import PartialPackage
@@ -877,6 +886,7 @@ class AppInfo(ProductInfo, PartialApp[str]):
         "language_support",
         "tags",
         "categories",
+        "content_descriptors",
         "genres",
         "created_at",
         "review_score",
@@ -923,6 +933,10 @@ class AppInfo(ProductInfo, PartialApp[str]):
         """Whether this app has a content hub visible."""
         self._stats_visible = common.get("community_visible_stats", "0") == "1"
         self._free = extended.get("isfreeapp", "0") == "1"
+        self.content_descriptors = [
+            ContentDescriptor.try_value(int(id)) for id in common.get("content_descriptors", MultiDict()).values()
+        ]
+        """This app's content descriptors."""
 
         self.controller_support = common.get("controller_support", "none")
         """This app's level of controller support."""
