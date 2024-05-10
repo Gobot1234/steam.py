@@ -503,6 +503,7 @@ class Client:
                 # this entire thing is a bit of a cluster fuck
                 # but that's what you deserve for having async parsers
 
+                # this future holds the future that finished first. either poll_task for a WS exception or callback_error for errors that occur in state.parsers
                 done: asyncio.Future[asyncio.Future[None]] = asyncio.get_running_loop().create_future()
 
                 poll_task = asyncio.create_task(poll())
@@ -528,16 +529,20 @@ class Client:
                             await self.close()
                         except asyncio.CancelledError:
                             pass
-                    for task in (poll_task, callback_error):
+                    for task in (poll_task, callback_error):  # cancel them
                         task.cancel()
-                    await asyncio.gather(poll_task, callback_error, return_exceptions=True)
+                    await asyncio.gather(
+                        poll_task, callback_error, return_exceptions=True
+                    )  # and collect the results so that the event loop won't raise
                     return
 
-                to_cancel = poll_task if task is callback_error else callback_error
+                to_cancel = poll_task if task is callback_error else callback_error  # cancel the other task
                 to_cancel.cancel()
                 for task_ in self.ws._pending_parsers:
                     task_.cancel()
-                await asyncio.gather(*self.ws._pending_parsers, to_cancel, return_exceptions=True)
+                await asyncio.gather(
+                    *self.ws._pending_parsers, to_cancel, return_exceptions=True
+                )  # same sort of thing as above gather
                 self.ws._pending_parsers.clear()
                 try:
                     await task  # handle the exception raised

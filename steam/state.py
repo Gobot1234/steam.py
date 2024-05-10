@@ -281,6 +281,7 @@ class ConnectionState:
 
     @utils.cached_property
     def _task_error(self) -> asyncio.Future[None]:
+        """Holds the exceptions so that the gateway can propagate exceptions to the client.login call"""
         return asyncio.get_running_loop().create_future()
 
     @property
