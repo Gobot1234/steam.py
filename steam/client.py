@@ -894,7 +894,7 @@ class Client:
         self,
         *,
         ip: IPAdress | str,
-        port: int = ...,
+        port: int | None = None,
     ) -> GameServer | None: ...
 
     async def fetch_server(

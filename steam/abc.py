@@ -894,9 +894,7 @@ class BaseUser(PartialUser):
         """Fetch the game server this user is currently playing on."""
         if self.game_server_ip is None:
             raise ValueError("User is not playing on a game server")
-        server = await self._state.client.fetch_server(
-            ip=self.game_server_ip, port=self.game_server_port if self.game_server_port is not None else MISSING
-        )
+        server = await self._state.client.fetch_server(ip=self.game_server_ip, port=self.game_server_port)
         assert server is not None
         return server
 
