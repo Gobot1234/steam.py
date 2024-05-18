@@ -37,6 +37,9 @@ class Group(ChatGroup[GroupMember, GroupChannel, Literal[Type.Chat]]):
         self._id = self.id
 
     async def chunk(self) -> Sequence[GroupMember]:
+        if self.chunked:
+            return self.members
+
         self._members = dict.fromkeys(self._partial_members)  # type: ignore
         for id, member in self._partial_members.items():
             user = self._state.get_user(id)
