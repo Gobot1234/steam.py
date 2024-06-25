@@ -1115,7 +1115,7 @@ class HTTPClient:
             "success": 1,
             "ugcid": result["ugcid"],
             "timestamp": result["timestamp"],
-            "hmac": result["hmac"],
+            "hmac": resp["hmac"],
             "spoiler": int(media.spoiler),
         } | kwargs
         await self.post(URL.COMMUNITY / "chat/commitfileupload", data=payload)
