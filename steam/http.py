@@ -1105,7 +1105,7 @@ class HTTPClient:
             "file_type": f"image/{media.type}",
         }
         resp = await self.post(URL.COMMUNITY / "chat/beginfileupload", data=payload)
-        
+
         result = resp["result"]
         url = f'{"https" if result["use_https"] else "http"}://{result["url_host"]}{result["url_path"]}'
         headers = {header["name"]: header["value"] for header in result["request_headers"]}
