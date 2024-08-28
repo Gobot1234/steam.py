@@ -91,8 +91,7 @@ class HTTPClient:
                 kwargs["params"] |= (  # if valve ever decide to make this work, this'd be nice
                     {"access_token": await self._client._state.ws.access_token()}
                     if self._client._state.login_complete.is_set()
-                    else
-                    {"key": await self.get_api_key()}
+                    else {"key": await self.get_api_key()}
                 )
 
         elif url.host in (URL.COMMUNITY.host, URL.STORE.host, URL.HELP.host):
