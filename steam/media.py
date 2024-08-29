@@ -100,7 +100,7 @@ class Media:
                     raise ValueError from exc
             case "webm" | "mp4" | "mpeg" | "ogv":
                 width, height = 0, 0
-                type_prefix="video"
+                type_prefix = "video"
             case _:
                 raise TypeError("Unsupported file format passed")
         self.type = type_prefix + "/" + type
