@@ -156,7 +156,7 @@ def test_gif(h: bytes) -> Literal["gif"] | None:
 
 @tests.append
 def test_webm(h: bytes) -> Literal["webm"] | None:
-    if h[29:36] == b"\x82\x84webmB":
+    if h[22:29] == b"\x82\x84webmB":
         return "webm"
 
 
