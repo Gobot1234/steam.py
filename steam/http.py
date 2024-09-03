@@ -1102,7 +1102,7 @@ class HTTPClient:
             "file_sha": media.hash(contents),
             "file_image_width": media.width,
             "file_image_height": media.height,
-            "file_type": f"{media.type}",
+            "file_type": media.type,
         }
         resp = await self.post(URL.COMMUNITY / "chat/beginfileupload", data=payload)
 
