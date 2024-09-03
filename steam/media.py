@@ -103,7 +103,7 @@ class Media:
                 type_prefix = "video"
             case _:
                 raise TypeError("Unsupported file format passed")
-        self.type = type_prefix + "/" + type
+        self.type = f"{type_prefix}/{type}"
         self.spoiler = spoiler
         self.width = width
         self.height = height
