@@ -147,7 +147,7 @@ class User(_BaseUser, Messageable["UserMessage"]):
         await self._state.unblock_user(self.id64)
 
     async def escrow(self, token: str | None = None) -> timedelta | None:
-        """Check how long any received items would take to arrive. ``None`` if the user has no escrow or has a
+        """Check how long any received items would take to arrive. ``None`` if the user has no escrow (hold) or has a
         private inventory.
 
         Parameters

@@ -1179,7 +1179,7 @@ class TradeOfferState(IntEnum):
     CanceledBySecondaryFactor = 10
     """The trade offer was cancelled by second factor."""
     StateInEscrow             = 11
-    """The trade offer is in escrow."""
+    """The trade offer is in escrow (hold)."""
 
 
 class ChatMemberRank(IntEnum):
