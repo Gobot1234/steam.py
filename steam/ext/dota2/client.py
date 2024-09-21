@@ -44,8 +44,7 @@ class Client(Client_):
     if TYPE_CHECKING:
 
         @cached_property
-        def user(self) -> ClientUser:
-            ...
+        def user(self) -> ClientUser: ...
 
     async def top_live_matches(self, *, hero: Hero = MISSING, limit: int = 100) -> list[LiveMatch]:
         """Fetch top live matches
@@ -193,11 +192,9 @@ class Client(Client_):
 
     if TYPE_CHECKING or DOCS_BUILDING:
 
-        def get_user(self, id: Intable) -> User | None:
-            ...
+        def get_user(self, id: Intable) -> User | None: ...
 
-        async def fetch_user(self, id: Intable) -> User:
-            ...
+        async def fetch_user(self, id: Intable) -> User: ...
 
 
 class Bot(commands.Bot, Client):
