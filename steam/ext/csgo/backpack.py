@@ -44,7 +44,7 @@ __all__ = (
 
 @dataclass(slots=True)
 class Sticker:
-    slot: Literal[0, 1, 2, 3, 4]
+    slot: Literal[0, 1, 2, 3, 4, 5]
     """The sticker's slot."""
     id: int
     """The sticker's ID."""
@@ -57,12 +57,6 @@ class Sticker:
     tint_id: float | None = None
     """The sticker's tint_id."""
 
-    _decodeable_attrs = (
-        "wear",
-        "scale",
-        "rotation",
-    )
-
 
 @dataclass(slots=True)
 class Paint:
@@ -74,6 +68,16 @@ class Paint:
     """The paint's seed."""
     wear: float = 0.0
     """The paint's wear."""
+    offset_x: float = 0.0
+    """The x offset of the sticker.
+
+    .. versionadded:: 1.0.1
+    """
+    offset_y: float = 0.0
+    """The y offset of the sticker.
+
+    .. versionadded:: 1.0.1
+    """
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} index={self.index} seed={self.seed} wear={self.wear}>"
@@ -100,6 +104,12 @@ class BaseItem(metaclass=ABCMeta):
     """The item's paint."""
     tradeable_after: datetime
     """The time the item's tradeable after."""
+    kill_eater_value: int
+    """The items kill eater value."""
+    kill_eater_type: int
+    """The type of kill eater attached."""
+    quest_id: int
+    """The quest this item was attained from."""
     stickers: list[Sticker]
     """The item's stickers."""
     id: AssetID

@@ -124,12 +124,10 @@ class PartialMember(PartialUser, _PartialMemberProto):  # type: ignore
     group: Group | None
 
     @overload
-    def __init__(self, state: ConnectionState, *, clan: Clan, member: chat.Member) -> None:
-        ...
+    def __init__(self, state: ConnectionState, *, clan: Clan, member: chat.Member) -> None: ...
 
     @overload
-    def __init__(self, state: ConnectionState, *, group: Group, member: chat.Member) -> None:
-        ...
+    def __init__(self, state: ConnectionState, *, group: Group, member: chat.Member) -> None: ...
 
     def __init__(
         self, state: ConnectionState, *, clan: Clan | None = None, group: Group | None = None, member: chat.Member

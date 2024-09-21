@@ -142,8 +142,7 @@ def test_parse_trade_url(url: str, expected: utils.TradeURLInfo | None) -> None:
     assert match == expected if match is not None else expected is None
 
 
-def test_update_class():
-    ...
+def test_update_class(): ...
 
 
 def test_steam_time_parse() -> None:

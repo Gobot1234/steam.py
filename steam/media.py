@@ -21,26 +21,19 @@ if TYPE_CHECKING:
 
 @runtime_checkable
 class MediaIO(Protocol):
-    def seekable(self) -> bool:
-        ...
+    def seekable(self) -> bool: ...
 
-    def seek(self, offset: int, whence: int = ..., /) -> Any:
-        ...
+    def seek(self, offset: int, whence: int = ..., /) -> Any: ...
 
-    def tell(self) -> int:
-        ...
+    def tell(self) -> int: ...
 
-    def readable(self) -> bool:
-        ...
+    def readable(self) -> bool: ...
 
-    def read(self, size: int = ..., /) -> bytes:
-        ...
+    def read(self, size: int = ..., /) -> bytes: ...
 
-    def close(self) -> Any:
-        ...
+    def close(self) -> Any: ...
 
-    def fileno(self) -> int:
-        ...
+    def fileno(self) -> int: ...
 
 
 class Media:
@@ -83,8 +76,10 @@ class Media:
                 if check != 0x0D0A1A0A:
                     raise ValueError("Opened file's headers do not match a standard PNGs headers")
                 width, height = struct.unpack(">ii", headers[16:24])
+                type_prefix = "image"
             case "gif":
                 width, height = struct.unpack("<HH", headers[6:10])
+                type_prefix = "image"
             case "jpeg":
                 try:
                     self.fp.seek(self._tell)  # read 0xff next
@@ -100,17 +95,19 @@ class Media:
                     # we are at a SOFn block
                     self.fp.seek(1, 1)  # skip 'precision' byte.
                     height, width = struct.unpack(">HH", self.fp.read(4))
+                    type_prefix = "image"
                 except Exception as exc:
                     raise ValueError from exc
             case "webm" | "mp4" | "mpeg" | "ogv":
                 width, height = 0, 0
+                type_prefix = "video"
             case _:
                 raise TypeError("Unsupported file format passed")
-        self.type = type
+        self.type = f"{type_prefix}/{type}"
         self.spoiler = spoiler
         self.width = width
         self.height = height
-        self.name = f'{int(time())}_{getattr(self.fp, "name", f"media.{self.type}")}'
+        self.name = f'{int(time())}_{getattr(self.fp, "name", f"media.{type}")}'
 
     def __enter__(self) -> Self:
         return self
@@ -163,7 +160,7 @@ def test_gif(h: bytes) -> Literal["gif"] | None:
 
 @tests.append
 def test_webm(h: bytes) -> Literal["webm"] | None:
-    if h[29:36] == b"\x82\x84webmB":
+    if h[22:29] == b"\x82\x84webmB":
         return "webm"
 
 

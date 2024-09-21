@@ -7,7 +7,6 @@ So we need a custom script for this
 Licensed under The MIT License (MIT) - Copyright (c) 2020-present James H-B. See LICENSE
 """
 
-
 import re
 from pathlib import Path
 from typing import Any

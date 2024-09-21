@@ -59,6 +59,7 @@ from .utils import DateTime, TradeURLInfo
 
 if TYPE_CHECKING:
     import datetime
+    from ssl import SSLContext
 
     import aiohttp
     from typing_extensions import Self, Unpack
@@ -108,6 +109,7 @@ class ClientKwargs(TypedDict, total=False):
     force_kick: bool
     language: Language
     auto_chunk_chat_groups: bool
+    ssl: SSLContext | Literal[False] | aiohttp.Fingerprint
 
 
 class Client:
@@ -154,6 +156,10 @@ class Client:
     auto_chunk_chat_groups
         Whether to automatically call chunk on clans and groups filling :attr:`ChatGroup.members`. Setting this to
         ``True`` isn't recommend unless you have a good internet connection and good hardware.
+    ssl
+        Any ``ssl`` parameters to pass to the underlying :class:`~aiohttp.ClientSession`.
+
+        .. versionadded:: 1.0.1
     """
 
     def __init__(self, **options: Unpack[ClientKwargs]):
@@ -368,8 +374,7 @@ class Client:
         shared_secret: str = ...,
         identity_secret: str = ...,
         debug: bool = ...,
-    ) -> object:
-        ...
+    ) -> object: ...
 
     @overload
     @final
@@ -380,8 +385,7 @@ class Client:
         shared_secret: str = ...,
         identity_secret: str = ...,
         debug: bool = ...,
-    ) -> object:
-        ...
+    ) -> object: ...
 
     @final
     def run(self, *args: Any, debug: bool = False, **kwargs: Any) -> object:
@@ -499,6 +503,7 @@ class Client:
                 # this entire thing is a bit of a cluster fuck
                 # but that's what you deserve for having async parsers
 
+                # this future holds the future that finished first. either poll_task for a WS exception or callback_error for errors that occur in state.parsers
                 done: asyncio.Future[asyncio.Future[None]] = asyncio.get_running_loop().create_future()
 
                 poll_task = asyncio.create_task(poll())
@@ -524,16 +529,20 @@ class Client:
                             await self.close()
                         except asyncio.CancelledError:
                             pass
-                    for task in (poll_task, callback_error):
+                    for task in (poll_task, callback_error):  # cancel them
                         task.cancel()
-                    await asyncio.gather(poll_task, callback_error, return_exceptions=True)
+                    await asyncio.gather(
+                        poll_task, callback_error, return_exceptions=True
+                    )  # and collect the results so that the event loop won't raise
                     return
 
-                to_cancel = poll_task if task is callback_error else callback_error
+                to_cancel = poll_task if task is callback_error else callback_error  # cancel the other task
                 to_cancel.cancel()
                 for task_ in self.ws._pending_parsers:
                     task_.cancel()
-                await asyncio.gather(*self.ws._pending_parsers, to_cancel, return_exceptions=True)
+                await asyncio.gather(
+                    *self.ws._pending_parsers, to_cancel, return_exceptions=True
+                )  # same sort of thing as above gather
                 self.ws._pending_parsers.clear()
                 try:
                     await task  # handle the exception raised
@@ -551,8 +560,7 @@ class Client:
         *,
         shared_secret: str = ...,
         identity_secret: str = ...,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @overload
     async def login(
@@ -561,8 +569,7 @@ class Client:
         refresh_token: str,
         shared_secret: str = ...,
         identity_secret: str = ...,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     async def login(
         self,
@@ -880,17 +887,15 @@ class Client:
         return await self._state.fetch_bundle(BundleID(id), language)
 
     @overload
-    async def fetch_server(self, *, id: int) -> GameServer | None:
-        ...
+    async def fetch_server(self, *, id: int) -> GameServer | None: ...
 
     @overload
     async def fetch_server(
         self,
         *,
         ip: IPAdress | str,
-        port: int = ...,
-    ) -> GameServer | None:
-        ...
+        port: int | None = None,
+    ) -> GameServer | None: ...
 
     async def fetch_server(
         self,
@@ -950,18 +955,15 @@ class Client:
     # content server related stuff
 
     @overload
-    async def fetch_product_info(self, *, apps: Collection[App]) -> list[AppInfo]:
-        ...
+    async def fetch_product_info(self, *, apps: Collection[App]) -> list[AppInfo]: ...
 
     @overload
-    async def fetch_product_info(self, *, packages: Collection[Package]) -> list[PackageInfo]:
-        ...
+    async def fetch_product_info(self, *, packages: Collection[Package]) -> list[PackageInfo]: ...
 
     @overload
     async def fetch_product_info(
         self, *, apps: Collection[App], packages: Collection[Package]
-    ) -> tuple[list[AppInfo], list[PackageInfo]]:
-        ...
+    ) -> tuple[list[AppInfo], list[PackageInfo]]: ...
 
     async def fetch_product_info(
         self, *, apps: Collection[App] = (), packages: Collection[Package] = ()
@@ -986,38 +988,34 @@ class Client:
         return app_infos if apps else package_infos
 
     @overload
-    async def fetch_store_item(self, *, apps: Sequence[App], language: Language | None = None) -> list[AppStoreItem]:
-        ...
+    async def fetch_store_item(
+        self, *, apps: Sequence[App], language: Language | None = None
+    ) -> list[AppStoreItem]: ...
 
     @overload
     async def fetch_store_item(
         self, *, packages: Sequence[Package], language: Language | None = None
-    ) -> list[PackageStoreItem]:
-        ...
+    ) -> list[PackageStoreItem]: ...
 
     @overload
     async def fetch_store_item(
         self, *, bundles: Sequence[Bundle], language: Language | None = None
-    ) -> list[BundleStoreItem]:
-        ...
+    ) -> list[BundleStoreItem]: ...
 
     @overload
     async def fetch_store_item(
         self, *, apps: Sequence[App], packages: Sequence[Package], language: Language | None = None
-    ) -> tuple[list[AppStoreItem], list[PackageStoreItem]]:
-        ...
+    ) -> tuple[list[AppStoreItem], list[PackageStoreItem]]: ...
 
     @overload
     async def fetch_store_item(
         self, *, packages: Sequence[Package], bundles: Sequence[Bundle], language: Language | None = None
-    ) -> tuple[list[PackageStoreItem], list[BundleStoreItem]]:
-        ...
+    ) -> tuple[list[PackageStoreItem], list[BundleStoreItem]]: ...
 
     @overload
     async def fetch_store_item(
         self, *, apps: Sequence[App], bundles: Sequence[Bundle], language: Language | None = None
-    ) -> tuple[list[AppStoreItem], list[BundleStoreItem]]:
-        ...
+    ) -> tuple[list[AppStoreItem], list[BundleStoreItem]]: ...
 
     @overload
     async def fetch_store_item(
@@ -1027,8 +1025,7 @@ class Client:
         packages: Sequence[Package],
         bundles: Sequence[Bundle],
         language: Language | None = None,
-    ) -> tuple[list[AppStoreItem], list[PackageStoreItem], list[BundleStoreItem]]:
-        ...
+    ) -> tuple[list[AppStoreItem], list[PackageStoreItem], list[BundleStoreItem]]: ...
 
     async def fetch_store_item(
         self,
@@ -1788,8 +1785,7 @@ class Client:
         *,
         check: Callable[[], bool] = ...,
         timeout: float | None = ...,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @overload
     async def wait_for(
@@ -1798,8 +1794,7 @@ class Client:
         *,
         check: Callable[[str, Exception, tuple[Any, ...], dict[str, Any]], bool] = ...,
         timeout: float | None = ...,
-    ) -> tuple[str, Exception, tuple[Any, ...], dict[str, Any]]:
-        ...
+    ) -> tuple[str, Exception, tuple[Any, ...], dict[str, Any]]: ...
 
     @overload
     async def wait_for(
@@ -1808,8 +1803,7 @@ class Client:
         *,
         check: Callable[[Message], bool] = ...,
         timeout: float | None = ...,
-    ) -> Message:
-        ...
+    ) -> Message: ...
 
     @overload
     async def wait_for(
@@ -1818,8 +1812,7 @@ class Client:
         *,
         check: Callable[[Comment], bool] = ...,
         timeout: float | None = ...,
-    ) -> Comment:
-        ...
+    ) -> Comment: ...
 
     @overload
     async def wait_for(
@@ -1828,8 +1821,7 @@ class Client:
         *,
         check: Callable[[User, User], bool] = ...,
         timeout: float | None = ...,
-    ) -> tuple[User, User]:
-        ...
+    ) -> tuple[User, User]: ...
 
     @overload
     async def wait_for(
@@ -1838,8 +1830,7 @@ class Client:
         *,
         check: Callable[[Clan, Clan], bool] = ...,
         timeout: float | None = ...,
-    ) -> tuple[Clan, Clan]:
-        ...
+    ) -> tuple[Clan, Clan]: ...
 
     @overload
     async def wait_for(
@@ -1848,8 +1839,7 @@ class Client:
         *,
         check: Callable[[Group, Group], bool] = ...,
         timeout: float | None = ...,
-    ) -> tuple[Group, Group]:
-        ...
+    ) -> tuple[Group, Group]: ...
 
     @overload
     async def wait_for(
@@ -1858,8 +1848,7 @@ class Client:
         *,
         check: Callable[[User, datetime.datetime], bool] = ...,
         timeout: float | None = ...,
-    ) -> tuple[User, datetime.datetime]:
-        ...
+    ) -> tuple[User, datetime.datetime]: ...
 
     @overload
     async def wait_for(
@@ -1868,8 +1857,7 @@ class Client:
         *,
         check: Callable[[TradeOffer], bool] = ...,
         timeout: float | None = ...,
-    ) -> TradeOffer:
-        ...
+    ) -> TradeOffer: ...
 
     @overload
     async def wait_for(
@@ -1878,8 +1866,7 @@ class Client:
         *,
         check: Callable[[TradeOffer, TradeOffer], bool] = ...,
         timeout: float | None = ...,
-    ) -> tuple[TradeOffer, TradeOffer]:
-        ...
+    ) -> tuple[TradeOffer, TradeOffer]: ...
 
     @overload
     async def wait_for(
@@ -1891,8 +1878,7 @@ class Client:
         *,
         check: Callable[[Friend], bool] = ...,
         timeout: float | None = ...,
-    ) -> User:
-        ...
+    ) -> User: ...
 
     @overload
     async def wait_for(
@@ -1905,8 +1891,7 @@ class Client:
         *,
         check: Callable[[UserInvite | ClanInvite | GroupInvite | AppInvite], bool] = ...,
         timeout: float | None = ...,
-    ) -> UserInvite | ClanInvite | GroupInvite | AppInvite:
-        ...
+    ) -> UserInvite | ClanInvite | GroupInvite | AppInvite: ...
 
     @overload
     async def wait_for(
@@ -1918,8 +1903,7 @@ class Client:
         *,
         check: Callable[[Clan], bool] = ...,
         timeout: float | None = ...,
-    ) -> Clan:
-        ...
+    ) -> Clan: ...
 
     @overload
     async def wait_for(
@@ -1931,8 +1915,7 @@ class Client:
         *,
         check: Callable[[Group], bool] = ...,
         timeout: float | None = ...,
-    ) -> Group:
-        ...
+    ) -> Group: ...
 
     @overload
     async def wait_for(
@@ -1941,8 +1924,7 @@ class Client:
         *,
         check: Callable[[Event], bool] = ...,
         timeout: float | None = ...,
-    ) -> Event:
-        ...
+    ) -> Event: ...
 
     @overload
     async def wait_for(
@@ -1951,8 +1933,7 @@ class Client:
         *,
         check: Callable[[Announcement], bool] = ...,
         timeout: float | None = ...,
-    ) -> Announcement:
-        ...
+    ) -> Announcement: ...
 
     @overload
     async def wait_for(
@@ -1961,8 +1942,7 @@ class Client:
         *,
         check: Callable[[AuthenticationTicket, AuthSessionResponse, int], bool] = ...,
         timeout: float | None = ...,
-    ) -> tuple[AuthenticationTicket, AuthSessionResponse, int]:
-        ...
+    ) -> tuple[AuthenticationTicket, AuthSessionResponse, int]: ...
 
     @overload
     async def wait_for(
@@ -1971,8 +1951,7 @@ class Client:
         *,
         check: Callable[[commands.Context, Exception], bool] = ...,
         timeout: float | None = ...,
-    ) -> tuple[commands.Context, Exception]:
-        ...
+    ) -> tuple[commands.Context, Exception]: ...
 
     @overload
     async def wait_for(
@@ -1984,8 +1963,7 @@ class Client:
         *,
         check: Callable[[commands.Context], bool] = ...,
         timeout: float | None = ...,
-    ) -> commands.Context:
-        ...
+    ) -> commands.Context: ...
 
     async def wait_for(
         self,

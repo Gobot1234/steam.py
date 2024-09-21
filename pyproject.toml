@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "steamio"
-version = "1.0.0"
+version = "1.0.1"
 description = "A Python wrapper for the Steam API"
 authors = ["Gobot1234 <gobot1234yt@gmail.com>"]
 license = "MIT"
@@ -32,9 +32,9 @@ generate-setup-file = false
 python = "^3.11"
 aiohttp = "^3.8"
 beautifulsoup4 = "^4.10"
-cryptography = "^41"
+cryptography = ">=41,<43"
 betterproto = "2.0.0b6"
-typing-extensions = "4.9.0"
+typing-extensions = "4.10.0"
 vdf = "^3.4"
 # taskgroup = { git = "https://github.com/Gobot1234/taskgroup", rev = "default", python = "<3.11" }
 
@@ -71,10 +71,10 @@ optional = true
 [tool.poetry.group.dev.dependencies]
 black = "^23.1"
 isort = "^5.10"
-pytest = "^7.1"
+pytest = ">=7.1,<9.0"
 pytest-asyncio = ">=0.21,<0.24"
 pre-commit = "^3.1"
-poethepoet = "^0.24"
+poethepoet = ">=0.24,<0.26"
 blacken-docs = "^1.12"
 ruff = "^0.1.8"
 tomli = { version = "~2", python = "<3.11" }
@@ -120,7 +120,7 @@ help = "A base64 encoded protobufs message from Steam to decode"
 
 [tool.black]
 line-length = 120
-python_version = "py310"
+target-version = ["py310"]
 
 [tool.blacken-docs]
 line-length = 120

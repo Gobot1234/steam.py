@@ -232,12 +232,10 @@ class IntEnum(Enum, int):
 
     if TYPE_CHECKING:
 
-        def __new__(cls, value: int) -> Self:
-            ...
+        def __new__(cls, value: int) -> Self: ...
 
         @classmethod
-        def try_value(cls, value: int) -> Self:
-            ...
+        def try_value(cls, value: int) -> Self: ...
 
 
 class Flags(IntEnum):
@@ -758,14 +756,14 @@ class Language(IntEnum):
         try:
             return _REVERSE_API_LANGUAGE_MAP[string.lower()]
         except KeyError:
-            return cls._new_member(name=string.title(), value=-1)
+            return cls._new_member(name=string.title(), value=hash(string.title()))
 
     @classmethod
     def from_web_api_str(cls, string: str, /) -> Language:
         try:
             return _REVERSE_WEB_API_MAP[string]
         except KeyError:
-            return cls._new_member(name=string, value=-1)
+            return cls._new_member(name=string, value=hash(string))
 
 
 _REVERSE_API_LANGUAGE_MAP: Final = cast(
@@ -878,7 +876,7 @@ class Currency(IntEnum):
         try:
             return cls._member_map_[name]
         except (KeyError, TypeError):
-            return cls._new_member(name=name, value=-1)
+            return cls._new_member(name=name, value=hash(name))
 
 
 class Realm(IntEnum):
@@ -1181,7 +1179,7 @@ class TradeOfferState(IntEnum):
     CanceledBySecondaryFactor = 10
     """The trade offer was cancelled by second factor."""
     StateInEscrow             = 11
-    """The trade offer is in escrow."""
+    """The trade offer is in escrow (hold)."""
 
 
 class ChatMemberRank(IntEnum):
@@ -2079,9 +2077,12 @@ class AuthSessionResponse(IntEnum):
 
 
 class ContentDescriptor(IntEnum):
+    NudityOrSexualContent = 1
     FrequentNudityOrSexualContent = 1
     FrequentViolenceOrGore = 2
+    AdultOnlySexualContent = 3
     StrongSexualContent = 3
+    GratuitousSexualContent = 4
     AnyMatureContent = 5
 
 

@@ -74,8 +74,7 @@ class ProfileMovie(_IOMixin):
 
 
 class SupportsEquip(Protocol):
-    def __init__(self, *, communityitemid: int) -> None:
-        ...
+    def __init__(self, *, communityitemid: int) -> None: ...
 
 
 UserT = TypeVar("UserT", bound="PartialUser", default="User", covariant=True)
@@ -384,23 +383,27 @@ class ProfileCustomisation(Generic[UserT]):
                         content=slot.notes or None,
                         badge_id=slot.badgeid or None,
                         border_colour=slot.border_color or None,
-                        asset=Asset(
-                            state,
-                            econ.Asset(
-                                assetid=slot.item_assetid,
-                                appid=slot.appid,
-                                contextid=slot.item_contextid,
-                                instanceid=slot.item_instanceid,
-                                classid=slot.item_classid,
-                                amount=1,
-                            ),
-                            user,
-                        )
-                        if slot.item_assetid
-                        else None,
-                        clan=(state.get_clan(ID32(slot.accountid)) or PartialClan(state, slot.accountid))
-                        if slot.accountid
-                        else None,
+                        asset=(
+                            Asset(
+                                state,
+                                econ.Asset(
+                                    assetid=slot.item_assetid,
+                                    appid=slot.appid,
+                                    contextid=slot.item_contextid,
+                                    instanceid=slot.item_instanceid,
+                                    classid=slot.item_classid,
+                                    amount=1,
+                                ),
+                                user,
+                            )
+                            if slot.item_assetid
+                            else None
+                        ),
+                        clan=(
+                            (state.get_clan(ID32(slot.accountid)) or PartialClan(state, slot.accountid))
+                            if slot.accountid
+                            else None
+                        ),
                         replay_year=slot.replay_year or None,
                     )
                     for slot in customisation.slots

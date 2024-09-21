@@ -177,8 +177,7 @@ class InventoryGenericAlias(types.GenericAlias):
     if TYPE_CHECKING:
 
         @property
-        def __origin__(self) -> type[Inventory]:
-            ...
+        def __origin__(self) -> type[Inventory]: ...
 
     def __call__(self, *args: Any, **kwargs: Any) -> object:
         # this is done cause we need __orig_class__ in __init__
@@ -412,7 +411,7 @@ class TradeOffer(Generic[ReceivingAssetT, SendingAssetT, UserT]):
         """The time at which the trade was created."""
         self.escrow: timedelta | None = None
         """
-        The time at which the escrow will end. Can be ``None`` if there is no escrow on the trade.
+        The time at which the escrow (hold) will end. Can be ``None`` if there is no escrow on the trade.
 
         Warning
         -------
@@ -490,8 +489,7 @@ class TradeOffer(Generic[ReceivingAssetT, SendingAssetT, UserT]):
         data: trade.TradeOffer,
         sending: list[tuple[econ.Asset, econ.ItemDescription]],
         receiving: list[tuple[econ.Asset, econ.ItemDescription]],
-    ) -> TradeOffer[Item[UserT], Item[ClientUser], UserT]:
-        ...
+    ) -> TradeOffer[Item[UserT], Item[ClientUser], UserT]: ...
 
     @overload
     def _update(
@@ -499,8 +497,7 @@ class TradeOffer(Generic[ReceivingAssetT, SendingAssetT, UserT]):
         data: trade.TradeOffer,
         sending: list[econ.Asset],
         receiving: list[econ.Asset],
-    ) -> TradeOffer[Asset[UserT], Asset[ClientUser], UserT]:
-        ...
+    ) -> TradeOffer[Asset[UserT], Asset[ClientUser], UserT]: ...
 
     def _update(
         self: TradeOffer[Asset[UserT], Asset[ClientUser], UserT],

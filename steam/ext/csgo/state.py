@@ -63,23 +63,18 @@ class GCState(GCState_[Backpack]):
 
     if TYPE_CHECKING:
 
-        def get_user(self, id: ID32) -> User | None:
-            ...
+        def get_user(self, id: ID32) -> User | None: ...
 
-        async def fetch_user(self, user_id64: ID64) -> User:
-            ...
+        async def fetch_user(self, user_id64: ID64) -> User: ...
 
-        async def fetch_users(self, user_id64s: Iterable[ID64]) -> Sequence[User]:
-            ...
+        async def fetch_users(self, user_id64s: Iterable[ID64]) -> Sequence[User]: ...
 
-        async def _maybe_user(self, id: Intable) -> User:
-            ...
+        async def _maybe_user(self, id: Intable) -> User: ...
 
-        async def _maybe_users(self, id64s: Iterable[ID64]) -> Sequence[User]:
-            ...
+        async def _maybe_users(self, id64s: Iterable[ID64]) -> Sequence[User]: ...
 
     def _get_gc_message(self) -> sdk.ClientHello:
-        return sdk.ClientHello()
+        return sdk.ClientHello(version=2000202)
 
     async def wait_for_casket_item(self, asset_id: AssetID) -> CasketItem:
         try:
@@ -163,15 +158,33 @@ class GCState(GCState_[Backpack]):
 
             if tradable_after_date := utils.get(gc_item.attribute, def_index=75):
                 self.set("tradable_after", utils.DateTime.from_timestamp(READ_U32(tradable_after_date.value_bytes)))
+            if kill_eater_value := utils.get(gc_item.attribute, def_index=80):
+                self.set("kill_eater_value", READ_U32(kill_eater_value.value_bytes))
+            if kill_eater_type := utils.get(gc_item.attribute, def_index=81):
+                self.set("kill_eater_type", READ_U32(kill_eater_type.value_bytes))
+            if quest_id := utils.get(gc_item.attribute, def_index=168):
+                self.set("quest_id", READ_U32(quest_id.value_bytes))
 
             stickers: list[Sticker] = []
             self.set("stickers", stickers)
-            for i in range(4, 24, 4):
+            for i in range(6):
                 if sticker_id := utils.get(gc_item.attribute, def_index=113 + i):
-                    sticker = Sticker(slot=i, id=READ_U32(sticker_id.value_bytes))  # type: ignore
+                    sticker = Sticker(
+                        slot=READ_U32(utils.get(gc_item.attribute, def_index=290 + i)),  # type: ignore
+                        id=READ_U32(sticker_id.value_bytes),
+                    )
 
-                    for idx, attr in enumerate(Sticker._decodeable_attrs):
-                        if attribute := utils.get(gc_item.attribute, def_index=114 + i + idx):
+                    for idx, attr in enumerate(
+                        (
+                            "wear",
+                            "scale",
+                            "rotation",
+                        )
+                    ):
+                        if attribute := utils.get(gc_item.attribute, def_index=114 + (i * 4) + idx):
+                            setattr(sticker, attr, READ_F32(attribute.value_bytes))
+                    for idx, attr in enumerate(("offset_x", "offset_y")):
+                        if attribute := utils.get(gc_item.attribute, def_index=278 + (i * 2) + idx):
                             setattr(sticker, attr, READ_F32(attribute.value_bytes))
 
                     stickers.append(sticker)

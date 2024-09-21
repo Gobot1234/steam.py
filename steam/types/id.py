@@ -1,4 +1,5 @@
 """Licensed under The MIT License (MIT) - Copyright (c) 2020-present James H-B. See LICENSE"""
+
 # NB: this is the only types file that is expected to importable at runtime
 #     these are internal types and user's shouldn't ever have to use them for the public API
 
@@ -25,8 +26,9 @@ CacheKey: _TypeAlias = tuple[ClassID, InstanceID]
 TradeOfferID = _NewType("TradeOfferID", int)  # u64
 
 
-class ChatGroupID(int):
-    ...  # technically a u64 but we only use 32 bits for now and Steam treats it as a u32 (Group.id is a u32)
+class ChatGroupID(
+    int
+): ...  # technically a u64 but we only use 32 bits for now and Steam treats it as a u32 (Group.id is a u32)
 
 
 ChatID = _NewType("ChatID", int)  # u64

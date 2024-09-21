@@ -820,8 +820,7 @@ class PartialUser(ID[Literal[Type.Individual]], Commentable):
             PartialApp(self._state, id=post.appid) if post.appid else None,
         )
 
-    async def invite_to(self, app: App) -> AppInvite:
-        ...
+    async def invite_to(self, app: App) -> AppInvite: ...
 
     def is_friend(self) -> bool:
         """Whether the user is in the :class:`ClientUser`'s friends."""
@@ -895,9 +894,7 @@ class BaseUser(PartialUser):
         """Fetch the game server this user is currently playing on."""
         if self.game_server_ip is None:
             raise ValueError("User is not playing on a game server")
-        server = await self._state.client.fetch_server(
-            ip=self.game_server_ip, port=self.game_server_port if self.game_server_port is not None else MISSING
-        )
+        server = await self._state.client.fetch_server(ip=self.game_server_ip, port=self.game_server_port)
         assert server is not None
         return server
 

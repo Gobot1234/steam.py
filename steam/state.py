@@ -152,8 +152,7 @@ MsgsT = TypeVar("MsgsT", bound="Msgs", contravariant=True)
 class ParserCallback(Protocol[StateT, MsgsT]):
     __name__: str
 
-    def __call__(self_, self: StateT, msg: MsgsT, /, *args: Any) -> CoroutineType[Any, Any, Any] | Any:
-        ...
+    def __call__(self_, self: StateT, msg: MsgsT, /, *args: Any) -> CoroutineType[Any, Any, Any] | Any: ...
 
 
 F = TypeVar("F", bound=Callable[..., Any])
@@ -246,9 +245,9 @@ class ConnectionState:
         self.licenses_being_waited_for = weakref.WeakValueDictionary[PackageID, asyncio.Future[License]]()
         self._manifest_passwords: dict[AppID, dict[str, str]] = {}
 
-        self._game_connect_bytes: list[
-            bytes
-        ] = []  # this is a bad name but it's a combination of gc_token, steam id, and time
+        self._game_connect_bytes: list[bytes] = (
+            []
+        )  # this is a bad name but it's a combination of gc_token, steam id, and time
         self.connection_count = 0
         self._h_steam_pipe = random.randint(1, 1000001)
         self._active_auth_tickets: dict[tuple[AppID, ID64], AuthenticationTicket] = {}
@@ -282,6 +281,7 @@ class ConnectionState:
 
     @utils.cached_property
     def _task_error(self) -> asyncio.Future[None]:
+        """Holds the exceptions so that the gateway can propagate exceptions to the client.login call"""
         return asyncio.get_running_loop().create_future()
 
     @property
@@ -421,7 +421,9 @@ class ConnectionState:
                             if isinstance(invite.clan, Clan):
                                 self._clans[invite.clan.id] = invite.clan
 
-                case FriendRelationship.RequestInitiator | FriendRelationship.RequestRecipient:  # TODO this needs checking for clans
+                case (
+                    FriendRelationship.RequestInitiator | FriendRelationship.RequestRecipient
+                ):  # TODO this needs checking for clans
                     match id.type:
                         case Type.Individual:
                             invitee = await self._maybe_user(id.id64)

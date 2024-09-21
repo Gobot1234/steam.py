@@ -87,8 +87,7 @@ class QueryWhereSimpleKwargs(TypedDict, total=False):
     region: Annotated[GameServerRegion, "\\region\\", attrgetter("value")]
 
 
-class QueryWhereKwargs(QueryWhereBoolKwargs, QueryWhereSimpleKwargs, total=False):
-    ...
+class QueryWhereKwargs(QueryWhereBoolKwargs, QueryWhereSimpleKwargs, total=False): ...
 
 
 for cls in (QueryWhereBoolKwargs, QueryWhereSimpleKwargs):

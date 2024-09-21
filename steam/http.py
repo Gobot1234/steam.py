@@ -11,7 +11,7 @@ from http.cookies import SimpleCookie
 from random import randbytes
 from sys import version_info
 from time import time
-from typing import TYPE_CHECKING, Any, Literal, Mapping, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Literal, Mapping, TypeVar, Unpack, cast
 
 import aiohttp
 from bs4 import BeautifulSoup
@@ -28,7 +28,7 @@ from .types.id import ID32, ID64, AppID, AssetID, BundleID, ChatGroupID, ChatID,
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Callable, Iterable, Sequence, ValuesView
 
-    from .client import Client
+    from .client import Client, ClientKwargs
     from .media import Media
     from .types import achievement, app, bundle, clan, guard, trade, user
     from .types.http import AddWalletCode, CMList, Coro, EResultSuccess, ResponseDict, StrOrURL
@@ -53,7 +53,7 @@ async def json_or_text(r: aiohttp.ClientResponse, *, loads: Callable[[str], Any]
 class HTTPClient:
     """The HTTP Client that interacts with the Steam web API."""
 
-    def __init__(self, client: Client, **options: Any):
+    def __init__(self, client: Client, **options: Unpack[ClientKwargs]):
         self._session: aiohttp.ClientSession = None  # type: ignore  # filled in login
         self.user: ClientUser = None  # type: ignore
         self._client = client
@@ -70,6 +70,7 @@ class HTTPClient:
         self.proxy: str | None = options.get("proxy")
         self.proxy_auth: aiohttp.BasicAuth | None = options.get("proxy_auth")
         self.connector: aiohttp.BaseConnector | None = options.get("connector")
+        self.ssl = options.get("ssl")
 
     def clear(self) -> None:
         self._session = aiohttp.ClientSession(
@@ -99,7 +100,9 @@ class HTTPClient:
 
         r = data = None
         for tries in range(5):
-            async with self._session.request(method, url, **kwargs, proxy=self.proxy, proxy_auth=self.proxy_auth) as r:
+            async with self._session.request(
+                method, url, **kwargs, proxy=self.proxy, proxy_auth=self.proxy_auth, ssl=self.ssl
+            ) as r:
                 log.debug("%s %s with PAYLOAD: %s has returned %d", method, r.url, payload, r.status)
 
                 # even errors have text involved in them so this is safe to call
@@ -604,14 +607,14 @@ class HTTPClient:
         return self.post(URL.COMMUNITY / "my/ajaxclearaliashistory", data=payload)
 
     def get_price(self, app_id: AppID, item_name: str, currency: Currency | None) -> Coro[PriceOverviewDict]:
-        payload = {
+        params = {
             "appid": app_id,
             "market_hash_name": item_name,
         }
         if currency is not None:
-            payload |= {"currency": currency}
+            params |= {"currency": currency}
 
-        return self.post(URL.COMMUNITY / "market/priceoverview", data=payload)
+        return self.get(URL.COMMUNITY / "market/priceoverview", params=params)
 
     async def get_clan_members(self, clan_id64: ID64) -> AsyncGenerator[ID32, None]:
         url = f"{ID(clan_id64).community_url}/members"
@@ -1099,7 +1102,7 @@ class HTTPClient:
             "file_sha": media.hash(contents),
             "file_image_width": media.width,
             "file_image_height": media.height,
-            "file_type": f"image/{media.type}",
+            "file_type": media.type,
         }
         resp = await self.post(URL.COMMUNITY / "chat/beginfileupload", data=payload)
 
@@ -1112,7 +1115,7 @@ class HTTPClient:
             "success": 1,
             "ugcid": result["ugcid"],
             "timestamp": result["timestamp"],
-            "hmac": result["hmac"],
+            "hmac": resp["hmac"],
             "spoiler": int(media.spoiler),
         } | kwargs
         await self.post(URL.COMMUNITY / "chat/commitfileupload", data=payload)

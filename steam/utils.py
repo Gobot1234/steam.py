@@ -163,8 +163,7 @@ class cached_property(Generic[_SelfT, _T_co]):
         self.__doc__: str | None = getattr(function, "__doc__", None)
 
     @overload
-    def __get__(self, instance: None, _) -> Self:
-        ...
+    def __get__(self, instance: None, _) -> Self: ...
 
     @overload
     def __get__(self, instance: _SelfT, _) -> _T_co:  # type: ignore
@@ -186,13 +185,11 @@ class cached_property(Generic[_SelfT, _T_co]):
 
 
 @overload
-def cached_slot_property(function: Callable[[_SelfT], _T_co], /) -> CachedSlotProperty[_SelfT, _T_co]:
-    ...
+def cached_slot_property(function: Callable[[_SelfT], _T_co], /) -> CachedSlotProperty[_SelfT, _T_co]: ...
 
 
 @overload
-def cached_slot_property(name: str, /) -> Callable[[Callable[[_SelfT], _T_co]], CachedSlotProperty[_SelfT, _T_co]]:
-    ...
+def cached_slot_property(name: str, /) -> Callable[[Callable[[_SelfT], _T_co]], CachedSlotProperty[_SelfT, _T_co]]: ...
 
 
 def cached_slot_property(function_or_name: Any, /) -> Any:  # required to be a function to appease type checkers
@@ -220,8 +217,7 @@ class CachedSlotProperty(Generic[_SelfT, _T_co]):
             assert name in slots, f"Slot {name} must exist"
 
     @overload
-    def __get__(self, instance: None, _) -> Self:
-        ...
+    def __get__(self, instance: None, _) -> Self: ...
 
     @overload
     def __get__(self, instance: _SelfT, _) -> _T_co:  # type: ignore
@@ -247,18 +243,15 @@ F_wait = TypeVar("F_wait", bound="Callable[Concatenate[Any, ...], Awaitable[Any]
 
 
 @overload
-def call_once(func: F_no_wait, /) -> F_no_wait:
-    ...
+def call_once(func: F_no_wait, /) -> F_no_wait: ...
 
 
 @overload
-def call_once(*, wait: Literal[False] = False) -> Callable[[F_no_wait], F_no_wait]:
-    ...
+def call_once(*, wait: Literal[False] = False) -> Callable[[F_no_wait], F_no_wait]: ...
 
 
 @overload
-def call_once(*, wait: Literal[True]) -> Callable[[F_wait], F_wait]:
-    ...
+def call_once(*, wait: Literal[True]) -> Callable[[F_wait], F_wait]: ...
 
 
 def call_once(func: F_wait | None = None, /, *, wait: bool = False) -> F_wait | Callable[[F_wait], F_wait]:
@@ -391,8 +384,7 @@ class AsyncInit(metaclass=abc.ABCMeta):
     __slots__ = ()
 
     @abc.abstractmethod
-    async def __ainit__(self) -> None:
-        ...
+    async def __ainit__(self) -> None: ...
 
     async def __await_inner__(self) -> Self:
         await self.__ainit__()
@@ -539,12 +531,10 @@ class ChainMap(collections.ChainMap[_KT, _VT]):
         raise KeyError()
 
     @overload
-    def pop(self, key: _KT) -> _VT:
-        ...
+    def pop(self, key: _KT) -> _VT: ...
 
     @overload
-    def pop(self, key: _KT, default: _VT | _T) -> _VT | _T:
-        ...
+    def pop(self, key: _KT, default: _VT | _T) -> _VT | _T: ...
 
     def pop(self, key: _KT, default: _VT | _T = MISSING) -> _VT | _T:
         for map in self.maps:
@@ -721,13 +711,11 @@ async def _achunk(
 
 
 @overload
-def as_chunks(iterable: AsyncIterable[_T], /, max_size: int) -> AsyncGenerator[tuple[_T, ...], None]:
-    ...
+def as_chunks(iterable: AsyncIterable[_T], /, max_size: int) -> AsyncGenerator[tuple[_T, ...], None]: ...
 
 
 @overload
-def as_chunks(iterable: Iterable[_T], /, max_size: int) -> Generator[tuple[_T, ...], None, None]:
-    ...
+def as_chunks(iterable: Iterable[_T], /, max_size: int) -> Generator[tuple[_T, ...], None, None]: ...
 
 
 def as_chunks(iterable: _Iter[_T], /, max_size: int) -> _Iter[tuple[_T, ...]]:
@@ -755,13 +743,11 @@ def as_chunks(iterable: _Iter[_T], /, max_size: int) -> _Iter[tuple[_T, ...]]:
 
 
 @overload
-def find(predicate: Callable[[_T], bool], iterable: AsyncIterable[_T], /) -> Coro[_T | None]:
-    ...
+def find(predicate: Callable[[_T], bool], iterable: AsyncIterable[_T], /) -> Coro[_T | None]: ...
 
 
 @overload
-def find(predicate: Callable[[_T], bool], iterable: Iterable[_T], /) -> _T | None:
-    ...
+def find(predicate: Callable[[_T], bool], iterable: Iterable[_T], /) -> _T | None: ...
 
 
 def find(predicate: Callable[[_T], bool], iterable: _Iter[_T], /) -> _T | Coro[_T | None] | None:
@@ -833,13 +819,11 @@ def _aget(
 
 
 @overload
-def get(iterable: AsyncIterable[_T], /, **attrs: Any) -> Coro[_T | None]:
-    ...
+def get(iterable: AsyncIterable[_T], /, **attrs: Any) -> Coro[_T | None]: ...
 
 
 @overload
-def get(iterable: Iterable[_T], /, **attrs: Any) -> _T | None:
-    ...
+def get(iterable: Iterable[_T], /, **attrs: Any) -> _T | None: ...
 
 
 def get(iterable: _Iter[_T], /, **attrs: Any) -> _T | None | Coro[_T | None]:

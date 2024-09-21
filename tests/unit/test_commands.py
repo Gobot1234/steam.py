@@ -25,22 +25,19 @@ async def test_commands():
     with pytest.raises(TypeError):
 
         @commands.command  # type: ignore
-        async def not_valid() -> None:
-            ...
+        async def not_valid() -> None: ...
 
     class MyCog(commands.Cog):
         with pytest.raises(TypeError):
 
             @commands.command  # type: ignore
-            async def not_even_close() -> None:
-                ...
+            async def not_even_close() -> None: ...
 
     async with TheTestBot() as bot:
 
         class MyCog2(commands.Cog):
             @commands.command  # type: ignore
-            async def not_valid(self) -> None:
-                ...
+            async def not_valid(self) -> None: ...
 
         with pytest.raises(TypeError):
             await bot.add_cog(MyCog2())  # type: ignore
@@ -48,21 +45,18 @@ async def test_commands():
 
 def test_annotations() -> None:
     @commands.command
-    async def some_cool_command(_, cool_type: SomeCoolType) -> None:
-        ...
+    async def some_cool_command(_, cool_type: SomeCoolType) -> None: ...
 
     assert some_cool_command.clean_params.popitem()[1].annotation is SomeCoolType  # should be evaluated
 
     @commands.command
-    async def get_an_user(_, user: "UserTypes") -> None:
-        ...
+    async def get_an_user(_, user: "UserTypes") -> None: ...
 
     assert get_an_user.clean_params.popitem()[1].annotation == UserTypes
 
 
 class CustomConverter(commands.Converter[tuple[Any, ...]]):
-    async def convert(self, ctx: commands.Context, argument: str) -> tuple[Any, ...]:
-        ...
+    async def convert(self, ctx: commands.Context, argument: str) -> tuple[Any, ...]: ...
 
 
 @pytest.mark.parametrize(
@@ -292,14 +286,12 @@ async def test_positional_only_commands():
 @pytest.mark.asyncio
 async def test_group_commands() -> None:
     @commands.group
-    async def foo(_):
-        ...
+    async def foo(_): ...
 
     assert isinstance(foo, commands.Group)
 
     @foo.command
-    async def bar(_):
-        ...
+    async def bar(_): ...
 
     assert isinstance(bar, commands.Command)
 
@@ -371,8 +363,7 @@ async def test_converters() -> None:
     async with TheTestBot() as bot:
 
         @bot.command
-        async def source(_, command: commands.Command):
-            ...
+        async def source(_, command: commands.Command): ...
 
         assert command_converter.converter_for == commands.Command
         assert commands.Command in bot.converters
@@ -380,8 +371,7 @@ async def test_converters() -> None:
         assert called_command_converter
 
         @bot.command
-        async def set_avatar(_, image: steam.Media):
-            ...
+        async def set_avatar(_, image: steam.Media): ...
 
         assert MediaConverter.converter_for is steam.Media
         assert steam.Media in bot.converters

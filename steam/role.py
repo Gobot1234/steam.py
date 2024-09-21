@@ -150,8 +150,7 @@ class RolePermissions:
         change_user_roles: bool = ...,
         mention_all: bool = ...,
         set_watching_broadcast: bool = ...,
-    ) -> Self:
-        ...
+    ) -> Self: ...
 
     def replace(self, **kwargs: bool) -> Self:
         """Return a new RolePermissions with the specified changes."""

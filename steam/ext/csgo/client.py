@@ -49,20 +49,16 @@ class Client(Client_):
     if TYPE_CHECKING:
 
         @cached_property
-        def user(self) -> ClientUser:
-            ...
+        def user(self) -> ClientUser: ...
 
     @overload
-    async def inspect_item(self, *, owner: IndividualID, asset_id: int, d: int) -> BaseInspectedItem:
-        ...
+    async def inspect_item(self, *, owner: IndividualID, asset_id: int, d: int) -> BaseInspectedItem: ...
 
     @overload
-    async def inspect_item(self, *, market_id: int, asset_id: int, d: int) -> BaseInspectedItem:
-        ...
+    async def inspect_item(self, *, market_id: int, asset_id: int, d: int) -> BaseInspectedItem: ...
 
     @overload
-    async def inspect_item(self, *, url: str) -> BaseInspectedItem:
-        ...
+    async def inspect_item(self, *, url: str) -> BaseInspectedItem: ...
 
     async def inspect_item(
         self,
@@ -156,12 +152,10 @@ class Client(Client_):
         )
 
     @overload
-    async def fetch_match(self, id: int, *, outcome_id: int, token: int) -> Match:
-        ...
+    async def fetch_match(self, id: int, *, outcome_id: int, token: int) -> Match: ...
 
     @overload
-    async def fetch_match(self, *, code: str) -> Match:
-        ...
+    async def fetch_match(self, *, code: str) -> Match: ...
 
     async def fetch_match(
         self, id: int = MISSING, *, outcome_id: int = MISSING, token: int = MISSING, code: str = MISSING
@@ -205,11 +199,9 @@ class Client(Client_):
 
     if TYPE_CHECKING or DOCS_BUILDING:
 
-        def get_user(self, id: Intable) -> User | None:
-            ...
+        def get_user(self, id: Intable) -> User | None: ...
 
-        async def fetch_user(self, id: Intable) -> User:
-            ...
+        async def fetch_user(self, id: Intable) -> User: ...
 
         async def on_gc_connect(self) -> None:
             """Called after the client receives the welcome message from the GC.
