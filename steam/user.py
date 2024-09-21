@@ -62,6 +62,7 @@ class _BaseUser(BaseUser):
 
     def __init__(self, state: ConnectionState, proto: UserProto):
         super().__init__(state, proto.friendid)
+        self.rich_presence = None  # ensure the attr exists
         self._update(proto)
 
     def _update(self, proto: UserProto, /) -> None:
@@ -80,9 +81,8 @@ class _BaseUser(BaseUser):
         """The last time the user logged into steam."""
         self.last_seen_online = DateTime.from_timestamp(proto.last_seen_online)
         """The last time the user could be seen online."""
-        self.rich_presence = (
-            {message.key: message.value for message in proto.rich_presence} if proto.is_set("rich_presence") else None
-        )
+        if proto.is_set("rich_presence"):
+            self.rich_presence = {message.key: message.value for message in proto.rich_presence}
         """The rich presence of the user."""
         self.app = (
             PartialApp(self._state, name=proto.game_name, id=proto.game_played_app_id)
