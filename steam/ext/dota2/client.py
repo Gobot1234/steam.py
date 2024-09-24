@@ -52,7 +52,7 @@ class Client(Client_):
         This is similar to game list in the Watch Tab of Dota 2 game app.
         "Top matches" in this context means
 
-        * tournament matches
+        * featured tournament matches
         * highest average MMR matches
 
         Parameters
@@ -163,16 +163,8 @@ class Client(Client_):
         asyncio.TimeoutError
             Request time-outed. The reason is usually Dota 2 Game Coordinator lagging or being down.
         """
-        future = self._state.ws.gc_wait_for(
-            watch.GCToClientFindTopSourceTVGamesResponse,
-            check=lambda msg: msg.specific_games == True,
-        )
-        await self._state.ws.send_gc_message(watch.ClientToGCFindTopSourceTVGames(lobby_ids=lobby_ids))
 
-        async with timeout(15.0):
-            response = await future
-        # todo: test with more than 10 lobby_ids, Game Coordinator will probably chunk it wrongly or fail at all
-
+        response = await self._state.fetch_live_matches(lobby_ids)
         return [LiveMatch(self._state, match) for match in response.game_list]
 
     async def match_details(self, match_id: int) -> MatchDetails:

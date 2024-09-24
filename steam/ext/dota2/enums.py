@@ -15,7 +15,9 @@ __all__ = (
     "Hero",
     "GameMode",
     "LobbyType",
+    "RankTier",
 )
+
 
 # fmt: off
 class Hero(IntEnum):
@@ -144,6 +146,7 @@ class Hero(IntEnum):
     VoidSpirit        = 126
     Snapfire          = 128
     Mars              = 129
+    Ringmaster        = 131
     Dawnbreaker       = 135
     Marci             = 136
     PrimalBeast       = 137
@@ -273,6 +276,7 @@ class Hero(IntEnum):
             cls.VoidSpirit       : "Void Spirit",
             cls.Snapfire         : "Snapfire",
             cls.Mars             : "Mars",
+            cls.Ringmaster       : "Ringmaster",
             cls.Dawnbreaker      : "Dawnbreaker",
             cls.Marci            : "Marci",
             cls.PrimalBeast      : "Primal Beast",
@@ -384,6 +388,66 @@ class LobbyType(IntEnum):  # source: dota_gcmessages_common_lobby.proto
     @property
     def display_name(self) -> str:
         return self.DISPLAY_NAMES[self]
+
+
+class RankTier(IntEnum):
+    """Enum representing Dota 2 Rank Tier.
+
+    Commonly called "ranked medals".
+    """
+    Uncalibrated = 0
+
+    Herald1      = 11
+    Herald2      = 12
+    Herald3      = 13
+    Herald4      = 14
+    Herald5      = 15
+
+    Guardian1    = 21
+    Guardian2    = 22
+    Guardian3    = 23
+    Guardian4    = 24
+    Guardian5    = 25
+
+    Crusader1    = 31
+    Crusader2    = 32
+    Crusader3    = 33
+    Crusader4    = 34
+    Crusader5    = 35
+
+    Archon1      = 41
+    Archon2      = 42
+    Archon3      = 43
+    Archon4      = 44
+    Archon5      = 45
+
+    Legend1      = 51
+    Legend2      = 52
+    Legend3      = 53
+    Legend4      = 54
+    Legend5      = 55
+
+    Ancient1     = 61
+    Ancient2     = 62
+    Ancient3     = 63
+    Ancient4     = 64
+    Ancient5     = 65
+
+    Divine1      = 71
+    Divine2      = 72
+    Divine3      = 73
+    Divine4      = 74
+    Divine5      = 75
+
+    Immortal     = 80
+
+    @property
+    def display_name(self) -> str:
+        if self.value % 10 == 0:
+            return self.name
+        else:
+            return self.name[:-1] + ' ' + self.name[-1]
+
 
 
 class EMsg(IntEnum):

@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Generic, Self, TypeVar
 from ... import abc, user
 from ..._gc.client import ClientUser as ClientUser_
 from ...utils import DateTime
-from .enums import GameMode, Hero, LobbyType
+from .enums import GameMode, Hero, LobbyType, RankTier
 from .protobufs import client_messages
 
 if TYPE_CHECKING:
@@ -325,20 +325,27 @@ class BehaviorSummary:
 class ProfileCard(Generic[UserT]):
     def __init__(self, user: UserT, proto: common.ProfileCard):
         self.user = user
-        self.slots = proto.slots
         self.badge_points = proto.badge_points
         self.event_points = proto.event_points
         self.event_id = proto.event_id
         self.recent_battle_cup_victory = proto.recent_battle_cup_victory
-        self.rank_tier = proto.rank_tier
+        self.rank_tier = RankTier.try_value(proto.rank_tier)
+        """Ranked medal like Herald-Immortal with a number of stars, i.e. Legend 5."""
         self.leaderboard_rank = proto.leaderboard_rank
+        """Leaderboard rank, i.e. found here https://www.dota2.com/leaderboards/#europe."""
         self.is_plus_subscriber = proto.is_plus_subscriber
+        """Is Dota Plus Subscriber."""
         self.plus_original_start_date = proto.plus_original_start_date
-        self.rank_tier_score = proto.rank_tier_score
-        self.leaderboard_rank_core = proto.leaderboard_rank_core
-        self.title = proto.title
+        """When user subscribed to Dota Plus for their very first time."""
         self.favorite_team_packed = proto.favorite_team_packed
         self.lifetime_games = proto.lifetime_games
+        """Amount of lifetime games, includes Turbo games as well."""
+
+        # (?) Unused/Deprecated by Valve
+        # self.slots = proto.slots  # profile page was reworked
+        # self.title = proto.title
+        # self.rank_tier_score = proto.rank_tier_score  # relic from time when support/core MMR were separated
+        # self.leaderboard_rank_core = proto.leaderboard_rank_core  # relic from time when support/core MMR were separated
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} user={self.user!r}>"
