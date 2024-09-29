@@ -91,6 +91,8 @@ class BaseItem(metaclass=ABCMeta):
         "paint",
         "tradable_after",
         "stickers",
+        "kill_eater_value",
+        "kill_eater_type",
         "_state",
         *tuple(base.Item.__annotations__),
     )
