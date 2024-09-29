@@ -96,6 +96,17 @@ class GCState(GCState_[Any]):  # todo: implement basket-analogy for dota2
                 check=lambda msg: msg.match.match_id == match_id,
             )
 
+    async def fetch_match_minimal(self, match_ids: list[int]) -> watch.ClientToGCMatchesMinimalResponse:
+        """Fetch Match Minimal.
+
+        This call is for already finished games. Contains basic data about the match.
+        """
+        await self.ws.send_gc_message(watch.ClientToGCMatchesMinimalRequest(match_ids=match_ids))
+        async with timeout(15.0):
+            return await self.ws.gc_wait_for(
+                watch.ClientToGCMatchesMinimalResponse,
+            )
+
     async def fetch_live_matches(self, lobby_ids: list[int]) -> watch.GCToClientFindTopSourceTVGamesResponse:
         """Fetch Live Match by lobby ids."""
         await self.ws.send_gc_message(watch.ClientToGCFindTopSourceTVGames(lobby_ids=lobby_ids))

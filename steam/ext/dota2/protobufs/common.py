@@ -298,7 +298,7 @@ class BroadcasterInfo(betterproto.Message):
     name: str = betterproto.string_field(2)
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class Coach(betterproto.Message):
     account_id: int = betterproto.uint32_field(1)
     coach_name: str = betterproto.string_field(2)
@@ -306,3 +306,53 @@ class Coach(betterproto.Message):
     coach_team: int = betterproto.uint32_field(4)
     coach_party_id: int = betterproto.uint64_field(5)
     is_private_coach: bool = betterproto.bool_field(6)
+
+
+# MATCH MINIMAL
+
+
+@dataclass(eq=False, repr=False)
+class MatchMinimal(betterproto.Message):
+    match_id: int = betterproto.uint64_field(1)
+    start_time: float = betterproto.fixed32_field(2)
+    duration: int = betterproto.uint32_field(3)
+    game_mode: GameMode = betterproto.enum_field(4)
+    players: list[MatchMinimalPlayer] = betterproto.message_field(6)
+    tourney: MatchMinimalTourney = betterproto.message_field(7)
+    match_outcome: EMatchOutcome = betterproto.enum_field(8)
+    radiant_score: int = betterproto.uint32_field(9)
+    dire_score: int = betterproto.uint32_field(10)
+    lobby_type: int = betterproto.uint32_field(11)
+
+
+@dataclass(eq=False, repr=False)
+class MatchMinimalPlayer(betterproto.Message):
+    account_id: int = betterproto.uint32_field(1)
+    hero_id: int = betterproto.uint32_field(2)
+    kills: int = betterproto.uint32_field(3)
+    deaths: int = betterproto.uint32_field(4)
+    assists: int = betterproto.uint32_field(5)
+    items: list[int] = betterproto.int32_field(6)
+    player_slot: int = betterproto.uint32_field(7)
+    pro_name: str = betterproto.string_field(8)
+    level: int = betterproto.uint32_field(9)
+    team_number: Team = betterproto.enum_field(10)
+
+
+@dataclass(eq=False, repr=False)
+class MatchMinimalTourney(betterproto.Message):
+    league_id: int = betterproto.uint32_field(1)
+    series_type: int = betterproto.uint32_field(8)
+    series_game: int = betterproto.uint32_field(9)
+    weekend_tourney_tournament_id: int = betterproto.uint32_field(10)
+    weekend_tourney_season_trophy_id: int = betterproto.uint32_field(11)
+    weekend_tourney_division: int = betterproto.uint32_field(12)
+    weekend_tourney_skill_level: int = betterproto.uint32_field(13)
+    radiant_team_id: int = betterproto.uint32_field(2)
+    radiant_team_name: str = betterproto.string_field(3)
+    radiant_team_logo: float = betterproto.fixed64_field(4)
+    radiant_team_logo_url: str = betterproto.string_field(14)
+    dire_team_id: int = betterproto.uint32_field(5)
+    dire_team_name: str = betterproto.string_field(6)
+    dire_team_logo: float = betterproto.fixed64_field(7)
+    dire_team_logo_url: str = betterproto.string_field(15)

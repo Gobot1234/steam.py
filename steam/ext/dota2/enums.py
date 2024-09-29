@@ -396,58 +396,84 @@ class RankTier(IntEnum):
     Commonly called "ranked medals".
     """
     Uncalibrated = 0
-
     Herald1      = 11
     Herald2      = 12
     Herald3      = 13
     Herald4      = 14
     Herald5      = 15
-
     Guardian1    = 21
     Guardian2    = 22
     Guardian3    = 23
     Guardian4    = 24
     Guardian5    = 25
-
     Crusader1    = 31
     Crusader2    = 32
     Crusader3    = 33
     Crusader4    = 34
     Crusader5    = 35
-
     Archon1      = 41
     Archon2      = 42
     Archon3      = 43
     Archon4      = 44
     Archon5      = 45
-
     Legend1      = 51
     Legend2      = 52
     Legend3      = 53
     Legend4      = 54
     Legend5      = 55
-
     Ancient1     = 61
     Ancient2     = 62
     Ancient3     = 63
     Ancient4     = 64
     Ancient5     = 65
-
     Divine1      = 71
     Divine2      = 72
     Divine3      = 73
     Divine4      = 74
     Divine5      = 75
-
     Immortal     = 80
 
     @property
-    def display_name(self) -> str:
-        if self.value % 10 == 0:
-            return self.name
+    def division(self) -> str:
+        if self.name[-1].isdigit():
+            return self.name[:-1]
         else:
-            return self.name[:-1] + ' ' + self.name[-1]
+            return self.name
 
+    @property
+    def stars(self) -> str:
+        return self.value % 10
+
+
+    # @property
+    # def display_name(self) -> str:
+    #     if self.value % 10 == 0:
+    #         return self.name
+    #     else:
+    #         return self.name[:-1] + ' ' + self.name[-1]
+
+
+class Outcome(IntEnum):  # source: dota_shared_enums.proto
+    """Represents Match Outcome."""
+    Unknown                        = 0
+    RadiantVictory                 = 2
+    DireVictory                    = 3
+    NeutralVictory                 = 4
+    NoTeamWinner                   = 5
+    Custom1Victory                 = 6
+    Custom2Victory                 = 7
+    Custom3Victory                 = 8
+    Custom4Victory                 = 9
+    Custom5Victory                 = 10
+    Custom6Victory                 = 11
+    Custom7Victory                 = 12
+    Custom8Victory                 = 13
+    NotScoredPoorNetworkConditions = 64
+    NotScoredLeaver                = 65
+    NotScoredServerCrash           = 66
+    NotScoredNeverStarted          = 67
+    NotScoredCanceled              = 68
+    NotScoredSuspicious            = 69
 
 
 class EMsg(IntEnum):

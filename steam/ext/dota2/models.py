@@ -51,6 +51,38 @@ class PartialMatch:
         proto.match
 
 
+class MatchMinimalPlayer:
+    def __init__(self, state: GCState, proto: common.MatchMinimalPlayer):
+        self._state = state
+
+        self.id = proto.account_id
+        self.hero = Hero.try_value(proto.hero_id)
+        self.kills = proto.kills
+        self.deaths = proto.deaths
+        self.assists = proto.assists
+        self.items = proto.items
+        self.player_slot = proto.player_slot
+        self.pro_name = proto.pro_name
+        self.level = proto.level
+        self.team_number = proto.team_number
+
+
+class MatchMinimal:
+    def __init__(self, state: GCState, proto: common.MatchMinimal) -> None:
+        self._state = state
+
+        self.id = proto.match_id
+        self.start_time = DateTime.from_timestamp(proto.start_time)
+        self.duration = datetime.timedelta(seconds=proto.duration)
+        self.game_mode = GameMode.try_value(proto.game_mode)
+        self.players = [MatchMinimalPlayer(state, player) for player in proto.players]
+        self.tourney = proto.tourney  # TODO: modelize further `common.MatchMinimalTourney`
+        self.outcome = proto.match_outcome
+        self.radiant_score = proto.radiant_score
+        self.dire_score = proto.dire_score
+        self.lobby_type = LobbyType.try_value(proto.lobby_type)
+
+
 class MatchDetails:
     def __init__(self, state: GCState, proto: common.Match) -> None:
         self._state = state

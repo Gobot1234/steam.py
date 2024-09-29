@@ -14,7 +14,7 @@ from ...utils import (
     MISSING,
     cached_property,
 )
-from .models import ClientUser, LiveMatch, MatchDetails
+from .models import ClientUser, LiveMatch, MatchDetails, MatchMinimal, PartialUser
 from .protobufs import client_messages, watch
 from .state import GCState  # noqa: TCH001
 
@@ -174,6 +174,10 @@ class Client(Client_):
         else:
             msg = f"Failed to get match_details for {match_id}"
             raise ValueError(msg)
+
+    async def match_minimal(self, match_id: int) -> MatchMinimal:
+        proto = await self._state.fetch_match_minimal(match_ids=[match_id])
+        return MatchMinimal(self._state, proto.matches[0])
 
     async def matchmaking_stats(self):
         future = self._state.ws.gc_wait_for(client_messages.MatchmakingStatsResponse)

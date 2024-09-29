@@ -10,6 +10,9 @@ import betterproto
 
 from ....protobufs.msg import GCProtobufMessage
 from ..enums import EMsg
+from .common import MatchMinimal  # noqa: TCH001
+
+# FIND TOP SOURCE TV GAMES
 
 
 @dataclass(eq=False, repr=False)
@@ -74,3 +77,15 @@ class GCToClientFindTopSourceTVGamesResponse(GCProtobufMessage, msg=EMsg.GCToCli
     game_list: list[SourceTVGameSmall] = betterproto.message_field(7)
     specific_games: bool = betterproto.bool_field(8)
     bot_game: SourceTVGameSmall = betterproto.message_field(9)
+
+
+# MATCHES MINIMAL
+
+
+class ClientToGCMatchesMinimalRequest(GCProtobufMessage, msg=EMsg.ClientToGCMatchesMinimalRequest):
+    match_ids: list[int] = betterproto.uint64_field(1)
+
+
+class ClientToGCMatchesMinimalResponse(GCProtobufMessage, msg=EMsg.ClientToGCMatchesMinimalResponse):
+    matches: list[MatchMinimal] = betterproto.message_field(1)
+    last_match: bool = betterproto.bool_field(2)
