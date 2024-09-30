@@ -3,41 +3,41 @@
 from __future__ import annotations
 
 import datetime
+from asyncio import timeout
 from dataclasses import dataclass
 from operator import attrgetter
-from typing import TYPE_CHECKING, Generic, Self, TypeVar
+from typing import TYPE_CHECKING
 
-from ... import abc, user
-from ..._gc.client import ClientUser as ClientUser_
-from ...utils import DateTime
-from .enums import GameMode, Hero, LobbyType, RankTier
-from .protobufs import client_messages
+from ....utils import DateTime
+from ..enums import GameMode, Hero, LobbyType, Outcome
+from ..protobufs import client_messages, common, watch
+from . import users
 
 if TYPE_CHECKING:
-    from .protobufs import common, watch
-    from .state import GCState
+    from ..protobufs import common, watch
+    from ..state import GCState
 
 __all__ = (
     "LiveMatch",
-    "TournamentMatch",
-    "TournamentTeam",
-    "BattleCup",
-    "LiveMatchPlayer",
-    "PartialUser",
-    "User",
-    "ProfileCard",
+    "MatchMinimal",
+    "PartialMatch",
 )
-
-UserT = TypeVar("UserT", bound=abc.PartialUser)
 
 
 class PartialMatch:
+    """Represents an already finished Dota 2 Match.
+
+    This class allows using Dota 2 Coordinator requests related to matches.
+    """
+
     def __init__(self, state: GCState, id: int):
         self._state = state
         self.id = id
 
-    async def details(self):
+    async def details(self) -> MatchDetails | None:
         """Fetch Match Details.
+
+        Contains most of the information that can be found in post-match stats in-game.
 
         Raises
         ------
@@ -47,8 +47,27 @@ class PartialMatch:
                 * This match is still live.
                 * Dota 2 Game Coordinator lagging or being down.
         """
-        proto = await self._state.fetch_match_details(self.id)
-        proto.match
+        await self._state.ws.send_gc_message(client_messages.MatchDetailsRequest(match_id=self.id))
+        async with timeout(15.0):
+            response = await self._state.ws.gc_wait_for(
+                client_messages.MatchDetailsResponse,
+                check=lambda msg: msg.match.match_id == self.id,
+            )
+        if response.eresult == 1:
+            return MatchDetails(self._state, response.match)
+        else:
+            msg = f"Failed to get match_details for {self.id}"
+            raise ValueError(msg)
+
+    async def minimal(self) -> MatchMinimal:
+        """Fetches basic "minimal" information about the match."""
+        proto = await self._state.fetch_matches_minimal(match_ids=[self.id])
+        match = next(iter(proto.matches), None)
+        if match is not None:
+            return MatchMinimal(self._state, match)
+        else:
+            msg = f"Failed to get match_minimal for {self.id}"
+            raise ValueError(msg)
 
 
 class MatchMinimalPlayer:
@@ -77,7 +96,7 @@ class MatchMinimal:
         self.game_mode = GameMode.try_value(proto.game_mode)
         self.players = [MatchMinimalPlayer(state, player) for player in proto.players]
         self.tourney = proto.tourney  # TODO: modelize further `common.MatchMinimalTourney`
-        self.outcome = proto.match_outcome
+        self.outcome = Outcome.try_value(proto.match_outcome)
         self.radiant_score = proto.radiant_score
         self.dire_score = proto.dire_score
         self.lobby_type = LobbyType.try_value(proto.lobby_type)
@@ -91,14 +110,14 @@ class MatchDetails:
         self.duration = datetime.timedelta(seconds=proto.duration)
         self.start_time = DateTime.from_timestamp(proto.starttime)
         self.human_players_amount = proto.human_players
-        self.players = proto.players  # todo: modelize
-        self.tower_status = proto.tower_status  # todo: decipher
-        self.barracks_status = proto.barracks_status  # todo: decipher
+        self.players = proto.players  # TODO: modelize
+        self.tower_status = proto.tower_status  # TODO: decipher
+        self.barracks_status = proto.barracks_status  # TODO: decipher
         self.cluster = proto.cluster
         self.first_blood_time = proto.first_blood_time
         self.replay_salt = proto.replay_salt
         self.server_port = proto.server_port
-        self.lobby_type = proto.lobby_type  # todo: use enum
+        self.lobby_type = LobbyType.try_value(proto.lobby_type)
         self.server_ip = proto.server_ip
         self.average_skill = proto.average_skill
         self.game_balance = proto.game_balance
@@ -113,8 +132,8 @@ class MatchDetails:
         self.dire_team_logo_url = proto.dire_team_logo_url
         self.radiant_team_complete = proto.radiant_team_complete
         self.dire_team_complete = proto.dire_team_complete
-        self.game_mode = proto.game_mode  # todo: use enum
-        self.picks_bans = proto.picks_bans  # todo: modelize
+        self.game_mode = GameMode.try_value(proto.game_mode)
+        self.picks_bans = proto.picks_bans  # TODO: modelize
         self.match_seq_num = proto.match_seq_num
         self.replay_state = proto.replay_state
         self.radiant_guild_id = proto.radiant_guild_id
@@ -123,18 +142,18 @@ class MatchDetails:
         self.dire_team_tag: str = proto.dire_team_tag
         self.series_id = proto.series_id
         self.series_type = proto.series_type
-        self.broadcaster_channels = proto.broadcaster_channels  # todo: modelize
+        self.broadcaster_channels = proto.broadcaster_channels  # TODO: modelize
         self.engine = proto.engine
-        self.custom_game_data = proto.custom_game_data  # todo: ???
-        self.match_flags = proto.match_flags  # todo: ???
-        self.private_metadata_key = proto.private_metadata_key  # todo: ???
+        self.custom_game_data = proto.custom_game_data  # TODO: ???
+        self.match_flags = proto.match_flags  # TODO: ???
+        self.private_metadata_key = proto.private_metadata_key  # TODO: ???
         self.radiant_team_score = proto.radiant_team_score
         self.dire_team_score = proto.dire_team_score
-        self.match_outcome = proto.match_outcome  # todo: enumize
+        self.match_outcome = Outcome.try_value(proto.match_outcome)
         self.tournament_id = proto.tournament_id
         self.tournament_round = proto.tournament_round
         self.pre_game_duration = proto.pre_game_duration
-        self.coaches = proto.coaches  # todo: modelize
+        self.coaches = proto.coaches  # TODO: modelize
 
 
 class LiveMatch:
@@ -240,7 +259,7 @@ class LiveMatch:
         self.radiant_lead = proto.radiant_lead
         self.radiant_score = proto.radiant_score
         self.dire_score = proto.dire_score
-        self.building_state = proto.building_state  # todo: helper function to decode this into human-readable
+        self.building_state = proto.building_state  # TODO: helper function to decode this into human-readable
 
         self.custom_game_difficulty = proto.custom_game_difficulty
 
@@ -249,9 +268,9 @@ class LiveMatch:
         # why valve chose to introduce extra bytes fields instead of resorting it once after player selection - no clue
         sorted_players = sorted(proto.players, key=attrgetter("team", "team_slot"))
 
-        self.players: list[LiveMatchPlayer] = []
+        self.players: list[users.LiveMatchPlayer] = []
         for player in sorted_players:
-            live_match_player = LiveMatchPlayer(self._state, player.account_id)
+            live_match_player = users.LiveMatchPlayer(self._state, player.account_id)
             live_match_player.hero = Hero.try_value(player.hero_id)
             self.players.append(live_match_player)
 
@@ -266,7 +285,7 @@ class LiveMatch:
 
 @dataclass(slots=True)
 class TournamentMatch:  # should this be named LiveTournamentMatch ? Idk how fast I gonna break all these namings,
-    league_id: int  # todo: can I get more info like name of the tournament
+    league_id: int  # TODO: can I get more info like name of the tournament
     series_id: int
     teams: tuple[TournamentTeam, TournamentTeam]
 
@@ -275,7 +294,7 @@ class TournamentMatch:  # should this be named LiveTournamentMatch ? Idk how fas
 class TournamentTeam:
     id: int
     name: str
-    logo: float  # todo: can I get more info on logo than float nonsense ?
+    logo: float  # TODO: can I get more info on logo than float nonsense ?
 
 
 @dataclass(slots=True)
@@ -285,99 +304,3 @@ class BattleCup:
     skill_level: int
     bracket_round: int
     teams: tuple[TournamentTeam, TournamentTeam]
-
-
-class PartialUser(abc.PartialUser):
-    __slots__ = ()
-    _state: GCState
-
-    async def dota2_profile_card(self) -> ProfileCard[Self]:
-        """Fetches this users Dota 2 profile card."""
-        msg = await self._state.fetch_user_dota2_profile_card(self.id)
-        return ProfileCard(self, msg)
-
-
-class LiveMatchPlayer(PartialUser):
-    hero: Hero
-
-    def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} id={self.id} hero={self.hero!r}>"
-
-
-class User(PartialUser, user.User):  # type: ignore
-    __slots__ = ()
-
-
-class ClientUser(PartialUser, ClientUser_):  # type: ignore
-    # todo: if TYPE_CHECKING: for inventory
-
-    async def glicko_rating(self):
-        """Request Glicko Rank Information."""
-        future = self._state.ws.gc_wait_for(client_messages.GCToClientRankResponse)
-        await self._state.ws.send_gc_message(
-            client_messages.ClientToGCRankRequest(rank_type=client_messages.ERankType.RankedGlicko)
-        )
-        resp = await future
-        return GlickoRating(
-            mmr=resp.rank_value,
-            deviation=resp.rank_data1,
-            volatility=resp.rank_data2,
-            const=resp.rank_data3,
-        )
-
-    async def behavior_summary(self) -> BehaviorSummary:
-        """Request Behavior Summary."""
-        future = self._state.ws.gc_wait_for(client_messages.GCToClientRankResponse)
-        await self._state.ws.send_gc_message(
-            client_messages.ClientToGCRankRequest(rank_type=client_messages.ERankType.BehaviorPublic)
-        )
-        resp = await future
-        return BehaviorSummary(behavior_score=resp.rank_value, communication_score=resp.rank_data1)
-
-
-@dataclass(slots=True)
-class GlickoRating:
-    mmr: int
-    deviation: int
-    volatility: int  # the numbers, mason, what do they mean
-    const: int  # todo: confirm all those names somehow or leave a note in doc that I'm clueless
-
-    @property
-    def confidence(self):
-        # todo: rofl, confirm this please :D
-        return self.deviation / self.volatility
-
-
-@dataclass(slots=True)
-class BehaviorSummary:
-    behavior_score: int
-    communication_score: int
-
-
-class ProfileCard(Generic[UserT]):
-    def __init__(self, user: UserT, proto: common.ProfileCard):
-        self.user = user
-        self.badge_points = proto.badge_points
-        self.event_points = proto.event_points
-        self.event_id = proto.event_id
-        self.recent_battle_cup_victory = proto.recent_battle_cup_victory
-        self.rank_tier = RankTier.try_value(proto.rank_tier)
-        """Ranked medal like Herald-Immortal with a number of stars, i.e. Legend 5."""
-        self.leaderboard_rank = proto.leaderboard_rank
-        """Leaderboard rank, i.e. found here https://www.dota2.com/leaderboards/#europe."""
-        self.is_plus_subscriber = proto.is_plus_subscriber
-        """Is Dota Plus Subscriber."""
-        self.plus_original_start_date = proto.plus_original_start_date
-        """When user subscribed to Dota Plus for their very first time."""
-        self.favorite_team_packed = proto.favorite_team_packed
-        self.lifetime_games = proto.lifetime_games
-        """Amount of lifetime games, includes Turbo games as well."""
-
-        # (?) Unused/Deprecated by Valve
-        # self.slots = proto.slots  # profile page was reworked
-        # self.title = proto.title
-        # self.rank_tier_score = proto.rank_tier_score  # relic from time when support/core MMR were separated
-        # self.leaderboard_rank_core = proto.leaderboard_rank_core  # relic from time when support/core MMR were separated
-
-    def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} user={self.user!r}>"

@@ -1,0 +1,76 @@
+"""Licensed under The MIT License (MIT) - Copyright (c) 2020-present James H-B. See LICENSE"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, TypeVar
+
+from .... import abc, user
+from ..enums import Hero, RankTier
+from ..protobufs import client_messages, common
+from . import matches
+
+if TYPE_CHECKING:
+    from ..state import GCState
+
+UserT = TypeVar("UserT", bound=abc.PartialUser)
+
+__all__ = (
+    "ProfileCard",
+    "PartialUser",
+    "User",
+)
+
+
+class PartialUser(abc.PartialUser):
+    __slots__ = ()
+    _state: GCState
+
+    async def profile_card(self) -> ProfileCard:
+        """Fetch user's Dota 2 profile card.
+
+        Contains basic information about the account. Somewhat mirrors old profile page.
+        """
+        await self._state.ws.send_gc_message(client_messages.ClientToGCGetProfileCard(account_id=self.id))
+        response = await self._state.ws.gc_wait_for(
+            common.ProfileCard,
+            check=lambda msg: msg.account_id == self.id,
+        )
+        return ProfileCard(response)
+class User(PartialUser, user.User):  # type: ignore
+    __slots__ = ()
+
+
+class ProfileCard:
+    def __init__(self, proto: common.ProfileCard):
+        self.account_id = proto.account_id
+        self.badge_points = proto.badge_points
+        self.event_points = proto.event_points
+        self.event_id = proto.event_id
+        self.recent_battle_cup_victory = proto.recent_battle_cup_victory
+        self.rank_tier = RankTier.try_value(proto.rank_tier)
+        """Ranked medal like Herald-Immortal with a number of stars, i.e. Legend 5."""
+        self.leaderboard_rank = proto.leaderboard_rank
+        """Leaderboard rank, i.e. found here https://www.dota2.com/leaderboards/#europe."""
+        self.is_plus_subscriber = proto.is_plus_subscriber
+        """Is Dota Plus Subscriber."""
+        self.plus_original_start_date = proto.plus_original_start_date
+        """When user subscribed to Dota Plus for their very first time."""
+        self.favorite_team_packed = proto.favorite_team_packed
+        self.lifetime_games = proto.lifetime_games
+        """Amount of lifetime games, includes Turbo games as well."""
+
+        # (?) Unused/Deprecated by Valve
+        # self.slots = proto.slots  # profile page was reworked
+        # self.title = proto.title
+        # self.rank_tier_score = proto.rank_tier_score  # relic from time when support/core MMR were separated
+        # self.leaderboard_rank_core = proto.leaderboard_rank_core  # relic from time when support/core MMR were separated
+
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__} account_id={self.account_id}>"
+
+
+class LiveMatchPlayer(PartialUser):
+    hero: Hero
+
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__} id={self.id} hero={self.hero!r}>"
