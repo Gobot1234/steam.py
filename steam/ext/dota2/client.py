@@ -14,7 +14,7 @@ from ...utils import (
     MISSING,
     cached_property,
 )
-from .models import ClientUser, LiveMatch, MatchMinimal, PartialUser
+from .models import ClientUser, LiveMatch, MatchMinimal, PartialMatch, PartialUser
 from .protobufs import client_messages, watch
 from .state import GCState  # noqa: TCH001
 
@@ -48,7 +48,15 @@ class Client(Client_):
 
     # TODO: maybe this should exist as a part of the whole lib (?)
     def instantiate_partial_user(self, id: Intable) -> PartialUser:
-        return PartialUser(self._state, id)
+        return self._state.get_partial_user(id)
+
+    def instantiate_partial_match(self, id: int) -> PartialMatch:
+        """Instantiate partial match.
+
+        Convenience method, allows using match related requests to gc like `match.details`
+        for any match.
+        """
+        return PartialMatch(self._state, id)
 
     async def _fetch_find_top_source_tv_games(self, *, limit: int = 100, **kwargs: Any) -> list[LiveMatch]:
         """Private helper method to use `watch.ClientToGCFindTopSourceTVGames` requests.
