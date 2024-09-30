@@ -87,3 +87,47 @@ class MatchDetailsResponse(GCProtobufMessage, msg=EMsg.MatchDetailsResponse):
     eresult: int = betterproto.uint32_field(1)  # originally called result
     match: Match = betterproto.message_field(2)
     vote: MatchVote = betterproto.enum_field(3)
+
+
+# MATCH HISTORY
+
+
+class GetPlayerMatchHistory(GCProtobufMessage, msg=EMsg.GetPlayerMatchHistory):
+    account_id: int = betterproto.uint32_field(1)
+    start_at_match_id: int = betterproto.uint64_field(2)
+    matches_requested: int = betterproto.uint32_field(3)
+    hero_id: int = betterproto.uint32_field(4)
+    request_id: int = betterproto.uint32_field(5)
+    include_practice_matches: bool = betterproto.bool_field(7)
+    include_custom_games: bool = betterproto.bool_field(8)
+    include_event_games: bool = betterproto.bool_field(9)
+
+
+class GetPlayerMatchHistoryResponse(GCProtobufMessage, msg=EMsg.GetPlayerMatchHistoryResponse):
+    matches: list[GetPlayerMatchHistoryResponseMatch] = betterproto.message_field(1)
+    request_id: int = betterproto.uint32_field(2)
+
+
+@dataclass(eq=False, repr=False)
+class GetPlayerMatchHistoryResponseMatch(betterproto.Message):
+    match_id: int = betterproto.uint64_field(1)
+    start_time: int = betterproto.uint32_field(2)
+    hero_id: int = betterproto.uint32_field(3)
+    winner: bool = betterproto.bool_field(4)
+    game_mode: int = betterproto.uint32_field(5)
+    rank_change: int = betterproto.int32_field(6)
+    previous_rank: int = betterproto.uint32_field(7)
+    lobby_type: int = betterproto.uint32_field(8)
+    solo_rank: bool = betterproto.bool_field(9)
+    abandon: bool = betterproto.bool_field(10)
+    duration: int = betterproto.uint32_field(11)
+    engine: int = betterproto.uint32_field(12)
+    active_plus_subscription: bool = betterproto.bool_field(13)
+    seasonal_rank: bool = betterproto.bool_field(14)
+    tourney_id: int = betterproto.uint32_field(15)
+    tourney_round: int = betterproto.uint32_field(16)
+    tourney_tier: int = betterproto.uint32_field(17)
+    tourney_division: int = betterproto.uint32_field(18)
+    team_id: int = betterproto.uint32_field(19)
+    team_name: str = betterproto.string_field(20)
+    ugc_team_ui_logo: int = betterproto.uint64_field(21)
