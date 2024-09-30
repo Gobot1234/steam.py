@@ -32,7 +32,7 @@ class PartialUser(abc.PartialUser):
         """
         await self._state.ws.send_gc_message(client_messages.ProfileRequest(account_id=self.id))
         response = await self._state.ws.gc_wait_for(client_messages.ProfileResponse)
-        return response # TODO: Modelize (?)
+        return response  # TODO: Modelize (?)
 
     async def dota2_profile_card(self) -> ProfileCard:
         """Fetch user's Dota 2 profile card.
