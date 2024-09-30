@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
+from asyncio import timeout
 from typing import TYPE_CHECKING, Any
 
-from ..._const import timeout
 from ..._gc import GCState as GCState_
 from ...app import DOTA2
 from ...id import _ID64_TO_ID32
 from ...state import parser
 from .models import PartialUser, User
-from .protobufs import client_messages, common, sdk, watch
+from .protobufs import sdk, watch
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from .client import Client
 
 
-class GCState(GCState_[Any]):  # todo: implement basket-analogy for dota2
+class GCState(GCState_[Any]):  # TODO: implement basket-analogy for dota2
     client: Client  # type: ignore  # PEP 705
     _users: WeakValueDictionary[ID32, User]
     _APP = DOTA2  # type: ignore
@@ -70,49 +70,13 @@ class GCState(GCState_[Any]):  # todo: implement basket-analogy for dota2
             self.dispatch("gc_ready")
 
     # dota fetch proto calls
-    # the difference between these and the functions in `client`/`models` is that
-    # these give raw proto responses while the latter modelize/structure/refine them.
+    # shortcuts to proto calls that are used more than once in `client`/`models`
 
-    async def fetch_user_dota2_profile_card(self, user_id: int) -> common.ProfileCard:
-        """Fetch User's Dota 2 Profile Card.
+    async def fetch_matches_minimal(self, match_ids: list[int]) -> watch.ClientToGCMatchesMinimalResponse:
+        """Fetch Matches Minimal.
 
-        Contains basic info about the account. Kinda mirrors old profile page.
-        """
-        await self.ws.send_gc_message(client_messages.ClientToGCGetProfileCard(account_id=user_id))
-        return await self.ws.gc_wait_for(
-            common.ProfileCard,
-            check=lambda msg: msg.account_id == user_id,
-        )
-
-    async def fetch_match_details(self, match_id: int) -> client_messages.MatchDetailsResponse:
-        """Fetch Match Details.
-
-        This call is for already finished games. Contains most of the info that can be found in post-match stats.
-        """
-        await self.ws.send_gc_message(client_messages.MatchDetailsRequest(match_id=match_id))
-        async with timeout(15.0):
-            return await self.ws.gc_wait_for(
-                client_messages.MatchDetailsResponse,
-                check=lambda msg: msg.match.match_id == match_id,
-            )
-
-    async def fetch_match_minimal(self, match_ids: list[int]) -> watch.ClientToGCMatchesMinimalResponse:
-        """Fetch Match Minimal.
-
-        This call is for already finished games. Contains basic data about the match.
+        This call is for already finished games. Contains basic data about the matches.
         """
         await self.ws.send_gc_message(watch.ClientToGCMatchesMinimalRequest(match_ids=match_ids))
         async with timeout(15.0):
-            return await self.ws.gc_wait_for(
-                watch.ClientToGCMatchesMinimalResponse,
-            )
-
-    async def fetch_live_matches(self, lobby_ids: list[int]) -> watch.GCToClientFindTopSourceTVGamesResponse:
-        """Fetch Live Match by lobby ids."""
-        await self.ws.send_gc_message(watch.ClientToGCFindTopSourceTVGames(lobby_ids=lobby_ids))
-        async with timeout(15.0):
-            # todo: test with more than 10 lobby_ids, Game Coordinator will probably chunk it wrongly or fail at all
-            return await self.ws.gc_wait_for(
-                watch.GCToClientFindTopSourceTVGamesResponse,
-                check=lambda msg: msg.specific_games == True,
-            )
+            return await self.ws.gc_wait_for(watch.ClientToGCMatchesMinimalResponse)

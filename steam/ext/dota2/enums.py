@@ -15,6 +15,7 @@ __all__ = (
     "Hero",
     "GameMode",
     "LobbyType",
+    "Outcome",
     "RankTier",
 )
 
@@ -291,6 +292,9 @@ class Hero(IntEnum):
     def id(self) -> int:
         return self.value
 
+    def __bool__(self) -> bool:  # type: ignore # idk I need Hero.NONE to be False
+        return bool(self.value)
+
 
 class GameMode(IntEnum):  # source: dota_shared_enums.proto
     NONE                = 0
@@ -435,22 +439,20 @@ class RankTier(IntEnum):
 
     @property
     def division(self) -> str:
-        if self.name[-1].isdigit():
-            return self.name[:-1]
-        else:
+        if self.value % 10 == 0:
             return self.name
+        else:
+            return self.name[:-1]
 
     @property
     def stars(self) -> str:
         return self.value % 10
 
-
-    # @property
-    # def display_name(self) -> str:
-    #     if self.value % 10 == 0:
-    #         return self.name
-    #     else:
-    #         return self.name[:-1] + ' ' + self.name[-1]
+    # do we need it as a factory helper method?
+    @property
+    def display_name(self) -> str:
+        suffix = f' {self.stars}' if self.stars else ''
+        return self.division + suffix
 
 
 class Outcome(IntEnum):  # source: dota_shared_enums.proto
