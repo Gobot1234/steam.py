@@ -304,3 +304,36 @@ class BattleCup:
     skill_level: int
     bracket_round: int
     teams: tuple[TournamentTeam, TournamentTeam]
+
+
+# maybe name it Match History Record
+class MatchHistoryMatch(PartialMatch):
+    def __init__(self, state: GCState, proto: client_messages.GetPlayerMatchHistoryResponseMatch) -> None:
+        super().__init__(state, proto.match_id)
+
+        self.start_time = DateTime.from_timestamp(proto.start_time)
+        self.hero = Hero.try_value(proto.hero_id)
+        self.win = proto.winner
+        self.game_mode = GameMode.try_value(proto.game_mode)
+        self.lobby_type = LobbyType.try_value(proto.lobby_type)
+        self.abandon = proto.abandon
+        self.duration = datetime.timedelta(seconds=proto.duration)
+        self.active_plus_subscription = proto.active_plus_subscription
+
+        self.tourney_id = proto.tourney_id
+        self.tourney_round = proto.tourney_round
+        self.tourney_tier = proto.tourney_tier
+        self.tourney_division = proto.tourney_division
+        self.team_id = proto.team_id
+        self.team_name = proto.team_name
+        self.ugc_team_ui_logo = proto.ugc_team_ui_logo
+
+        # Deprecated / Pointless (?)
+        # self.previous_rank = proto.previous_rank
+        # self.solo_rank = proto.solo_rank  # always False
+        # self.rank_change = proto.rank_change
+        # self.seasonal_rank = proto.seasonal_rank  # always False
+        # self.engine = proto.engine  # always 1
+
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__} id={self.id} hero={self.hero} win={self.win}>"

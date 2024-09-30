@@ -36,6 +36,37 @@ class PartialUser(abc.PartialUser):
             check=lambda msg: msg.account_id == self.id,
         )
         return ProfileCard(response)
+
+    async def match_history(
+        self,
+        *,
+        start_at_match_id: int = 0,
+        matches_requested: int = 20,
+        hero: Hero = Hero.NONE,
+        include_practice_matches: bool = False,
+        include_custom_games: bool = False,
+        include_event_games: bool = False,
+    ) -> list[matches.MatchHistoryMatch]:
+        """Fetch user's Dota 2 match history.
+
+        Only works for steam friends.
+        """
+        await self._state.ws.send_gc_message(
+            client_messages.GetPlayerMatchHistory(
+                account_id=self.id,
+                start_at_match_id=start_at_match_id,
+                matches_requested=matches_requested,
+                hero_id=hero.value,
+                include_practice_matches=include_practice_matches,
+                include_custom_games=include_custom_games,
+                include_event_games=include_event_games,
+                # request_id=69, # but where to get it without asking for MatchHistory first
+            )
+        )
+        response = await self._state.ws.gc_wait_for(client_messages.GetPlayerMatchHistoryResponse)
+        return [matches.MatchHistoryMatch(self._state, match) for match in response.matches]
+
+
 class User(PartialUser, user.User):  # type: ignore
     __slots__ = ()
 
