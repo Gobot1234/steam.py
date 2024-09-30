@@ -34,6 +34,21 @@ class ClientUser(users.PartialUser, ClientUser_):  # type: ignore
         )
         response = await future
         return BehaviorSummary(behavior_score=response.rank_value, communication_score=response.rank_data1)
+
+    async def post_social_message(self, message: str) -> None:
+        """Post message in social feed.
+
+        Currently, messages sent with this are visible in "User Feed - Widget" of Profile Showcase.
+        This functionality was possible long ago naturally in the in-game client.
+        """
+        future = self._state.ws.gc_wait_for(client_messages.GCToClientSocialFeedPostMessageResponse)
+        await self._state.ws.send_gc_message(client_messages.ClientToGCSocialFeedPostMessageRequest(message=message))
+        response = await future
+        if not response.success:
+            msg = "Failed to post a social message."
+            raise RuntimeError(msg)
+
+
 @dataclass(slots=True)
 class GlickoRating:
     mmr: int
