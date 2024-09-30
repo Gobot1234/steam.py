@@ -25,7 +25,16 @@ class PartialUser(abc.PartialUser):
     __slots__ = ()
     _state: GCState
 
-    async def profile_card(self) -> ProfileCard:
+    async def dota2_profile(self):
+        """Fetch user's Dota 2 profile card.
+
+        Contains basic information about the account. Somewhat mirrors old profile page.
+        """
+        await self._state.ws.send_gc_message(client_messages.ProfileRequest(account_id=self.id))
+        response = await self._state.ws.gc_wait_for(client_messages.ProfileResponse)
+        return response # TODO: Modelize (?)
+
+    async def dota2_profile_card(self) -> ProfileCard:
         """Fetch user's Dota 2 profile card.
 
         Contains basic information about the account. Somewhat mirrors old profile page.

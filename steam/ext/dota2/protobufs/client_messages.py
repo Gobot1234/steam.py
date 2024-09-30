@@ -10,7 +10,8 @@ import betterproto
 
 from ....protobufs.msg import GCProtobufMessage
 from ..enums import EMsg
-from .common import Match  # noqa: TCH001
+from .base import SOEconItem  # noqa: TCH001
+from .common import Match, RecentMatchInfo, StickerbookPage, SuccessfulHero  # noqa: TCH001
 from .shared_enums import EMatchGroupServerStatus, MatchVote  # noqa: TCH001
 
 # PROFILE CARD
@@ -144,3 +145,45 @@ class ClientToGCSocialFeedPostMessageRequest(GCProtobufMessage, msg=EMsg.ClientT
 
 class GCToClientSocialFeedPostMessageResponse(GCProtobufMessage, msg=EMsg.GCToClientSocialFeedPostMessageResponse):
     success: bool = betterproto.bool_field(1)
+
+
+# PROFILE REQUEST
+
+
+class ProfileRequest(GCProtobufMessage, msg=EMsg.ProfileRequest):
+    account_id: int = betterproto.uint32_field(1)
+
+
+class ProfileResponseEResponse(betterproto.Enum):
+    InternalError = 0
+    Success = 1
+    TooBusy = 2
+    Disabled = 3
+
+
+class ProfileResponse(GCProtobufMessage, msg=EMsg.ProfileResponse):
+    background_item: SOEconItem = betterproto.message_field(1)
+    featured_heroes: list[ProfileResponseFeaturedHero] = betterproto.message_field(2)
+    recent_matches: list[ProfileResponseMatchInfo] = betterproto.message_field(3)
+    successful_heroes: list[SuccessfulHero] = betterproto.message_field(4)
+    recent_match_details: RecentMatchInfo = betterproto.message_field(5)
+    eresult: ProfileResponseEResponse = betterproto.enum_field(6)
+    stickerbook_page: StickerbookPage = betterproto.message_field(7)
+
+
+@dataclass
+class ProfileResponseFeaturedHero(betterproto.Message):
+    hero_id: int = betterproto.uint32_field(1)
+    equipped_econ_items: list[SOEconItem] = betterproto.message_field(2)
+    manually_set: bool = betterproto.bool_field(3)
+    plus_hero_xp: int = betterproto.uint32_field(4)
+    plus_hero_relics_item: SOEconItem = betterproto.message_field(5)
+
+
+@dataclass
+class ProfileResponseMatchInfo(betterproto.Message):
+    match_id: int = betterproto.uint64_field(1)
+    match_timestamp: int = betterproto.uint32_field(2)
+    performance_rating: int = betterproto.sint32_field(3)
+    hero_id: int = betterproto.uint32_field(4)
+    won_match: bool = betterproto.bool_field(5)

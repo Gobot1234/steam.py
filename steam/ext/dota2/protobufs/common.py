@@ -10,7 +10,7 @@ import betterproto
 
 from ....protobufs.msg import GCProtobufMessage
 from ..enums import EMsg
-from .shared_enums import EMatchOutcome, GameMode, Team  # noqa: TCH001
+from .shared_enums import EEvent, EMatchOutcome, GameMode, Team  # noqa: TCH001
 
 # PROFILE CARD
 
@@ -356,3 +356,57 @@ class MatchMinimalTourney(betterproto.Message):
     dire_team_name: str = betterproto.string_field(6)
     dire_team_logo: float = betterproto.fixed64_field(7)
     dire_team_logo_url: str = betterproto.string_field(15)
+
+
+# PROFILE REQUEST
+
+
+@dataclass(eq=False, repr=False)
+class SuccessfulHero(betterproto.Message):
+    hero_id: int = betterproto.uint32_field(1)
+    win_percent: float = betterproto.float_field(2)
+    longest_streak: int = betterproto.uint32_field(3)
+
+
+@dataclass(eq=False, repr=False)
+class RecentMatchInfo(betterproto.Message):
+    match_id: int = betterproto.uint64_field(1)
+    game_mode: GameMode = betterproto.enum_field(2)
+    kills: int = betterproto.uint32_field(3)
+    deaths: int = betterproto.uint32_field(4)
+    assists: int = betterproto.uint32_field(5)
+    duration: int = betterproto.uint32_field(6)
+    player_slot: int = betterproto.uint32_field(7)
+    match_outcome: EMatchOutcome = betterproto.enum_field(8)
+    timestamp: int = betterproto.uint32_field(9)
+    lobby_type: int = betterproto.uint32_field(10)
+    team_number: int = betterproto.uint32_field(11)
+
+
+@dataclass(eq=False, repr=False)
+class StickerbookPage(betterproto.Message):
+    page_num: int = betterproto.uint32_field(1)
+    event_id: EEvent = betterproto.enum_field(2)
+    team_id: int = betterproto.uint32_field(3)
+    stickers: list[StickerbookSticker] = betterproto.message_field(4)
+    page_type: EStickerbookPageType = betterproto.enum_field(5)
+
+
+@dataclass(eq=False, repr=False)
+class StickerbookSticker(betterproto.Message):
+    item_def_id: int = betterproto.uint32_field(1)
+    sticker_num: int = betterproto.uint32_field(2)
+    quality: int = betterproto.uint32_field(3)
+    position_x: float = betterproto.float_field(4)
+    position_y: float = betterproto.float_field(5)
+    position_z: float = betterproto.float_field(8)
+    rotation: float = betterproto.float_field(6)
+    scale: float = betterproto.float_field(7)
+    source_item_id: int = betterproto.uint64_field(9)
+    depth_bias: int = betterproto.uint32_field(10)
+
+
+class EStickerbookPageType(betterproto.Enum):
+    Generic = 0
+    Team = 1
+    Talent = 2
