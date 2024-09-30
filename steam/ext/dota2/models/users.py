@@ -26,9 +26,9 @@ class PartialUser(abc.PartialUser):
     _state: GCState
 
     async def dota2_profile(self):
-        """Fetch user's Dota 2 profile card.
+        """Fetch user's Dota 2 profile.
 
-        Contains basic information about the account. Somewhat mirrors old profile page.
+        Almost fully mirrors old profile page.
         """
         await self._state.ws.send_gc_message(client_messages.ProfileRequest(account_id=self.id))
         response = await self._state.ws.gc_wait_for(client_messages.ProfileResponse)
@@ -37,7 +37,7 @@ class PartialUser(abc.PartialUser):
     async def dota2_profile_card(self) -> ProfileCard:
         """Fetch user's Dota 2 profile card.
 
-        Contains basic information about the account. Somewhat mirrors old profile page.
+        Contains basic information about the account. Mirrors some from old profile page.
         """
         await self._state.ws.send_gc_message(client_messages.ClientToGCGetProfileCard(account_id=self.id))
         response = await self._state.ws.gc_wait_for(
