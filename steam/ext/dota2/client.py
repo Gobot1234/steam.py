@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import asyncio
-from functools import partial
-from typing import TYPE_CHECKING, Any, Final, overload
+from typing import TYPE_CHECKING, Final, overload
 
 from ..._const import DOCS_BUILDING, timeout
 from ..._gc import Client as Client_
@@ -15,7 +13,7 @@ from ...utils import (
     cached_property,
 )
 from .models import ClientUser, LiveMatch, MatchMinimal, PartialMatch, PartialUser
-from .protobufs import client_messages, watch
+from .protobufs import client_messages
 from .state import GCState  # noqa: TCH001
 
 if TYPE_CHECKING:
@@ -58,37 +56,6 @@ class Client(Client_):
         """
         return PartialMatch(self._state, id)
 
-    async def _fetch_find_top_source_tv_games(self, *, limit: int = 100, **kwargs: Any) -> list[LiveMatch]:
-        """Private helper method to use `watch.ClientToGCFindTopSourceTVGames` requests.
-
-        Valid kwargs are fields from `watch.ClientToGCFindTopSourceTVGames` definition.
-        Some combinations are not working together.
-        This is why `Client` offers three methods below with offered prepared kwargs options that make sense.
-        """
-        if limit < 1 or limit > 100:
-            raise ValueError("limit value should be between 1 and 100 inclusively.")
-
-        # mini-math: limit 100 -> start_game 90, 91 -> 90, 90 -> 80
-        start_game = (limit - 1) // 10 * 10
-
-        def check(start_game: int, msg: watch.GCToClientFindTopSourceTVGamesResponse) -> bool:
-            return msg.start_game == start_game
-
-        futures = [
-            self._state.ws.gc_wait_for(
-                watch.GCToClientFindTopSourceTVGamesResponse,
-                check=partial(check, start_game),
-            )
-            for start_game in range(0, start_game + 1, 10)
-        ]
-        await self._state.ws.send_gc_message(watch.ClientToGCFindTopSourceTVGames(start_game=start_game, **kwargs))
-        async with timeout(15.0):
-            responses = await asyncio.gather(*futures)
-        # each response.game_list is 10 games (except possibly last one if filtered by hero)
-        live_matches = [LiveMatch(self._state, match) for response in responses for match in response.game_list]
-        # still need to slice the list, i.e. limit = 85, but live_matches above will have 90 matches
-        return live_matches[:limit]
-
     async def top_live_matches(self, *, hero: Hero = MISSING, limit: int = 100) -> list[LiveMatch]:
         """Fetch top live matches.
 
@@ -120,9 +87,16 @@ class Client(Client_):
         asyncio.TimeoutError
             Request time-outed. The reason is usually Dota 2 Game Coordinator lagging or being down.
         """
+        if limit < 1 or limit > 100:
+            raise ValueError("limit value should be between 1 and 100 inclusively.")
 
-        hero_id = hero.value if hero else 0
-        return await self._fetch_find_top_source_tv_games(limit=limit, hero_id=hero_id)
+        protos = await self._state.fetch_top_source_tv_games(
+            start_game=(limit - 1) // 10 * 10,  # mini-math: limit 100 -> start_game 90, 91 -> 90, 90 -> 80
+            hero_id=hero.value if hero else 0,
+        )
+        live_matches = [LiveMatch(self._state, match) for proto in protos for match in proto.game_list]
+        # still need to slice the list, i.e. limit = 85, but live_matches above will have 90 matches
+        return live_matches[:limit]
 
     async def tournament_live_matches(self, league_id: int) -> list[LiveMatch]:
         """Fetch currently live tournament matches
@@ -142,15 +116,10 @@ class Client(Client_):
             Request time-outed. The reason is usually Dota 2 Game Coordinator lagging or being down.
         """
 
-        future = self._state.ws.gc_wait_for(
-            watch.GCToClientFindTopSourceTVGamesResponse,
-            check=lambda msg: msg.league_id == league_id,
-        )
-        await self._state.ws.send_gc_message(watch.ClientToGCFindTopSourceTVGames(league_id=league_id))
-
-        async with timeout(15.0):
-            response = await future
-        return [LiveMatch(self._state, match) for match in response.game_list]
+        protos = await self._state.fetch_top_source_tv_games(league_id=league_id)
+        # TODO: ^ this will only fetch 10 games because of implementation...
+        # but does any tournament play more than 10 games at once? :x
+        return [LiveMatch(self._state, match) for proto in protos for match in proto.game_list]
 
     @overload
     async def live_matches(self, *, lobby_id: int = ...) -> LiveMatch: ...
@@ -179,10 +148,20 @@ class Client(Client_):
             raise TypeError("Cannot mix lobby_id and lobby_ids keyword arguments.")
 
         lobby_ids = [lobby_id] if lobby_id else lobby_ids
-        live_matches = await self._fetch_find_top_source_tv_games(limit=len(lobby_ids), lobby_ids=lobby_ids)
+
+        protos = await self._state.fetch_top_source_tv_games(
+            start_game=(len(lobby_ids) - 1) // 10 * 10,
+            lobby_ids=lobby_ids,
+        )
+        live_matches = [LiveMatch(self._state, match) for proto in protos for match in proto.game_list]
         # ig live_matches[0] is IndexError safe because if lobby_id is not valid then TimeoutError occurs above;
-        # TODO: apparently not true^ private games have valid ids but dont get fetched. []
-        return live_matches[0] if lobby_id else live_matches
+        if lobby_id:
+            try:
+                return live_matches[0]
+            except IndexError:
+                raise RuntimeError(f"Failed to fetch match with {lobby_id=}")
+        else:
+            return live_matches
 
     async def matches_minimal(self, match_id: int) -> list[MatchMinimal]:
         proto = await self._state.fetch_matches_minimal(match_ids=[match_id])

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from functools import partial
 from typing import TYPE_CHECKING, Any, NotRequired, TypedDict, Unpack
 
 from ..._gc import GCState as GCState_
@@ -39,6 +40,14 @@ if TYPE_CHECKING:
         message: NotRequired[str]
         match_id: NotRequired[int]
         match_timestamp: NotRequired[int]
+
+    class TopSourceTVGamesKwargs(TypedDict):
+        search_key: NotRequired[str]
+        league_id: NotRequired[int]
+        hero_id: NotRequired[int]
+        start_game: NotRequired[int]
+        game_list_index: NotRequired[int]
+        lobby_ids: NotRequired[list[int]]
 
 
 class Result(IntEnum):
@@ -98,6 +107,31 @@ class GCState(GCState_[Any]):  # TODO: implement basket-analogy for dota2
     # dota fetch proto calls
     # the difference between these calls and the ones in `client`/`models` is that
     # they directly give proto-response while the latter modelize them into more convenient formats.
+
+    async def fetch_top_source_tv_games(
+        self, *, timeout: float = 7.0, **kwargs: Unpack[TopSourceTVGamesKwargs]
+    ) -> list[watch.GCToClientFindTopSourceTVGamesResponse]:
+        """Fetch Top Source TV Games."""
+        start_game = kwargs.get("start_game") or 0
+        # # if start_game and (start_game < 0 or start_game > 90): # TODO: ???
+        # #     # in my experience it never answers in these cases
+        # #     raise ValueError("start_game should be between 0 and 90 inclusively.")
+
+        def check(start_game: int, msg: watch.GCToClientFindTopSourceTVGamesResponse) -> bool:
+            return msg.start_game == start_game
+
+        futures = [
+            self.ws.gc_wait_for(
+                watch.GCToClientFindTopSourceTVGamesResponse,
+                check=partial(check, start_game),
+            )
+            for start_game in range(0, start_game + 1, 10)  # TODO: is it correct as in same as it'd be missing
+        ]
+        await self.ws.send_gc_message(watch.ClientToGCFindTopSourceTVGames(**kwargs))
+        async with asyncio.timeout(timeout):
+            responses = await asyncio.gather(*futures)
+        # each response.game_list is 10 games (except possibly last one if filtered by hero)
+        return responses
 
     async def fetch_dota2_profile(self, account_id: int) -> client_messages.ProfileResponse:
         """Fetch user's dota 2 profile."""
