@@ -169,7 +169,7 @@ class Client(Client_):
 
     async def matchmaking_stats(self):
         proto = await self._state.fetch_matchmaking_stats()
-        return proto # TODO: Modelize (I never figured out what regions are which)
+        return proto  # TODO: Modelize (I never figured out what regions are which)
 
     if TYPE_CHECKING or DOCS_BUILDING:
 
