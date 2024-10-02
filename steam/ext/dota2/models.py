@@ -273,6 +273,14 @@ class MatchDetails:
         self.pre_game_duration = proto.pre_game_duration
         self.coaches = proto.coaches  # TODO: modelize
 
+    @property
+    def replay_url(self) -> str:
+        return f"http://replay{self.cluster}.valve.net/570/{self.id}_{self.replay_salt}.dem.bz2"
+
+    @property
+    def metadata_url(self) -> str:
+        return f"http://replay{self.cluster}.valve.net/570/{self.id}_{self.replay_salt}.meta.bz2"
+
 
 class LiveMatch:
     """Represents a live match of Dota 2

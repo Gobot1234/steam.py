@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Final, overload
 
-from ..._const import DOCS_BUILDING, timeout
+from ..._const import DOCS_BUILDING
 from ..._gc import Client as Client_
 from ...app import DOTA2
 from ...ext import commands
@@ -13,7 +13,6 @@ from ...utils import (
     cached_property,
 )
 from .models import ClientUser, LiveMatch, MatchMinimal, PartialMatch, PartialUser
-from .protobufs import client_messages
 from .state import GCState  # noqa: TCH001
 
 if TYPE_CHECKING:
