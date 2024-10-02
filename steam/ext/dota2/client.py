@@ -179,8 +179,9 @@ class Client(Client_):
             raise TypeError("Cannot mix lobby_id and lobby_ids keyword arguments.")
 
         lobby_ids = [lobby_id] if lobby_id else lobby_ids
-        live_matches = await self._fetch_find_top_source_tv_games(limit=len(lobby_ids), lobby_ids=[lobby_ids])
+        live_matches = await self._fetch_find_top_source_tv_games(limit=len(lobby_ids), lobby_ids=lobby_ids)
         # ig live_matches[0] is IndexError safe because if lobby_id is not valid then TimeoutError occurs above;
+        # TODO: apparently not true^ private games have valid ids but dont get fetched. []
         return live_matches[0] if lobby_id else live_matches
 
     async def matches_minimal(self, match_id: int) -> list[MatchMinimal]:

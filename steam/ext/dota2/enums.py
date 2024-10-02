@@ -15,7 +15,7 @@ __all__ = (
     "Hero",
     "GameMode",
     "LobbyType",
-    "Outcome",
+    "MatchOutcome",
     "RankTier",
 )
 
@@ -292,7 +292,7 @@ class Hero(IntEnum):
     def id(self) -> int:
         return self.value
 
-    def __bool__(self) -> bool:  # type: ignore # idk I need Hero.NONE to be False
+    def __bool__(self) -> bool:  # type: ignore # idk I need `Hero.NONE` to be `False`
         return bool(self.value)
 
 
@@ -455,7 +455,7 @@ class RankTier(IntEnum):
         return self.division + suffix
 
 
-class Outcome(IntEnum):  # source: dota_shared_enums.proto
+class MatchOutcome(IntEnum):  # source: dota_shared_enums.proto
     """Represents Match Outcome."""
     Unknown                        = 0
     RadiantVictory                 = 2

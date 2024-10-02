@@ -3,25 +3,81 @@
 from __future__ import annotations
 
 import datetime
-from asyncio import timeout
 from dataclasses import dataclass
 from operator import attrgetter
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeVar
 
-from ....utils import DateTime
-from ..enums import GameMode, Hero, LobbyType, Outcome
-from ..protobufs import client_messages, common, watch
-from . import users
+from ... import abc, user
+from ..._gc.client import ClientUser as ClientUser_
+from ...utils import DateTime
+from .enums import GameMode, Hero, LobbyType, MatchOutcome, RankTier
+from .protobufs.client_messages import ERankType
 
 if TYPE_CHECKING:
-    from ..protobufs import common, watch
-    from ..state import GCState
+    from ...types.id import Intable
+    from .protobufs import client_messages, common, watch
+    from .state import GCState
+
+UserT = TypeVar("UserT", bound=abc.PartialUser)
 
 __all__ = (
+    "ClientUser",
     "LiveMatch",
     "MatchMinimal",
     "PartialMatch",
+    "PartialUser",
+    "ProfileCard",
+    "User",
 )
+
+
+class PartialUser(abc.PartialUser):
+    __slots__ = ()
+    _state: GCState
+
+    async def dota2_profile(self):  # TODO: Don't forget to include return type
+        """Fetch user's Dota 2 profile.
+
+        Almost fully mirrors old profile page.
+        """
+        proto = await self._state.fetch_dota2_profile(account_id=self.id)
+        return proto  # TODO: Modelize (?)
+
+    async def dota2_profile_card(self) -> ProfileCard:
+        """Fetch user's Dota 2 profile card.
+
+        Contains basic information about the account. Mirrors some from old profile page.
+        """
+        proto = await self._state.fetch_dota2_profile_card(self.id)
+        return ProfileCard(proto)
+
+    async def match_history(
+        self,
+        *,
+        start_at_match_id: int = 0,
+        matches_requested: int = 20,
+        hero: Hero = Hero.NONE,
+        include_practice_matches: bool = False,
+        include_custom_games: bool = False,
+        include_event_games: bool = False,
+    ) -> list[MatchHistoryMatch]:
+        """Fetch user's Dota 2 match history.
+
+        Only works for steam friends.
+        """
+        proto = await self._state.fetch_match_history(
+            start_at_match_id=start_at_match_id,
+            matches_requested=matches_requested,
+            hero_id=hero.id,
+            include_practice_matches=include_practice_matches,
+            include_custom_games=include_custom_games,
+            include_event_games=include_event_games,
+        )
+        return [MatchHistoryMatch(self._state, match) for match in proto.matches]
+
+
+class User(PartialUser, user.User):  # type: ignore
+    __slots__ = ()
 
 
 class PartialMatch:
@@ -47,17 +103,8 @@ class PartialMatch:
                 * This match is still live.
                 * Dota 2 Game Coordinator lagging or being down.
         """
-        await self._state.ws.send_gc_message(client_messages.MatchDetailsRequest(match_id=self.id))
-        async with timeout(15.0):
-            response = await self._state.ws.gc_wait_for(
-                client_messages.MatchDetailsResponse,
-                check=lambda msg: msg.match.match_id == self.id,
-            )
-        if response.eresult == 1:
-            return MatchDetails(self._state, response.match)
-        else:
-            msg = f"Failed to get match_details for {self.id}"
-            raise ValueError(msg)
+        proto = await self._state.fetch_match_details(match_id=self.id)
+        return MatchDetails(self._state, proto.match)
 
     async def minimal(self) -> MatchMinimal:
         """Fetches basic "minimal" information about the match."""
@@ -68,6 +115,77 @@ class PartialMatch:
         else:
             msg = f"Failed to get match_minimal for {self.id}"
             raise ValueError(msg)
+
+
+class ClientUser(PartialUser, ClientUser_):  # type: ignore
+    # TODO: if TYPE_CHECKING: for inventory
+
+    async def glicko_rating(self) -> GlickoRating:
+        """Request Glicko Rank Information."""
+        proto = await self._state.fetch_rank(rank_type=ERankType.RankedGlicko)
+        return GlickoRating(
+            mmr=proto.rank_value, deviation=proto.rank_data1, volatility=proto.rank_data2, const=proto.rank_data3
+        )
+
+    async def behavior_summary(self) -> BehaviorSummary:
+        """Request Behavior Summary."""
+        proto = await self._state.fetch_rank(rank_type=ERankType.BehaviorPublic)
+        return BehaviorSummary(behavior_score=proto.rank_value, communication_score=proto.rank_data1)
+
+    async def post_social_message(self, message: str) -> None:
+        """Post message in social feed.
+
+        Currently, messages sent with this are visible in "User Feed - Widget" of Profile Showcase.
+        This functionality was possible long ago naturally in the in-game client.
+        """
+        await self._state.post_social_message(message=message)
+
+
+class ProfileCard:
+    def __init__(self, proto: common.ProfileCard):
+        self.account_id = proto.account_id
+        self.badge_points = proto.badge_points
+        self.event_points = proto.event_points
+        self.event_id = proto.event_id
+        self.recent_battle_cup_victory = proto.recent_battle_cup_victory
+        self.rank_tier = RankTier.try_value(proto.rank_tier)
+        """Ranked medal like Herald-Immortal with a number of stars, i.e. Legend 5."""
+        self.leaderboard_rank = proto.leaderboard_rank
+        """Leaderboard rank, i.e. found here https://www.dota2.com/leaderboards/#europe."""
+        self.is_plus_subscriber = proto.is_plus_subscriber
+        """Is Dota Plus Subscriber."""
+        self.plus_original_start_date = proto.plus_original_start_date
+        """When user subscribed to Dota Plus for their very first time."""
+        self.favorite_team_packed = proto.favorite_team_packed
+        self.lifetime_games = proto.lifetime_games
+        """Amount of lifetime games, includes Turbo games as well."""
+
+        # (?) Unused/Deprecated by Valve
+        # self.slots = proto.slots  # profile page was reworked
+        # self.title = proto.title
+        # self.rank_tier_score = proto.rank_tier_score  # relic from time when support/core MMR were separated
+        # self.leaderboard_rank_core = proto.leaderboard_rank_core  # relic from time when support/core MMR were separated
+
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__} account_id={self.account_id}>"
+
+
+class LiveMatchPlayer(PartialUser):
+    def __init__(
+        self,
+        state: GCState,
+        id: Intable,
+        hero: Hero,
+        team: int,
+        team_slot: int,
+    ) -> None:
+        super().__init__(state, id)
+        self.hero = hero
+        self.team = team
+        self.team_slot = team_slot
+
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__} id={self.id} hero={self.hero!r}>"
 
 
 class MatchMinimalPlayer:
@@ -96,7 +214,7 @@ class MatchMinimal:
         self.game_mode = GameMode.try_value(proto.game_mode)
         self.players = [MatchMinimalPlayer(state, player) for player in proto.players]
         self.tourney = proto.tourney  # TODO: modelize further `common.MatchMinimalTourney`
-        self.outcome = Outcome.try_value(proto.match_outcome)
+        self.outcome = MatchOutcome.try_value(proto.match_outcome)
         self.radiant_score = proto.radiant_score
         self.dire_score = proto.dire_score
         self.lobby_type = LobbyType.try_value(proto.lobby_type)
@@ -149,7 +267,7 @@ class MatchDetails:
         self.private_metadata_key = proto.private_metadata_key  # TODO: ???
         self.radiant_team_score = proto.radiant_team_score
         self.dire_team_score = proto.dire_team_score
-        self.match_outcome = Outcome.try_value(proto.match_outcome)
+        self.match_outcome = MatchOutcome.try_value(proto.match_outcome)
         self.tournament_id = proto.tournament_id
         self.tournament_round = proto.tournament_round
         self.pre_game_duration = proto.pre_game_duration
@@ -265,13 +383,13 @@ class LiveMatch:
 
         # Since Immortal Draft update, players come from the proto message in a wrong order
         # which can be fixed back with extra fields that they introduced later: `team`, `team_slot`
-        # why valve chose to introduce extra bytes fields instead of resorting it once after player selection - no clue
         sorted_players = sorted(proto.players, key=attrgetter("team", "team_slot"))
 
-        self.players: list[users.LiveMatchPlayer] = []
+        self.players: list[LiveMatchPlayer] = []
         for player in sorted_players:
-            live_match_player = users.LiveMatchPlayer(self._state, player.account_id)
-            live_match_player.hero = Hero.try_value(player.hero_id)
+            live_match_player = LiveMatchPlayer(
+                self._state, player.account_id, Hero.try_value(player.hero_id), player.team, player.team_slot
+            )
             self.players.append(live_match_player)
 
     @property
@@ -337,3 +455,21 @@ class MatchHistoryMatch(PartialMatch):
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} id={self.id} hero={self.hero} win={self.win}>"
+
+
+@dataclass(slots=True)
+class GlickoRating:
+    mmr: int
+    deviation: int
+    volatility: int
+    const: int  # TODO: confirm all those names somehow or leave a note in doc that I'm clueless
+
+    @property
+    def confidence(self):
+        return self.deviation / self.volatility  # TODO: confirm this
+
+
+@dataclass(slots=True)
+class BehaviorSummary:
+    behavior_score: int
+    communication_score: int
