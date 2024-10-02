@@ -154,11 +154,11 @@ class Client(Client_):
             lobby_ids=lobby_ids,
         )
         live_matches = [LiveMatch(self._state, match) for proto in protos for match in proto.game_list]
-        # ig live_matches[0] is IndexError safe because if lobby_id is not valid then TimeoutError occurs above;
         if lobby_id:
             try:
                 return live_matches[0]
             except IndexError:
+                # can happen even with valid lobby_id if it's private
                 raise RuntimeError(f"Failed to fetch match with {lobby_id=}")
         else:
             return live_matches
@@ -168,10 +168,8 @@ class Client(Client_):
         return [MatchMinimal(self._state, match) for match in proto.matches]
 
     async def matchmaking_stats(self):
-        future = self._state.ws.gc_wait_for(client_messages.MatchmakingStatsResponse)
-        await self._state.ws.send_gc_message(client_messages.MatchmakingStatsRequest())
-        async with timeout(15.0):
-            return await future
+        proto = await self._state.fetch_matchmaking_stats()
+        return proto # TODO: Modelize (I never figured out what regions are which)
 
     if TYPE_CHECKING or DOCS_BUILDING:
 

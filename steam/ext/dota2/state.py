@@ -175,8 +175,14 @@ class GCState(GCState_[Any]):  # TODO: implement basket-analogy for dota2
     async def post_social_message(
         self, **kwargs: Unpack[PostSocialMessageKwargs]
     ) -> client_messages.GCToClientSocialFeedPostMessageResponse:
+        """Post social message."""
         await self.ws.send_gc_message(client_messages.ClientToGCSocialFeedPostMessageRequest(**kwargs))
         response = await self.ws.gc_wait_for(client_messages.GCToClientSocialFeedPostMessageResponse)
         if response.success != Result.OK:
             raise WSException(response)
         return response
+
+    async def fetch_matchmaking_stats(self) -> client_messages.MatchmakingStatsResponse:
+        """Fetch matchmaking stats."""
+        await self.ws.send_gc_message(client_messages.MatchmakingStatsRequest())
+        return await self.ws.gc_wait_for(client_messages.MatchmakingStatsResponse)
