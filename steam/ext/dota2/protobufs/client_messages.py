@@ -132,6 +132,7 @@ class GetPlayerMatchHistoryResponseMatch(betterproto.Message):
     team_id: int = betterproto.uint32_field(19)
     team_name: str = betterproto.string_field(20)
     ugc_team_ui_logo: int = betterproto.uint64_field(21)
+    selected_facet: int = betterproto.uint32_field(22)
 
 
 # SOCIAL FEED POST MESSAGE

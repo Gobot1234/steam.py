@@ -231,6 +231,7 @@ class Player(betterproto.Message):
     outposts_captured: int = betterproto.uint32_field(78)
     team_number: Team = betterproto.enum_field(80)
     team_slot: int = betterproto.uint32_field(81)
+    selected_facet: int = betterproto.uint32_field(82)
 
 
 @dataclass(eq=False, repr=False)

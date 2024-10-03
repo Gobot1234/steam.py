@@ -453,6 +453,7 @@ class MatchHistoryMatch(PartialMatch):
         self.team_id = proto.team_id
         self.team_name = proto.team_name
         self.ugc_team_ui_logo = proto.ugc_team_ui_logo
+        self.selected_facet = proto.selected_facet
 
         # Deprecated / Pointless (?)
         # self.previous_rank = proto.previous_rank

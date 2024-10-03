@@ -117,6 +117,7 @@ class Client(Client_):
 
         protos = await self._state.fetch_top_source_tv_games(league_id=league_id)
         # TODO: ^ this will only fetch 10 games because of implementation...
+        # but there is no good way to know if there gonna be more than 10 games
         # but does any tournament play more than 10 games at once? :x
         return [LiveMatch(self._state, match) for proto in protos for match in proto.game_list]
 
