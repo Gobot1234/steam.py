@@ -421,7 +421,6 @@ class Client:
 
     async def close(self) -> None:
         """Close the connection to Steam."""
-        print("Closing")
         if self.is_closed():
             return
 
@@ -436,7 +435,7 @@ class Client:
                 await self._state.handle_close()
             except ConnectionClosed:
                 pass
-        print("Closed")
+
         await self.http.close()
         self._ready.clear()
 
