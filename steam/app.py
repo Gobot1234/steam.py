@@ -1425,6 +1425,7 @@ class Apps(PartialApp[str], Enum):
     DOTA2 = "DOTA 2", 570
     CSGO = "Counter Strike Global-Offensive", 730
     STEAM = "Steam", 753
+    DEADLOCK = "Deadlock", 1422450
 
     @property
     def _state(self) -> ConnectionState:
@@ -1442,6 +1443,8 @@ CSGO = Apps.CSGO
 """The Counter Strike Global-Offensive app."""
 LFD2 = Apps.LFD2
 """The Left 4 Dead 2 app."""
+DEADLOCK = Apps.DEADLOCK
+"""The Deadlock app."""
 STEAM = Apps.STEAM
 """The Steam app with context ID 6 (gifts)."""
 
