@@ -46,6 +46,7 @@ from typing import (
     Final,
     Generic,
     Literal,
+    Never,
     ParamSpec,
     TypeAlias,
     TypedDict,
@@ -392,6 +393,31 @@ class AsyncInit(metaclass=abc.ABCMeta):
 
     def __await__(self) -> Generator[Any, None, Self]:
         return self.__await_inner__().__await__()
+
+
+@overload
+async def race() -> None: ...
+@overload
+async def race(*coros: Awaitable[_T]) -> _T: ...
+async def race(*coros: Awaitable[_T]) -> _T | None:
+    class _Done(Exception):
+        pass
+
+    result = None
+
+    async def run(coro: Awaitable[_T]) -> Never:
+        nonlocal result
+        result = await coro
+        raise _Done
+
+    try:
+        async with asyncio.TaskGroup() as tg:
+            for coro in coros:
+                tg.create_task(run(coro))
+    except* _Done:
+        pass
+
+    return result
 
 
 PACK_FORMATS: Final = cast(Mapping[str, str], {
