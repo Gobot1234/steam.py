@@ -9,14 +9,14 @@ from typing import TYPE_CHECKING, TypeVar
 
 from ... import abc, user
 from ..._gc.client import ClientUser as ClientUser_
-from ...utils import DateTime
+from ...utils import MISSING, DateTime
 from .enums import GameMode, Hero, LobbyType, MatchOutcome, RankTier
 from .protobufs.client_messages import ERankType
 
 if TYPE_CHECKING:
     from ...types.id import Intable
     from .protobufs import client_messages, common, watch
-    from .state import GCState
+    from .state import GCState, MatchHistoryKwargs
 
 UserT = TypeVar("UserT", bound=abc.PartialUser)
 
@@ -24,6 +24,7 @@ __all__ = (
     "ClientUser",
     "LiveMatch",
     "MatchMinimal",
+    "MatchHistoryMatch",
     "PartialMatch",
     "PartialUser",
     "ProfileCard",
@@ -54,9 +55,9 @@ class PartialUser(abc.PartialUser):
     async def match_history(
         self,
         *,
-        start_at_match_id: int = 0,
+        start_at_match_id: int = MISSING,
         matches_requested: int = 20,
-        hero: Hero = Hero.NONE,
+        hero: Hero = MISSING,
         include_practice_matches: bool = False,
         include_custom_games: bool = False,
         include_event_games: bool = False,
@@ -65,14 +66,19 @@ class PartialUser(abc.PartialUser):
 
         Only works for steam friends.
         """
-        proto = await self._state.fetch_match_history(
-            start_at_match_id=start_at_match_id,
-            matches_requested=matches_requested,
-            hero_id=hero.id,
-            include_practice_matches=include_practice_matches,
-            include_custom_games=include_custom_games,
-            include_event_games=include_event_games,
-        )
+        kwargs: MatchHistoryKwargs = {
+            "account_id": self.id,
+            "matches_requested": matches_requested,
+            "include_practice_matches": include_practice_matches,
+            "include_custom_games": include_custom_games,
+            "include_event_games": include_event_games,
+        }
+        if start_at_match_id:
+            kwargs["start_at_match_id"] = start_at_match_id
+        if hero:
+            kwargs["hero_id"] = hero.id
+
+        proto = await self._state.fetch_match_history(**kwargs)
         return [MatchHistoryMatch(self._state, match) for match in proto.matches]
 
 

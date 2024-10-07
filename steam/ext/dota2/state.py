@@ -27,13 +27,13 @@ if TYPE_CHECKING:
     # what defaults does it assume?
 
     class MatchHistoryKwargs(TypedDict):
-        account_id: NotRequired[int]
+        account_id: int
         start_at_match_id: NotRequired[int]
-        matches_requested: NotRequired[int]
+        matches_requested: int
         hero_id: NotRequired[int]
-        include_practice_matches: NotRequired[bool]
-        include_custom_games: NotRequired[bool]
-        include_event_games: NotRequired[bool]
+        include_practice_matches: bool
+        include_custom_games: bool
+        include_event_games: bool
         request_id: NotRequired[int]
 
     class PostSocialMessageKwargs(TypedDict):
