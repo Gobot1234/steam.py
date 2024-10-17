@@ -411,7 +411,7 @@ class TradeOffer(Generic[ReceivingAssetT, SendingAssetT, UserT]):
         """The time at which the trade was created."""
         self.escrow: timedelta | None = None
         """
-        The time at which the escrow will end. Can be ``None`` if there is no escrow on the trade.
+        The time at which the escrow (hold) will end. Can be ``None`` if there is no escrow on the trade.
 
         Warning
         -------
