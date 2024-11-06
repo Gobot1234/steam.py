@@ -452,6 +452,7 @@ class SteamWebSocket:
                 self.refresh_token = refresh_token or await self.fetch_refresh_token()
                 self.id64 = parse_id64(utils.decode_jwt(self.refresh_token)["sub"])
 
+                self.dispatch_ready()
                 msg: login.CMsgClientLogonResponse = await self.send_proto_and_wait(
                     login.CMsgClientLogon(
                         protocol_version=PROTOCOL_VERSION,
