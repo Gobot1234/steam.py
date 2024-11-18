@@ -127,6 +127,9 @@ line-length = 120
 target-version = ["py310"]
 
 [tool.ruff]
+requires-python = ">= 3.10"
+
+[tool.ruff.lint]
 line-length = 120
 select = ["C4", "F", "G", "I", "PTH", "RUF", "SIM", "TCH", "UP", "W", "PERF"]
 ignore = ["F401", "F402", "F403", "F405", "PERF203", "RUF001", "RUF009", "SIM105", "UP034", "UP038"]
