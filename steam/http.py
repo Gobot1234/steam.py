@@ -79,7 +79,13 @@ class HTTPClient:
         )
 
     async def request(
-        self, method: str, url: StrOrURL, /, api_needs_auth: bool = True, supports_access_token: bool = True, **kwargs: Any
+        self,
+        method: str,
+        url: StrOrURL,
+        /,
+        api_needs_auth: bool = True,
+        supports_access_token: bool = True,
+        **kwargs: Any,
     ) -> Any:  # adapted from d.py
         kwargs["headers"] = {"User-Agent": self.user_agent, **kwargs.get("headers", {})}
         payload = kwargs.get("data")
