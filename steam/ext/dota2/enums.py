@@ -101,7 +101,7 @@ class Hero(IntEnum):
     Alchemist         = 73
     Invoker           = 74
     Silencer          = 75
-    OutworldDevourer  = 76
+    OutworldDestroyer = 76
     Lycan             = 77
     Brewmaster        = 78
     ShadowDemon       = 79
@@ -152,6 +152,7 @@ class Hero(IntEnum):
     Marci             = 136
     PrimalBeast       = 137
     Muerta            = 138
+    Kez               = 145
 
     @classproperty
     def DISPLAY_NAMES(cls: type[Self]) -> Mapping[Hero, str]:  # type: ignore
@@ -231,7 +232,7 @@ class Hero(IntEnum):
             cls.Alchemist        : "Alchemist",
             cls.Invoker          : "Invoker",
             cls.Silencer         : "Silencer",
-            cls.OutworldDevourer : "Outworld Devourer",
+            cls.OutworldDestroyer: "Outworld Destroyer",
             cls.Lycan            : "Lycan",
             cls.Brewmaster       : "Brewmaster",
             cls.ShadowDemon      : "Shadow Demon",
@@ -282,6 +283,7 @@ class Hero(IntEnum):
             cls.Marci            : "Marci",
             cls.PrimalBeast      : "Primal Beast",
             cls.Muerta           : "Muerta",
+            cls.Kez              : "Kez",
         }
 
     @property
