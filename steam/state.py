@@ -279,11 +279,6 @@ class ConnectionState:
     def _tg(self) -> TaskGroup:
         return self.client._tg
 
-    @utils.cached_property
-    def _task_error(self) -> asyncio.Future[None]:
-        """Holds the exceptions so that the gateway can propagate exceptions to the client.login call"""
-        return asyncio.get_running_loop().create_future()
-
     @property
     def language(self) -> Language:
         return self.http.language
@@ -1787,7 +1782,7 @@ class ConnectionState:
 
     async def wait_for_trade(self, id: TradeOfferID) -> TradeOffer[Item[User], Item[ClientUser], User]:
         self._trades_to_watch.add(id)
-        self._tg.create_task(self.poll_trades())  # start re-polling trades
+        self.ws.tg.create_task(self.poll_trades())  # start re-polling trades
         return await self.trade_queue.wait_for(id=id)
 
     @parser
@@ -1866,7 +1861,7 @@ class ConnectionState:
             self.polling_confirmations = False
 
     async def wait_for_confirmation(self, id: TradeOfferID) -> Confirmation:
-        self._tg.create_task(self.poll_confirmations())
+        self.ws.tg.create_task(self.poll_confirmations())
         return await self.confirmation_queue.wait_for(id=id)
 
     async def _fetch_store_info(
