@@ -79,7 +79,13 @@ class HTTPClient:
         )
 
     async def request(
-        self, method: str, url: StrOrURL, /, api_needs_auth: bool = True, **kwargs: Any
+        self,
+        method: str,
+        url: StrOrURL,
+        /,
+        api_needs_auth: bool = True,
+        supports_access_token: bool = True,
+        **kwargs: Any,
     ) -> Any:  # adapted from d.py
         kwargs["headers"] = {"User-Agent": self.user_agent, **kwargs.get("headers", {})}
         payload = kwargs.get("data")
@@ -88,11 +94,10 @@ class HTTPClient:
 
         if url.host == URL.API.host:
             if api_needs_auth:
-                kwargs["params"] |= (  # if valve ever decide to make this work, this'd be nice
-                    # {"access_token": await self._client._state.ws.access_token()}
-                    # if self._client._state.login_complete.is_set()
-                    # else
-                    {"key": await self.get_api_key()}
+                kwargs["params"] |= (
+                    {"access_token": await self._client._state.ws.access_token()}
+                    if self._client._state.login_complete.is_set() and supports_access_token
+                    else {"key": await self.get_api_key()}
                 )
 
         elif url.host in (URL.COMMUNITY.host, URL.STORE.host, URL.HELP.host):
