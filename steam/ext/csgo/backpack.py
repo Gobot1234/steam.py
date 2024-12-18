@@ -56,7 +56,17 @@ class Sticker:
     """The sticker's scale."""
     tint_id: float | None = None
     """The sticker's tint_id."""
+    
+    offset_x: float = 0.0
+    """The x offset of the sticker.
 
+    .. versionadded:: 1.1.0
+    """
+    offset_y: float = 0.0
+    """The y offset of the sticker.
+
+    .. versionadded:: 1.1.0
+    """
 
 @dataclass(slots=True)
 class Paint:
@@ -69,12 +79,20 @@ class Paint:
     wear: float = 0.0
     """The paint's wear."""
     offset_x: float = 0.0
-    """The x offset of the sticker.
+    """The x offset of the paint.
+
+    Warning
+    -------
+    Will always be ``0.0``
 
     .. versionadded:: 1.0.1
     """
     offset_y: float = 0.0
-    """The y offset of the sticker.
+    """The y offset of the paint.
+
+    Warning
+    -------
+    Will always be ``0.0``
 
     .. versionadded:: 1.0.1
     """
