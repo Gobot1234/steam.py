@@ -56,7 +56,7 @@ class Sticker:
     """The sticker's scale."""
     tint_id: float | None = None
     """The sticker's tint_id."""
-    
+
     offset_x: float = 0.0
     """The x offset of the sticker.
 
@@ -67,6 +67,7 @@ class Sticker:
 
     .. versionadded:: 1.1.0
     """
+
 
 @dataclass(slots=True)
 class Paint:
