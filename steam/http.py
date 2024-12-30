@@ -238,6 +238,7 @@ class HTTPClient:
                 self.get(
                     api_route("ISteamUser/GetPlayerSummaries", version=2),
                     params={"steamids": ",".join(map(str, sublist))},
+                    access_token=False,
                 )
                 for sublist in utils.as_chunks(user_id64s, 100)
             )
