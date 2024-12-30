@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, cast
 from typing_extensions import Unpack, final
 
 from .commands import Command, CommandKwargs, Group
-from .context import Context  # noqa: TCH001
+from .context import Context  # noqa: TC001
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence

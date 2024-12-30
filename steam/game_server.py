@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from datetime import timedelta
 from ipaddress import IPv4Address
-from operator import attrgetter  # noqa: TCH003
-from typing import TYPE_CHECKING, Any, Literal, NamedTuple, cast, get_type_hints
+from operator import attrgetter
+from typing import TYPE_CHECKING, Annotated, Any, Literal, NamedTuple, cast, get_type_hints
 
-from typing_extensions import Annotated, TypedDict, Unpack
+from typing_extensions import TypedDict, Unpack
 
 from .app import App, PartialApp
 from .enums import GameServerRegion, Type

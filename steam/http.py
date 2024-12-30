@@ -11,7 +11,7 @@ from http.cookies import SimpleCookie
 from random import randbytes
 from sys import version_info
 from time import time
-from typing import TYPE_CHECKING, Any, Literal, Mapping, TypeVar, Unpack, cast
+from typing import TYPE_CHECKING, Any, Literal, TypeVar, Unpack, cast
 
 import aiohttp
 from bs4 import BeautifulSoup
@@ -26,7 +26,7 @@ from .models import PriceOverviewDict, api_route
 from .types.id import ID32, ID64, AppID, AssetID, BundleID, ChatGroupID, ChatID, PackageID, PostID, TradeOfferID
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncGenerator, Callable, Iterable, Sequence, ValuesView
+    from collections.abc import AsyncGenerator, Callable, Iterable, Mapping, Sequence, ValuesView
 
     from .client import Client, ClientKwargs
     from .media import Media
@@ -107,7 +107,7 @@ class HTTPClient:
         for tries in range(5):
             async with self._session.request(
                 method, url, **kwargs, proxy=self.proxy, proxy_auth=self.proxy_auth, ssl=self.ssl
-            ) as r:
+            ) as r:  # noqa: F811
                 log.debug("%s %s with PAYLOAD: %s has returned %d", method, r.url, payload, r.status)
 
                 # even errors have text involved in them so this is safe to call

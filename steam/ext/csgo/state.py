@@ -80,7 +80,7 @@ class GCState(GCState_[Backpack]):
         try:
             return self.casket_items[asset_id]
         except KeyError:
-            self.waiting_for_casket_items[asset_id] = future = asyncio.Future()
+            self.waiting_for_casket_items[asset_id] = future = asyncio.get_running_loop().create_future()
             return await future
 
     @parser

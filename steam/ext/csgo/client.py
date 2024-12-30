@@ -13,12 +13,12 @@ from ...app import CSGO
 from ...enums import Type
 from ...ext import commands
 from ...id import ID, parse_id64
-from ...utils import cached_property  # noqa: TCH001
+from ...utils import cached_property  # noqa: TC001
 from .backpack import BaseInspectedItem, Paint, Sticker
 from .enums import ItemOrigin, ItemQuality
 from .models import ClientUser, Match, User
 from .protobufs import cstrike
-from .state import GCState  # noqa: TCH001
+from .state import GCState  # noqa: TC001
 from .utils import decode_sharecode
 
 if TYPE_CHECKING:
