@@ -80,7 +80,7 @@ class GCState(GCState_[Backpack]):
         try:
             return self.casket_items[asset_id]
         except KeyError:
-            self.waiting_for_casket_items[asset_id] = future = asyncio.Future()
+            self.waiting_for_casket_items[asset_id] = future = asyncio.get_running_loop().create_future()
             return await future
 
     @parser
@@ -169,8 +169,12 @@ class GCState(GCState_[Backpack]):
             self.set("stickers", stickers)
             for i in range(6):
                 if sticker_id := utils.get(gc_item.attribute, def_index=113 + i):
+                    slot_id = utils.get(gc_item.attribute, def_index=290 + i)
+                    slot = READ_U32(slot_id.value_bytes) if slot_id else None
+                    assert slot in (1, 2, 3, 4, 5, None)
+
                     sticker = Sticker(
-                        slot=READ_U32(utils.get(gc_item.attribute, def_index=290 + i)),  # type: ignore
+                        slot=slot,
                         id=READ_U32(sticker_id.value_bytes),
                     )
 

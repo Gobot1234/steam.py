@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "steamio"
-version = "1.0.1"
+version = "1.1.0"
 description = "A Python wrapper for the Steam API"
 authors = ["Gobot1234 <gobot1234yt@gmail.com>"]
 license = "MIT"
@@ -112,7 +112,7 @@ cmd = "pytests tests/integration"
 
 [tool.poe.tasks.decode]
 script = "scripts.decode:main"
-help = "Decode a recieved message from the Steam WS"
+help = "Decode a received message from the Steam WS"
 [tool.poe.tasks.decode.args.input_message]
 required = true
 positional = true
@@ -127,10 +127,13 @@ line-length = 120
 target-version = ["py310"]
 
 [tool.ruff]
+target-version = "py310"
 line-length = 120
-select = ["C4", "F", "G", "I", "PTH", "RUF", "SIM", "TCH", "UP", "W", "PERF"]
-ignore = ["F401", "F402", "F403", "F405", "PERF203", "RUF001", "RUF009", "SIM105", "UP034", "UP038"]
-[tool.ruff.isort]
+
+[tool.ruff.lint]
+select = ["C4", "F", "G", "I", "PTH", "RUF", "SIM", "TC", "UP", "W", "PERF"]
+ignore = ["F401", "F402", "F403", "F405", "PERF203", "RUF001", "RUF009", "RUF022", "RUF023", "SIM105", "UP034", "UP038"]
+[tool.ruff.lint.isort]
 split-on-trailing-comma = true
 combine-as-imports = true
 

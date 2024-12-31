@@ -7,7 +7,7 @@ import itertools
 import re
 from datetime import date, datetime, timezone
 from ipaddress import IPv4Address
-from typing import TYPE_CHECKING, Iterable, Literal, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Literal, TypeVar, cast, overload
 
 from bs4 import BeautifulSoup, Tag
 from typing_extensions import Self
@@ -27,7 +27,7 @@ from .types.id import ID32, ID64, Intable
 from .utils import BBCodeStr, DateTime, parse_bb_code
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncGenerator, Sequence
+    from collections.abc import AsyncGenerator, Iterable, Sequence
 
     from .media import Media
     from .state import ConnectionState

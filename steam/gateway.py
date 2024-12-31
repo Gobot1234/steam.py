@@ -25,7 +25,7 @@ from gzip import FCOMMENT, FEXTRA, FHCRC, FNAME
 from ipaddress import IPv4Address
 from operator import attrgetter
 from types import CoroutineType
-from typing import TYPE_CHECKING, Any, Final, Generic, TypeAlias, overload
+from typing import TYPE_CHECKING, Any, Final, Generic, Self, TypeAlias, overload
 from zlib import MAX_WBITS, decompress
 
 import aiohttp
@@ -293,6 +293,7 @@ class SteamWebSocket:
         self._state = state
         self.cm_list = cm_list
         self.cm = cm
+        self.tg = asyncio.TaskGroup()
         # the keep alive
         self._keep_alive: KeepAliveHandler
         self._dispatch = state.dispatch
@@ -302,7 +303,6 @@ class SteamWebSocket:
         self.listeners: list[EventListener[Any]] = []
         self.gc_listeners: list[GCEventListener[Any]] = []
         self.closed = False
-        self._pending_parsers = set[asyncio.Task[Any]]()
 
         self.session_id = 0
         self.id64 = ID64(0)
@@ -315,6 +315,13 @@ class SteamWebSocket:
 
         self.public_ip: IPAdress
         self.connect_time: datetime
+
+    async def __aenter__(self) -> Self:
+        await self.tg.__aenter__()
+        return self
+
+    async def __aexit__(self, *args: Any) -> None:
+        await self.tg.__aexit__(*args)
 
     @property
     def latency(self) -> float:
@@ -385,20 +392,37 @@ class SteamWebSocket:
 
     @asynccontextmanager
     async def poll(self) -> AsyncGenerator[None, None]:
-        async def inner_poll():
-            while True:
-                await self.poll_event()
+        timeout = asyncio.Timeout(None)
+        async with asyncio.TaskGroup() as tg:
 
-        poll_task = asyncio.create_task(inner_poll())
-        poll_task.add_done_callback(self.parser_callback)
+            async def inner_poll():
+                try:
+                    async with timeout:
+                        while True:
+                            await self.poll_event()
+                except TimeoutError:
+                    pass
 
-        yield
+            tg.create_task(inner_poll())
+            yield
+            timeout.reschedule(-1)
 
-        poll_task.cancel()  # we let Client.connect handle poll_event from here on out
-        try:
-            await poll_task  # needed to ensure the task is cancelled and socket._waiting is removed
-        except asyncio.CancelledError:
-            pass
+    def dispatch_ready(self):
+        state = self._state
+
+        async def inner():
+            if state.intents & Intents.ChatGroups > 0:
+                await state.handled_chat_groups.wait()  # ensure group cache is ready
+            if state.intents & Intents.ChatGroups > 0:
+                # due to a steam limitation we can't get these reliably on reconnect?  TODO check?
+                await state.handled_friends.wait()  # ensure friend cache is ready
+            await state.handled_emoticons.wait()  # ensure emoticon cache is ready
+            await state.handled_licenses.wait()  # ensure licenses are ready
+            await state.handled_wallet.wait()  # ensure wallet is ready
+
+            await state.client._handle_ready()
+
+        self.tg.create_task(inner())
 
     @classmethod
     async def from_client(
@@ -406,6 +430,7 @@ class SteamWebSocket:
     ) -> SteamWebSocket:
         state = client._state
         cm_list = cm_list or fetch_cm_list(state)
+
         async for cm in cm_list:
             log.info("Attempting to create a websocket connection to %s (load: %f)", cm.url, cm.weighted_load)
             try:
@@ -416,6 +441,8 @@ class SteamWebSocket:
             log.debug("Connected to %s", cm.url)
 
             self = cls(state, socket, cm_list, cm)
+            old_tg = self.tg
+            self.tg = client._tg
             client.ws = self
             self._dispatch("connect")
 
@@ -425,6 +452,7 @@ class SteamWebSocket:
                 self.refresh_token = refresh_token or await self.fetch_refresh_token()
                 self.id64 = parse_id64(utils.decode_jwt(self.refresh_token)["sub"])
 
+                self.dispatch_ready()
                 msg: login.CMsgClientLogonResponse = await self.send_proto_and_wait(
                     login.CMsgClientLogon(
                         protocol_version=PROTOCOL_VERSION,
@@ -475,6 +503,7 @@ class SteamWebSocket:
 
                 self._dispatch("login")
                 log.debug("Logon completed")
+                self.tg = old_tg
 
                 return self
         raise NoCMsFound("No CMs found could be connected to. Steam is likely down")
@@ -507,7 +536,7 @@ class SteamWebSocket:
         if not begin_resp.allowed_confirmations:
             raise AuthenticatorError("No valid auth session guard type was found")
 
-        code_task = email_code_task = asyncio.create_task(asyncio.sleep(float("inf")))
+        code_task = email_code_task = asyncio.get_running_loop().create_future()
         schedule_poll = False
 
         for allowed_confirmation in begin_resp.allowed_confirmations:
@@ -518,10 +547,10 @@ class SteamWebSocket:
                 case auth.EAuthSessionGuardType.DeviceCode:
                     if not client.shared_secret:
                         print("Please enter a Steam guard code")
-                    code_task = asyncio.create_task(self.update_auth_with_code(begin_resp, allowed_confirmation))
+                    code_task = self.tg.create_task(self.update_auth_with_code(begin_resp, allowed_confirmation))
                 case auth.EAuthSessionGuardType.EmailCode:
                     print("Please enter a confirmation code from your email")
-                    email_code_task = asyncio.create_task(self.update_auth_with_code(begin_resp, allowed_confirmation))
+                    email_code_task = self.tg.create_task(self.update_auth_with_code(begin_resp, allowed_confirmation))
                 case auth.EAuthSessionGuardType.DeviceConfirmation:
                     schedule_poll = True
                     print("Confirm login this on your device")
@@ -535,23 +564,11 @@ class SteamWebSocket:
                         f"Unknown auth session guard type: {allowed_confirmation.confirmation_type}"
                     )
         else:
-            (done,), pending = await asyncio.wait(
-                (
-                    code_task,
-                    email_code_task,
-                    (
-                        asyncio.create_task(self.poll_auth_status(begin_resp))
-                        if schedule_poll
-                        else asyncio.Future[None]()
-                    ),
-                ),
-                return_when=asyncio.FIRST_COMPLETED,
+            poll_resp: auth.PollAuthSessionStatusResponse = await utils.race(
+                code_task,
+                email_code_task,
+                self.poll_auth_status(begin_resp) if schedule_poll else asyncio.get_running_loop().create_future(),
             )
-            for task in pending:
-                task.cancel()
-            await asyncio.gather(*pending, return_exceptions=True)
-
-            poll_resp = await done
             assert poll_resp is not None
 
         self.client_id = poll_resp.new_client_id or begin_resp.client_id
@@ -689,27 +706,17 @@ class SteamWebSocket:
     async def poll_event(self) -> None:
         try:
             message = await self.socket.receive()
-            if message.type is aiohttp.WSMsgType.BINARY:  # type: ignore
-                return self.receive(message.data)  # type: ignore
-            if message.type is aiohttp.WSMsgType.ERROR:  # type: ignore
+            if message.type is aiohttp.WSMsgType.BINARY:
+                return self.receive(message.data)
+            if message.type is aiohttp.WSMsgType.ERROR:
                 log.debug("Received %r", message)
-                raise message.data  # type: ignore
-            if message.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.CLOSE, aiohttp.WSMsgType.CLOSING):  # type: ignore
+                raise message.data
+            if message.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.CLOSE, aiohttp.WSMsgType.CLOSING):
                 log.debug("Received %r", message)
                 raise WebSocketClosure
             log.debug("Dropped unexpected message type: %r", message)
         except WebSocketClosure:
             await self._state.handle_close()
-
-    def parser_callback(self, task: asyncio.Task[Any], /) -> None:
-        try:
-            exc = task.exception()
-        except asyncio.CancelledError:
-            pass
-        else:
-            if isinstance(exc, RAISED_EXCEPTIONS) and not self._state._task_error.done():
-                self._state._task_error.set_exception(exc)
-        self._pending_parsers.discard(task)
 
     def receive(self, message: bytes, /) -> None:
         emsg_value = READ_U32(message)
@@ -740,9 +747,7 @@ class SteamWebSocket:
                 return traceback.print_exc()
 
             if isinstance(result, CoroutineType):
-                task = asyncio.create_task(result, name=f"steam.py: {event_parser.__name__}")
-                self._pending_parsers.add(task)
-                task.add_done_callback(self.parser_callback)
+                self.tg.create_task(result, name=f"steam.py: {event_parser.__name__}")
         # remove the dispatched listener
         removed: list[int] = []
         for idx, entry in enumerate(self.listeners):

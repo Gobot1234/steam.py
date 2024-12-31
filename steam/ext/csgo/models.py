@@ -5,10 +5,11 @@ from __future__ import annotations
 import bisect
 import math
 from collections import Counter
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import timedelta
 from operator import itemgetter
-from typing import TYPE_CHECKING, Final, Generic, Mapping, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Final, Generic, TypeVar, cast, overload
 
 from ... import abc, user, utils
 from ..._const import timeout

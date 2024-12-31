@@ -528,7 +528,7 @@ class Greedy(Sequence[T]):
         if not (callable(converter) or isinstance(converter, (Converter, str)) or get_origin(converter) is not None):
             raise TypeError(f"Greedy[...] expects a type or a Converter instance not {converter!r}")
 
-        if isinstance(converter, type) and issubclass(converter, str) or converter is types.NoneType:
+        if (isinstance(converter, type) and issubclass(converter, str)) or converter is types.NoneType:
             raise TypeError(f"Greedy[{converter.__name__}] is invalid")  # type: ignore
 
         return cast(Self, GreedyGenericAlias(cls, (converter,)))

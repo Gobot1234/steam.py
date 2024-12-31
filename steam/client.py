@@ -469,88 +469,43 @@ class Client:
                 log.info("Attempting to connect to another CM in %ds", sleep)
                 await asyncio.sleep(sleep)
 
-            async def poll() -> None:
-                while True:
-                    await state.ws.poll_event()
-
-            async def dispatch_ready() -> None:
-                if state.intents & Intents.ChatGroups > 0:
-                    await state.handled_chat_groups.wait()  # ensure group cache is ready
-                if state.intents & Intents.ChatGroups > 0:
-                    # due to a steam limitation we can't get these reliably on reconnect?  TODO check?
-                    await state.handled_friends.wait()  # ensure friend cache is ready
-                await state.handled_emoticons.wait()  # ensure emoticon cache is ready
-                await state.handled_licenses.wait()  # ensure licenses are ready
-                await state.handled_wallet.wait()  # ensure wallet is ready
-
-                await self._handle_ready()
-
             while not self.is_closed():
                 last_connect = time.monotonic()
 
                 try:
                     async with timeout(60):
-                        self.ws = cast(SteamWebSocket, await login_func(self, *args, **kwargs, cm_list=cm_list))  # type: ignore
+                        self.ws = cast(
+                            SteamWebSocket,
+                            await login_func(
+                                self,
+                                *args,
+                                **kwargs,
+                                cm_list=cm_list,  # type: ignore
+                            ),
+                        )
                 except RAISED_EXCEPTIONS:
                     if self.ws:
                         cm_list = self.ws.cm_list
                     await throttle()
                     continue
 
-                if login_func != SteamWebSocket.anonymous_login_from_client:
-                    self._tg.create_task(dispatch_ready())
-
-                # this entire thing is a bit of a cluster fuck
-                # but that's what you deserve for having async parsers
-
-                # this future holds the future that finished first. either poll_task for a WS exception or callback_error for errors that occur in state.parsers
-                done: asyncio.Future[asyncio.Future[None]] = asyncio.get_running_loop().create_future()
-
-                poll_task = asyncio.create_task(poll())
-                callback_error = state._task_error
-
-                def maybe_set_result(future: asyncio.Future[None]) -> None:
-                    if not done.done():
-                        done.set_result(future)
-                    else:
-                        try:
-                            future.exception()  # mark the exception as retrieved (the other set task should raise the error)
-                        except asyncio.CancelledError:
-                            pass
-
-                poll_task.add_done_callback(maybe_set_result)
-                callback_error.add_done_callback(maybe_set_result)
-
                 try:
-                    task = await done  # get which task is done
+                    async with self.ws:
+                        while True:
+                            await state.ws.poll_event()
+
                 except asyncio.CancelledError:  # KeyboardInterrupt
                     if not self.is_closed():
                         try:
                             await self.close()
                         except asyncio.CancelledError:
                             pass
-                    for task in (poll_task, callback_error):  # cancel them
-                        task.cancel()
-                    await asyncio.gather(
-                        poll_task, callback_error, return_exceptions=True
-                    )  # and collect the results so that the event loop won't raise
-                    return
 
-                to_cancel = poll_task if task is callback_error else callback_error  # cancel the other task
-                to_cancel.cancel()
-                for task_ in self.ws._pending_parsers:
-                    task_.cancel()
-                await asyncio.gather(
-                    *self.ws._pending_parsers, to_cancel, return_exceptions=True
-                )  # same sort of thing as above gather
-                self.ws._pending_parsers.clear()
-                try:
-                    await task  # handle the exception raised
-                except (*RAISED_EXCEPTIONS, asyncio.CancelledError):
+                    return
+                except RAISED_EXCEPTIONS:
                     self.dispatch("disconnect")
                     if not self.is_closed():
                         await throttle()
-                state._task_error = asyncio.get_running_loop().create_future()
 
     @overload
     async def login(

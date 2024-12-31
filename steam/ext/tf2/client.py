@@ -11,9 +11,9 @@ from ..._gc import Client as Client_
 from ..._gc.client import ClientUser as ClientUser_
 from ...app import TF2, App
 from ...ext import commands
-from ...utils import cached_property  # noqa: TCH001
+from ...utils import cached_property  # noqa: TC001
 from .protobufs import struct_messages
-from .state import GCState  # noqa: TCH001
+from .state import GCState  # noqa: TC001
 
 if TYPE_CHECKING:
     import os

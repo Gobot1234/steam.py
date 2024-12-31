@@ -115,7 +115,7 @@ class EnumType(_EnumMeta if TYPE_CHECKING else type):
         value_map: dict[Any, Enum] = {}
         member_map: dict[str, Enum] = {}
 
-        new_mcs: type[Self] = type(
+        new_mcs: type[EnumType] = type(
             f"{name}Type",
             tuple(
                 dict.fromkeys([base.__class__ for base in bases if base.__class__ is not type] + [EnumType, type])
@@ -181,7 +181,7 @@ class EnumType(_EnumMeta if TYPE_CHECKING else type):
 class Enum(_Enum if TYPE_CHECKING else object, metaclass=EnumType):
     """A general enumeration, emulates `enum.Enum`."""
 
-    _member_map_: Mapping[str, Self]
+    _member_map_: Mapping[str, Self]  # type: ignore  # yes this is unsafe
     _value_map_: Mapping[Any, Self]
 
     def __new__(cls, value: Any) -> Self:
@@ -2132,12 +2132,12 @@ class UserNewsType(IntEnum):
 
     def __or__(self, other: SupportsInt) -> Self:
         cls = self.__class__
-        value = self.flag | int(other) if not isinstance(other, cls) else self.flag | other.flag
+        value = self.flag | other.flag if isinstance(other, cls) else self.flag | int(other)
         return cls._new_member(name=f"{self.name} | {getattr(other, 'name', other)}", value=has_associated_flag(-1, value))
 
     def __and__(self, other: SupportsInt) -> Self:
         cls = self.__class__
-        value = self.flag & int(other) if not isinstance(other, cls) else self.flag & other.flag
+        value = self.flag & other.flag if isinstance(other, cls) else self.flag & int(other)
         return cls._new_member(name=f"{self.name} & {getattr(other, 'name', other)}", value=has_associated_flag(-1, value))
 
     @classproperty
