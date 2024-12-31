@@ -10,7 +10,7 @@ import betterproto
 
 from ....protobufs.msg import GCProtobufMessage
 from ..enums import EMsg
-from .shared_enums import EEvent, EMatchOutcome, GameMode, Team  # noqa: TCH001
+from .shared_enums import EEvent, EMatchOutcome, GameMode, Team  # noqa: TC001
 
 # PROFILE CARD
 

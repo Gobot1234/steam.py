@@ -10,9 +10,9 @@ import betterproto
 
 from ....protobufs.msg import GCProtobufMessage
 from ..enums import EMsg
-from .base import SOEconItem  # noqa: TCH001
-from .common import Match, RecentMatchInfo, StickerbookPage, SuccessfulHero  # noqa: TCH001
-from .shared_enums import EMatchGroupServerStatus, MatchVote  # noqa: TCH001
+from .base import SOEconItem  # noqa: TC001
+from .common import Match, RecentMatchInfo, StickerbookPage, SuccessfulHero  # noqa: TC001
+from .shared_enums import EMatchGroupServerStatus, MatchVote  # noqa: TC001
 
 # PROFILE CARD
 

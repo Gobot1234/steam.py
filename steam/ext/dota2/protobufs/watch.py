@@ -10,7 +10,7 @@ import betterproto
 
 from ....protobufs.msg import GCProtobufMessage
 from ..enums import EMsg
-from .common import MatchMinimal  # noqa: TCH001
+from .common import MatchMinimal  # noqa: TC001
 
 # FIND TOP SOURCE TV GAMES
 

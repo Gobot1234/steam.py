@@ -13,7 +13,7 @@ from ...utils import (
     cached_property,
 )
 from .models import ClientUser, LiveMatch, MatchMinimal, PartialMatch, PartialUser
-from .state import GCState  # noqa: TCH001
+from .state import GCState  # noqa: TC001
 
 if TYPE_CHECKING:
     from ...types.id import Intable
