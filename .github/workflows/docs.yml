@@ -42,7 +42,7 @@ jobs:
           poetry run python scripts/build_docs_for_pages.py --tag=${{ github.event.release.tag_name }}
 
       - name: Push
-        uses: peaceiris/actions-gh-pages@v3
+        uses: peaceiris/actions-gh-pages@v4
         with:
           deploy_key: ${{ secrets.DEPLOY_KEY }}
           external_repository: ${{ env.TARGET }}
