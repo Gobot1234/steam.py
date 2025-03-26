@@ -61,7 +61,7 @@ class Team(betterproto.Enum):
 
 class EMatchOutcome(betterproto.Enum):
     Unknown = 0
-    RadVictory = 2
+    RadiantVictory = 2
     DireVictory = 3
     NeutralVictory = 4
     NoTeamWinner = 5

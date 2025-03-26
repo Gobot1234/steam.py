@@ -44,29 +44,44 @@ class Client(Client_):
         def user(self) -> ClientUser: ...
 
     # TODO: maybe this should exist as a part of the whole lib (?)
-    def instantiate_partial_user(self, id: Intable) -> PartialUser:
+    def create_partial_user(self, id: Intable) -> PartialUser:
+        """Create partial user.
+
+        Convenience method, allows using user related requests to GC like `user.dota2_profile`
+        for any user.
+
+        Parameters
+        ----------
+        id
+            Steam ID for the user in any of supported forms.
+        """
         return self._state.get_partial_user(id)
 
-    def instantiate_partial_match(self, id: int) -> PartialMatch:
-        """Instantiate partial match.
+    def create_partial_match(self, id: int) -> PartialMatch:
+        """Create partial match.
 
-        Convenience method, allows using match related requests to gc like `match.details`
+        Convenience method, allows using match related requests to GC like `match.details`
         for any match.
+
+        Parameters
+        ----------
+        id
+            Match ID.
         """
         return PartialMatch(self._state, id)
 
     async def top_live_matches(self, *, hero: Hero = MISSING, limit: int = 100) -> list[LiveMatch]:
         """Fetch top live matches.
 
-        This is similar to game list in the Watch Tab of Dota 2 game app.
-        "Top matches" in this context means
+        This is similar to the game list in the "Watch" tab of Dota 2 game client.
+        These matches usually are:
             * featured tournament matches
             * highest average MMR matches
 
         Parameters
         ----------
         hero
-            Filter matches by Hero. Note, in this case Game Coordinator still only uses current top100 live matches,
+            Filter matches by Hero. In this case Game Coordinator still only uses current top100 live matches,
             i.e. requesting "filter by Muerta" results only in subset of those matches in which
             Muerta is currently being played. It does not look into lower MMR match than top100 to extend the return
             list to number of games from `limit` argument. This behavior is consistent with how Watch Tab works.

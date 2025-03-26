@@ -56,6 +56,10 @@ class Result(IntEnum):
     OK = 1
 
 
+# not sure which value would suit the best;
+TIMEOUT_DEFAULT = 8.0
+
+
 class GCState(GCState_[Any]):  # TODO: implement basket-analogy for dota2
     client: Client  # type: ignore  # PEP 705
     _users: WeakValueDictionary[ID32, User]
@@ -133,33 +137,52 @@ class GCState(GCState_[Any]):  # TODO: implement basket-analogy for dota2
         # each response.game_list is 10 games (except possibly last one if filtered by hero)
         return responses
 
-    async def fetch_dota2_profile(self, account_id: int, timeout: float = 7.0) -> client_messages.ProfileResponse:
+    async def fetch_dota2_profile(
+        self,
+        account_id: int,
+        timeout: float = TIMEOUT_DEFAULT,
+    ) -> client_messages.ProfileResponse:
         """Fetch user's dota 2 profile."""
         await self.ws.send_gc_message(client_messages.ProfileRequest(account_id=account_id))
         async with asyncio.timeout(timeout):
             return await self.ws.gc_wait_for(client_messages.ProfileResponse)
 
-    async def fetch_dota2_profile_card(self, account_id: int, timeout: float = 7.0) -> common.ProfileCard:
+    async def fetch_dota2_profile_card(
+        self,
+        account_id: int,
+        timeout: float = TIMEOUT_DEFAULT,
+    ) -> common.ProfileCard:
         """Fetch user's dota 2 profile card."""
         await self.ws.send_gc_message(client_messages.ClientToGCGetProfileCard(account_id=account_id))
         async with asyncio.timeout(timeout):
             return await self.ws.gc_wait_for(common.ProfileCard, check=lambda msg: msg.account_id == account_id)
 
-    async def fetch_match_history(self, timeout: float = 7.0, **kwargs: Unpack[MatchHistoryKwargs]):
+    async def fetch_match_history(
+        self,
+        timeout: float = TIMEOUT_DEFAULT,
+        **kwargs: Unpack[MatchHistoryKwargs],
+    ):
         """Fetch match history."""
         await self.ws.send_gc_message(client_messages.GetPlayerMatchHistory(**kwargs))
         async with asyncio.timeout(timeout):
             return await self.ws.gc_wait_for(client_messages.GetPlayerMatchHistoryResponse)
 
     async def fetch_matches_minimal(
-        self, match_ids: list[int], *, timeout: float = 7.0
+        self,
+        match_ids: list[int],
+        *,
+        timeout: float = TIMEOUT_DEFAULT,
     ) -> watch.ClientToGCMatchesMinimalResponse:
         """Fetch matches minimal."""
         await self.ws.send_gc_message(watch.ClientToGCMatchesMinimalRequest(match_ids=match_ids))
         async with asyncio.timeout(timeout):
             return await self.ws.gc_wait_for(watch.ClientToGCMatchesMinimalResponse)
 
-    async def fetch_match_details(self, match_id: int, timeout: float = 7.0) -> client_messages.MatchDetailsResponse:
+    async def fetch_match_details(
+        self,
+        match_id: int,
+        timeout: float = TIMEOUT_DEFAULT,
+    ) -> client_messages.MatchDetailsResponse:
         """Fetch match details."""
         await self.ws.send_gc_message(client_messages.MatchDetailsRequest(match_id=match_id))
         async with asyncio.timeout(timeout):
@@ -171,7 +194,9 @@ class GCState(GCState_[Any]):  # TODO: implement basket-analogy for dota2
         return response
 
     async def fetch_rank(
-        self, rank_type: client_messages.ERankType, timeout: float = 7.0
+        self,
+        rank_type: client_messages.ERankType,
+        timeout: float = TIMEOUT_DEFAULT,
     ) -> client_messages.GCToClientRankResponse:
         """Fetch rank."""
         await self.ws.send_gc_message(client_messages.ClientToGCRankRequest(rank_type=rank_type))
@@ -179,7 +204,9 @@ class GCState(GCState_[Any]):  # TODO: implement basket-analogy for dota2
             return await self.ws.gc_wait_for(client_messages.GCToClientRankResponse)
 
     async def post_social_message(
-        self, timeout: float = 7.0, **kwargs: Unpack[PostSocialMessageKwargs]
+        self,
+        timeout: float = TIMEOUT_DEFAULT,
+        **kwargs: Unpack[PostSocialMessageKwargs],
     ) -> client_messages.GCToClientSocialFeedPostMessageResponse:
         """Post social message."""
         await self.ws.send_gc_message(client_messages.ClientToGCSocialFeedPostMessageRequest(**kwargs))
@@ -189,7 +216,10 @@ class GCState(GCState_[Any]):  # TODO: implement basket-analogy for dota2
             raise WSException(response)
         return response
 
-    async def fetch_matchmaking_stats(self, timeout: float = 7.0) -> client_messages.MatchmakingStatsResponse:
+    async def fetch_matchmaking_stats(
+        self,
+        timeout: float = TIMEOUT_DEFAULT,
+    ) -> client_messages.MatchmakingStatsResponse:
         """Fetch matchmaking stats."""
         await self.ws.send_gc_message(client_messages.MatchmakingStatsRequest())
         async with asyncio.timeout(timeout):

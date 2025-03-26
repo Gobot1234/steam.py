@@ -96,7 +96,7 @@ class PartialMatch:
         self._state = state
         self.id = id
 
-    async def details(self) -> MatchDetails | None:
+    async def details(self) -> MatchDetails:
         """Fetch Match Details.
 
         Contains most of the information that can be found in post-match stats in-game.
@@ -142,7 +142,7 @@ class ClientUser(PartialUser, ClientUser_):  # type: ignore
         """Post message in social feed.
 
         Currently, messages sent with this are visible in "User Feed - Widget" of Profile Showcase.
-        This functionality was possible long ago naturally in the in-game client.
+        This functionality was possible long ago naturally in the Dota 2 client.
         """
         await self._state.post_social_message(message=message)
 
