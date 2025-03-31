@@ -160,9 +160,10 @@ class BaseMatch(PartialMatch):
     This class doesn't have a proto-message mirror.
     """
 
-        team: int,
     def __init__(self, state: GCState, id: int, *, start_time: float, duration: int):
         super().__init__(state, id)
+        self.start_time = DateTime.from_timestamp(start_time)
+        self.duration = datetime.timedelta(seconds=duration)
 
 
 class BasePlayer(PartialUser):
@@ -172,15 +173,16 @@ class BasePlayer(PartialUser):
     This class doesn't have a proto-message mirror.
     """
 
-        self.assists = proto.assists
-        self.items = proto.items
-        self.player_slot = proto.player_slot
-        self.pro_name = proto.pro_name
+    def __init__(self, state: GCState, id: Intable, *, hero_id: int) -> None:
+        super().__init__(state, id)
+        self.hero = Hero.try_value(hero_id)
 
 
 class MinimalMatch(BaseMatch):
     def __init__(self, state: GCState, proto: common.MatchMinimal) -> None:
-        self._state = state
+        super().__init__(
+            state,
+            proto.match_id,
             start_time=proto.start_time,
             duration=proto.duration,
         )
@@ -195,6 +197,13 @@ class MinimalMatch(BaseMatch):
 
 
 class MinimalMatchPlayer(BasePlayer):
+    def __init__(self, state: GCState, proto: common.MatchMinimalPlayer) -> None:
+        super().__init__(state, proto.account_id, hero_id=proto.hero_id)
+
+        self.kills = proto.kills
+        self.deaths = proto.deaths
+        self.assists = proto.assists
+        self.items = proto.items
         self.player_slot = proto.player_slot
         self.pro_name = proto.pro_name
         self.hero_level = proto.level
@@ -203,11 +212,8 @@ class MinimalMatchPlayer(BasePlayer):
 
 class DetailedMatch(BaseMatch):
     def __init__(self, state: GCState, proto: common.Match) -> None:
-        self._state = state
         super().__init__(state, proto.match_id, start_time=proto.starttime, duration=proto.duration)
 
-        self.duration = datetime.timedelta(seconds=proto.duration)
-        self.start_time = DateTime.from_timestamp(proto.starttime)
         self.human_players_amount = proto.human_players
         self.players = proto.players  # TODO: modelize
         self.tower_status = proto.tower_status  # TODO: decipher
@@ -388,6 +394,10 @@ class LiveMatch:
         return f"<{self.__class__.__name__} id={self.id} server_steam_id={self.server_steam_id}>"
 
 
+class LiveMatchPlayer(PartialUser):
+    def __init__(
+        self,
+        state: GCState,
         id: Intable,
         hero: Hero,
         team: int,
@@ -460,6 +470,27 @@ class MatchHistoryMatch(PartialMatch):
 
 class ClientUser(PartialUser, ClientUser_):  # type: ignore
     # TODO: if TYPE_CHECKING: for inventory
+
+    async def glicko_rating(self) -> GlickoRating:
+        """Request Glicko Rank Information."""
+        proto = await self._state.fetch_rank(rank_type=ERankType.RankedGlicko)
+        return GlickoRating(
+            mmr=proto.rank_value, deviation=proto.rank_data1, volatility=proto.rank_data2, const=proto.rank_data3
+        )
+
+    async def behavior_summary(self) -> BehaviorSummary:
+        """Request Behavior Summary."""
+        proto = await self._state.fetch_rank(rank_type=ERankType.BehaviorPublic)
+        return BehaviorSummary(behavior_score=proto.rank_value, communication_score=proto.rank_data1)
+
+    async def post_social_message(self, message: str) -> None:
+        """Post message in social feed.
+
+        Currently, messages sent with this are visible in "User Feed - Widget" of Profile Showcase.
+        This functionality was possible long ago naturally in the Dota 2 client.
+        """
+        await self._state.post_social_message(message=message)
+
 
 @dataclass(slots=True)
 class GlickoRating:
