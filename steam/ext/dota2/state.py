@@ -56,8 +56,7 @@ class Result(IntEnum):
     OK = 1
 
 
-# not sure which value would suit the best;
-TIMEOUT_DEFAULT = 8.0
+TIMEOUT_DEFAULT = 8.0  # not sure which value would suit the best;
 
 
 class GCState(GCState_[Any]):  # TODO: implement basket-analogy for dota2
@@ -113,7 +112,7 @@ class GCState(GCState_[Any]):  # TODO: implement basket-analogy for dota2
     # they directly give proto-response while the latter modelize them into more convenient formats.
 
     async def fetch_top_source_tv_games(
-        self, *, timeout: float = 7.0, **kwargs: Unpack[TopSourceTVGamesKwargs]
+        self, **kwargs: Unpack[TopSourceTVGamesKwargs]
     ) -> list[watch.GCToClientFindTopSourceTVGamesResponse]:
         """Fetch Top Source TV Games."""
         start_game = kwargs.get("start_game") or 0
@@ -132,60 +131,42 @@ class GCState(GCState_[Any]):  # TODO: implement basket-analogy for dota2
             for start_game in range(0, start_game + 1, 10)  # TODO: is it correct as in same as it'd be missing
         ]
         await self.ws.send_gc_message(watch.ClientToGCFindTopSourceTVGames(**kwargs))
-        async with asyncio.timeout(timeout):
+        async with asyncio.timeout(TIMEOUT_DEFAULT):
             responses = await asyncio.gather(*futures)
         # each response.game_list is 10 games (except possibly last one if filtered by hero)
         return responses
 
-    async def fetch_dota2_profile(
-        self,
-        account_id: int,
-        timeout: float = TIMEOUT_DEFAULT,
-    ) -> client_messages.ProfileResponse:
+    async def fetch_dota2_profile(self, account_id: int) -> client_messages.ProfileResponse:
         """Fetch user's dota 2 profile."""
         await self.ws.send_gc_message(client_messages.ProfileRequest(account_id=account_id))
-        async with asyncio.timeout(timeout):
+        async with asyncio.timeout(TIMEOUT_DEFAULT):
             return await self.ws.gc_wait_for(client_messages.ProfileResponse)
 
-    async def fetch_dota2_profile_card(
-        self,
-        account_id: int,
-        timeout: float = TIMEOUT_DEFAULT,
-    ) -> common.ProfileCard:
+    async def fetch_dota2_profile_card(self, account_id: int) -> common.ProfileCard:
         """Fetch user's dota 2 profile card."""
         await self.ws.send_gc_message(client_messages.ClientToGCGetProfileCard(account_id=account_id))
-        async with asyncio.timeout(timeout):
+        async with asyncio.timeout(TIMEOUT_DEFAULT):
             return await self.ws.gc_wait_for(common.ProfileCard, check=lambda msg: msg.account_id == account_id)
 
     async def fetch_match_history(
         self,
-        timeout: float = TIMEOUT_DEFAULT,
         **kwargs: Unpack[MatchHistoryKwargs],
     ):
         """Fetch match history."""
         await self.ws.send_gc_message(client_messages.GetPlayerMatchHistory(**kwargs))
-        async with asyncio.timeout(timeout):
+        async with asyncio.timeout(TIMEOUT_DEFAULT):
             return await self.ws.gc_wait_for(client_messages.GetPlayerMatchHistoryResponse)
 
-    async def fetch_matches_minimal(
-        self,
-        match_ids: list[int],
-        *,
-        timeout: float = TIMEOUT_DEFAULT,
-    ) -> watch.ClientToGCMatchesMinimalResponse:
+    async def fetch_matches_minimal(self, match_ids: list[int]) -> watch.ClientToGCMatchesMinimalResponse:
         """Fetch matches minimal."""
         await self.ws.send_gc_message(watch.ClientToGCMatchesMinimalRequest(match_ids=match_ids))
-        async with asyncio.timeout(timeout):
+        async with asyncio.timeout(TIMEOUT_DEFAULT):
             return await self.ws.gc_wait_for(watch.ClientToGCMatchesMinimalResponse)
 
-    async def fetch_match_details(
-        self,
-        match_id: int,
-        timeout: float = TIMEOUT_DEFAULT,
-    ) -> client_messages.MatchDetailsResponse:
+    async def fetch_match_details(self, match_id: int) -> client_messages.MatchDetailsResponse:
         """Fetch match details."""
         await self.ws.send_gc_message(client_messages.MatchDetailsRequest(match_id=match_id))
-        async with asyncio.timeout(timeout):
+        async with asyncio.timeout(TIMEOUT_DEFAULT):
             response = await self.ws.gc_wait_for(
                 client_messages.MatchDetailsResponse, check=lambda msg: msg.match.match_id == match_id
             )
@@ -193,34 +174,25 @@ class GCState(GCState_[Any]):  # TODO: implement basket-analogy for dota2
             raise WSException(response)
         return response
 
-    async def fetch_rank(
-        self,
-        rank_type: client_messages.ERankType,
-        timeout: float = TIMEOUT_DEFAULT,
-    ) -> client_messages.GCToClientRankResponse:
+    async def fetch_rank(self, rank_type: client_messages.ERankType) -> client_messages.GCToClientRankResponse:
         """Fetch rank."""
         await self.ws.send_gc_message(client_messages.ClientToGCRankRequest(rank_type=rank_type))
-        async with asyncio.timeout(timeout):
+        async with asyncio.timeout(TIMEOUT_DEFAULT):
             return await self.ws.gc_wait_for(client_messages.GCToClientRankResponse)
 
     async def post_social_message(
-        self,
-        timeout: float = TIMEOUT_DEFAULT,
-        **kwargs: Unpack[PostSocialMessageKwargs],
+        self, **kwargs: Unpack[PostSocialMessageKwargs]
     ) -> client_messages.GCToClientSocialFeedPostMessageResponse:
         """Post social message."""
         await self.ws.send_gc_message(client_messages.ClientToGCSocialFeedPostMessageRequest(**kwargs))
-        async with asyncio.timeout(timeout):
+        async with asyncio.timeout(TIMEOUT_DEFAULT):
             response = await self.ws.gc_wait_for(client_messages.GCToClientSocialFeedPostMessageResponse)
         if response.success != Result.OK:
             raise WSException(response)
         return response
 
-    async def fetch_matchmaking_stats(
-        self,
-        timeout: float = TIMEOUT_DEFAULT,
-    ) -> client_messages.MatchmakingStatsResponse:
+    async def fetch_matchmaking_stats(self) -> client_messages.MatchmakingStatsResponse:
         """Fetch matchmaking stats."""
         await self.ws.send_gc_message(client_messages.MatchmakingStatsRequest())
-        async with asyncio.timeout(timeout):
+        async with asyncio.timeout(TIMEOUT_DEFAULT):
             return await self.ws.gc_wait_for(client_messages.MatchmakingStatsResponse)
