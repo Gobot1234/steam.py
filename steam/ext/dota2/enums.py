@@ -294,7 +294,7 @@ class Hero(IntEnum):
     def id(self) -> int:
         return self.value
 
-    def __bool__(self) -> bool:  # type: ignore # idk I need `Hero.NONE` to be `False`
+    def __bool__(self) -> bool:  # type: ignore # I need `Hero.NONE` to be `False`
         return bool(self.value)
 
 

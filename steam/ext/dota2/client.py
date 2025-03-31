@@ -12,7 +12,7 @@ from ...utils import (
     MISSING,
     cached_property,
 )
-from .models import ClientUser, LiveMatch, MatchMinimal, PartialMatch, PartialUser
+from .models import ClientUser, LiveMatch, MinimalMatch, PartialMatch, PartialUser
 from .state import GCState  # noqa: TC001
 
 if TYPE_CHECKING:
@@ -178,9 +178,9 @@ class Client(Client_):
         else:
             return live_matches
 
-    async def matches_minimal(self, match_id: int) -> list[MatchMinimal]:
+    async def matches_minimal(self, match_id: int) -> list[MinimalMatch]:
         proto = await self._state.fetch_matches_minimal(match_ids=[match_id])
-        return [MatchMinimal(self._state, match) for match in proto.matches]
+        return [MinimalMatch(self._state, match) for match in proto.matches]
 
     async def matchmaking_stats(self):
         proto = await self._state.fetch_matchmaking_stats()

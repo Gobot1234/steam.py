@@ -23,7 +23,7 @@ UserT = TypeVar("UserT", bound=abc.PartialUser)
 __all__ = (
     "ClientUser",
     "LiveMatch",
-    "MatchMinimal",
+    "MinimalMatch",
     "MatchHistoryMatch",
     "PartialMatch",
     "PartialUser",
@@ -96,7 +96,7 @@ class PartialMatch:
         self._state = state
         self.id = id
 
-    async def details(self) -> MatchDetails:
+    async def details(self) -> DetailedMatch:
         """Fetch Match Details.
 
         Contains most of the information that can be found in post-match stats in-game.
@@ -110,14 +110,14 @@ class PartialMatch:
                 * Dota 2 Game Coordinator lagging or being down.
         """
         proto = await self._state.fetch_match_details(match_id=self.id)
-        return MatchDetails(self._state, proto.match)
+        return DetailedMatch(self._state, proto.match)
 
-    async def minimal(self) -> MatchMinimal:
+    async def minimal(self) -> MinimalMatch:
         """Fetches basic "minimal" information about the match."""
         proto = await self._state.fetch_matches_minimal(match_ids=[self.id])
         match = next(iter(proto.matches), None)
         if match is not None:
-            return MatchMinimal(self._state, match)
+            return MinimalMatch(self._state, match)
         else:
             msg = f"Failed to get match_minimal for {self.id}"
             raise ValueError(msg)
@@ -210,7 +210,7 @@ class MatchMinimalPlayer:
         self.team_number = proto.team_number
 
 
-class MatchMinimal:
+class MinimalMatch(BaseMatch):
     def __init__(self, state: GCState, proto: common.MatchMinimal) -> None:
         self._state = state
 
@@ -218,7 +218,7 @@ class MatchMinimal:
         self.start_time = DateTime.from_timestamp(proto.start_time)
         self.duration = datetime.timedelta(seconds=proto.duration)
         self.game_mode = GameMode.try_value(proto.game_mode)
-        self.players = [MatchMinimalPlayer(state, player) for player in proto.players]
+        self.players = [MinimalMatchPlayer(state, player) for player in proto.players]
         self.tourney = proto.tourney  # TODO: modelize further `common.MatchMinimalTourney`
         self.outcome = MatchOutcome.try_value(proto.match_outcome)
         self.radiant_score = proto.radiant_score
@@ -438,7 +438,6 @@ class BattleCup:
     teams: tuple[TournamentTeam, TournamentTeam]
 
 
-# maybe name it Match History Record
 class MatchHistoryMatch(PartialMatch):
     def __init__(self, state: GCState, proto: client_messages.GetPlayerMatchHistoryResponseMatch) -> None:
         super().__init__(state, proto.match_id)
