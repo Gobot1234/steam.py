@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-from functools import partial
 from typing import TYPE_CHECKING, Any, NotRequired, TypedDict, Unpack
 
 from ..._gc import GCState as GCState_
@@ -120,21 +119,16 @@ class GCState(GCState_[Any]):  # TODO: implement basket-analogy for dota2
         # #     # in my experience it never answers in these cases
         # #     raise ValueError("start_game should be between 0 and 90 inclusively.")
 
-        def check(start_game: int, msg: watch.GCToClientFindTopSourceTVGamesResponse) -> bool:
-            return msg.start_game == start_game
-
         futures = [
             self.ws.gc_wait_for(
-                watch.GCToClientFindTopSourceTVGamesResponse,
-                check=partial(check, start_game),
+                watch.GCToClientFindTopSourceTVGamesResponse, check=lambda msg: msg.start_game == start_game
             )
-            for start_game in range(0, start_game + 1, 10)  # TODO: is it correct as in same as it'd be missing
+            for start_game in range(0, start_game + 1, 10)
         ]
         await self.ws.send_gc_message(watch.ClientToGCFindTopSourceTVGames(**kwargs))
         async with asyncio.timeout(TIMEOUT_DEFAULT):
-            responses = await asyncio.gather(*futures)
-        # each response.game_list is 10 games (except possibly last one if filtered by hero)
-        return responses
+            # each response.game_list is 10 games (except possibly last one if filtered by)
+            return await asyncio.gather(*futures)
 
     async def fetch_dota2_profile(self, account_id: int) -> client_messages.ProfileResponse:
         """Fetch user's dota 2 profile."""
