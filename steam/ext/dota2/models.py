@@ -50,7 +50,7 @@ class PartialUser(abc.PartialUser):
         Contains basic information about the account. Mirrors some from old profile page.
         """
         proto = await self._state.fetch_dota2_profile_card(self.id)
-        return ProfileCard(proto)
+        return ProfileCard(self._state, proto)
 
     async def match_history(
         self,
@@ -84,6 +84,36 @@ class PartialUser(abc.PartialUser):
 
 class User(PartialUser, user.User):  # type: ignore
     __slots__ = ()
+
+
+class ProfileCard:
+    def __init__(self, state: GCState, proto: common.ProfileCard):
+        self.user = PartialUser(state, proto.account_id)
+
+        self.badge_points = proto.badge_points
+        self.event_points = proto.event_points
+        self.event_id = proto.event_id
+        self.recent_battle_cup_victory = proto.recent_battle_cup_victory
+        self.rank_tier = RankTier.try_value(proto.rank_tier)
+        """Ranked medal like Herald-Immortal with a number of stars, i.e. Legend 5."""
+        self.leaderboard_rank = proto.leaderboard_rank
+        """Leaderboard rank, i.e. found here https://www.dota2.com/leaderboards/#europe."""
+        self.is_plus_subscriber = proto.is_plus_subscriber
+        """Whether the user is a Dota Plus Subscriber."""
+        self.plus_original_start_date = proto.plus_original_start_date
+        """When user subscribed to Dota Plus for their very first time."""
+        self.favorite_team_packed = proto.favorite_team_packed
+        self.lifetime_games = proto.lifetime_games
+        """Amount of lifetime games, includes Turbo games as well."""
+
+        # (?) Unused/Deprecated by Valve
+        # self.slots = proto.slots  # profile page was reworked
+        # self.title = proto.title
+        # self.rank_tier_score = proto.rank_tier_score  # relic from when support/core MMR were separated
+        # self.leaderboard_rank_core = proto.leaderboard_rank_core  # relic from when support/core MMR were separated
+
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__} id={self.user.id} rank_tier={self.rank_tier}>"
 
 
 class PartialMatch:
@@ -123,100 +153,38 @@ class PartialMatch:
             raise ValueError(msg)
 
 
-class ClientUser(PartialUser, ClientUser_):  # type: ignore
-    # TODO: if TYPE_CHECKING: for inventory
+class BaseMatch(PartialMatch):
+    """Base Match Template.
 
-    async def glicko_rating(self) -> GlickoRating:
-        """Request Glicko Rank Information."""
-        proto = await self._state.fetch_rank(rank_type=ERankType.RankedGlicko)
-        return GlickoRating(
-            mmr=proto.rank_value, deviation=proto.rank_data1, volatility=proto.rank_data2, const=proto.rank_data3
-        )
+    A convenience class that sets the basic attributes a match is expected to have.
+    This class doesn't have a proto-message mirror.
+    """
 
-    async def behavior_summary(self) -> BehaviorSummary:
-        """Request Behavior Summary."""
-        proto = await self._state.fetch_rank(rank_type=ERankType.BehaviorPublic)
-        return BehaviorSummary(behavior_score=proto.rank_value, communication_score=proto.rank_data1)
-
-    async def post_social_message(self, message: str) -> None:
-        """Post message in social feed.
-
-        Currently, messages sent with this are visible in "User Feed - Widget" of Profile Showcase.
-        This functionality was possible long ago naturally in the Dota 2 client.
-        """
-        await self._state.post_social_message(message=message)
-
-
-class ProfileCard:
-    def __init__(self, proto: common.ProfileCard):
-        self.account_id = proto.account_id
-        self.badge_points = proto.badge_points
-        self.event_points = proto.event_points
-        self.event_id = proto.event_id
-        self.recent_battle_cup_victory = proto.recent_battle_cup_victory
-        self.rank_tier = RankTier.try_value(proto.rank_tier)
-        """Ranked medal like Herald-Immortal with a number of stars, i.e. Legend 5."""
-        self.leaderboard_rank = proto.leaderboard_rank
-        """Leaderboard rank, i.e. found here https://www.dota2.com/leaderboards/#europe."""
-        self.is_plus_subscriber = proto.is_plus_subscriber
-        """Is Dota Plus Subscriber."""
-        self.plus_original_start_date = proto.plus_original_start_date
-        """When user subscribed to Dota Plus for their very first time."""
-        self.favorite_team_packed = proto.favorite_team_packed
-        self.lifetime_games = proto.lifetime_games
-        """Amount of lifetime games, includes Turbo games as well."""
-
-        # (?) Unused/Deprecated by Valve
-        # self.slots = proto.slots  # profile page was reworked
-        # self.title = proto.title
-        # self.rank_tier_score = proto.rank_tier_score  # relic from time when support/core MMR were separated
-        # self.leaderboard_rank_core = proto.leaderboard_rank_core  # relic from time when support/core MMR were separated
-
-    def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} account_id={self.account_id}>"
-
-
-class LiveMatchPlayer(PartialUser):
-    def __init__(
-        self,
-        state: GCState,
-        id: Intable,
-        hero: Hero,
         team: int,
-        team_slot: int,
-    ) -> None:
+    def __init__(self, state: GCState, id: int, *, start_time: float, duration: int):
         super().__init__(state, id)
-        self.hero = hero
-        self.team = team
-        self.team_slot = team_slot
-
-    def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} id={self.id} hero={self.hero!r}>"
 
 
-class MatchMinimalPlayer:
-    def __init__(self, state: GCState, proto: common.MatchMinimalPlayer):
-        self._state = state
+class BasePlayer(PartialUser):
+    """Base Match Player Template.
 
-        self.id = proto.account_id
-        self.hero = Hero.try_value(proto.hero_id)
-        self.kills = proto.kills
-        self.deaths = proto.deaths
+    A convenience class that sets the basic attributes a match player is expected to have.
+    This class doesn't have a proto-message mirror.
+    """
+
         self.assists = proto.assists
         self.items = proto.items
         self.player_slot = proto.player_slot
         self.pro_name = proto.pro_name
-        self.level = proto.level
-        self.team_number = proto.team_number
 
 
 class MinimalMatch(BaseMatch):
     def __init__(self, state: GCState, proto: common.MatchMinimal) -> None:
         self._state = state
+            start_time=proto.start_time,
+            duration=proto.duration,
+        )
 
-        self.id = proto.match_id
-        self.start_time = DateTime.from_timestamp(proto.start_time)
-        self.duration = datetime.timedelta(seconds=proto.duration)
         self.game_mode = GameMode.try_value(proto.game_mode)
         self.players = [MinimalMatchPlayer(state, player) for player in proto.players]
         self.tourney = proto.tourney  # TODO: modelize further `common.MatchMinimalTourney`
@@ -226,11 +194,18 @@ class MinimalMatch(BaseMatch):
         self.lobby_type = LobbyType.try_value(proto.lobby_type)
 
 
-class MatchDetails:
+class MinimalMatchPlayer(BasePlayer):
+        self.player_slot = proto.player_slot
+        self.pro_name = proto.pro_name
+        self.hero_level = proto.level
+        self.team_number = proto.team_number
+
+
+class DetailedMatch(BaseMatch):
     def __init__(self, state: GCState, proto: common.Match) -> None:
         self._state = state
+        super().__init__(state, proto.match_id, start_time=proto.starttime, duration=proto.duration)
 
-        self.id = proto.match_id
         self.duration = datetime.timedelta(seconds=proto.duration)
         self.start_time = DateTime.from_timestamp(proto.starttime)
         self.human_players_amount = proto.human_players
@@ -397,14 +372,12 @@ class LiveMatch:
 
         # Since Immortal Draft update, players come from the proto message in a wrong order
         # which can be fixed back with extra fields that they introduced later: `team`, `team_slot`
-        sorted_players = sorted(proto.players, key=attrgetter("team", "team_slot"))
-
-        self.players: list[LiveMatchPlayer] = []
-        for player in sorted_players:
-            live_match_player = LiveMatchPlayer(
+        self.players = [
+            LiveMatchPlayer(
                 self._state, player.account_id, Hero.try_value(player.hero_id), player.team, player.team_slot
             )
-            self.players.append(live_match_player)
+            for player in sorted(proto.players, key=attrgetter("team", "team_slot"))
+        ]
 
     @property
     def heroes(self) -> list[Hero]:
@@ -413,6 +386,20 @@ class LiveMatch:
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} id={self.id} server_steam_id={self.server_steam_id}>"
+
+
+        id: Intable,
+        hero: Hero,
+        team: int,
+        team_slot: int,
+    ) -> None:
+        super().__init__(state, id)
+        self.hero = hero
+        self.team = team
+        self.team_slot = team_slot
+
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__} id={self.id} hero={self.hero!r}>"
 
 
 @dataclass(slots=True)
@@ -470,6 +457,9 @@ class MatchHistoryMatch(PartialMatch):
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} id={self.id} hero={self.hero} win={self.win}>"
 
+
+class ClientUser(PartialUser, ClientUser_):  # type: ignore
+    # TODO: if TYPE_CHECKING: for inventory
 
 @dataclass(slots=True)
 class GlickoRating:
