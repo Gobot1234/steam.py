@@ -88,7 +88,7 @@ class User(PartialUser, user.User):  # type: ignore
 
 class ProfileCard:
     def __init__(self, state: GCState, proto: common.ProfileCard):
-        self.user = PartialUser(state, proto.account_id)
+        self.user = state.get_partial_user(proto.account_id)
 
         self.badge_points = proto.badge_points
         self.event_points = proto.event_points
