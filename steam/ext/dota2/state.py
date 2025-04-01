@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from functools import partial
 from typing import TYPE_CHECKING, Any, NotRequired, TypedDict, Unpack
 
 from ..._gc import GCState as GCState_
@@ -115,13 +116,18 @@ class GCState(GCState_[Any]):  # TODO: implement basket-analogy for dota2
     ) -> list[watch.GCToClientFindTopSourceTVGamesResponse]:
         """Fetch Top Source TV Games."""
         start_game = kwargs.get("start_game") or 0
+
         # # if start_game and (start_game < 0 or start_game > 90): # TODO: ???
         # #     # in my experience it never answers in these cases
         # #     raise ValueError("start_game should be between 0 and 90 inclusively.")
 
+        def check(start_game: int, msg: watch.GCToClientFindTopSourceTVGamesResponse) -> bool:
+            return msg.start_game == start_game
+
         futures = [
             self.ws.gc_wait_for(
-                watch.GCToClientFindTopSourceTVGamesResponse, check=lambda msg: msg.start_game == start_game
+                watch.GCToClientFindTopSourceTVGamesResponse,
+                check=partial(check, start_game),
             )
             for start_game in range(0, start_game + 1, 10)
         ]
