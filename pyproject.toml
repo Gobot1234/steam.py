@@ -74,7 +74,7 @@ isort = "^5.10"
 pytest = ">=7.1,<9.0"
 pytest-asyncio = ">=0.21,<0.24"
 pre-commit = "^3.1"
-poethepoet = ">=0.24,<0.26"
+poethepoet = ">=0.24,<0.34"
 blacken-docs = "^1.12"
 ruff = "^0.1.8"
 tomli = { version = "~2", python = "<3.11" }
