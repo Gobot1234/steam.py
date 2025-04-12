@@ -410,15 +410,12 @@ class AppShopItem(DescriptionMixin):
 
     __slots__ = (
         *DescriptionMixin.SLOTS,
-        "_state",
-        "class_id",
         "def_index",
         "class_",
         "prices",
         "original_prices",
         "updated_at",
         "store_tags",
-        "_app_id",
     )
 
     def __init__(
