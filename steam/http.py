@@ -206,7 +206,10 @@ class HTTPClient:
             or "You must have a validated email address to create a Steam Web API key" in resp
         ):
             raise RuntimeError("You must have a premium Steam account or validated email address to use this method")
-
+        if "<h2>Something is wrong</h2>" in resp:
+            raise RuntimeError(
+                "Your account does not meet the requirements for a developer API key. Your account requires Steam Guard Mobile Authenticator"
+            )
         key_re = re.compile(r"<p>Key: ([0-9A-F]+)</p>")
         if match := key_re.findall(resp):
             self.api_key = match[0]
