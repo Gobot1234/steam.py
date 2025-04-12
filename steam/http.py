@@ -649,7 +649,7 @@ class HTTPClient:
         return {
             ID64(
                 int(
-                    CLAN_ID64_FROM_URL_REGEX.search(clan_element)["steamid"],  # type: ignore
+                    CLAN_ID64_FROM_URL_REGEX.search(clan_element["href"])["steamid"],
                 )
             ): parse_id64(invitee_element["data-miniprofile"])
             for (clan_element, invitee_element) in zip(
