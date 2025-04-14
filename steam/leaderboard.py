@@ -86,7 +86,7 @@ class Leaderboard(Generic[AppT, DisplayNameT]):
     """The display type of the leaderboard."""
     entry_count: int
     """The number of entries in the leaderboard."""
-    display_name: DisplayNameT = cast(DisplayNameT, None)
+    display_name: DisplayNameT = cast("DisplayNameT", None)
     """The display name of the leaderboard. This is only set if the leaderboard is fetched using :meth:`PartialApp.leaderboards`."""
 
     def __repr__(self) -> str:
