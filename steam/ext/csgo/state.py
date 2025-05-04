@@ -123,7 +123,6 @@ class GCState(GCState_[Backpack]):
             item = utils.get(backpack, id=gc_item.id)
             update_gc_item = False
             if gc_item.origin == ItemOrigin.LevelUpReward and gc_item.flags == ItemFlags.NONE:
-                print("Got a reward item", gc_item)
                 update_gc_item = True
             elif item is None:
                 # is the item contained in a casket?
