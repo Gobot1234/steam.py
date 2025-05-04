@@ -16,7 +16,7 @@ from ...app import CSGO
 from ...id import _ID64_TO_ID32
 from ...state import parser
 from ...types.id import ID32, ID64, AssetID, Intable
-from .backpack import Backpack, Casket, CasketItem, Paint, Sticker
+from .backpack import Backpack, BaseItem, Casket, CasketItem, Paint, Sticker, _HackBaseItem
 from .enums import ItemFlags, ItemOrigin, ItemQuality
 from .models import PartialUser, User
 from .protobufs import base, cstrike, sdk
@@ -107,7 +107,7 @@ class GCState(GCState_[Backpack]):
     def set(self, name: str, value: Any) -> None:
         # would be nice if this was a macro
         locals = sys._getframe(1).f_locals
-        if locals["is_casket_item"]:
+        if locals["update_gc_item"]:
             setattr(locals["gc_item"], name, value)
         else:
             setattr(locals["item"], name, value)
@@ -115,21 +115,24 @@ class GCState(GCState_[Backpack]):
     async def update_backpack(self, *gc_items: base.Item, is_cache_subscribe: bool = False) -> Backpack:
         await self.client.wait_until_ready()
 
+        level_up_items: list[BaseItem] = []
         backpack = self.backpack or await self.fetch_backpack(Backpack)
 
         gc_item: base.Item | CasketItem
         for gc_item in gc_items:  # merge the two items
             item = utils.get(backpack, id=gc_item.id)
-            is_casket_item = False
-            if item is None:
+            update_gc_item = False
+            if gc_item.origin == ItemOrigin.LevelUpReward and gc_item.flags == ItemFlags.CannotTrade:
+                update_gc_item = True
+            elif item is None:
                 # is the item contained in a casket?
                 casket_id_low = utils.get(gc_item.attribute, def_index=272)
                 casket_id_high = utils.get(gc_item.attribute, def_index=273)
                 if not (casket_id_low and casket_id_high):
                     log.info("Received an item that isn't our inventory %r", gc_item)
                     continue  # the item has been removed (gc sometimes sends you items that you have deleted)
-                is_casket_item = True  # noqa: F841  # used in macro
-                gc_item = utils.update_class(gc_item, CasketItem())
+                update_gc_item = True
+                gc_item = cast("CasketItem", utils.update_class(gc_item, CasketItem()))
                 gc_item._casket_id = AssetID(
                     READ_U32(casket_id_high.value_bytes) << 32 | READ_U32(casket_id_low.value_bytes)
                 )
@@ -212,6 +215,14 @@ class GCState(GCState_[Backpack]):
 
             elif isinstance(gc_item, CasketItem):
                 self.waiting_for_casket_items[gc_item.id].set_result(gc_item)
+            elif update_gc_item:
+                if gc_item.origin == ItemOrigin.LevelUpReward and gc_item.flags == ItemFlags.CannotTrade:
+                    item = _HackBaseItem()
+                    for attribute_name in gc_item.__annotations__:
+                        setattr(item, attribute_name, getattr(gc_item, attribute_name))
+                    level_up_items.append(item)
+        if level_up_items:
+            self.dispatch("weekly_reward", level_up_items)
 
         return backpack
 

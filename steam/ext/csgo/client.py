@@ -5,7 +5,10 @@ from __future__ import annotations
 import itertools
 import re
 import struct
-from typing import TYPE_CHECKING, Final, Literal, overload
+from time import time
+from typing import TYPE_CHECKING, Final, Literal, cast, overload
+
+from steam.types.id import AssetID
 
 from ..._const import DOCS_BUILDING, MISSING, timeout
 from ..._gc import Client as Client_
@@ -14,10 +17,10 @@ from ...enums import Type
 from ...ext import commands
 from ...id import ID, parse_id64
 from ...utils import cached_property  # noqa: TC001
-from .backpack import BaseInspectedItem, Paint, Sticker
-from .enums import ItemOrigin, ItemQuality
+from .backpack import BackpackItem, BaseInspectedItem, BaseItem, Paint, Sticker
+from .enums import ItemFlags, ItemOrigin, ItemQuality
 from .models import ClientUser, Match, User
-from .protobufs import cstrike
+from .protobufs import base, cstrike, econ
 from .state import GCState  # noqa: TC001
 from .utils import decode_sharecode
 
@@ -151,6 +154,41 @@ class Client(Client_):
             ent_index=item.entindex,
         )
 
+    async def redeem_weekly_rewards(
+        self,
+        items: list[BaseItem],
+    ) -> BackpackItem:
+        """Redeem your accounts weekly rewards.
+
+        Parameters
+        ----------
+        items
+            The items to be redeemed, length should be less than or equal to 2.
+
+        Returns
+        -------
+            The items redeemed that are now tradeable and in your backpack
+
+        Raises
+        ------
+        ValueError
+            An item passed wasn't redeemable
+        """
+        if any((item.origin != ItemOrigin.LevelUpReward and item.flags != ItemFlags.CannotTrade for item in items)):
+            raise ValueError("Item passed doesn't seem to be redeemable as a weekly reward item")
+        if len(items) > 2:
+            raise ValueError("Too many items passed to redeem")
+
+        await self._state.ws.send_gc_message(
+            econ.ClientRedeemFreeReward(
+                generation_time=int(time()),
+                redeemable_balance=2,
+                items=[item.id for item in items],
+            )
+        )
+
+        return cast("BackpackItem[ClientUser]", [await self._state.wait_for_item(AssetID(item.id)) for item in items])
+
     @overload
     async def fetch_match(self, id: int, *, outcome_id: int, token: int) -> Match: ...
 
@@ -258,6 +296,15 @@ class Client(Client_):
                 The item before being updated.
             after
                 The item now.
+            """
+
+        async def on_weekly_reward(self, items: csgo.BaseItem) -> None:
+            """Called when the client receives its weekly reward items (care package)
+
+            Parameters
+            ----------
+            items
+                The items you can pass into :meth:`redeem_weekly_rewards`
             """
 
 

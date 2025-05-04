@@ -18,6 +18,7 @@ __all__ = (
     "Rank",
 )
 
+
 # fmt: off
 class ItemCustomizationNotification(IntEnum):
     NameItem              = 1006
@@ -67,12 +68,10 @@ class ItemFlags(Flags):
     CanBeTradedByFreeAccounts                  = 1 << 2
     NotEcon                                    = 1 << 3
     """Items that cannot interact in the economy (can't be traded, gift-wrapped, crafted, etc.)"""
-    PurchasedAfterStoreCraftabilityChanges2012 = 1 << 4
-    """Cosmetic items coming from the store are now usable in crafting"""
+    # 1 << 4 unused
     ForceBlueTeam                              = 1 << 5
     StoreItem                                  = 1 << 6
     Preview                                    = 1 << 7
-
 
 class ItemOrigin(IntEnum):
     Invalid                   = -1
@@ -101,7 +100,6 @@ class ItemOrigin(IntEnum):
     StockItem                 = 22
     QuestReward               = 23
     LevelUpReward             = 24
-    Max                       = 25
 
 
 
@@ -378,3 +376,58 @@ class EMsg(IntEnum):
     ClientRequestJoinFriendData            = 9163
     ClientRequestJoinServerData            = 9164
     ClientRequestNewMission                = 9165
+    GC2ServerNotifyXPRewarded              = 9166
+    GC2ClientTournamentInfo                = 9167
+    GlobalGame_Subscribe                   = 9168
+    GlobalGame_Unsubscribe                 = 9169
+    GlobalGame_Play                        = 9170
+    AcknowledgePenalty                     = 9171
+    Client2GCRequestPrestigeCoin           = 9172
+    GC2ClientGlobalStats                   = 9173
+    Client2GCStreamUnlock                  = 9174
+    FantasyRequestClientData               = 9175
+    FantasyUpdateClientData                = 9176
+    GCToClientSteamdatagramTicket          = 9177
+    ClientToGCRequestTicket                = 9178
+    ClientToGCRequestElevate               = 9179
+    GlobalChat                             = 9180
+    GlobalChat_Subscribe                   = 9181
+    GlobalChat_Unsubscribe                 = 9182
+    ClientAuthKeyCode                      = 9183
+    GotvSyncPacket                         = 9184
+    ClientPlayerDecalSign                  = 9185
+    ClientLogonFatalError                  = 9187
+    ClientPollState                        = 9188
+    Party_Register                         = 9189
+    Party_Unregister                       = 9190
+    Party_Search                           = 9191
+    Party_Invite                           = 9192
+    Account_RequestCoPlays                 = 9193
+    ClientGCRankUpdate                     = 9194
+    ClientRequestOffers                    = 9195
+    ClientAccountBalance                   = 9196
+    ClientPartyJoinRelay                   = 9197
+    ClientPartyWarning                     = 9198
+    SetEventFavorite                       = 9200
+    GetEventFavorites_Request              = 9201
+    ClientPerfReport                       = 9202
+    GetEventFavorites_Response             = 9203
+    ClientRequestSouvenir                  = 9204
+    ClientReportValidation                 = 9205
+    GC2ClientRefuseSecureMode              = 9206
+    GC2ClientRequestValidation             = 9207
+    ClientRedeemMissionReward              = 9209
+    ClientDeepStats                        = 9210
+    StartAgreementSessionInGame            = 9211
+    GC2ClientInitSystem                    = 9212
+    GC2ClientInitSystem_Response           = 9213
+    PrivateQueues                          = 9214
+    MatchListTournamentOperatorMgmt        = 9215
+    BetaEnrollment                         = 9217
+    SetPlayerLeaderboardSafeName           = 9218
+    ClientRedeemFreeReward                 = 9219
+    ClientNetworkConfig                    = 9220
+    GC2ClientNotifyXPShop                  = 9221
+    Client2GcAckXPShopTracks               = 9222
+    MatchmakingGC2ClientSearchStats        = 9223
+    PremierSeasonSummary                   = 9224

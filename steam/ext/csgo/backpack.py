@@ -6,7 +6,7 @@ import asyncio
 from abc import ABCMeta
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal, cast
+from typing import TYPE_CHECKING, Literal, Protocol, cast, runtime_checkable
 
 from typing_extensions import Self, TypeVar
 
@@ -172,6 +172,12 @@ class BaseItem(metaclass=ABCMeta):
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} id={self.id} position={self.position}>"
+
+
+@BaseItem.register
+class _HackBaseItem(BaseItem if TYPE_CHECKING else object):
+    __name__ = "BaseItem"
+    __slots__ = BaseItem.SLOTS
 
 
 @BaseItem.register
