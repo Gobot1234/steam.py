@@ -63,6 +63,7 @@ class ItemQuality(IntEnum):
 
 
 class ItemFlags(Flags):
+    NONE                                       = 0
     CannotTrade                                = 1 << 0
     CannotCraft                                = 1 << 1
     CanBeTradedByFreeAccounts                  = 1 << 2

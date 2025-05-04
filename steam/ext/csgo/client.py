@@ -154,11 +154,11 @@ class Client(Client_):
             ent_index=item.entindex,
         )
 
-    async def redeem_weekly_rewards(
+    async def redeem_weekly_reward(
         self,
         items: list[BaseItem],
     ) -> BackpackItem:
-        """Redeem your accounts weekly rewards.
+        """Redeem your accounts weekly rewards (care package).
 
         Parameters
         ----------
@@ -174,7 +174,7 @@ class Client(Client_):
         ValueError
             An item passed wasn't redeemable
         """
-        if any((item.origin != ItemOrigin.LevelUpReward and item.flags != ItemFlags.CannotTrade for item in items)):
+        if any((item.origin != ItemOrigin.LevelUpReward and item.flags != ItemFlags.NONE for item in items)):
             raise ValueError("Item passed doesn't seem to be redeemable as a weekly reward item")
         if len(items) > 2:
             raise ValueError("Too many items passed to redeem")
@@ -298,7 +298,7 @@ class Client(Client_):
                 The item now.
             """
 
-        async def on_weekly_reward(self, items: csgo.BaseItem) -> None:
+        async def on_weekly_reward(self, items: list[csgo.BaseItem]) -> None:
             """Called when the client receives its weekly reward items (care package)
 
             Parameters

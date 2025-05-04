@@ -122,7 +122,8 @@ class GCState(GCState_[Backpack]):
         for gc_item in gc_items:  # merge the two items
             item = utils.get(backpack, id=gc_item.id)
             update_gc_item = False
-            if gc_item.origin == ItemOrigin.LevelUpReward and gc_item.flags == ItemFlags.CannotTrade:
+            if gc_item.origin == ItemOrigin.LevelUpReward and gc_item.flags == ItemFlags.NONE:
+                print("Got a reward item", gc_item)
                 update_gc_item = True
             elif item is None:
                 # is the item contained in a casket?
@@ -216,7 +217,7 @@ class GCState(GCState_[Backpack]):
             elif isinstance(gc_item, CasketItem):
                 self.waiting_for_casket_items[gc_item.id].set_result(gc_item)
             elif update_gc_item:
-                if gc_item.origin == ItemOrigin.LevelUpReward and gc_item.flags == ItemFlags.CannotTrade:
+                if gc_item.origin == ItemOrigin.LevelUpReward and gc_item.flags == ItemFlags.NONE:
                     item = _HackBaseItem()
                     for attribute_name in gc_item.__annotations__:
                         setattr(item, attribute_name, getattr(gc_item, attribute_name))
