@@ -632,7 +632,7 @@ class HTTPClient:
 
         while number_of_pages is None or page <= number_of_pages:
             resp = await self.get(url, params={"p": page, "content_only": "true"})
-            soup = BeautifulSoup(resp, HTML_PARSER)
+            soup = BeautifulSoup(resp, "html.parser")
             if not number_of_pages:
                 page_select = soup.find("div", class_="group_paging")
                 assert page_select is not None
