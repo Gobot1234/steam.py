@@ -348,14 +348,14 @@ called_command_converter = False
 def command_converter(argument: str) -> commands.Command:
     global called_command_converter
     called_command_converter = True
-    return cast(commands.Command, None)
+    return cast("commands.Command", None)
 
 
 class MediaConverter(commands.Converter[steam.Media]):
     async def convert(self, ctx: commands.Context, argument: str) -> steam.Media:
         global called_image_converter
         called_image_converter = True
-        return cast(steam.Media, None)
+        return cast("steam.Media", None)
 
 
 @pytest.mark.asyncio
