@@ -772,7 +772,7 @@ class GroupMixin(Generic[CogT]):
             attrs.setdefault("parent", self)
             result = group(name=name, cls=cls or Group, **attrs)(callback)
             self.add_command(result)
-            return cast(G, result)  # casting shouldn't really be necessary
+            return cast("G", result)  # casting shouldn't really be necessary
 
         return decorator(callback) if callback is not None else decorator
 

@@ -432,12 +432,12 @@ class AppShopItem(DescriptionMixin):
         self.class_ = data["class"]
         """Extra info about the item."""
         self.prices = cast(
-            Mapping[Currency, int],
+            "Mapping[Currency, int]",
             {Currency.try_name(name): price for name, price in data["prices"].items()},
         )
         """The prices of the asset in the store."""
         self.original_prices = cast(
-            Mapping[Currency, int] | None,
+            "Mapping[Currency, int] | None",
             (
                 {
                     Currency.try_name(name): price
