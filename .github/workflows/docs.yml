@@ -13,8 +13,8 @@ jobs:
       TARGET: steam-py/steam-py.github.io
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
         with:
           repository: ${{ env.TARGET }}
           path: steam-py.github.io
