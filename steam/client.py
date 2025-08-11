@@ -475,7 +475,7 @@ class Client:
                 try:
                     async with timeout(60):
                         self.ws = cast(
-                            SteamWebSocket,
+                            "SteamWebSocket",
                             await login_func(
                                 self,
                                 *args,
@@ -1118,7 +1118,7 @@ class Client:
         language
             The language to fetch the published files in. If ``None``, the current language is used.
         """
-        return await self._state.fetch_published_files(cast(tuple[PublishedFileID, ...], ids), revision, language)
+        return await self._state.fetch_published_files(cast("tuple[PublishedFileID, ...]", ids), revision, language)
 
     async def create_post(self, content: str, /, app: App | None = None) -> Post[ClientUser]:
         """Create a post.
