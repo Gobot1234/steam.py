@@ -217,10 +217,7 @@ class GCState(GCState_[Backpack]):
                 self.waiting_for_casket_items[gc_item.id].set_result(gc_item)
             elif update_gc_item:
                 if gc_item.origin == ItemOrigin.LevelUpReward and gc_item.flags == ItemFlags.NONE:
-                    item = _HackBaseItem()
-                    for attribute_name in gc_item.__annotations__:
-                        setattr(item, attribute_name, getattr(gc_item, attribute_name))
-                    level_up_items.append(item)
+                    level_up_items.append(utils.update_class(gc_item, _HackBaseItem()))
         if level_up_items:
             self.dispatch("weekly_reward", level_up_items)
 

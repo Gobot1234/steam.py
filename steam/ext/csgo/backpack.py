@@ -171,13 +171,13 @@ class BaseItem(metaclass=ABCMeta):
     """The item's rarity."""
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} id={self.id} position={self.position}>"
+        return f"<BaseItem id={self.id} position={self.position}>"
 
 
 @BaseItem.register
 class _HackBaseItem(BaseItem if TYPE_CHECKING else object):
-    __name__ = "BaseItem"
     __slots__ = BaseItem.SLOTS
+    __repr__ = BaseItem.__repr__
 
 
 @BaseItem.register
