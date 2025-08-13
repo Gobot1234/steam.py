@@ -2355,6 +2355,7 @@ class ConnectionState:
 
     async def handle_notifications(self, msg: notifications.GetSteamNotificationsResponse) -> None:
         for notification in msg.notifications:
+            # https://github.com/SteamDatabase/SteamTracking/blob/4a93bbf121e3a37a7552422d32ae4c4eac40bd9d/Protobufs/steammessages_notifications.steamclient.proto#L40
             match notification.notification_type:
                 case 3:  # comment
                     body: dict[str, Any] = JSON_LOADS(notification.body_data)
