@@ -6,7 +6,6 @@ import asyncio
 import errno
 import logging
 import lzma
-import os.path
 import struct
 import sys
 from base64 import b64decode
@@ -14,6 +13,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from io import BytesIO
 from operator import attrgetter, methodcaller
+from pathlib import PurePath
 from typing import TYPE_CHECKING, Any, Final, Literal, TypeGuard, cast, overload
 from zipfile import BadZipFile, ZipFile
 from zlib import crc32
@@ -42,12 +42,6 @@ from .protobufs.content_manifest import Metadata, Payload, PayloadFileMapping, P
 from .tag import Category, Genre, Tag
 from .types.id import AppID, DepotID, ManifestID
 from .utils import DateTime, cached_slot_property
-
-if sys.platform == "win32":
-    from pathlib import PureWindowsPath as PurePathBase
-else:
-    from pathlib import PurePosixPath as PurePathBase
-
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Generator, Mapping, Sequence
@@ -194,7 +188,7 @@ def _manifest_parts(filename: str, /) -> list[str]:
     return filename.rstrip("\x00 \n\t").split("\\")
 
 
-class ManifestPath(PurePathBase):
+class ManifestPath(PurePath):
     """A :class:`pathlib.PurePath` subclass representing a binary file in a Manifest. This class is broadly compatible
     with :class:`pathlib.Path`.
 
