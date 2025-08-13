@@ -95,12 +95,17 @@ def unzip(data: bytes, /) -> bytes:
     elif data[:4] == b"VSZa":
         if data[-3:] != b"zsv":
             raise RuntimeError(f"ZSTD: Invalid footer: {data[-3:]!r}")
+        checksum = int.from_bytes(data[4:8])
+        footer_checksum = int.from_bytes(data[-15:-11])
+
+        assert checksum == footer_checksum  # They write CRC32 twice?
 
         decompressed_size = int.from_bytes(data[-11:-7])
         data = zstd_decompress(data[8:-15])
         if len(data) != decompressed_size:
             raise RuntimeError(f"ZSTD: Decompressed size doesn't match {len(data)} != {decompressed_size}")
-
+        if crc32(data) != checksum:
+            raise RuntimeError("ZSTD: CRC32 checksum doesn't match for decompressed data")
     else:
         try:
             with ZipFile(BytesIO(data)) as zf:
