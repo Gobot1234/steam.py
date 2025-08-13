@@ -14,7 +14,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from io import BytesIO
 from operator import attrgetter, methodcaller
-from pathlib import PurePath
+from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, Any, Final, Literal, TypeGuard, cast, overload
 from zipfile import BadZipFile, ZipFile
 from zlib import crc32
@@ -93,11 +93,11 @@ def unzip(data: bytes, /) -> bytes:
             raise RuntimeError("VZ: CRC32 checksum doesn't match for decompressed data")
 
     elif data[:4] == b"VSZa":
-        if data[-2:] != b"zsv":
-            raise RuntimeError(f"ZSTD: Invalid footer: {data[-2:]!r}")
+        if data[-3:] != b"zsv":
+            raise RuntimeError(f"ZSTD: Invalid footer: {data[-3:]!r}")
 
         decompressed_size = int.from_bytes(data[-11:-7])
-        data = zstd_decompress(data[4:-12])
+        data = zstd_decompress(data[8:-15])
         if len(data) != decompressed_size:
             raise RuntimeError(f"ZSTD: Decompressed size doesn't match {len(data)} != {decompressed_size}")
 
@@ -202,7 +202,7 @@ def _manifest_parts(filename: str, /) -> list[str]:
     return filename.rstrip("\x00 \n\t").split("\\")
 
 
-class ManifestPath(PurePath):
+class ManifestPath(PurePosixPath):
     """A :class:`pathlib.PurePath` subclass representing a binary file in a Manifest. This class is broadly compatible
     with :class:`pathlib.Path`.
 
