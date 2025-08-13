@@ -6,6 +6,7 @@ import asyncio
 import errno
 import logging
 import lzma
+import os
 import struct
 import sys
 from base64 import b64decode
@@ -279,7 +280,7 @@ class ManifestPath(PurePath):
             if mapping is not None:
                 self._mapping = mapping
 
-        def with_segments(self, *args: StrPath) -> Self:
+        def with_segments(self, *args: StrPath) -> ManifestPath:
             new_self = self.__class__(*args, manifest=self._manifest)
             try:
                 # try and return the actual path if exists
@@ -342,7 +343,7 @@ class ManifestPath(PurePath):
         """Whether this file is hidden."""
         return self.flags & DepotFileFlag.Hidden > 0
 
-    def readlink(self) -> Self:
+    def readlink(self) -> ManifestPath:
         """If this path is a symlink where it points to. Similar to :meth:`pathlib.Path.readlink`
 
         Raises
@@ -357,10 +358,10 @@ class ManifestPath(PurePath):
         return self._manifest._paths[link_parts]
 
     @overload
-    def resolve(self, *, strict: bool = False) -> Self:  # type: ignore
+    def resolve(self, *, strict: bool = False) -> ManifestPath:  # type: ignore
         ...
 
-    def resolve(self, *, strict: bool = False, _follow_symlinks: bool = True) -> Self:
+    def resolve(self, *, strict: bool = False, _follow_symlinks: bool = True) -> ManifestPath:
         """Return the canonical path of the symbolic link, eliminating any symbolic links encountered in the path.
         Similar to :meth:`pathlib.Path.resolve`
 
@@ -419,7 +420,7 @@ class ManifestPath(PurePath):
             "_mapping",
         )
 
-    def iterdir(self) -> Generator[Self, None, None]:
+    def iterdir(self) -> Generator[ManifestPath, None, None]:
         """Iterate over this path. Similar to :meth:`pathlib.Path.iterdir`."""
         for path in self._manifest._paths.values():
             if path.parent == self:
@@ -427,7 +428,7 @@ class ManifestPath(PurePath):
 
     def walk(
         self, *, top_down: bool = True, follow_symlinks: bool = False
-    ) -> Generator[tuple[Self, list[str], list[str]], None, None]:
+    ) -> Generator[tuple[ManifestPath, list[str], list[str]], None, None]:
         """Walk this path. Similar to :meth:`pathlib.Path.walk`.
 
         Parameters
@@ -446,7 +447,7 @@ class ManifestPath(PurePath):
         The path currently being traversed, directories and files (``(dirpath, dirnames, filenames)``).
         """
 
-        paths: list[Self | tuple[Self, list[str], list[str]]] = [self]
+        paths: list[ManifestPath | tuple[ManifestPath, list[str], list[str]]] = [self]
 
         while paths:
             path = paths.pop()
@@ -467,7 +468,7 @@ class ManifestPath(PurePath):
 
             paths += [path._make_child_relpath(d) for d in reversed(dirnames)]  # type: ignore
 
-    def glob(self, pattern: str, /) -> Generator[Self, None, None]:
+    def glob(self, pattern: str, /) -> Generator[ManifestPath, None, None]:
         """Perform a glob operation on this path. Similar to :meth:`pathlib.Path.glob`."""
         if not pattern:
             raise ValueError(f"Unacceptable pattern: {pattern!r}")
@@ -476,7 +477,7 @@ class ManifestPath(PurePath):
             methodcaller("match", f"{self.as_posix().removesuffix('/')}/{pattern}"), self._manifest._paths.values()
         )
 
-    def rglob(self, pattern: str, /) -> Generator[Self, None, None]:
+    def rglob(self, pattern: str, /) -> Generator[ManifestPath, None, None]:
         """Perform a recursive glob operation on this path. Similar to :meth:`pathlib.Path.rglob`."""
         yield from self.glob(f"**/{pattern}")
 
@@ -788,7 +789,7 @@ class PrivateManifestInfo(ManifestInfo):
     @staticmethod
     def _get_id(depots: manifest.Depot, branch: Branch) -> VDFInt | None:
         try:
-            return depots["encryptedmanifests"][branch.name]["encrypted_gid_2"]
+            return depots["encryptedmanifests"][branch.name]["encrypted_gid_2"]  # type: ignore # I know hence why its in try except
         except KeyError:
             return None
 
@@ -1051,7 +1052,7 @@ class AppInfo(ProductInfo, PartialApp[str]):
             shared_install = bool(int(shared_install)) if (shared_install := depot.get("sharedinstall")) else None
             system_defined = bool(int(system_defined)) if (system_defined := depot.get("system_defined")) else None
             try:
-                manifests = depot["manifests"]
+                manifests = depot["manifests"]  # type: ignore  # I'm still acutely aware
             except KeyError:
                 self.headless_depots.append(
                     HeadlessDepot(
