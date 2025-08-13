@@ -56,6 +56,10 @@ if TYPE_CHECKING:
     from .types import manifest, manifest as manifest_
     from .types.vdf import VDFInt
 
+if sys.version_info < (3, 14):
+    from zstd import decompress as zstd_decompress
+else:
+    from compression.zstandard import decompress as zstd_decompress
 
 __all__ = (
     "Manifest",
@@ -86,6 +90,15 @@ def unzip(data: bytes, /) -> bytes:
 
         if crc32(data) != checksum:
             raise RuntimeError("VZ: CRC32 checksum doesn't match for decompressed data")
+
+    elif data[:4] == b"VSZa":
+        if data[-2:] != b"zsv":
+            raise RuntimeError(f"ZSTD: Invalid footer: {data[-2:]!r}")
+
+        decompressed_size = int.from_bytes(data[-11:-7])
+        data = zstd_decompress(data[4:-12])
+        if len(data) != decompressed_size:
+            raise RuntimeError(f"ZSTD: Decompressed size doesn't match {len(data)} != {decompressed_size}")
 
     else:
         try:
