@@ -384,7 +384,7 @@ class HTTPClient:
         active_only: bool = True,
         sent: bool = True,
         received: bool = True,
-        updated_only: bool = True,
+        updated_only: bool = False,  # sadly this doesn't seem to work anymore
         language: Language | None = None,
     ) -> trade.GetTradeOffers:
         params = {
