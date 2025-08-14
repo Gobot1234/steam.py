@@ -95,12 +95,12 @@ def unzip(data: bytes, /) -> bytes:
     elif data[:4] == b"VSZa":
         if data[-3:] != b"zsv":
             raise RuntimeError(f"ZSTD: Invalid footer: {data[-3:]!r}")
-        checksum = int.from_bytes(data[4:8])
-        footer_checksum = int.from_bytes(data[-15:-11])
+        checksum = int.from_bytes(data[4:8], "little")
+        footer_checksum = int.from_bytes(data[-15:-11], "little")
 
-        assert checksum == footer_checksum  # They write CRC32 twice?
+        assert checksum == footer_checksum, "The 2 footers aren't equal WTF valve"  # They write CRC32 twice?
 
-        decompressed_size = int.from_bytes(data[-11:-7])
+        decompressed_size = int.from_bytes(data[-11:-7], "little")
         data = zstd_decompress(data[8:-15])
         if len(data) != decompressed_size:
             raise RuntimeError(f"ZSTD: Decompressed size doesn't match {len(data)} != {decompressed_size}")
