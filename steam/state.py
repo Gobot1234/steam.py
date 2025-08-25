@@ -174,7 +174,7 @@ def requires_intent(intent: Intents) -> Callable[[F], F]:
         def inner(self: ConnectionState, *args: Any, **kwargs: Any) -> Any:
             return func(self, *args, **kwargs) if self.intents & intent > 0 else noop()
 
-        return cast(F, inner)
+        return cast("F", inner)
 
     return deco
 
@@ -433,7 +433,7 @@ class ConnectionState:
                             try:
                                 clan = await self.fetch_clan(id.id64)
                             except WSException:
-                                clan = cast(Clan, PartialClan(self, id.id64))
+                                clan = cast("Clan", PartialClan(self, id.id64))
                                 log.info("Unknown clan %s invited us", clan)
                             self.invites[clan.id64] = invite = ClanInvite(
                                 self, self.user, author=invitee, clan=clan, relationship=relationship
@@ -685,7 +685,7 @@ class ConnectionState:
         if msg.result not in (Result.OK, Result.Invalid):
             raise WSException(msg)
 
-        return cast(dict[ID32, int], {friend.accountid: friend.level for friend in msg.friends})
+        return cast("dict[ID32, int]", {friend.accountid: friend.level for friend in msg.friends})
 
     async def fetch_user_favourite_badge(self, user_id64: ID64) -> player.GetFavoriteBadgeResponse:
         msg: player.GetFavoriteBadgeResponse = await self.ws.send_um_and_wait(
@@ -722,7 +722,7 @@ class ConnectionState:
         msg: player.GetAchievementsProgressResponse = await self.ws.send_proto_and_wait(
             player.GetAchievementsProgressRequest(
                 steamid=user_id64,
-                appids=cast(list[int], list(app_ids)),
+                appids=cast("list[int]", list(app_ids)),
                 language=(language or self.language).api_name,
             )
         )
@@ -1237,7 +1237,7 @@ class ConnectionState:
                     except ValueError:
                         pass
             case chat.EChatRoomMemberStateChange.RolesChanged:
-                member._role_ids = cast(tuple[RoleID, ...], tuple(msg.member.role_ids))
+                member._role_ids = cast("tuple[RoleID, ...]", tuple(msg.member.role_ids))
 
         self.dispatch("member_update", before, member)
 
@@ -1724,7 +1724,7 @@ class ConnectionState:
                 trade = TradeOffer._from_api(
                     state=self,
                     data=trade_,
-                    user=cast(User, ID(user)),
+                    user=cast("User", ID(user)),
                     sending=cast("list[tuple[econ.Asset, econ.ItemDescription]]", sending),
                     receiving=cast("list[tuple[econ.Asset, econ.ItemDescription]]", receiving),
                 )
@@ -2045,7 +2045,7 @@ class ConnectionState:
         )
         if msg.result != Result.OK:
             raise WSException(msg)
-        return cast(list[ID64], msg.friends)
+        return cast("list[ID64]", msg.friends)
 
     @asynccontextmanager
     async def hold_licenses(self) -> AsyncGenerator[None, None]:
@@ -2082,8 +2082,8 @@ class ConnectionState:
             if not msg.granted_packageids:
                 raise ValueError("No licenses granted")
 
-        ret: dict[AppID, list[License]] = {app_id: [] for app_id in cast(list[AppID], msg.granted_appids)}
-        _, packages = await self.fetch_product_info((), cast(list[PackageID], msg.granted_packageids))
+        ret: dict[AppID, list[License]] = {app_id: [] for app_id in cast("list[AppID]", msg.granted_appids)}
+        _, packages = await self.fetch_product_info((), cast("list[PackageID]", msg.granted_packageids))
         for package in packages:
             for app in await package.apps():
                 try:
@@ -2244,7 +2244,7 @@ class ConnectionState:
         self, app_id: AppID, items: Iterable[CacheKey], language: Language | None
     ) -> dict[CacheKey, econ.ItemDescription]:
         msgs = cast(
-            list[econ.GetAssetClassInfoResponse],
+            "list[econ.GetAssetClassInfoResponse]",
             await asyncio.gather(
                 *(
                     self.ws.send_um_and_wait(
@@ -2260,7 +2260,7 @@ class ConnectionState:
         )
 
         return cast(
-            dict[CacheKey, econ.ItemDescription],
+            "dict[CacheKey, econ.ItemDescription]",
             {(item.classid, item.instanceid): item for msg in msgs for item in msg.descriptions},
         )
 
@@ -2678,8 +2678,8 @@ class ConnectionState:
     ) -> app_info.CMsgClientPicsAccessTokenResponse:
         msg: app_info.CMsgClientPicsAccessTokenResponse = await self.ws.send_proto_and_wait(
             app_info.CMsgClientPicsAccessTokenRequest(
-                appids=cast(list[int], [] if app_ids is None else app_ids),
-                packageids=cast(list[int], [] if package_ids is None else package_ids),
+                appids=cast("list[int]", [] if app_ids is None else app_ids),
+                packageids=cast("list[int]", [] if package_ids is None else package_ids),
             )
         )
         if msg.result not in (
