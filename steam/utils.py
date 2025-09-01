@@ -307,7 +307,7 @@ def call_once(func: F_wait | None = None, /, *, wait: bool = False) -> F_wait | 
                 finally:
                     being_called.remove(self)
 
-        return cast(F_wait, functools.wraps(func)(inner))
+        return cast("F_wait", functools.wraps(func)(inner))
 
     return get_inner if func is None else get_inner(func)
 
@@ -420,7 +420,7 @@ async def race(*coros: Awaitable[_T]) -> _T | None:
     return result
 
 
-PACK_FORMATS: Final = cast(Mapping[str, str], {
+PACK_FORMATS: Final = cast("Mapping[str, str]", {
     "i8": "b",
     "u8": "B",
     "i16": "h",

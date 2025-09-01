@@ -61,7 +61,7 @@ else:
         return __decoder(__func(obj))
 
 
-JSON_LOADS: Final = cast(Callable[[str | bytes], Any], json_loads)
+JSON_LOADS: Final = cast("Callable[[str | bytes], Any]", json_loads)
 JSON_DUMPS: Final = json_dumps
 
 
@@ -109,8 +109,8 @@ else:
     vdf_loads = orvdf.loads  # type: ignore
     vdf_binary_loads = orvdf.binary_loads  # type: ignore
 
-VDF_LOADS: Final = cast(Callable[[str], VDFDict], vdf_loads)
-VDF_BINARY_LOADS: Final = cast(Callable[[bytes], BinaryVDFDict], vdf_binary_loads)
+VDF_LOADS: Final = cast("Callable[[str], VDFDict]", vdf_loads)
+VDF_BINARY_LOADS: Final = cast("Callable[[bytes], BinaryVDFDict]", vdf_binary_loads)
 
 HTML_PARSER: Final = "lxml-xml" if importlib.util.find_spec("lxml") else "html.parser"
 
@@ -125,17 +125,17 @@ STEAM_EPOCH: Final = datetime(2003, 1, 1, tzinfo=timezone.utc)
 
 
 def READ_U32(
-    s: Buffer, unpacker: Callable[[Buffer], tuple[int]] = cast(Any, struct.Struct("<I").unpack_from), /
+    s: Buffer, unpacker: Callable[[Buffer], tuple[int]] = cast("Any", struct.Struct("<I").unpack_from), /
 ) -> int:
     (u32,) = unpacker(s)
     return u32
 
 
-WRITE_U32: Final = cast(Callable[[int], bytes], struct.Struct("<I").pack)
+WRITE_U32: Final = cast("Callable[[int], bytes]", struct.Struct("<I").pack)
 
 _PROTOBUF_MASK: Final = 0x80000000
 # inlined as these are some of the most called functions in the library
-IS_PROTO: Final = cast(Callable[[int], bool], _PROTOBUF_MASK.__and__)  # this is boolean like for a bit of extra speed
+IS_PROTO: Final = cast("Callable[[int], bool]", _PROTOBUF_MASK.__and__)  # this is boolean like for a bit of extra speed
 SET_PROTO_BIT: Final = _PROTOBUF_MASK.__or__
 CLEAR_PROTO_BIT: Final = (~_PROTOBUF_MASK).__and__
 
