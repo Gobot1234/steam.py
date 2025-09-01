@@ -175,8 +175,8 @@ class Member(_BaseMember, _HasChatGroupMixin, Generic[ClanT, GroupT]):
         self, state: ConnectionState, chat_group: ChatGroup[Any, Any], user: User | ClientUser, member: chat.Member
     ) -> None:
         super().__init__(state, user)
-        self.clan = cast(ClanT, None)
-        self.group = cast(GroupT, None)
+        self.clan = cast("ClanT", None)
+        self.group = cast("GroupT", None)
 
         self._update(member)
 
@@ -214,7 +214,7 @@ class ChatMessage(Message[AuthorT, ChatT], Generic[AuthorT, MemberT, ChatT]):
         super().__init__(channel, proto)
         self.author = author
         self.created_at = DateTime.from_timestamp(proto.timestamp)
-        self._mentions_ids = cast(tuple[ID32, ...], tuple(proto.mentions.ids))
+        self._mentions_ids = cast("tuple[ID32, ...]", tuple(proto.mentions.ids))
         self.mentions_all = proto.mentions.mention_all
         self.mentions_here = proto.mentions.mention_here
 
@@ -554,7 +554,7 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
         self._id = ChatGroupID(proto.chat_group_id)
         self.active_member_count = proto.active_member_count
         self._owner_id = ID32(proto.accountid_owner)
-        self._top_members = cast(list[ID32], proto.top_members)
+        self._top_members = cast("list[ID32]", proto.top_members)
         self.tagline = proto.chat_group_tagline
         self.app = PartialApp(state, id=proto.appid) if proto.appid else self.app
         self._avatar_sha = proto.chat_group_avatar_sha
@@ -632,7 +632,7 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
 
     def _update_group_state(self, group_state: chat.GroupState):
         self._partial_members = cast(
-            dict[ID32, chat.Member], {member.accountid: member for member in group_state.members}
+            "dict[ID32, chat.Member]", {member.accountid: member for member in group_state.members}
         )
         self._roles = {
             RoleID(role.role_id): Role(self._state, self, role, permissions)
@@ -801,7 +801,7 @@ class ChatGroup(ID[ChatGroupTypeT], Generic[MemberT, ChatT, ChatGroupTypeT]):
             return [self._members[ID32(user.accountid)] for user in msg.matching_members]
 
         return cast(
-            list[MemberT],
+            "list[MemberT]",
             self._maybe_members(
                 user.id for user in [self._state._store_user(user.persona) for user in msg.matching_members]
             ),

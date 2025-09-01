@@ -32,7 +32,7 @@ log = logging.getLogger(__name__)
 
 
 def READ_F32(
-    bytes: bytes, *, _unpacker: Callable[[bytes], tuple[float]] = cast(Any, struct.Struct("<f").unpack_from)
+    bytes: bytes, *, _unpacker: Callable[[bytes], tuple[float]] = cast("Any", struct.Struct("<f").unpack_from)
 ) -> float:
     (f32,) = _unpacker(bytes)
     return f32
