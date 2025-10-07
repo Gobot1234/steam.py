@@ -2390,6 +2390,7 @@ class ConnectionState:
                     try:
                         comment = await commentable.fetch_comment(int(body["cgid"]))
                         if comment.id in self.processed_comment_ids:
+                            log.debug("Ignoring processed comment")
                             continue
                         self.processed_comment_ids.add(comment.id)
                         self.dispatch("comment", comment)
