@@ -196,6 +196,7 @@ class ConnectionState:
         self.handled_wallet = asyncio.Event()
         self.intents: Final = kwargs.get("intents", Intents.Safe)
         self.max_messages: int | None = kwargs.get("max_messages", 1000)
+        self.processed_comment_ids: set[int] = set()
 
         app = kwargs.get("app")
         apps = kwargs.get("apps")
@@ -2387,7 +2388,11 @@ class ConnectionState:
                             log.info("Unknown commentable type %d", type)
                             continue
                     try:
-                        self.dispatch("comment", await commentable.fetch_comment(int(body["cgid"])))
+                        comment = await commentable.fetch_comment(int(body["cgid"]))
+                        if comment.id in self.processed_comment_ids:
+                            continue
+                        self.processed_comment_ids.add(comment.id)
+                        self.dispatch("comment", comment)
                     except (WSException, KeyError):
                         log.info("Failed to fetch comment %s", notification, exc_info=True)
                 case 9:  # trade, this is only going to happen at startup
