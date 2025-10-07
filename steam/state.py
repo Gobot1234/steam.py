@@ -2390,7 +2390,7 @@ class ConnectionState:
                             continue
                     try:
                         comment = await commentable.fetch_comment(int(body["cgid"]))
-                        async with self._process_comment_lock: # prevents multiple dispatch for a single comment
+                        async with self._process_comment_lock:  # prevents multiple dispatch for a single comment
                             if comment.id in self._processed_comment_ids:
                                 log.debug("Ignoring processed comment")
                                 continue
