@@ -196,7 +196,7 @@ class ConnectionState:
         self.handled_wallet = asyncio.Event()
         self.intents: Final = kwargs.get("intents", Intents.Safe)
         self.max_messages: int | None = kwargs.get("max_messages", 1000)
-        self.processed_comment_ids: set[int] = set()
+        self.processed_comment_ids: deque[int] = deque(maxlen=1000)
 
         app = kwargs.get("app")
         apps = kwargs.get("apps")
@@ -2392,7 +2392,7 @@ class ConnectionState:
                         if comment.id in self.processed_comment_ids:
                             log.debug("Ignoring processed comment")
                             continue
-                        self.processed_comment_ids.add(comment.id)
+                        self.processed_comment_ids.append(comment.id)
                         self.dispatch("comment", comment)
                     except (WSException, KeyError):
                         log.info("Failed to fetch comment %s", notification, exc_info=True)
