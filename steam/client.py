@@ -101,7 +101,7 @@ class ClientKwargs(TypedDict, total=False):
     connector: aiohttp.BaseConnector | None
     intents: Intents
     max_messages: int | None
-    max_comments: int
+    max_comments: int | None
     app: App | None
     apps: list[App]
     state: PersonaState
