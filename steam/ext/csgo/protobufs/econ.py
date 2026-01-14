@@ -48,3 +48,28 @@ class UserTrackTimePlayedConsecutively(betterproto.Message):
 class ItemCustomizationNotification(GCProtobufMessage, msg=EMsg.ItemCustomizationNotification):
     item_id: list[int] = betterproto.uint64_field(1)
     request: int = betterproto.uint32_field(2)
+
+
+class ClientRedeemFreeReward(GCProtobufMessage, msg=EMsg.ClientRedeemFreeReward):
+    generation_time: int = betterproto.uint32_field(1)
+    redeemable_balance: int = betterproto.uint32_field(2)
+    items: list[int] = betterproto.uint64_field(3)
+
+
+@dataclass(eq=False, repr=False)
+class XpProgressData(betterproto.Message):
+    xp_points: int = betterproto.uint32_field(1)
+    xp_category: int = betterproto.int32_field(2)
+
+
+class ServerNotifyXPRewarded(GCProtobufMessage, msg=EMsg.GC2ServerNotifyXPRewarded):
+    xp_progress_data: "list[XpProgressData]" = betterproto.message_field(1)
+    account_id: int = betterproto.uint32_field(2)
+    current_xp: int = betterproto.uint32_field(3)
+    current_level: int = betterproto.uint32_field(4)
+    upgraded_defidx: int = betterproto.uint32_field(5)
+    operation_points_awarded: int = betterproto.uint32_field(6)
+    free_rewards: int = betterproto.uint32_field(7)
+    xp_trail_remaining: int = betterproto.uint32_field(8)
+    xp_trail_xp_needed: int = betterproto.int32_field(9)
+    xp_trail_level: int = betterproto.uint32_field(10)

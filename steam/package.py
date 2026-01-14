@@ -253,7 +253,7 @@ class PartialPackage(Package[NameT]):
                 else:
                     err = e
         if sys.version_info >= (3, 11):
-            raise ExceptionGroup("No manifest found with id and depot_id supplied", errs)
+            raise ExceptionGroup("No manifest found with id and depot_id supplied", errs)  # noqa: F821
         else:
             raise err
 

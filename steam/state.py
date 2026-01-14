@@ -196,6 +196,9 @@ class ConnectionState:
         self.handled_wallet = asyncio.Event()
         self.intents: Final = kwargs.get("intents", Intents.Safe)
         self.max_messages: int | None = kwargs.get("max_messages", 1000)
+        self.max_comments: int = kwargs.get("max_comments", 10000)
+        self._process_comment_lock: asyncio.Lock = asyncio.Lock()
+        self._processed_comment_ids: set[int] = set()
 
         app = kwargs.get("app")
         apps = kwargs.get("apps")
@@ -2355,6 +2358,7 @@ class ConnectionState:
 
     async def handle_notifications(self, msg: notifications.GetSteamNotificationsResponse) -> None:
         for notification in msg.notifications:
+            # https://github.com/SteamDatabase/SteamTracking/blob/4a93bbf121e3a37a7552422d32ae4c4eac40bd9d/Protobufs/steammessages_notifications.steamclient.proto#L40
             match notification.notification_type:
                 case 3:  # comment
                     body: dict[str, Any] = JSON_LOADS(notification.body_data)
@@ -2386,7 +2390,15 @@ class ConnectionState:
                             log.info("Unknown commentable type %d", type)
                             continue
                     try:
-                        self.dispatch("comment", await commentable.fetch_comment(int(body["cgid"])))
+                        comment = await commentable.fetch_comment(int(body["cgid"]))
+                        async with self._process_comment_lock:  # prevents multiple dispatch for a single comment
+                            if comment.id in self._processed_comment_ids:
+                                log.debug("Ignoring processed comment: %s", comment.id)
+                                continue
+                            if len(self._processed_comment_ids) > self.max_comments:
+                                self._processed_comment_ids.pop()
+                            self._processed_comment_ids.add(comment.id)
+                        self.dispatch("comment", comment)
                     except (WSException, KeyError):
                         log.info("Failed to fetch comment %s", notification, exc_info=True)
                 case 9:  # trade, this is only going to happen at startup

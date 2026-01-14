@@ -206,7 +206,10 @@ class HTTPClient:
             or "You must have a validated email address to create a Steam Web API key" in resp
         ):
             raise RuntimeError("You must have a premium Steam account or validated email address to use this method")
-
+        if "<h2>Something is wrong</h2>" in resp:
+            raise RuntimeError(
+                "Your account does not meet the requirements for a developer API key. Your account requires Steam Guard Mobile Authenticator"
+            )
         key_re = re.compile(r"<p>Key: ([0-9A-F]+)</p>")
         if match := key_re.findall(resp):
             self.api_key = match[0]
@@ -381,7 +384,7 @@ class HTTPClient:
         active_only: bool = True,
         sent: bool = True,
         received: bool = True,
-        updated_only: bool = True,
+        updated_only: bool = False,  # sadly this doesn't seem to work anymore
         language: Language | None = None,
     ) -> trade.GetTradeOffers:
         params = {
@@ -629,7 +632,7 @@ class HTTPClient:
 
         while number_of_pages is None or page <= number_of_pages:
             resp = await self.get(url, params={"p": page, "content_only": "true"})
-            soup = BeautifulSoup(resp, HTML_PARSER)
+            soup = BeautifulSoup(resp, "html.parser")
             if not number_of_pages:
                 page_select = soup.find("div", class_="group_paging")
                 assert page_select is not None
@@ -649,7 +652,7 @@ class HTTPClient:
         return {
             ID64(
                 int(
-                    CLAN_ID64_FROM_URL_REGEX.search(clan_element)["steamid"],  # type: ignore
+                    CLAN_ID64_FROM_URL_REGEX.search(clan_element["href"])["steamid"],
                 )
             ): parse_id64(invitee_element["data-miniprofile"])
             for (clan_element, invitee_element) in zip(

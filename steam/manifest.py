@@ -6,7 +6,7 @@ import asyncio
 import errno
 import logging
 import lzma
-import os.path
+import os
 import struct
 import sys
 from base64 import b64decode
@@ -14,6 +14,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from io import BytesIO
 from operator import attrgetter, methodcaller
+from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, Any, Final, Literal, TypeGuard, cast, overload
 from zipfile import BadZipFile, ZipFile
 from zlib import crc32
@@ -43,12 +44,6 @@ from .tag import Category, Genre, Tag
 from .types.id import AppID, DepotID, ManifestID
 from .utils import DateTime, cached_slot_property
 
-if sys.platform == "win32":
-    from pathlib import PureWindowsPath as PurePathBase
-else:
-    from pathlib import PurePosixPath as PurePathBase
-
-
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Generator, Mapping, Sequence
     from datetime import datetime
@@ -62,6 +57,10 @@ if TYPE_CHECKING:
     from .types import manifest, manifest as manifest_
     from .types.vdf import VDFInt
 
+if sys.version_info < (3, 14):
+    from zstd import decompress as zstd_decompress
+else:
+    from compression.zstandard import decompress as zstd_decompress
 
 __all__ = (
     "Manifest",
@@ -93,6 +92,20 @@ def unzip(data: bytes, /) -> bytes:
         if crc32(data) != checksum:
             raise RuntimeError("VZ: CRC32 checksum doesn't match for decompressed data")
 
+    elif data[:4] == b"VSZa":
+        if data[-3:] != b"zsv":
+            raise RuntimeError(f"ZSTD: Invalid footer: {data[-3:]!r}")
+        checksum = int.from_bytes(data[4:8], "little")
+        footer_checksum = int.from_bytes(data[-15:-11], "little")
+
+        assert checksum == footer_checksum, "The 2 footers aren't equal WTF valve"  # They write CRC32 twice?
+
+        decompressed_size = int.from_bytes(data[-11:-7], "little")
+        data = zstd_decompress(data[8:-15])
+        if len(data) != decompressed_size:
+            raise RuntimeError(f"ZSTD: Decompressed size doesn't match {len(data)} != {decompressed_size}")
+        if crc32(data) != checksum:
+            raise RuntimeError("ZSTD: CRC32 checksum doesn't match for decompressed data")
     else:
         try:
             with ZipFile(BytesIO(data)) as zf:
@@ -194,7 +207,7 @@ def _manifest_parts(filename: str, /) -> list[str]:
     return filename.rstrip("\x00 \n\t").split("\\")
 
 
-class ManifestPath(PurePathBase):
+class ManifestPath(PurePosixPath):
     """A :class:`pathlib.PurePath` subclass representing a binary file in a Manifest. This class is broadly compatible
     with :class:`pathlib.Path`.
 
@@ -272,7 +285,7 @@ class ManifestPath(PurePathBase):
             if mapping is not None:
                 self._mapping = mapping
 
-        def with_segments(self, *args: StrPath) -> Self:
+        def with_segments(self, *args: StrPath) -> ManifestPath:
             new_self = self.__class__(*args, manifest=self._manifest)
             try:
                 # try and return the actual path if exists
@@ -335,7 +348,7 @@ class ManifestPath(PurePathBase):
         """Whether this file is hidden."""
         return self.flags & DepotFileFlag.Hidden > 0
 
-    def readlink(self) -> Self:
+    def readlink(self) -> ManifestPath:
         """If this path is a symlink where it points to. Similar to :meth:`pathlib.Path.readlink`
 
         Raises
@@ -350,10 +363,10 @@ class ManifestPath(PurePathBase):
         return self._manifest._paths[link_parts]
 
     @overload
-    def resolve(self, *, strict: bool = False) -> Self:  # type: ignore
+    def resolve(self, *, strict: bool = False) -> ManifestPath:  # type: ignore
         ...
 
-    def resolve(self, *, strict: bool = False, _follow_symlinks: bool = True) -> Self:
+    def resolve(self, *, strict: bool = False, _follow_symlinks: bool = True) -> ManifestPath:
         """Return the canonical path of the symbolic link, eliminating any symbolic links encountered in the path.
         Similar to :meth:`pathlib.Path.resolve`
 
@@ -412,7 +425,7 @@ class ManifestPath(PurePathBase):
             "_mapping",
         )
 
-    def iterdir(self) -> Generator[Self, None, None]:
+    def iterdir(self) -> Generator[ManifestPath, None, None]:
         """Iterate over this path. Similar to :meth:`pathlib.Path.iterdir`."""
         for path in self._manifest._paths.values():
             if path.parent == self:
@@ -420,7 +433,7 @@ class ManifestPath(PurePathBase):
 
     def walk(
         self, *, top_down: bool = True, follow_symlinks: bool = False
-    ) -> Generator[tuple[Self, list[str], list[str]], None, None]:
+    ) -> Generator[tuple[ManifestPath, list[str], list[str]], None, None]:
         """Walk this path. Similar to :meth:`pathlib.Path.walk`.
 
         Parameters
@@ -439,7 +452,7 @@ class ManifestPath(PurePathBase):
         The path currently being traversed, directories and files (``(dirpath, dirnames, filenames)``).
         """
 
-        paths: list[Self | tuple[Self, list[str], list[str]]] = [self]
+        paths: list[ManifestPath | tuple[ManifestPath, list[str], list[str]]] = [self]
 
         while paths:
             path = paths.pop()
@@ -460,7 +473,7 @@ class ManifestPath(PurePathBase):
 
             paths += [path._make_child_relpath(d) for d in reversed(dirnames)]  # type: ignore
 
-    def glob(self, pattern: str, /) -> Generator[Self, None, None]:
+    def glob(self, pattern: str, /) -> Generator[ManifestPath, None, None]:
         """Perform a glob operation on this path. Similar to :meth:`pathlib.Path.glob`."""
         if not pattern:
             raise ValueError(f"Unacceptable pattern: {pattern!r}")
@@ -469,7 +482,7 @@ class ManifestPath(PurePathBase):
             methodcaller("match", f"{self.as_posix().removesuffix('/')}/{pattern}"), self._manifest._paths.values()
         )
 
-    def rglob(self, pattern: str, /) -> Generator[Self, None, None]:
+    def rglob(self, pattern: str, /) -> Generator[ManifestPath, None, None]:
         """Perform a recursive glob operation on this path. Similar to :meth:`pathlib.Path.rglob`."""
         yield from self.glob(f"**/{pattern}")
 
@@ -781,7 +794,7 @@ class PrivateManifestInfo(ManifestInfo):
     @staticmethod
     def _get_id(depots: manifest.Depot, branch: Branch) -> VDFInt | None:
         try:
-            return depots["encryptedmanifests"][branch.name]["encrypted_gid_2"]
+            return depots["encryptedmanifests"][branch.name]["encrypted_gid_2"]  # type: ignore # I know hence why its in try except
         except KeyError:
             return None
 
@@ -1044,7 +1057,7 @@ class AppInfo(ProductInfo, PartialApp[str]):
             shared_install = bool(int(shared_install)) if (shared_install := depot.get("sharedinstall")) else None
             system_defined = bool(int(system_defined)) if (system_defined := depot.get("system_defined")) else None
             try:
-                manifests = depot["manifests"]
+                manifests = depot["manifests"]  # type: ignore  # I'm still acutely aware
             except KeyError:
                 self.headless_depots.append(
                     HeadlessDepot(

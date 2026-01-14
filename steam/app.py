@@ -410,15 +410,12 @@ class AppShopItem(DescriptionMixin):
 
     __slots__ = (
         *DescriptionMixin.SLOTS,
-        "_state",
-        "class_id",
         "def_index",
         "class_",
         "prices",
         "original_prices",
         "updated_at",
         "store_tags",
-        "_app_id",
     )
 
     def __init__(
@@ -1685,7 +1682,7 @@ class FetchedAppMovie(_IOMixin):
         self._state = state
         self.name: str = movie["name"]
         self.id: int = movie["id"]
-        self.url: ReadOnly[str] = movie["mp4"]["max"]
+        self.url: ReadOnly[str] = movie.get("dash_av1") or movie.get("dash_h264") or movie.get("hls_h264") or ""
         match = re.search(r"t=(\d+)", self.url)  # type: ignore  # should become unnecessary at some point
         self.created_at = DateTime.from_timestamp(int(match[1])) if match else None
 

@@ -101,6 +101,7 @@ class ClientKwargs(TypedDict, total=False):
     connector: aiohttp.BaseConnector | None
     intents: Intents
     max_messages: int | None
+    max_comments: int | None
     app: App | None
     apps: list[App]
     state: PersonaState
@@ -133,6 +134,8 @@ class Client:
         The intents you wish to start the client with.
     max_messages
         The maximum number of messages to store in the internal cache, default is 1000.
+    max_comments
+        the maximum number of comments to store in the internal cache, default is 10000.
     app
         An app to set your status as on connect. This will take precedence over any apps set using ``apps`` as your
         current status.
