@@ -14,7 +14,6 @@ from .enums import GameMode, Hero, LobbyType, MatchOutcome, RankTier
 from .protobufs.client_messages import ERankType
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
     from ...types.id import Intable
     from .protobufs import client_messages, common, watch
     from .state import GCState, MatchHistoryKwargs
@@ -85,9 +84,6 @@ class PartialUser(abc.PartialUser):
 
 class User(PartialUser, user.User):  # type: ignore
     __slots__ = ()
-
-    if TYPE_CHECKING:
-        async def friends(self) -> Sequence[User]
 
 
 class ProfileCard:
