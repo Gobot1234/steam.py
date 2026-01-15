@@ -153,6 +153,7 @@ class Hero(IntEnum):
     PrimalBeast       = 137
     Muerta            = 138
     Kez               = 145
+    Largo             = 155
 
     @classproperty
     def DISPLAY_NAMES(cls: type[Self]) -> Mapping[Hero, str]:  # type: ignore
@@ -284,6 +285,7 @@ class Hero(IntEnum):
             cls.PrimalBeast      : "Primal Beast",
             cls.Muerta           : "Muerta",
             cls.Kez              : "Kez",
+            cls.Largo            : "Largo",
         }
 
     @property
