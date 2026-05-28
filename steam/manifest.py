@@ -60,7 +60,7 @@ if TYPE_CHECKING:
 if sys.version_info < (3, 14):
     from zstd import decompress as zstd_decompress
 else:
-    from compression.zstandard import decompress as zstd_decompress
+    from compression.zstd import decompress as zstd_decompress
 
 __all__ = (
     "Manifest",
