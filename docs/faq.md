@@ -96,7 +96,6 @@ import asyncio
 import steam
 from steam.ext import commands
 
-
 bot = commands.Bot(command_prefix="!")
 
 
