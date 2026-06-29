@@ -87,7 +87,7 @@ class Match:
 
         self.rounds: list[Round] = []
         for round in match_info.roundstatsall:
-            player_ids = cast(list[ID32], round.reservation.account_ids)
+            player_ids = cast("list[ID32]", round.reservation.account_ids)
             team_size = len(player_ids) // len(round.team_scores)
             previous_scores = [0] * len(round.team_scores)
             teams: list[Team] = []
@@ -201,7 +201,7 @@ class MatchPlayer(PartialUser, user.WrapsUser):  # type: ignore
     mvp: bool
 
 
-LEVEL_MAP: Final = cast(Mapping[int, str], {
+LEVEL_MAP: Final = cast("Mapping[int, str]", {
     0: "Not Recruited",
     1: "Recruit",  # 1-3
     4: "Private",  # 4-7 etc.

@@ -570,9 +570,7 @@ class CWorkshopPopulateItemDescriptionsRequest(betterproto.Message):
     appid: int = betterproto.uint32_field(1)
     languages: """list[
         CWorkshopPopulateItemDescriptionsRequestItemDescriptionsLanguageBlock
-    ]""" = betterproto.message_field(
-        2
-    )
+    ]""" = betterproto.message_field(2)
 
 
 @dataclass(eq=False, repr=False)
@@ -604,9 +602,7 @@ class CWorkshopSetItemPaymentRulesRequest(betterproto.Message):
     gameitemid: int = betterproto.uint32_field(2)
     associated_workshop_files: """list[
         CWorkshopSetItemPaymentRulesRequestWorkshopItemPaymentRule
-    ]""" = betterproto.message_field(
-        3
-    )
+    ]""" = betterproto.message_field(3)
     partner_accounts: "list[CWorkshopSetItemPaymentRulesRequestPartnerItemPaymentRule]" = betterproto.message_field(4)
 
 
