@@ -11,7 +11,7 @@ from ipaddress import IPv4Address
 from operator import attrgetter
 from typing import TYPE_CHECKING, Any, Literal, cast
 
-from ._const import DOCS_BUILDING, MISSING, UNIX_EPOCH, URL, TaskGroup
+from ._const import CUSTOM_APP_ID, DOCS_BUILDING, MISSING, UNIX_EPOCH, URL, TaskGroup
 from .abc import BaseUser, Messageable
 from .app import PartialApp
 from .enums import Language, PersonaState, PersonaStateFlag, Type
@@ -85,8 +85,8 @@ class _BaseUser(BaseUser):
             self.rich_presence = {message.key: message.value for message in proto.rich_presence}
         """The rich presence of the user."""
         self.app = (
-            PartialApp(self._state, name=proto.game_name, id=proto.game_played_app_id)
-            if proto.game_played_app_id
+            PartialApp(self._state, name=proto.game_name, id=proto.game_played_app_id or proto.gameid)
+            if proto.game_played_app_id or proto.gameid == CUSTOM_APP_ID
             else None
         )
         """The app the user is playing. Is ``None`` if the user isn't in a app or one that is recognised by the API."""

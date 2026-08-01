@@ -17,6 +17,7 @@ from typing_extensions import Self, TypeVar
 
 from . import utils
 from ._const import (
+    CUSTOM_APP_ID,
     JSON_LOADS,
     STATE,
     STEAM_BADGES,
@@ -133,6 +134,10 @@ class App(Generic[NameT]):
         """Whether the app could be a Steam app."""
         return self.id <= APP_ID_MAX
 
+    def is_custom(self) -> bool:
+        """Whether the app is a custom app, used for custom activities."""
+        return self.id == CUSTOM_APP_ID
+
     @property
     def url(self) -> str:
         """The app's URL on https://steamcommunity.com."""
@@ -157,7 +162,7 @@ def CUSTOM_APP(
         The name of the app to set your playing status to.
     """
     # if actually optimising make this return a different class cause it's a u64 cause haha steam
-    return App(name=name, id=15190414816125648896)
+    return App(name=name, id=CUSTOM_APP_ID)
 
 
 class BaseOwnershipTicket:
