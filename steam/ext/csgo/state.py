@@ -129,7 +129,7 @@ class GCState(GCState_[Backpack]):
                 casket_id_low = utils.get(gc_item.attribute, def_index=272)
                 casket_id_high = utils.get(gc_item.attribute, def_index=273)
                 if not (casket_id_low and casket_id_high):
-                    log.info("Received an item that isn't our inventory %r", gc_item)
+                    log.debug("Received an item that isn't our inventory %r", gc_item)
                     continue  # the item has been removed (gc sometimes sends you items that you have deleted)
                 update_gc_item = True
                 gc_item = cast("CasketItem", utils.update_class(gc_item, CasketItem()))
@@ -246,7 +246,7 @@ class GCState(GCState_[Backpack]):
         if item is None and not (
             utils.get(cso_item.attribute, def_index=272) and utils.get(cso_item.attribute, def_index=273)
         ):  # it's also not a casket item
-            return log.info("Received an item that isn't our inventory %r", cso_item)
+            return log.debug("Received an item that isn't our inventory %r", cso_item)
 
         if item is not None:
             self.add_item_to_backpack(item)
@@ -275,7 +275,7 @@ class GCState(GCState_[Backpack]):
 
         before = utils.get(self.backpack, id=cso_item.id)
         if before is None:
-            return log.info("Received an item that isn't our inventory %r", cso_item)
+            return log.debug("Received an item that isn't our inventory %r", cso_item)
         after = utils.get(await self.update_backpack(cso_item), id=cso_item.id)
         self.dispatch("item_update", before, after)
 
@@ -287,7 +287,7 @@ class GCState(GCState_[Backpack]):
         deleted_item = base.Item().parse(msg.object_data)
         item = utils.get(self.backpack, id=deleted_item.id)
         if item is None:
-            return log.info("Received an item that isn't our inventory %r", deleted_item)
+            return log.debug("Received an item that isn't our inventory %r", deleted_item)
         for attribute_name in deleted_item.__annotations__:
             setattr(item, attribute_name, getattr(deleted_item, attribute_name))
         self.backpack.items.remove(item)  # type: ignore
