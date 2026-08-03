@@ -38,6 +38,10 @@ class MarkNotificationsReadNotification(UnifiedMessage, um_name="SteamNotificati
     mark_all_read: bool = betterproto.bool_field(4)
 
 
+class MarkNotificationsReadResponse(UnifiedMessage, um_name="SteamNotification.MarkNotificationsRead"):
+    pass
+
+
 class SetPreferencesRequest(UnifiedMessage, um_name="SteamNotification.SetPreferences"):
     preferences: "list[SteamNotificationPreference]" = betterproto.message_field(1)
 

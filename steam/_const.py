@@ -174,6 +174,7 @@ class URL:
 
 
 DEFAULT_AVATAR: Final = b"\xfe\xf4\x9e\x7f\xa7\xe1\x99s\x10\xd7\x05\xb2\xa6\x15\x8f\xf8\xdc\x1c\xdf\xeb"
+CUSTOM_APP_ID: Final = 15190414816125648896
 
 
 class _IDComparable(Protocol):
