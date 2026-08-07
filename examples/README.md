@@ -11,5 +11,6 @@ More examples should be coming soon.
 - For an automatic suspicious comment deleter see [`comment_monitor.py`](comment_monitor.py).
 - For integration with a discord.py bot see [`discord_integration.py`](discord_integration.py) (You'll need to install discord.py for this. `pip install discord`)
 - For working with your wallet see [`wallet.py`](wallet.py) (You'll need to install babel for this. `pip install babel`)
+- For a more advanced example of `ext.commands` and other functions combining to form a badge trader see [`badge_trader.py`](badge_trader.py).
 
 ###### Anyways that's all from me for now, Good luck and happy coding.
