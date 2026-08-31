@@ -98,7 +98,7 @@ class GCState(ConnectionState, Generic[Inv]):
     @property
     def backpack(self) -> Inv | None:
         try:
-            return cast(Inv, self.backpacks[APP.get().id])
+            return cast("Inv", self.backpacks[APP.get().id])
         except KeyError:
             return None
 

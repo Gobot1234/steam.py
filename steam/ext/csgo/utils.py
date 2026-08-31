@@ -7,7 +7,7 @@ from functools import reduce
 from typing import Final, NamedTuple, cast
 
 CHARS = cast(
-    Mapping[str, int], dict(zip("ABCDEFGHJKLMNOPQRSTUVWXYZabcdefhijkmnopqrstuvwxyz23456789", itertools.count()))
+    "Mapping[str, int]", dict(zip("ABCDEFGHJKLMNOPQRSTUVWXYZabcdefhijkmnopqrstuvwxyz23456789", itertools.count()))
 )
 
 

@@ -23,7 +23,7 @@ __all__ = (
 
 class BucketTypeType:
     def __new__(cls, *values: int | None) -> Self:
-        return cast(Self, values)
+        return cast("Self", values)
 
 
 class BucketType(IntEnum):
