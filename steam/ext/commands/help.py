@@ -32,7 +32,7 @@ class HelpCommand(Command[None, ..., None]):
     """The context for the command's invocation."""
 
     def __init__(self, **kwargs: Unpack[CommandKwargs]):
-        default = cast(CommandKwargs, {"name": "help", "help": "Shows this message."} | kwargs)
+        default = cast("CommandKwargs", {"name": "help", "help": "Shows this message."} | kwargs)
         super().__init__(self.command_callback, **default)
 
     async def invoke(self, ctx: Context) -> None:
