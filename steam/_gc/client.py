@@ -50,7 +50,7 @@ class Client(Client_):
         bases = [base for base in cls.__mro__ if issubclass(base, Client) and base is not Client]
         previous_state = None
         cls._GC_BASES = cast(  # type: ignore
-            tuple[type[GCState[Any]], ...],
+            "tuple[type[GCState[Any]], ...]",
             tuple(
                 dict.fromkeys(
                     previous_state := get_annotations(base, eval_str=True).get("_state", previous_state)
