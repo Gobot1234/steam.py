@@ -108,7 +108,7 @@ def converter(func: Callable[[str], T], /) -> BasicConverter[T]:
 
     annotations = get_annotations(func)
     converter_for = annotations["return"]
-    func = cast(BasicConverter[T], func)
+    func = cast("BasicConverter[T]", func)
     func.converter_for = converter_for
     CONVERTERS[converter_for].append(func)
     return func
@@ -221,7 +221,7 @@ class Converter(ConverterBase[T_co], ABC):
             (
                 command.special_converters
                 if isinstance(command, Command)
-                else cast(list[Converters], command.__special_converters__)  # type: ignore
+                else cast("list[Converters]", command.__special_converters__)  # type: ignore
             ).append(cls)
         except AttributeError:
             command.__special_converters__ = [cls]  # type: ignore
@@ -531,4 +531,4 @@ class Greedy(Sequence[T]):
         if (isinstance(converter, type) and issubclass(converter, str)) or converter is types.NoneType:
             raise TypeError(f"Greedy[{converter.__name__}] is invalid")  # type: ignore
 
-        return cast(Self, GreedyGenericAlias(cls, (converter,)))
+        return cast("Self", GreedyGenericAlias(cls, (converter,)))
