@@ -176,7 +176,7 @@ class Query:
                 raise TypeError(f"{name!r} is an invalid keyword argument for where()") from None
             metadata: tuple[Any, ...] = annotated.__metadata__
             if name in QueryWhereBoolKwargs.__annotations__:
-                value = cast(bool, value)
+                value = cast("bool", value)
                 try:
                     filter_code = metadata[not value]
                 except IndexError:
