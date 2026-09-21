@@ -14,7 +14,7 @@ import betterproto
 PROTOBUFS: Final = cast("Mapping[EMsg, type[ProtobufMessage | Message]]", {})
 RequestType: TypeAlias = "type[UnifiedMessage]"
 ResponseType: TypeAlias = "type[UnifiedMessage]"
-UMS: Final = cast(Mapping[str, tuple[RequestType, ResponseType]], {})
+UMS: Final = cast("Mapping[str, tuple[RequestType, ResponseType]]", {})
 GC_PROTOBUFS: Final = cast("Mapping[AppID, Mapping[IntEnum, type[GCProtobufMessage | GCMessage]]]", {})
 
 from .emsg import *
