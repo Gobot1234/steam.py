@@ -767,10 +767,10 @@ class Language(IntEnum):
 
 
 _REVERSE_API_LANGUAGE_MAP: Final = cast(
-    Mapping[str, Language], {value: key for key, value in Language.API_LANGUAGE_MAP.items()}
+    "Mapping[str, Language]", {value: key for key, value in Language.API_LANGUAGE_MAP.items()}
 )
 _REVERSE_WEB_API_MAP: Final = cast(
-    Mapping[str, Language], {value: key for key, value in Language.WEB_API_MAP.items()}
+    "Mapping[str, Language]", {value: key for key, value in Language.WEB_API_MAP.items()}
 )
 
 
@@ -1513,7 +1513,7 @@ class DepotFileFlag(Flags):
     """A symlink file."""
 
 
-TYPE_TRANSFORM_MAP: Final = cast(Mapping[str, str], {
+TYPE_TRANSFORM_MAP: Final = cast("Mapping[str, str]", {
     "Dlc": "DLC",
 })
 
