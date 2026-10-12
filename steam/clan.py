@@ -273,7 +273,7 @@ class PartialClan(ID[Literal[Type.Clan]], Commentable):
                 if event.name != name or event.content != content:
                     continue
                 self._state.dispatch("event_create", event)
-                return cast(Event[CreateableEvents, Self], event)
+                return cast("Event[CreateableEvents, Self]", event)
         raise ValueError
 
     async def create_announcement(
@@ -378,7 +378,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
             assert soup.title is not None
             _, _, self.name = soup.title.text.rpartition(" :: ")
             icon_url = soup.find("link", rel="image_src")
-            url = URL(cast(str, icon_url["href"])) if isinstance(icon_url, Tag) else None
+            url = URL(cast("str", icon_url["href"])) if isinstance(icon_url, Tag) else None
             if url:
                 self._avatar_sha = bytes.fromhex(url.path.removesuffix("/").removesuffix("_full.jpg"))
 
@@ -386,7 +386,7 @@ class Clan(ChatGroup[ClanMember, ClanChannel, Literal[Type.Clan]], PartialClan):
         headline_h1 = headline.h1 if isinstance(headline, Tag) else None
         self.headline = headline_h1.text if headline_h1 else None
         content = soup.find("meta", property="og:description")
-        self.summary = parse_bb_code(cast(str, content["content"])) if isinstance(content, Tag) else None
+        self.summary = parse_bb_code(cast("str", content["content"])) if isinstance(content, Tag) else None
 
         if self._is_app_clan:
             for entry in soup.find_all("div", class_="actionItem"):
