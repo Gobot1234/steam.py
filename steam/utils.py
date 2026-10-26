@@ -307,7 +307,7 @@ def call_once(func: F_wait | None = None, /, *, wait: bool = False) -> F_wait | 
                 finally:
                     being_called.remove(self)
 
-        return cast(F_wait, functools.wraps(func)(inner))
+        return cast("F_wait", functools.wraps(func)(inner))
 
     return get_inner if func is None else get_inner(func)
 
@@ -420,7 +420,7 @@ async def race(*coros: Awaitable[_T]) -> _T | None:
     return result
 
 
-PACK_FORMATS: Final = cast(Mapping[str, str], {
+PACK_FORMATS: Final = cast("Mapping[str, str]", {
     "i8": "b",
     "u8": "B",
     "i16": "h",
@@ -441,12 +441,10 @@ class StructIOMeta(type):
         for method_name, format in PACK_FORMATS.items():
             exec(f"def write_{method_name}(self, item, /): self.write_struct('<{format}', item)", {}, namespace)
             exec(
-                textwrap.dedent(
-                    f"""def read_{method_name}(self):
+                textwrap.dedent(f"""def read_{method_name}(self):
                         (value,) = self.read_struct('<{format}', {struct.calcsize(f'<{format}')})
                         return value
-                    """
-                ),
+                    """),
                 {},
                 namespace,
             )
@@ -852,7 +850,7 @@ def get(iterable: AsyncIterable[_T], /, **attrs: Any) -> Coro[_T | None]: ...
 def get(iterable: Iterable[_T], /, **attrs: Any) -> _T | None: ...
 
 
-def get(iterable: _Iter[_T], /, **attrs: Any) -> _T | None | Coro[_T | None]:
+def get(iterable: _Iter[_T], /, **attrs: Any) -> _T | Coro[_T | None] | None:
     """A helper that returns the first element in the iterable that meets all the traits passed in ``attrs``. This
     is an alternative for :func:`find`.
 

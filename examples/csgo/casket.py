@@ -31,12 +31,10 @@ class MyBot(csgo.Bot):
             return await ctx.send(f"{casket.name!r} is not a casket.")
 
         contents = await casket.contents()
-        await ctx.send(
-            f"""Info on {casket.custom_name!r}:
+        await ctx.send(f"""Info on {casket.custom_name!r}:
             - contains {casket.contained_item_count} items
             - first item in it is {contents[0].id}
-            """
-        )
+            """)
 
     @casket.command
     async def add(self, ctx: commands.Context, item: csgo.BackpackItem, casket: csgo.BackpackItem):
