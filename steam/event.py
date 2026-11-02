@@ -75,7 +75,7 @@ class BaseEvent(Commentable, utils.AsyncInit, Generic[EventTypeT, ClanT], metacl
         """The event's description."""
         self.app = PartialApp(state, id=data["appid"]) if data["appid"] else None
         """The app that the event is going to be played in."""
-        self.type = cast(EventTypeT, EventType.try_value(data["event_type"]))
+        self.type = cast("EventTypeT", EventType.try_value(data["event_type"]))
         """The event's type."""
         self.clan = clan
         """The event's clan."""
