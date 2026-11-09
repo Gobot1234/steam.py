@@ -1012,9 +1012,9 @@ GroupT = TypeVar("GroupT", bound="Group | None", default="Group | None", covaria
 @dataclass(slots=True)
 class Channel(Messageable[MessageT], Generic[MessageT, ClanT, GroupT]):
     _state: ConnectionState
-    clan: ClanT = cast(ClanT, None)
+    clan: ClanT = cast("ClanT", None)
     """The clan this channel belongs to."""
-    group: GroupT = cast(GroupT, None)
+    group: GroupT = cast("GroupT", None)
     """The group this channel belongs to."""
 
 
